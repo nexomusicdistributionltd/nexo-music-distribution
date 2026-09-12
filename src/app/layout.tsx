@@ -1,0 +1,101 @@
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { ToastProvider } from "@/components/providers/ToastProvider";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const SITE_URL = "https://nexomusicdistribution.com";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "NEXO Music Distribution | Digital Distribution & Publishing",
+    template: "%s | NEXO Music Distribution",
+  },
+  description:
+    "NEXO MUSIC DISTRIBUTION LTD — digital music distribution, publishing, and royalty management. Publishing division: Nexo Publishing Group.",
+  applicationName: "NEXO Music Distribution",
+  authors: [{ name: "NEXO MUSIC DISTRIBUTION LTD" }],
+  creator: "NEXO MUSIC DISTRIBUTION LTD",
+  publisher: "NEXO MUSIC DISTRIBUTION LTD",
+  keywords: [
+    "music distribution",
+    "digital distribution",
+    "music publishing",
+    "royalty management",
+    "Nexo Publishing Group",
+  ],
+  alternates: {
+    canonical: SITE_URL,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    siteName: "NEXO Music Distribution",
+    title: "NEXO Music Distribution",
+    description:
+      "Digital music distribution, publishing, and royalty management for artists and labels.",
+    images: [
+      {
+        url: "/brand/nexo-logo-dark.png",
+        width: 1143,
+        height: 316,
+        alt: "NEXO Music Distribution",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NEXO Music Distribution",
+    description:
+      "Digital music distribution, publishing, and royalty management.",
+    images: ["/brand/nexo-logo-dark.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f7f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#050505" },
+  ],
+  colorScheme: "dark light",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
+      >
+        <ThemeProvider>
+          <ToastProvider>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </ToastProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

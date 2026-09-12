@@ -1,0 +1,318 @@
+@import "tailwindcss";
+
+/* ============================================================
+   NEXO Design Tokens — light + dark (grayscale-first brand)
+   ============================================================ */
+
+:root {
+  /* Page / surfaces */
+  --nexo-bg: #f7f7f5;
+  --nexo-surface: #ffffff;
+  --nexo-elevated: #f0f0ee;
+  --nexo-card: #ffffff;
+  --nexo-overlay: rgba(0, 0, 0, 0.45);
+
+  /* Text */
+  --nexo-text: #0a0a0a;
+  --nexo-text-secondary: #3f3f3f;
+  --nexo-text-muted: #6b6b6b;
+  --nexo-text-inverse: #fafafa;
+
+  /* Borders / dividers */
+  --nexo-border: #e4e4e0;
+  --nexo-border-strong: #cfcfc9;
+  --nexo-divider: #ebebe7;
+
+  /* Interactive */
+  --nexo-primary: #0a0a0a;
+  --nexo-primary-fg: #fafafa;
+  --nexo-primary-hover: #262626;
+  --nexo-primary-active: #404040;
+  --nexo-secondary: #f0f0ee;
+  --nexo-secondary-fg: #0a0a0a;
+  --nexo-secondary-hover: #e4e4e0;
+  --nexo-outline: transparent;
+  --nexo-outline-border: #0a0a0a;
+  --nexo-outline-fg: #0a0a0a;
+  --nexo-outline-hover: #f0f0ee;
+  --nexo-ghost-hover: rgba(0, 0, 0, 0.05);
+
+  /* Inputs */
+  --nexo-input-bg: #ffffff;
+  --nexo-input-border: #d4d4d0;
+  --nexo-input-focus: #0a0a0a;
+  --nexo-input-placeholder: #8a8a8a;
+
+  /* Nav / chrome */
+  --nexo-nav-bg: rgba(247, 247, 245, 0.85);
+  --nexo-nav-border: rgba(0, 0, 0, 0.08);
+  --nexo-nav-link: #3f3f3f;
+  --nexo-nav-link-hover: #0a0a0a;
+  --nexo-nav-link-active: #0a0a0a;
+
+  /* Modal / tooltip / toast */
+  --nexo-modal-bg: #ffffff;
+  --nexo-tooltip-bg: #1a1a1a;
+  --nexo-tooltip-fg: #f5f5f5;
+  --nexo-toast-bg: #141414;
+  --nexo-toast-fg: #f5f5f5;
+
+  /* Notification / chart */
+  --nexo-notification-bg: #f0f0ee;
+  --nexo-chart-surface: #fafafa;
+  --nexo-chart-grid: #e8e8e4;
+  --nexo-chart-line: #0a0a0a;
+
+  /* Status (restrained, not neon) */
+  --nexo-success: #1f6b3a;
+  --nexo-success-bg: #e8f5ec;
+  --nexo-warning: #8a5b12;
+  --nexo-warning-bg: #f8f0e0;
+  --nexo-error: #9b1c1c;
+  --nexo-error-bg: #f8e8e8;
+  --nexo-info: #3f3f3f;
+  --nexo-info-bg: #efefed;
+
+  /* Focus ring */
+  --nexo-ring: rgba(10, 10, 10, 0.35);
+
+  /* Radii / motion */
+  --nexo-radius-sm: 6px;
+  --nexo-radius: 10px;
+  --nexo-radius-lg: 14px;
+  --nexo-radius-xl: 18px;
+  --nexo-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --nexo-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --nexo-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1);
+  --nexo-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nexo-duration: 180ms;
+  --nexo-duration-slow: 320ms;
+}
+
+.dark {
+  --nexo-bg: #050505;
+  --nexo-surface: #0c0c0c;
+  --nexo-elevated: #141414;
+  --nexo-card: #101010;
+  --nexo-overlay: rgba(0, 0, 0, 0.65);
+
+  --nexo-text: #f5f5f5;
+  --nexo-text-secondary: #c4c4c4;
+  --nexo-text-muted: #8a8a8a;
+  --nexo-text-inverse: #0a0a0a;
+
+  --nexo-border: #222222;
+  --nexo-border-strong: #333333;
+  --nexo-divider: #1a1a1a;
+
+  --nexo-primary: #f5f5f5;
+  --nexo-primary-fg: #0a0a0a;
+  --nexo-primary-hover: #e0e0e0;
+  --nexo-primary-active: #cfcfcf;
+  --nexo-secondary: #1a1a1a;
+  --nexo-secondary-fg: #f5f5f5;
+  --nexo-secondary-hover: #242424;
+  --nexo-outline-border: #f5f5f5;
+  --nexo-outline-fg: #f5f5f5;
+  --nexo-outline-hover: #1a1a1a;
+  --nexo-ghost-hover: rgba(255, 255, 255, 0.06);
+
+  --nexo-input-bg: #0c0c0c;
+  --nexo-input-border: #2a2a2a;
+  --nexo-input-focus: #f5f5f5;
+  --nexo-input-placeholder: #6b6b6b;
+
+  --nexo-nav-bg: rgba(5, 5, 5, 0.8);
+  --nexo-nav-border: rgba(255, 255, 255, 0.08);
+  --nexo-nav-link: #b0b0b0;
+  --nexo-nav-link-hover: #f5f5f5;
+  --nexo-nav-link-active: #f5f5f5;
+
+  --nexo-modal-bg: #121212;
+  --nexo-tooltip-bg: #f0f0f0;
+  --nexo-tooltip-fg: #111111;
+  --nexo-toast-bg: #1a1a1a;
+  --nexo-toast-fg: #f5f5f5;
+
+  --nexo-notification-bg: #161616;
+  --nexo-chart-surface: #0e0e0e;
+  --nexo-chart-grid: #222222;
+  --nexo-chart-line: #e8e8e8;
+
+  --nexo-success: #5dba7d;
+  --nexo-success-bg: #0f1f15;
+  --nexo-warning: #d4a24a;
+  --nexo-warning-bg: #221a0c;
+  --nexo-error: #e07070;
+  --nexo-error-bg: #221010;
+  --nexo-info: #c4c4c4;
+  --nexo-info-bg: #181818;
+
+  --nexo-ring: rgba(245, 245, 245, 0.35);
+  --nexo-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --nexo-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  --nexo-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+@theme inline {
+  --color-nexo-bg: var(--nexo-bg);
+  --color-nexo-surface: var(--nexo-surface);
+  --color-nexo-elevated: var(--nexo-elevated);
+  --color-nexo-card: var(--nexo-card);
+  --color-nexo-text: var(--nexo-text);
+  --color-nexo-text-secondary: var(--nexo-text-secondary);
+  --color-nexo-text-muted: var(--nexo-text-muted);
+  --color-nexo-text-inverse: var(--nexo-text-inverse);
+  --color-nexo-border: var(--nexo-border);
+  --color-nexo-border-strong: var(--nexo-border-strong);
+  --color-nexo-divider: var(--nexo-divider);
+  --color-nexo-primary: var(--nexo-primary);
+  --color-nexo-primary-fg: var(--nexo-primary-fg);
+  --color-nexo-secondary: var(--nexo-secondary);
+  --color-nexo-secondary-fg: var(--nexo-secondary-fg);
+  --color-nexo-success: var(--nexo-success);
+  --color-nexo-success-bg: var(--nexo-success-bg);
+  --color-nexo-warning: var(--nexo-warning);
+  --color-nexo-warning-bg: var(--nexo-warning-bg);
+  --color-nexo-error: var(--nexo-error);
+  --color-nexo-error-bg: var(--nexo-error-bg);
+  --color-nexo-info: var(--nexo-info);
+  --color-nexo-info-bg: var(--nexo-info-bg);
+  --color-nexo-chart-surface: var(--nexo-chart-surface);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    border-color: var(--nexo-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
+  body {
+    background: var(--nexo-bg);
+    color: var(--nexo-text);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--nexo-primary) 20%, transparent);
+  }
+}
+
+/* Typography scale utilities */
+@layer utilities {
+  .text-display {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    font-weight: 650;
+  }
+  .text-h1 {
+    font-size: clamp(2rem, 3.5vw, 2.75rem);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    font-weight: 650;
+  }
+  .text-h2 {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+  }
+  .text-h3 {
+    font-size: 1.25rem;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  .text-h4 {
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    letter-spacing: -0.015em;
+    font-weight: 600;
+  }
+  .text-body {
+    font-size: 1rem;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  .text-small {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    font-weight: 400;
+  }
+  .text-caption {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    font-weight: 450;
+  }
+  .text-nav {
+    font-size: 0.8125rem;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    font-weight: 500;
+  }
+  .text-button {
+    font-size: 0.875rem;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    font-weight: 550;
+  }
+  .text-label {
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+    font-weight: 500;
+  }
+
+  .animate-fade-in {
+    animation: nexo-fade-in var(--nexo-duration-slow) var(--nexo-ease) both;
+  }
+  .animate-rise {
+    animation: nexo-rise var(--nexo-duration-slow) var(--nexo-ease) both;
+  }
+}
+
+@keyframes nexo-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes nexo-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nexo-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.nexo-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: nexo-marquee 40s linear infinite;
+}
+
+.nexo-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nexo-marquee-track {
+    animation: none;
+  }
+  .animate-fade-in,
+  .animate-rise {
+    animation: none;
+  }
+}
