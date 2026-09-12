@@ -21,6 +21,8 @@ export interface Profile {
   display_name: string;
   country: string | null;
   avatar_url: string | null;
+  timezone?: string | null;
+  language?: string | null;
   account_status: AccountStatus;
   account_type: AppRole;
   email_verified_at: string | null;
@@ -31,9 +33,14 @@ export interface Profile {
 export interface ArtistProfile {
   id: string;
   user_id: string;
+  profile_id?: string | null;
   stage_name: string;
+  artist_name?: string | null;
   bio: string | null;
   website: string | null;
+  country?: string | null;
+  avatar_url?: string | null;
+  cover_url?: string | null;
 }
 
 export interface LabelProfile {
@@ -43,6 +50,10 @@ export interface LabelProfile {
   contact_name: string;
   business_email: string;
   website: string | null;
+  legal_business_name?: string | null;
+  logo_url?: string | null;
+  description?: string | null;
+  country?: string | null;
 }
 
 export interface AuthUserContext {
@@ -66,4 +77,9 @@ export function homePathForRoles(roles: AppRole[]): string {
   if (roles.includes("support")) return "/support";
   if (roles.includes("artist") || roles.includes("label")) return "/dashboard";
   return "/profile";
+}
+
+/** Canonical artist display name (artist_name with stage_name fallback). */
+export function artistNameOf(row: Pick<ArtistProfile, "stage_name"> & { artist_name?: string | null }): string {
+  return row.artist_name?.trim() || row.stage_name;
 }

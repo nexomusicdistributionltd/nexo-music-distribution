@@ -51,8 +51,9 @@ Never commit `.env`, `.env.local`, or real secrets. `.env.example` is safe to co
 4. Run the SQL migration in the Supabase SQL editor (or via Supabase CLI):
 
 ```bash
-# Option A — SQL editor: paste contents of
+# Option A — SQL editor: paste (in order)
 # supabase/migrations/20260912000001_auth_foundation.sql
+# supabase/migrations/20260912230000_pre_merge_hardening.sql
 
 # Option B — Supabase CLI
 supabase db push
@@ -68,8 +69,8 @@ supabase migration up
 
 ### What the migration creates
 
-- `profiles` — core account fields + `account_status` (`active` | `pending_verification` | `suspended` | `deactivated`)
-- `artist_profiles` / `label_profiles`
+- `profiles` — core account fields + `account_status` (`active` | `pending_verification` | `suspended` | `deactivated`). `profiles.id` **is** `auth.users.id` (no separate `user_id` — see `docs/auth-schema.md`). Optional `timezone` / `language`.
+- `artist_profiles` / `label_profiles` (artist_name + profile_id; label legal_business_name / country / logo)
 - `user_roles` — roles **only** in DB: `public_user`, `artist`, `label`, `support`, `admin`, `super_admin`
 - `audit_logs` — login/logout/profile_update/role_change/status_change/signup/… (never passwords/tokens)
 - Trigger `handle_new_user` (SECURITY DEFINER) creates profile + role + artist/label row on signup
@@ -98,6 +99,8 @@ Public signup accepts **artist** or **label** only.
 Suspended/deactivated accounts are blocked. Sessions persist via `@supabase/ssr` cookies.
 
 **Guards:** `RequireAuth`, `RequireVerifiedEmail`, `RequireRole`, `RequireAdmin`, `RequireSuperAdmin` (middleware + server layouts).
+
+**Security hardening:** blocked accounts are signed out (cookies cleared) before `/login?reason=account-blocked` — they are never redirected into `/dashboard`, `/admin`, or `/support`. Post-login `from` / auth `next` query params go through `safeRedirectPath` (relative same-origin paths only). Privilege changes on `profiles` are enforced by a BEFORE UPDATE trigger. Service role helpers live in `src/lib/supabase/admin.ts` (`server-only`). Checklist: `docs/auth-security-checklist.md`.
 
 ---
 

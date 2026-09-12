@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PasswordField } from "@/components/auth/PasswordField";
 import { friendlyAuthError } from "@/lib/auth/errors";
-import { homePathForRoles, isBlockedStatus, type AppRole } from "@/lib/auth/types";
+import { safeRedirectPath } from "@/lib/auth/safeRedirect";
+import { isBlockedStatus, type AppRole } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
@@ -80,7 +81,7 @@ export function LoginForm() {
 
       const roles = (roleRows ?? []).map((r) => r.role as AppRole);
       const from = search.get("from");
-      router.replace(from && from.startsWith("/") ? from : homePathForRoles(roles));
+      router.replace(safeRedirectPath(from, roles));
       router.refresh();
     } catch (err) {
       setError(friendlyAuthError(err));
