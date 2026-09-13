@@ -3,8 +3,8 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * Button colors use [color:…] instead of text-[var(…)] so twMerge does not
- * strip them when size utilities like text-caption / text-[length:…] are present.
+ * Button colors use an arbitrary color property instead of a text-color utility so
+ * twMerge does not strip them when text-size utilities are present.
  * (That conflict made size="sm" primary CTAs blank: bg matches inherited text.)
  */
 const buttonVariants = cva(

@@ -12,6 +12,12 @@ export type AccountStatus =
   | "suspended"
   | "deactivated";
 
+export type AccountRestrictionKind =
+  | "none"
+  | "submit_blocked"
+  | "login_restricted"
+  | "read_only";
+
 export type SignupRole = "artist" | "label";
 
 export interface Profile {
@@ -24,6 +30,7 @@ export interface Profile {
   timezone?: string | null;
   language?: string | null;
   account_status: AccountStatus;
+  restriction_kind?: AccountRestrictionKind;
   account_type: AppRole;
   email_verified_at: string | null;
   created_at: string;
@@ -72,9 +79,29 @@ export function isBlockedStatus(status: AccountStatus | null | undefined): boole
   return status === "suspended" || status === "deactivated";
 }
 
+export function isLoginRestricted(
+  status: AccountStatus | null | undefined,
+  restriction?: AccountRestrictionKind | null
+): boolean {
+  return isBlockedStatus(status) || restriction === "login_restricted";
+}
+
+export function isSubmitBlocked(restriction?: AccountRestrictionKind | null): boolean {
+  return (
+    restriction === "submit_blocked" ||
+    restriction === "read_only" ||
+    restriction === "login_restricted"
+  );
+}
+
+export function isReadOnlyRestriction(restriction?: AccountRestrictionKind | null): boolean {
+  return restriction === "read_only" || restriction === "login_restricted";
+}
+
 export function homePathForRoles(roles: AppRole[]): string {
-  if (roles.includes("super_admin") || roles.includes("admin")) return "/admin";
-  if (roles.includes("support")) return "/support";
+  if (roles.includes("super_admin") || roles.includes("admin") || roles.includes("support")) {
+    return "/admin";
+  }
   if (roles.includes("artist") || roles.includes("label")) return "/dashboard";
   return "/profile";
 }

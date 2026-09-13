@@ -52,7 +52,7 @@ describe("safeRedirectPath", () => {
 
   it("defaults to homePathForRoles when roles are provided", () => {
     expect(safeRedirectPath("//evil.example", ["admin"])).toBe("/admin");
-    expect(safeRedirectPath("https://evil.example", ["support"])).toBe("/support");
+    expect(safeRedirectPath("https://evil.example", ["support"])).toBe("/admin");
     expect(safeRedirectPath(null, ["artist"])).toBe("/dashboard");
     expect(safeRedirectPath("nope-not-relative", ["label"])).toBe("/dashboard");
   });

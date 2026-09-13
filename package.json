@@ -36,5 +36,5 @@
     "typescript": "^5",
     "vitest": "^3.2.7"
   },
-  "description": "NEXO Music Distribution \u2014 Batches 1\u20134 (auth + release management)"
+  "description": "NEXO Music Distribution \u2014 Batches 1\u20135 (auth + releases + admin ops)"
 }

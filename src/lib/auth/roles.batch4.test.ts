@@ -13,7 +13,7 @@ describe("Batch 4 roles / authz", () => {
   it("routes home by role", () => {
     expect(homePathForRoles(["artist"])).toBe("/dashboard");
     expect(homePathForRoles(["admin"])).toBe("/admin");
-    expect(homePathForRoles(["support"])).toBe("/support");
+    expect(homePathForRoles(["support"])).toBe("/admin");
     expect(homePathForRoles(["public_user"])).toBe("/profile");
   });
 

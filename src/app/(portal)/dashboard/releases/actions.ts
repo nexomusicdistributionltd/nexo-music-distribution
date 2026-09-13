@@ -1,7 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { RequireRole } from "@/lib/auth/guards";
+import {
+  RequireRole,
+  assertCanMutateCatalog,
+  assertCanSubmitRelease,
+} from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getProviderConnectionState } from "@/lib/provider";
 import {
@@ -48,6 +52,11 @@ export async function createReleaseDraft(input: {
   release_type: ReleaseType;
 }): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   let artistProfileId: string | null = null;
@@ -132,6 +141,11 @@ export async function updateReleaseInfo(
   }>
 ): Promise<ActionResult<ReleaseRow>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   const { data: existing, error: loadErr } = await supabase
@@ -208,6 +222,11 @@ export async function replaceTracks(
   }>
 ): Promise<ActionResult<{ count: number }>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   const { data: existing } = await supabase
@@ -285,6 +304,11 @@ export async function replaceContributors(
   }>
 ): Promise<ActionResult<{ count: number }>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   const { data: existing } = await supabase
@@ -330,6 +354,11 @@ export async function registerUploadedAsset(input: {
   replaceAssetId?: string | null;
 }): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   const { data: existing } = await supabase
@@ -419,6 +448,11 @@ export async function prepareAssetUpload(input: {
   filename: string;
 }): Promise<ActionResult<{ bucket: string; path: string; id: string }>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("releases")
@@ -445,6 +479,11 @@ export async function prepareAssetUpload(input: {
 
 export async function submitRelease(releaseId: string): Promise<ActionResult<ReleaseRow>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanSubmitRelease(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   const { data: release } = await supabase
@@ -513,6 +552,11 @@ export async function requestTakedown(
   reason: string
 ): Promise<ActionResult<ReleaseRow>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   const { data: release } = await supabase
@@ -546,6 +590,11 @@ export async function duplicateRelease(
   releaseId: string
 ): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   const { data: source } = await supabase
@@ -649,6 +698,11 @@ export async function deleteDraftRelease(
   releaseId: string
 ): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireArtistOrLabel();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
   const supabase = await createClient();
 
   const { data: existing } = await supabase

@@ -30,6 +30,13 @@ function isBlockedStatus(status: string | null | undefined) {
   return status === "suspended" || status === "deactivated";
 }
 
+function isLoginRestricted(
+  status: string | null | undefined,
+  restriction: string | null | undefined
+) {
+  return isBlockedStatus(status) || restriction === "login_restricted";
+}
+
 function blockedLoginUrl(request: NextRequest) {
   const url = request.nextUrl.clone();
   url.pathname = "/login";
@@ -104,11 +111,16 @@ export async function middleware(request: NextRequest) {
   if (user && supabase && isProtected) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_status")
+      .select("account_status, restriction_kind")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (isBlockedStatus(profile?.account_status as string | undefined)) {
+    if (
+      isLoginRestricted(
+        profile?.account_status as string | undefined,
+        profile?.restriction_kind as string | undefined
+      )
+    ) {
       return clearSessionAndRedirectBlocked(request, supabase, getResponse);
     }
 
@@ -126,10 +138,13 @@ export async function middleware(request: NextRequest) {
         .select("role")
         .eq("user_id", user.id);
       const list = (roles ?? []).map((r) => r.role as string);
-      if (!list.includes("admin") && !list.includes("super_admin")) {
+      if (
+        !list.includes("admin") &&
+        !list.includes("super_admin") &&
+        !list.includes("support")
+      ) {
         const url = request.nextUrl.clone();
-        if (list.includes("support")) url.pathname = "/support";
-        else if (list.includes("artist") || list.includes("label")) url.pathname = "/dashboard";
+        if (list.includes("artist") || list.includes("label")) url.pathname = "/dashboard";
         else url.pathname = "/profile";
         return redirectWithSession(url, getResponse);
       }
@@ -140,12 +155,17 @@ export async function middleware(request: NextRequest) {
   if (user && supabase && isAuthPage) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_status")
+      .select("account_status, restriction_kind")
       .eq("id", user.id)
       .maybeSingle();
 
-    // Blocked accounts must never be bounced into /dashboard|/admin|/support
-    if (isBlockedStatus(profile?.account_status as string | undefined)) {
+    // Blocked / login-restricted accounts must never be bounced into /dashboard|/admin|/support
+    if (
+      isLoginRestricted(
+        profile?.account_status as string | undefined,
+        profile?.restriction_kind as string | undefined
+      )
+    ) {
       return clearSessionAndRedirectBlocked(request, supabase, getResponse);
     }
 
@@ -157,7 +177,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     if (!user.email_confirmed_at) url.pathname = "/verify-email";
     else if (list.includes("admin") || list.includes("super_admin")) url.pathname = "/admin";
-    else if (list.includes("support")) url.pathname = "/support";
+    else if (list.includes("support")) url.pathname = "/admin";
     else url.pathname = "/dashboard";
     return redirectWithSession(url, getResponse);
   }
