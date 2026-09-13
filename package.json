@@ -31,9 +31,10 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.25",
+    "pg": "^8.23.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.7"
   },
-  "description": "NEXO Music Distribution — public site + Batch 3 Supabase auth"
+  "description": "NEXO Music Distribution \u2014 Batches 1\u20134 (auth + release management)"
 }

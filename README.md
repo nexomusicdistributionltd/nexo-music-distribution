@@ -89,7 +89,7 @@ Public signup accepts **artist** or **label** only.
 | `/verify-email` | Resend verification; unverified users are limited |
 | `/forgot-password` / `/reset-password` | Secure reset via Supabase email links |
 | `/profile` | Avatar, name, email, type, country, member since, status; safe edits; role not editable |
-| `/dashboard` | Artist/label home (empty shell — no fake data) |
+| `/dashboard` | Artist/label home with real release counts |
 | `/app/publishing` | Authenticated publishing nav (public marketing stays at `/publishing`) |
 | `/app/artists` | Label roster shell (public For Artists stays at `/artists`) |
 | `/support` | Authenticated support shell (public contact stays at `/contact`) |
@@ -110,9 +110,13 @@ Suspended/deactivated accounts are blocked. Sessions persist via `@supabase/ssr`
 
 Theme tokens, logos, UI kit, public marketing pages, architecture stubs, and design system are **not** rebuilt or removed.
 
-### Batch 3 (this branch)
+### Batch 3
 
 Real Supabase Auth + PostgreSQL. No distribution API / Too Lost / fake DSP/royalties/releases.
+
+### Batch 4 (dashboard + releases)
+
+Artist/label portal: dashboard counts, release wizard, catalog, QC submit, notifications, settings, private audio/artwork storage, status history, NotConnectedProvider. See `docs/batch-4-architecture.md`. No DSP delivery.
 
 ### Public routes (unchanged URLs)
 

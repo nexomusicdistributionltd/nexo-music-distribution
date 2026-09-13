@@ -1,9 +1,10 @@
 /**
  * Distribution Provider Adapter Interface
  * --------------------------------------
- * Batch 1: interface only. No implementation, no credentials, no network calls.
- * A future provider (e.g. DistroKid-style, FUGA, Believe, custom) can implement
- * this contract without rebuilding the application shell.
+ * Batch 1: interface stub.
+ * Batch 4: real server-only adapter lives in `@/lib/provider` with
+ * `NotConnectedProvider` as the default. This module remains the
+ * architecture reference; prefer importing from `@/lib/provider` in app code.
  */
 
 export type ProviderArtistId = string;
@@ -48,7 +49,6 @@ export interface UploadAudioInput {
   trackId?: ProviderTrackId;
   filename: string;
   mimeType: string;
-  /** Byte stream or storage pointer — concrete providers define transport */
   sourceRef: string;
 }
 
@@ -102,8 +102,10 @@ export interface AnalyticsQuery {
 }
 
 /**
- * Adapter contract for an external distribution engine.
- * Implementations live outside Batch 1 and must never be stubbed with fake data.
+ * Legacy Batch 1 adapter shape. Runtime Batch 4 contract:
+ * `@/lib/provider` (`DistributionProvider`) with submitRelease, updateRelease,
+ * requestTakedown, getReleaseStatus, getDeliveryStatus, getCatalog, syncRelease,
+ * handleWebhook — NotConnectedProvider throws until configured.
  */
 export interface DistributionProviderAdapter {
   createArtist(input: CreateArtistInput): Promise<ProviderArtistId>;
@@ -121,7 +123,6 @@ export interface DistributionProviderAdapter {
   getAnalytics(query: AnalyticsQuery): Promise<unknown>;
 }
 
-/** Registry placeholder — wire a real adapter in a later batch. */
 export type DistributionProviderRegistry = {
   getActive(): DistributionProviderAdapter | null;
 };

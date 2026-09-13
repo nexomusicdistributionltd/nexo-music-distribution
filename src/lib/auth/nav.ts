@@ -19,31 +19,38 @@ export function navForRoles(roles: AppRole[]): NavItem[] {
   if (roles.includes("support")) {
     return [
       { href: "/support", label: "Support" },
-      { href: "/profile", label: "Profile" },
+      { href: "/dashboard/profile", label: "Profile" },
     ];
   }
 
   if (roles.includes("label")) {
     return [
       { href: "/dashboard", label: "Dashboard" },
+      { href: "/dashboard/releases", label: "Releases" },
+      { href: "/dashboard/catalog", label: "Catalog" },
+      { href: "/dashboard/releases/new", label: "Create" },
       { href: "/app/artists", label: "Artists" },
-      { href: "/releases", label: "Releases" },
       { href: "/earnings", label: "Earnings" },
       { href: "/analytics", label: "Analytics" },
       { href: "/app/publishing", label: "Publishing" },
-      { href: "/profile", label: "Profile" },
+      { href: "/dashboard/notifications", label: "Notifications" },
+      { href: "/dashboard/profile", label: "Profile" },
+      { href: "/dashboard/settings", label: "Settings" },
       { href: "/support", label: "Support" },
     ];
   }
 
-  // artist (and fallback)
   return [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/releases", label: "Releases" },
+    { href: "/dashboard/releases", label: "Releases" },
+    { href: "/dashboard/catalog", label: "Catalog" },
+    { href: "/dashboard/releases/new", label: "Create" },
     { href: "/earnings", label: "Earnings" },
     { href: "/analytics", label: "Analytics" },
     { href: "/app/publishing", label: "Publishing" },
-    { href: "/profile", label: "Profile" },
+    { href: "/dashboard/notifications", label: "Notifications" },
+    { href: "/dashboard/profile", label: "Profile" },
+    { href: "/dashboard/settings", label: "Settings" },
     { href: "/support", label: "Support" },
   ];
 }
