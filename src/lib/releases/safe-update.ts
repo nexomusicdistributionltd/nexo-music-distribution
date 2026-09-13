@@ -68,5 +68,9 @@ export function pickReleaseUpdateFields(
 
 /** Strip PostgREST .or() metacharacters from catalog search input. */
 export function sanitizeReleaseSearchQuery(raw: string): string {
-  return raw.trim().replace(/[,.()"'\\]/g, "").slice(0, 100);
+  return raw
+    .replace(/[%_,()."'\\:*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
 }
