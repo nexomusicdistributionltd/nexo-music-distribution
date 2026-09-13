@@ -1,16 +1,17 @@
 /**
- * Auth + RBAC architecture foundation (Batch 1).
- * No real auth provider connected. Protected route stubs only.
+ * Auth + RBAC — Batch 3.
+ * Roles are enforced in Postgres (user_roles + RLS). This module mirrors
+ * application-level checks for UI and route helpers.
  */
 
-import type { UserRole } from "@/architecture/db/types";
+import type { AppRole } from "@/lib/auth/types";
 
-export const ALL_ROLES: UserRole[] = [
+export type { AppRole };
+
+export const ALL_ROLES: AppRole[] = [
+  "public_user",
   "artist",
-  "label_admin",
-  "label_member",
-  "publishing_admin",
-  "publishing_member",
+  "label",
   "support",
   "admin",
   "super_admin",
@@ -26,9 +27,11 @@ export type Permission =
   | "publishing:write"
   | "admin:users"
   | "admin:qc"
-  | "support:tickets";
+  | "support:tickets"
+  | "audit:read";
 
-const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
+  public_user: [],
   artist: [
     "catalog:read",
     "catalog:write",
@@ -38,14 +41,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "publishing:read",
     "support:tickets",
   ],
-  label_member: [
-    "catalog:read",
-    "catalog:write",
-    "royalties:read",
-    "publishing:read",
-    "support:tickets",
-  ],
-  label_admin: [
+  label: [
     "catalog:read",
     "catalog:write",
     "release:submit",
@@ -54,8 +50,6 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "publishing:read",
     "support:tickets",
   ],
-  publishing_member: ["publishing:read", "support:tickets"],
-  publishing_admin: ["publishing:read", "publishing:write", "support:tickets"],
   support: ["support:tickets", "catalog:read"],
   admin: [
     "catalog:read",
@@ -68,6 +62,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "admin:users",
     "admin:qc",
     "support:tickets",
+    "audit:read",
   ],
   super_admin: [
     "catalog:read",
@@ -80,10 +75,11 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "admin:users",
     "admin:qc",
     "support:tickets",
+    "audit:read",
   ],
 };
 
-export function permissionsForRoles(roles: UserRole[]): Set<Permission> {
+export function permissionsForRoles(roles: AppRole[]): Set<Permission> {
   const set = new Set<Permission>();
   for (const role of roles) {
     for (const p of ROLE_PERMISSIONS[role] ?? []) set.add(p);
@@ -91,29 +87,17 @@ export function permissionsForRoles(roles: UserRole[]): Set<Permission> {
   return set;
 }
 
-export function hasPermission(roles: UserRole[], permission: Permission): boolean {
+export function hasPermission(roles: AppRole[], permission: Permission): boolean {
   return permissionsForRoles(roles).has(permission);
 }
 
-/** Route → required permission map for future middleware. */
-export const PROTECTED_ROUTE_STUBS: Record<string, Permission | Permission[]> = {
-  "/portal": "catalog:read",
-  "/portal/releases": "catalog:read",
-  "/portal/releases/new": "catalog:write",
-  "/portal/royalties": "royalties:read",
-  "/portal/payouts": "payouts:request",
-  "/portal/publishing": "publishing:read",
-  "/admin": "admin:users",
-  "/admin/qc": "admin:qc",
-  "/support": "support:tickets",
-};
-
-/**
- * Placeholder guard — always denies until real auth is wired.
- * Do not fake a logged-in session.
- */
-export function assertAuthenticated(): never {
-  throw new Error(
-    "Authentication is not connected in Batch 1. Wire an auth provider before enabling protected routes."
-  );
-}
+export const PROTECTED_ROUTE_PREFIXES = [
+  "/dashboard",
+  "/releases",
+  "/earnings",
+  "/analytics",
+  "/profile",
+  "/app",
+  "/support",
+  "/admin",
+] as const;

@@ -104,7 +104,7 @@ export function Navbar() {
                 Log In
               </Button>
             </Link>
-            <Link href="/get-started" className="hidden sm:inline-flex">
+            <Link href="/register" className="hidden sm:inline-flex">
               <Button size="sm" className="gap-1.5 rounded-full px-4">
                 Get Started
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -192,7 +192,7 @@ export function Navbar() {
                   Log In
                 </Button>
               </Link>
-              <Link href="/get-started" onClick={() => setOpen(false)}>
+              <Link href="/register" onClick={() => setOpen(false)}>
                 <Button className="w-full gap-1.5 rounded-full">
                   Get Started
                   <ArrowRight className="h-3.5 w-3.5" />

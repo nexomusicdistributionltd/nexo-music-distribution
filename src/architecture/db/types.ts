@@ -7,14 +7,15 @@ export type UUID = string;
 export type ISODateTime = string;
 
 export type UserRole =
+  | "public_user"
   | "artist"
-  | "label_admin"
-  | "label_member"
-  | "publishing_admin"
-  | "publishing_member"
+  | "label"
   | "support"
   | "admin"
   | "super_admin";
+
+/** @deprecated Use AppRole from @/lib/auth/types — alias kept for Batch 1 imports */
+export type LegacyUserRole = UserRole;
 
 export interface User {
   id: UUID;

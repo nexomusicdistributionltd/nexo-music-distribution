@@ -1,6 +1,6 @@
 # NEXO Music Distribution
 
-Public marketing website for **NEXO MUSIC DISTRIBUTION LTD**  
+Public marketing website + **Batch 3 authentication** for **NEXO MUSIC DISTRIBUTION LTD**  
 https://nexomusicdistribution.com
 
 Digital Music Distribution | Publishing | Royalty Management  
@@ -12,6 +12,8 @@ Publishing division: **Nexo Publishing Group**
 
 ```bash
 cd /workspace/nexo-music-distribution
+cp .env.example .env.local
+# Fill NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
 npm install
 npm run dev
 ```
@@ -27,60 +29,103 @@ npm start
 
 ---
 
-## Batch 2 notes (public website)
+## Environment variables
 
-Batch 2 extends the Batch 1 foundation (theme tokens, logos, UI kit, architecture stubs, RBAC, provider interface). It does **not** rebuild or delete that foundation.
+| Variable | Visibility | Purpose |
+|----------|------------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Browser + server | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser + server | Supabase anon (public) key |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | Optional privileged key — never prefix with `NEXT_PUBLIC_` |
 
-### Public routes
+**Note:** Some earlier project briefs mentioned `VITE_*` variables. This app is **Next.js** and uses `NEXT_PUBLIC_*` for client-exposed values.
 
-| Route | Notes |
-|-------|--------|
-| `/` | Full marketing homepage (hero → footer) |
-| `/distribution` | Distribution overview |
-| `/publishing` | Nexo Publishing Group |
-| `/artists` | For Artists (canonical) |
-| `/labels` | For Labels (canonical) |
-| `/pricing` | Architecture complete — **no invented prices** |
-| `/services` | Services overview |
-| `/about` | Mission only — no invented founders/offices/awards |
-| `/contact` | Real form UI — submit disabled until backend configured |
-| `/faq` | Accurate FAQ answers |
-| `/get-started` | Onboarding interest paths |
-| `/login` | Auth shell — disabled, honest |
-| `404` | Polished not-found |
+Never commit `.env`, `.env.local`, or real secrets. `.env.example` is safe to commit.
 
-**Redirects:** `/for-artists` → `/artists`, `/for-labels` → `/labels` (Next.js `redirects` + page redirects).
+---
 
-### Homepage density
+## Supabase setup (Batch 3)
 
-Hero, trust indicators, DSP marquee (real Simple Icons brand SVGs + Amazon Music path), six feature cards, product showcase with **demo** dashboard UI, For Artists / For Labels, Publishing Group, workflow 01–06, QC, royalty demo UI, global reach, confirmed stats only (30+ Artists, 50+ Releases, 10+ New Releases/Month, 450+ Platforms), final CTA, footer.
+1. Create a project at [https://supabase.com](https://supabase.com).
+2. In **Project Settings → API**, copy the Project URL and `anon` `public` key into `.env.local`.
+3. (Optional) Copy the `service_role` key into `SUPABASE_SERVICE_ROLE_KEY` for server-only admin jobs — **do not** expose it to the browser.
+4. Run the SQL migration in the Supabase SQL editor (or via Supabase CLI):
 
-### Intentional placeholders
+```bash
+# Option A — SQL editor: paste (in order)
+# supabase/migrations/20260912000001_auth_foundation.sql
+# supabase/migrations/20260912230000_pre_merge_hardening.sql
 
-- Newsletter signup — disabled / coming soon
-- Social URLs — labels only, no fabricated links
-- Legal pages — “soon”
-- Contact form & login submit — disabled; no fake success
-- Pricing amounts — “Contact Nexo” / being finalized
-- Dashboard & royalty figures — labeled **Demo / Showcase** only
-- Language selector — UI present, not multi-locale yet
-- Artist portal / auth / uploads / admin — out of scope (public site only)
+# Option B — Supabase CLI
+supabase db push
+# or
+supabase migration up
+```
 
-### Brand & theme
+5. Auth settings (Authentication → URL configuration):
+   - Site URL: `http://localhost:3000` (dev) / your production domain
+   - Redirect URLs: `http://localhost:3000/auth/callback`, `http://localhost:3000/auth/confirm`, `http://localhost:3000/reset-password`
+6. Enable **Email** provider. Confirm email templates point at `/auth/confirm` or use the default PKCE `/auth/callback` flow.
+7. Storage: migration creates a public `avatars` bucket + RLS. Confirm it exists under Storage.
 
-- `public/brand/nexo-logo-dark.png` / `nexo-logo-light.png` with theme switching via `Logo`
-- Black + white premium editorial aesthetic; light and dark intentional
-- DSP logos from `simple-icons` (monochrome `currentColor`) — not generic notes or AI fakes
+### What the migration creates
 
-### Stack
+- `profiles` — core account fields + `account_status` (`active` | `pending_verification` | `suspended` | `deactivated`). `profiles.id` **is** `auth.users.id` (no separate `user_id` — see `docs/auth-schema.md`). Optional `timezone` / `language`.
+- `artist_profiles` / `label_profiles` (artist_name + profile_id; label legal_business_name / country / logo)
+- `user_roles` — roles **only** in DB: `public_user`, `artist`, `label`, `support`, `admin`, `super_admin`
+- `audit_logs` — login/logout/profile_update/role_change/status_change/signup/… (never passwords/tokens)
+- Trigger `handle_new_user` (SECURITY DEFINER) creates profile + role + artist/label row on signup
+- RLS: own profile only; **no role self-edit**; **no privileged self-signup** (staff roles cannot be chosen at register)
+
+Public signup accepts **artist** or **label** only.
+
+---
+
+## Auth flow notes
+
+| Path | Behavior |
+|------|----------|
+| `/register` | Artist or label registration → email verification |
+| `/login` | Password sign-in; redirects by role |
+| `/verify-email` | Resend verification; unverified users are limited |
+| `/forgot-password` / `/reset-password` | Secure reset via Supabase email links |
+| `/profile` | Avatar, name, email, type, country, member since, status; safe edits; role not editable |
+| `/dashboard` | Artist/label home (empty shell — no fake data) |
+| `/app/publishing` | Authenticated publishing nav (public marketing stays at `/publishing`) |
+| `/app/artists` | Label roster shell (public For Artists stays at `/artists`) |
+| `/support` | Authenticated support shell (public contact stays at `/contact`) |
+| `/admin/*` | Admin/super_admin only |
+
+**Redirects after login:** artist/label → `/dashboard`; admin/super_admin → `/admin`; support → `/support`.  
+Suspended/deactivated accounts are blocked. Sessions persist via `@supabase/ssr` cookies.
+
+**Guards:** `RequireAuth`, `RequireVerifiedEmail`, `RequireRole`, `RequireAdmin`, `RequireSuperAdmin` (middleware + server layouts).
+
+**Security hardening:** blocked accounts are signed out (cookies cleared) before `/login?reason=account-blocked` — they are never redirected into `/dashboard`, `/admin`, or `/support`. Post-login `from` / auth `next` query params go through `safeRedirectPath` (relative same-origin paths only). Privilege changes on `profiles` are enforced by a BEFORE UPDATE trigger. Service role helpers live in `src/lib/supabase/admin.ts` (`server-only`). Checklist: `docs/auth-security-checklist.md`.
+
+---
+
+## Batch notes
+
+### Batch 1–2 (preserved)
+
+Theme tokens, logos, UI kit, public marketing pages, architecture stubs, and design system are **not** rebuilt or removed.
+
+### Batch 3 (this branch)
+
+Real Supabase Auth + PostgreSQL. No distribution API / Too Lost / fake DSP/royalties/releases.
+
+### Public routes (unchanged URLs)
+
+`/`, `/distribution`, `/publishing`, `/artists`, `/labels`, `/pricing`, `/services`, `/about`, `/contact`, `/faq`, `/get-started`, plus auth pages.
+
+---
+
+## Stack
 
 - Next.js 15 (App Router) + TypeScript
 - Tailwind CSS v4 + design tokens in `src/app/globals.css`
-- `next-themes`, `lucide-react`, `simple-icons`, `cva` / `clsx` / `tailwind-merge`
-
-### Architecture stubs (unchanged intent)
-
-`src/architecture/` still holds provider adapter interface, DB types, RBAC, module boundaries — **no** distribution API connection or fake keys.
+- `@supabase/ssr` + `@supabase/supabase-js`
+- `next-themes`, `lucide-react`, `simple-icons`
 
 ---
 

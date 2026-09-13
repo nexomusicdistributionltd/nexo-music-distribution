@@ -10,7 +10,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Get Started",
   description:
-    "Start with NEXO Music Distribution — register interest for artist or label onboarding. Account creation connects in a later batch.",
+    "Start with NEXO Music Distribution — create an artist or label account to access the portal.",
   alternates: { canonical: `${SITE_URL}/get-started` },
 };
 
@@ -20,14 +20,14 @@ export default function Page() {
       <PageHero
         eyebrow="Get Started"
         title="Begin with Nexo"
-        description="Tell us whether you are an artist or a label. Full account creation and payments are not connected in this public website build — interest and contact paths are real."
+        description="Create an artist or label account to access the portal. Distribution APIs and payments are not connected yet — registration and authentication are real."
         crumbs={[{ label: "Home", href: "/" }, { label: "Get Started" }]}
       />
 
       <Section>
-        <Alert title="Onboarding status">
-          Self-serve signup is coming later. Use Contact for commercial questions, or choose a
-          path below to continue browsing while we prepare account creation.
+        <Alert title="Account creation">
+          Self-serve artist and label registration is available. Staff accounts are provisioned by Nexo.
+          Use Contact for commercial questions.
         </Alert>
 
         <div className="mt-10 grid gap-4 md:grid-cols-2">
@@ -44,9 +44,9 @@ export default function Page() {
                   For Artists
                 </Button>
               </Link>
-              <Link href="/contact">
+              <Link href="/register?type=artist">
                 <Button className="gap-2 rounded-full">
-                  Contact <ArrowRight className="h-4 w-4" />
+                  Register <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
@@ -64,9 +64,9 @@ export default function Page() {
                   For Labels
                 </Button>
               </Link>
-              <Link href="/contact">
+              <Link href="/register?type=label">
                 <Button className="gap-2 rounded-full">
-                  Contact Sales <ArrowRight className="h-4 w-4" />
+                  Register label <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
