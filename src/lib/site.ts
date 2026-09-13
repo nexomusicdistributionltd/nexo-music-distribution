@@ -1,3 +1,5 @@
+export { getSiteUrl, absoluteUrl, DEFAULT_SITE_URL } from "@/lib/site-url";
+
 export const SITE_URL = "https://nexomusicdistribution.com";
 export const SITE_NAME = "NEXO Music Distribution";
 export const COMPANY_LEGAL = "NEXO MUSIC DISTRIBUTION LTD";

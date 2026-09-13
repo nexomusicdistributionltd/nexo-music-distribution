@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next";
-
-const BASE = "https://nexomusicdistribution.com";
+import { getSiteUrl } from "@/lib/site-url";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const BASE = getSiteUrl();
   const paths = [
     "",
     "/distribution",
@@ -15,7 +15,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/contact",
     "/faq",
     "/get-started",
-    "/login",
   ];
   const now = new Date();
   return paths.map((path) => ({

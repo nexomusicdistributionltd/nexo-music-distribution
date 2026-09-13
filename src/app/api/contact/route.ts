@@ -1,7 +1,26 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  RATE_LIMITS,
+  checkRateLimit,
+  clientIpFromRequest,
+  rateLimitHeaders,
+} from "@/lib/security/rate-limit";
+import { publicErrorMessage } from "@/lib/http/safe-error";
 
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request);
+  const limited = checkRateLimit({
+    key: `contact:${ip}`,
+    ...RATE_LIMITS.contact,
+  });
+  if (!limited.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Too many requests. Please try again later." },
+      { status: 429, headers: rateLimitHeaders(limited) }
+    );
+  }
+
   let body: {
     name?: string;
     email?: string;
@@ -25,6 +44,9 @@ export async function POST(request: Request) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ ok: false, error: "Invalid email." }, { status: 400 });
   }
+  if (name.length > 200 || subject.length > 300 || message.length > 10000) {
+    return NextResponse.json({ ok: false, error: "Fields too long." }, { status: 400 });
+  }
 
   const supabase = await createClient();
   const ua = request.headers.get("user-agent");
@@ -34,12 +56,18 @@ export async function POST(request: Request) {
     p_subject: subject,
     p_message: message,
     p_source_ip: null,
-    p_user_agent: ua,
+    p_user_agent: ua?.slice(0, 500) ?? null,
   });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: publicErrorMessage(error.message, "Could not submit message.") },
+      { status: 400 }
+    );
   }
 
-  return NextResponse.json({ ok: true, id: data });
+  return NextResponse.json(
+    { ok: true, id: data },
+    { headers: rateLimitHeaders(limited) }
+  );
 }

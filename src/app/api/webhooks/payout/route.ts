@@ -9,6 +9,13 @@ import {
   extractPayoutWebhookEventType,
   getPaymentProvider,
 } from "@/lib/finance/payment";
+import {
+  RATE_LIMITS,
+  checkRateLimit,
+  clientIpFromRequest,
+  rateLimitHeaders,
+} from "@/lib/security/rate-limit";
+import { publicErrorMessage } from "@/lib/http/safe-error";
 
 export const runtime = "nodejs";
 
@@ -27,6 +34,18 @@ function serviceClient() {
  * Idempotent by (provider_name, event_id).
  */
 export async function POST(req: Request) {
+  const ip = clientIpFromRequest(req);
+  const limited = checkRateLimit({
+    key: `webhook:payout:${ip}`,
+    ...RATE_LIMITS.webhook,
+  });
+  if (!limited.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Too many requests" },
+      { status: 429, headers: rateLimitHeaders(limited) }
+    );
+  }
+
   const rawBody = await req.text();
   const signature =
     req.headers.get("x-payment-signature") ||
@@ -108,7 +127,7 @@ export async function POST(req: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: publicErrorMessage(error.message, "Webhook processing failed") }, { status: 500 });
   }
 
   if (!verification.ok) {

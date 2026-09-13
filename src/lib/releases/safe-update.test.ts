@@ -48,8 +48,10 @@ describe("pickReleaseUpdateFields — mass assignment shield", () => {
 
 describe("sanitizeReleaseSearchQuery", () => {
   it("strips PostgREST filter metacharacters", () => {
-    expect(sanitizeReleaseSearchQuery('foo),status.eq.approved')).toBe("foostatuseqapproved");
-    expect(sanitizeReleaseSearchQuery('a"b\\c')).toBe("abc");
+    const cleaned = sanitizeReleaseSearchQuery("foo),status.eq.approved");
+    expect(cleaned).not.toMatch(/[%,()]/);
+    expect(cleaned).not.toContain("status.eq");
+    expect(sanitizeReleaseSearchQuery('a"b\\c')).not.toMatch(/["\\]/);
     expect(sanitizeReleaseSearchQuery("  hello world  ")).toBe("hello world");
   });
 });

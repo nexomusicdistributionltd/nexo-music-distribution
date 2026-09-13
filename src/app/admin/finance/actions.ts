@@ -10,6 +10,7 @@ import { getPaymentProvider, paymentNotConnectedMessage } from "@/lib/finance/pa
 import { validatePublishingShares } from "@/lib/publishing/shares";
 import type { PublishingRightType } from "@/lib/publishing/types";
 
+import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
   | { ok: false; error: string };
@@ -37,6 +38,11 @@ export async function createPayoutAction(input: {
   idempotencyKey?: string;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:payouts");
+  const rl = checkRateLimit({
+    key: `admin:payout:create`,
+    ...RATE_LIMITS.payoutCreate,
+  });
+  if (!rl.ok) return { ok: false, error: "Too many payout requests. Try again later." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_payout_request", {
     p_owner_user_id: input.ownerUserId,
@@ -79,6 +85,11 @@ export async function updatePayoutStatusFinanceAction(input: {
 /** Attempt provider payout — truthful UNAVAILABLE when not connected. */
 export async function processPayoutWithProviderAction(payoutId: string): Promise<ActionResult> {
   await RequireAdminPermission("admin:payouts");
+  const rl = checkRateLimit({
+    key: `admin:payout:process`,
+    ...RATE_LIMITS.adminMutation,
+  });
+  if (!rl.ok) return { ok: false, error: "Too many payout process attempts. Try again later." };
   const provider = getPaymentProvider();
   if (!provider.connected) {
     return { ok: false, error: paymentNotConnectedMessage() };
@@ -190,6 +201,11 @@ export async function upsertRoyaltyImportBatchAction(input: {
   currency?: string;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:royalties");
+  const rl = checkRateLimit({
+    key: `admin:royalty:import`,
+    ...RATE_LIMITS.royaltyImport,
+  });
+  if (!rl.ok) return { ok: false, error: "Too many import mutations. Try again later." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("upsert_royalty_import_batch", {
     p_source_provider: input.sourceProvider,
@@ -217,6 +233,11 @@ export async function upsertRoyaltyImportRowAction(input: {
   periodEnd?: string;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:royalties");
+  const rl = checkRateLimit({
+    key: `admin:royalty:import:row`,
+    ...RATE_LIMITS.royaltyImport,
+  });
+  if (!rl.ok) return { ok: false, error: "Too many import mutations. Try again later." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("upsert_royalty_import_row", {
     p_batch_id: input.batchId,

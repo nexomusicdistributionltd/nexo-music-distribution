@@ -31,6 +31,7 @@ import {
   assertOwnedAssetPath,
   buildAssetPath,
 } from "@/lib/storage/release-assets";
+import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -448,6 +449,12 @@ export async function prepareAssetUpload(input: {
   filename: string;
 }): Promise<ActionResult<{ bucket: string; path: string; id: string }>> {
   const ctx = await requireArtistOrLabel();
+  const rlUp = checkRateLimit({
+    key: `release:upload:${ctx.userId}`,
+    ...RATE_LIMITS.assetUpload,
+  });
+  if (!rlUp.ok) return { ok: false, error: "Too many uploads. Please try again later." };
+
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {
@@ -479,6 +486,12 @@ export async function prepareAssetUpload(input: {
 
 export async function submitRelease(releaseId: string): Promise<ActionResult<ReleaseRow>> {
   const ctx = await requireArtistOrLabel();
+  const rl = checkRateLimit({
+    key: `release:submit:${ctx.userId}`,
+    ...RATE_LIMITS.releaseSubmit,
+  });
+  if (!rl.ok) return { ok: false, error: "Too many submit attempts. Please try again later." };
+
   try {
     assertCanSubmitRelease(ctx);
   } catch (e) {
