@@ -6,6 +6,7 @@ import type {
   ProviderSubmissionRow,
   ProviderWebhookEventRow,
 } from "./types";
+import { sanitizeDistributionSearchQuery } from "./search";
 
 export async function listDistributionJobs(filters?: {
   status?: string;
@@ -113,7 +114,7 @@ export async function getDistributionOverviewCounts() {
 
 export async function searchDistribution(q: string) {
   const supabase = await createClient();
-  const term = q.trim().slice(0, 80);
+  const term = sanitizeDistributionSearchQuery(q);
   if (!term) return { releases: [], jobs: [] };
 
   const { data: releases } = await supabase

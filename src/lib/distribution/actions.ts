@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { getProvider, getProviderConnectionState } from "@/lib/provider";
 import { toProviderErrorPayload, PROVIDER_NOT_CONNECTED_CODE } from "@/lib/provider/errors";
 import { mapProviderStatusToRelease } from "./types";
@@ -108,7 +109,26 @@ export async function submitQueuedRelease(
       territories: release.territories ?? [],
     });
 
-    const { data, error } = await supabase.rpc("complete_submit_queued_release", {
+    // Success finalize is service_role only — never forge via staff JWT.
+    let service;
+    try {
+      service = createServiceClient();
+    } catch {
+      await supabase.rpc("complete_submit_queued_release", {
+        p_submission_id: began.submission_id,
+        p_ok: false,
+        p_error_code: PROVIDER_NOT_CONNECTED_CODE,
+        p_error_message:
+          "Cannot finalize submit — service role not configured / Provider Not Connected.",
+      });
+      return {
+        ok: false,
+        error: "Provider Not Connected / cannot finalize",
+        code: PROVIDER_NOT_CONNECTED_CODE,
+      };
+    }
+
+    const { data, error } = await service.rpc("complete_submit_queued_release", {
       p_submission_id: began.submission_id,
       p_ok: true,
       p_provider_release_id: result.providerReleaseId,
@@ -166,6 +186,18 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
   try {
     const status = await provider.syncRelease(job.provider_release_id);
     const mapped = mapProviderStatusToRelease(status.status);
+
+    if (mapped) {
+      // Staff RPC sets trusted GUC — never call transition_release_status with spoofable source.
+      const { data, error } = await supabase.rpc("apply_provider_sync_status", {
+        p_job_id: jobId,
+        p_mapped_status: mapped,
+        p_provider_status: status.status,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data: { run: data, status, mapped } };
+    }
+
     const { data, error } = await supabase.rpc("record_provider_sync_run", {
       p_job_id: jobId,
       p_status: "succeeded",
@@ -173,16 +205,6 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
       p_delivery_status: mapped,
     });
     if (error) return { ok: false, error: error.message };
-
-    if (mapped) {
-      await supabase.rpc("transition_release_status", {
-        p_release_id: job.release_id,
-        p_new_status: mapped,
-        p_reason: "Provider sync",
-        p_metadata: { source: "sync_release_status", provider_status: status.status },
-      });
-    }
-
     return { ok: true, data: { run: data, status, mapped } };
   } catch (err) {
     const payload = toProviderErrorPayload(err);
