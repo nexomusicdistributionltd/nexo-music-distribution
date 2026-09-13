@@ -46,7 +46,7 @@ export function validateReleaseForSubmit(input: {
     | "upc"
     | "territories"
   >;
-  tracks: Pick<ReleaseTrackRow, "track_number" | "title" | "isrc">[];
+  tracks: Pick<ReleaseTrackRow, "track_number" | "title" | "isrc" | "id">[];
   assets: Pick<ReleaseAssetRow, "kind" | "track_id">[];
   contributors: Pick<ReleaseContributorRow, "name" | "role">[];
 }): ValidationIssue[] {
@@ -113,12 +113,28 @@ export function validateReleaseForSubmit(input: {
     issues.push({ field: "artwork", message: "Cover artwork is required." });
   }
 
-  const audioCount = assets.filter((a) => a.kind === "audio").length;
-  if (audioCount < tracks.length) {
+  const audioAssets = assets.filter((a) => a.kind === "audio");
+  if (audioAssets.length < tracks.length) {
     issues.push({
       field: "audio",
       message: "Each track must have an audio file before submit.",
     });
+  } else {
+    // Prefer per-track linkage when track_id is present on assets
+    const linked = new Set(
+      audioAssets.map((a) => a.track_id).filter((id): id is string => Boolean(id))
+    );
+    if (linked.size > 0) {
+      for (const t of tracks) {
+        const trackId = (t as { id?: string }).id;
+        if (trackId && !linked.has(trackId)) {
+          issues.push({
+            field: `track.${t.track_number}.audio`,
+            message: `Track ${t.track_number} is missing linked audio.`,
+          });
+        }
+      }
+    }
   }
 
   const hasNamedContributor = contributors.some((c) => Boolean(c.name?.trim()));

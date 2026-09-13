@@ -34,7 +34,7 @@ describe("validateReleaseForSubmit", () => {
       upc: null,
       territories: ["WW"],
     },
-    tracks: [{ track_number: 1, title: "Song", isrc: null }],
+    tracks: [{ id: "t1", track_number: 1, title: "Song", isrc: null }],
     assets: [
       { kind: "artwork" as const, track_id: null },
       { kind: "audio" as const, track_id: "t1" },
@@ -62,6 +62,17 @@ describe("validateReleaseForSubmit", () => {
       release: { ...base.release, release_type: "album" },
     });
     expect(issues.some((i) => i.field === "tracks")).toBe(true);
+  });
+
+  it("requires audio linked to each track when track_id is set", () => {
+    const issues = validateReleaseForSubmit({
+      ...base,
+      assets: [
+        { kind: "artwork", track_id: null },
+        { kind: "audio", track_id: "other" },
+      ],
+    });
+    expect(issues.some((i) => i.field === "track.1.audio")).toBe(true);
   });
 
   it("rejects AUTO upc tokens", () => {
