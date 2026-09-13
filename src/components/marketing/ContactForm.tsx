@@ -7,28 +7,50 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
 
 export function ContactForm() {
-  const [attempted, setAttempted] = React.useState(false);
+  const [pending, setPending] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [done, setDone] = React.useState(false);
 
   return (
     <form
       className="space-y-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        setAttempted(true);
+        const form = e.currentTarget;
+        setPending(true);
+        setError(null);
+        setDone(false);
+        const fd = new FormData(e.currentTarget);
+        const payload = {
+          name: String(fd.get("name") || ""),
+          email: String(fd.get("email") || ""),
+          subject: String(fd.get("subject") || ""),
+          message: String(fd.get("message") || ""),
+        };
+        try {
+          const res = await fetch("/api/contact", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const json = (await res.json()) as { ok: boolean; error?: string };
+          if (!res.ok || !json.ok) {
+            setError(json.error || "Could not send message.");
+          } else {
+            setDone(true);
+            form.reset();
+          }
+        } catch {
+          setError("Network error.");
+        }
+        setPending(false);
       }}
       noValidate
     >
-      <Alert title="Form delivery requires configuration">
-        This contact form is a complete UI. Message delivery is not connected yet —
-        submit is disabled until a backend endpoint or email service is configured.
-        Prefer emailing via the contact details on this page when available, or use
-        Get Started for onboarding interest.
-      </Alert>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1.5">
           <span className="text-label text-[var(--nexo-text)]">Name</span>
-          <Input name="name" autoComplete="name" placeholder="Your name" disabled />
+          <Input name="name" autoComplete="name" placeholder="Your name" required disabled={pending} />
         </label>
         <label className="block space-y-1.5">
           <span className="text-label text-[var(--nexo-text)]">Email</span>
@@ -37,31 +59,40 @@ export function ContactForm() {
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
-            disabled
+            required
+            disabled={pending}
           />
         </label>
       </div>
       <label className="block space-y-1.5">
         <span className="text-label text-[var(--nexo-text)]">Subject</span>
-        <Input name="subject" placeholder="How can we help?" disabled />
+        <Input name="subject" placeholder="How can we help?" required disabled={pending} />
       </label>
       <label className="block space-y-1.5">
         <span className="text-label text-[var(--nexo-text)]">Message</span>
-        <Textarea name="message" rows={5} placeholder="Tell us about your project" disabled />
+        <Textarea
+          name="message"
+          rows={5}
+          placeholder="Tell us about your project"
+          required
+          disabled={pending}
+        />
       </label>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled title="Backend not configured">
-          Send message (disabled)
+        <Button type="submit" disabled={pending}>
+          {pending ? "Sending…" : "Send message"}
         </Button>
-        <p className="text-caption text-[var(--nexo-text-muted)]">
-          Honest state: no fake success messages.
-        </p>
       </div>
 
-      {attempted ? (
+      {error ? (
         <Alert variant="warning" title="Not sent">
-          Delivery is not configured in this build.
+          {error}
+        </Alert>
+      ) : null}
+      {done ? (
+        <Alert title="Received">
+          Your message was stored in the contact inbox. We will follow up by email.
         </Alert>
       ) : null}
     </form>

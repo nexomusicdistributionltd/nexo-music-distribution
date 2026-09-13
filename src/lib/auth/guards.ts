@@ -6,6 +6,7 @@ import {
   type AppRole,
   type AuthUserContext,
 } from "@/lib/auth/types";
+import { hasAdminPermission, type AdminPermission } from "@/lib/admin/permissions";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
 function authNotConfiguredRedirect() {
@@ -54,12 +55,23 @@ export async function RequireRole(
   return ctx;
 }
 
+/** Admin portal: admin, super_admin, support. */
 export async function RequireAdmin(): Promise<AuthUserContext> {
-  return RequireRole(["admin", "super_admin"]);
+  return RequireRole(["admin", "super_admin", "support"]);
 }
 
 export async function RequireSuperAdmin(): Promise<AuthUserContext> {
   return RequireRole("super_admin");
+}
+
+export async function RequireAdminPermission(
+  permission: AdminPermission
+): Promise<AuthUserContext> {
+  const ctx = await RequireAdmin();
+  if (!hasAdminPermission(ctx.roles, permission)) {
+    redirect(homePathForRoles(ctx.roles));
+  }
+  return ctx;
 }
 
 /** Soft check for layouts that need optional session. */

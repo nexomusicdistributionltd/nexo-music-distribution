@@ -1,5 +1,5 @@
 /**
- * Auth + RBAC — Batch 3.
+ * Auth + RBAC — Batch 3/5.
  * Roles are enforced in Postgres (user_roles + RLS). This module mirrors
  * application-level checks for UI and route helpers.
  */
@@ -27,6 +27,9 @@ export type Permission =
   | "publishing:write"
   | "admin:users"
   | "admin:qc"
+  | "admin:access"
+  | "admin:finance"
+  | "admin:roles"
   | "support:tickets"
   | "audit:read";
 
@@ -50,7 +53,13 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
     "publishing:read",
     "support:tickets",
   ],
-  support: ["support:tickets", "catalog:read"],
+  support: [
+    "support:tickets",
+    "catalog:read",
+    "admin:access",
+    "admin:qc",
+    "audit:read",
+  ],
   admin: [
     "catalog:read",
     "catalog:write",
@@ -61,6 +70,8 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
     "publishing:write",
     "admin:users",
     "admin:qc",
+    "admin:access",
+    "admin:finance",
     "support:tickets",
     "audit:read",
   ],
@@ -74,6 +85,9 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
     "publishing:write",
     "admin:users",
     "admin:qc",
+    "admin:access",
+    "admin:finance",
+    "admin:roles",
     "support:tickets",
     "audit:read",
   ],

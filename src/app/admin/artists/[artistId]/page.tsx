@@ -1,0 +1,114 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { RequireAdmin } from "@/lib/auth/guards";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { AccountStatusForm } from "@/components/admin/AccountStatusForm";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { createClient } from "@/lib/supabase/server";
+import { artistNameOf } from "@/lib/auth/types";
+
+export const metadata: Metadata = {
+  title: "Artist detail",
+  robots: { index: false, follow: false },
+};
+
+export default async function ArtistDetailPage({
+  params,
+}: {
+  params: Promise<{ artistId: string }>;
+}) {
+  await RequireAdmin();
+  const { artistId } = await params;
+  const supabase = await createClient();
+  const { data: artist } = await supabase
+    .from("artist_profiles")
+    .select("*")
+    .eq("id", artistId)
+    .maybeSingle();
+  if (!artist) notFound();
+
+  const [{ data: profile }, { data: releases }, { data: timeline }, { data: tickets }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", artist.user_id).maybeSingle(),
+      supabase
+        .from("releases")
+        .select("id, title, status, updated_at")
+        .eq("artist_profile_id", artistId)
+        .order("updated_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("activity_events")
+        .select("*")
+        .eq("subject_user_id", artist.user_id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("support_tickets")
+        .select("id, subject, status, updated_at")
+        .eq("requester_user_id", artist.user_id)
+        .limit(10),
+    ]);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={artistNameOf(artist)}
+        description={profile?.email || artist.user_id}
+      />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="space-y-2 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
+          <h2 className="text-h4">Profile</h2>
+          <p className="text-small">Status: {profile?.account_status ?? "—"}</p>
+          <p className="text-small">{artist.bio || "No bio."}</p>
+          <AccountStatusForm userId={artist.user_id} />
+        </section>
+        <section className="space-y-2">
+          <h2 className="text-h4">Releases</h2>
+          {(releases ?? []).length === 0 ? (
+            <EmptyState title="No related releases" />
+          ) : (
+            <ul className="space-y-1 text-small">
+              {(releases ?? []).map((r) => (
+                <li key={r.id}>
+                  <Link href={`/admin/releases/${r.id}`} className="underline-offset-4 hover:underline">
+                    {r.title || "Untitled"} ({r.status})
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h2 className="pt-4 text-h4">Tickets</h2>
+          {(tickets ?? []).length === 0 ? (
+            <p className="text-caption text-[var(--nexo-text-muted)]">No tickets.</p>
+          ) : (
+            <ul className="space-y-1 text-small">
+              {(tickets ?? []).map((t) => (
+                <li key={t.id}>
+                  <Link href={`/admin/support?ticket=${t.id}`}>{t.subject}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+      <section>
+        <h2 className="mb-2 text-h4">Operational timeline</h2>
+        {(timeline ?? []).length === 0 ? (
+          <EmptyState
+            title="No timeline events"
+            description="Staff-visible operational events will appear here (private notes are excluded)."
+          />
+        ) : (
+          <ul className="space-y-2 text-small">
+            {(timeline ?? []).map((e) => (
+              <li key={e.id}>
+                {new Date(e.created_at).toLocaleString()} — {e.summary}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}

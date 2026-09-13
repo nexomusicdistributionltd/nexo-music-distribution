@@ -126,10 +126,13 @@ export async function middleware(request: NextRequest) {
         .select("role")
         .eq("user_id", user.id);
       const list = (roles ?? []).map((r) => r.role as string);
-      if (!list.includes("admin") && !list.includes("super_admin")) {
+      if (
+        !list.includes("admin") &&
+        !list.includes("super_admin") &&
+        !list.includes("support")
+      ) {
         const url = request.nextUrl.clone();
-        if (list.includes("support")) url.pathname = "/support";
-        else if (list.includes("artist") || list.includes("label")) url.pathname = "/dashboard";
+        if (list.includes("artist") || list.includes("label")) url.pathname = "/dashboard";
         else url.pathname = "/profile";
         return redirectWithSession(url, getResponse);
       }
@@ -157,7 +160,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     if (!user.email_confirmed_at) url.pathname = "/verify-email";
     else if (list.includes("admin") || list.includes("super_admin")) url.pathname = "/admin";
-    else if (list.includes("support")) url.pathname = "/support";
+    else if (list.includes("support")) url.pathname = "/admin";
     else url.pathname = "/dashboard";
     return redirectWithSession(url, getResponse);
   }

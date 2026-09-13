@@ -17,16 +17,18 @@ function isActive(pathname: string, href: string) {
 export function AppSidebar({
   items,
   accountLabel,
+  logoHref = "/dashboard",
 }: {
   items: NavItem[];
   accountLabel?: string;
+  logoHref?: string;
 }) {
   const pathname = usePathname();
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
       <div className="flex h-16 items-center border-b border-[var(--nexo-border)] px-4">
-        <Logo height={26} href="/dashboard" />
+        <Logo height={26} href={logoHref} />
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-3" aria-label="App">
         {items.map((item) => {

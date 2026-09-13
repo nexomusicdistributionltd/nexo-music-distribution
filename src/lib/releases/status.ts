@@ -108,8 +108,9 @@ export function isEditableStatus(status: ReleaseStatus): boolean {
   return EDITABLE_STATUSES.includes(status);
 }
 
-export function canDuplicate(_status: ReleaseStatus): boolean {
+export function canDuplicate(status: ReleaseStatus): boolean {
   // Safe to duplicate metadata from any status into a new draft
+  void status;
   return true;
 }
 

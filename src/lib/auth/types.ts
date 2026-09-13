@@ -73,8 +73,9 @@ export function isBlockedStatus(status: AccountStatus | null | undefined): boole
 }
 
 export function homePathForRoles(roles: AppRole[]): string {
-  if (roles.includes("super_admin") || roles.includes("admin")) return "/admin";
-  if (roles.includes("support")) return "/support";
+  if (roles.includes("super_admin") || roles.includes("admin") || roles.includes("support")) {
+    return "/admin";
+  }
   if (roles.includes("artist") || roles.includes("label")) return "/dashboard";
   return "/profile";
 }

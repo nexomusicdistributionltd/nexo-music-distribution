@@ -4,14 +4,20 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
 
-/** Subscribes to notifications + owned releases for live status/unread updates (RLS applies). */
-export function RealtimeRefresh({ userId }: { userId: string }) {
+/** RLS-filtered realtime refresh for portal and staff operations. */
+export function RealtimeRefresh({
+  userId,
+  staff = false,
+}: {
+  userId: string;
+  staff?: boolean;
+}) {
   const router = useRouter();
 
   React.useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`portal-${userId}`)
+    let channel = supabase
+      .channel(`${staff ? "staff" : "portal"}-${userId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
@@ -19,15 +25,39 @@ export function RealtimeRefresh({ userId }: { userId: string }) {
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "releases", filter: `owner_user_id=eq.${userId}` },
+        { event: "UPDATE", schema: "public", table: "releases", ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }) },
         () => router.refresh()
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_tickets", ...(staff ? {} : { filter: `requester_user_id=eq.${userId}` }) },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_messages" },
+        () => router.refresh()
+      );
 
+    if (staff) {
+      channel = channel
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "qc_queue_items" },
+          () => router.refresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "contact_messages" },
+          () => router.refresh()
+        );
+    }
+
+    channel.subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [userId, router]);
+  }, [userId, staff, router]);
 
   return null;
 }
