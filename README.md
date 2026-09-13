@@ -137,3 +137,11 @@ Artist/label portal: dashboard counts, release wizard, catalog, QC submit, notif
 
 NEXO MUSIC DISTRIBUTION LTD  
 https://nexomusicdistribution.com
+
+## Email architecture
+
+- Auth templates: `supabase/templates/` + `docs/supabase-auth-emails.md` (Supabase Go templates).
+- Operational templates: `emails/templates/` with catalog in `src/lib/email/catalog.ts` / `emails/catalog.ts`.
+- Outbox table: `email_events` (migration `supabase/migrations/20260913180000_email_events_outbox.sql`).
+- Provider: set `EMAIL_PROVIDER` / `RESEND_API_KEY` — without a real provider, events stay `pending`/`unavailable` (never fake `sent`).
+- Admin UI: `/admin/emails` (permission `admin:emails`).

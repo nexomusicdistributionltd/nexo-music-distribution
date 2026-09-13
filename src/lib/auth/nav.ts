@@ -19,6 +19,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/support", label: "Support" },
   { href: "/admin/contact", label: "Contact" },
   { href: "/admin/notifications", label: "Notifications" },
+  { href: "/admin/emails", label: "Emails" },
   { href: "/admin/audit", label: "Audit" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/settings", label: "Settings" },
@@ -29,6 +30,12 @@ export function navForRoles(roles: AppRole[]): NavItem[] {
     return ADMIN_NAV.filter((item) => {
       if (item.href === "/admin/settings") {
         return hasAdminPermission(roles, "admin:settings");
+      }
+      if (item.href === "/admin/emails") {
+        return (
+          hasAdminPermission(roles, "admin:emails") ||
+          hasAdminPermission(roles, "admin:notifications")
+        );
       }
       return true;
     });

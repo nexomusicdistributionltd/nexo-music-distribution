@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { RequireRole } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFilename } from "@/lib/storage/release-assets";
+import { enqueueEmailEvent } from "@/lib/email/enqueue";
+import { resolveProfileRecipient } from "@/lib/email/resolve-recipient";
 
 export type SupportActionResult =
   | { ok: true; id?: string }
@@ -42,6 +44,25 @@ export async function createSupportTicket(input: {
     is_internal: false,
   });
   if (messageError) return { ok: false, error: messageError.message };
+
+  try {
+    const recipient = await resolveProfileRecipient(supabase, ctx.userId);
+    if (recipient && ticket?.id) {
+      await enqueueEmailEvent(supabase, {
+        eventType: "support",
+        templateKey: "SUPPORT_TICKET_CREATED",
+        recipientUserId: recipient.userId,
+        recipientEmail: recipient.email,
+        relatedEntityType: "support_ticket",
+        relatedEntityId: ticket.id,
+        payload: { FIRST_NAME: recipient.displayName ?? "", STATUS: "open" },
+        idempotencyKey: `SUPPORT_TICKET_CREATED:${ticket.id}:app`,
+        createdBy: ctx.userId,
+      });
+    }
+  } catch {
+    /* non-fatal; DB trigger also enqueues */
+  }
 
   revalidatePath("/support");
   revalidatePath("/admin/support");

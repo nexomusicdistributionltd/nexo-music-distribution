@@ -24,6 +24,8 @@ import type {
   ReleaseType,
 } from "@/lib/releases/types";
 import {
+import { enqueueEmailEvent } from "@/lib/email/enqueue";
+import { resolveReleaseOwnerRecipient } from "@/lib/email/resolve-recipient";
   ARTWORK_BUCKET,
   AUDIO_BUCKET,
   assertArtworkFile,
@@ -531,6 +533,30 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
   });
 
   if (error) return { ok: false, error: error.message };
+
+  // Enqueue ONLY after successful submit RPC (DB trigger also enqueues)
+  try {
+    const owner = await resolveReleaseOwnerRecipient(supabase, releaseId);
+    await enqueueEmailEvent(supabase, {
+      eventType: "release.submit",
+      templateKey: "RELEASE_SUBMITTED",
+      recipientUserId: owner?.userId ?? null,
+      recipientEmail: owner?.email ?? null,
+      relatedReleaseId: releaseId,
+      relatedEntityType: "release",
+      relatedEntityId: releaseId,
+      payload: {
+        RELEASE_ID: releaseId,
+        RELEASE_TITLE: (data as { title?: string } | null)?.title ?? release.title,
+        ARTIST_NAME: (data as { primary_artist_name?: string } | null)?.primary_artist_name ?? release.primary_artist_name,
+        STATUS: "submitted",
+      },
+      idempotencyKey: `RELEASE_SUBMITTED:${releaseId}:submitted:app`,
+      createdBy: ctx.userId,
+    });
+  } catch {
+    /* non-fatal */
+  }
 
   try {
     await supabase.rpc("write_audit_log", {
