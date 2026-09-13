@@ -6,6 +6,10 @@ import { Alert } from "@/components/ui/Alert";
 import { createClient } from "@/lib/supabase/server";
 import { formatMinorUnits } from "@/lib/finance/money";
 import { PayoutStatusControls } from "@/components/admin/PayoutStatusControls";
+import { FinanceNav } from "@/components/finance/FinanceNav";
+import { getPaymentConnectionState } from "@/lib/finance/payment";
+import { CreatePayoutForm } from "@/components/finance/CreatePayoutForm";
+import type { PayoutStatus } from "@/lib/finance/money";
 
 export const metadata: Metadata = {
   title: "Payouts",
@@ -15,6 +19,7 @@ export const metadata: Metadata = {
 export default async function PayoutsPage() {
   await RequireAdmin();
   const supabase = await createClient();
+  const payment = getPaymentConnectionState();
   const { data } = await supabase
     .from("payouts")
     .select("*")
@@ -25,15 +30,22 @@ export default async function PayoutsPage() {
     <div>
       <PageHeader
         title="Payouts"
-        description="Statuses: PENDING → … → PAID. Marking PAID is blocked without a real payment operation."
+        description="PENDING → UNDER_REVIEW → APPROVED → PROCESSING → PAID | REJECTED | FAILED. PAID never client-markable."
       />
+      <FinanceNav />
       <Alert variant="warning" title="Payment protection">
-        The UI never offers a one-click PAID action. Database constraints require
-        payment_reference and paid_at from a real payment op.
+        {payment.message} Marking PAID requires payment_reference + paid_at from an authorized
+        server/provider path.
       </Alert>
+      <div className="mt-4">
+        <CreatePayoutForm />
+      </div>
       {(data ?? []).length === 0 ? (
         <div className="mt-4">
-          <EmptyState title="No financial data available yet" description="Payout rows will appear when created by finance ops." />
+          <EmptyState
+            title="No financial data available yet"
+            description="Payout rows appear when created by finance ops after eligibility checks."
+          />
         </div>
       ) : (
         <ul className="mt-4 space-y-3">
@@ -49,9 +61,11 @@ export default async function PayoutsPage() {
                   </p>
                   <p className="text-caption text-[var(--nexo-text-muted)]">
                     {p.status} · {p.owner_user_id}
+                    {p.compliance_hold ? " · COMPLIANCE HOLD" : ""}
+                    {p.payment_reference ? ` · ref ${p.payment_reference}` : ""}
                   </p>
                 </div>
-                <PayoutStatusControls payoutId={p.id} status={p.status} />
+                <PayoutStatusControls payoutId={p.id} status={p.status as PayoutStatus} />
               </div>
             </li>
           ))}

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Alert } from "@/components/ui/Alert";
 import { createClient } from "@/lib/supabase/server";
 import { formatMinorUnits } from "@/lib/finance/money";
+import { FinanceNav } from "@/components/finance/FinanceNav";
+import { getPaymentConnectionState } from "@/lib/finance/payment";
 
 export const metadata: Metadata = {
   title: "Finance",
@@ -14,40 +16,55 @@ export const metadata: Metadata = {
 export default async function FinancePage() {
   await RequireAdmin();
   const supabase = await createClient();
-  const [{ count: ledgerCount }, { data: recent }] = await Promise.all([
+  const payment = getPaymentConnectionState();
+  const [{ count: ledgerCount }, { data: recent }, { data: balances }] = await Promise.all([
     supabase.from("ledger_entries").select("id", { count: "exact", head: true }),
     supabase
       .from("ledger_entries")
-      .select("id, amount_minor, currency, kind, description, created_at")
+      .select("id, amount_minor, currency, kind, description, created_at, balance_bucket")
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase.from("ledger_balances").select("*").limit(50),
   ]);
 
   return (
     <div>
       <PageHeader
         title="Finance"
-        description="Ledger uses integer minor units + ISO currency. No casual edit/delete."
+        description="Ledger uses integer minor units + ISO currency. Append-only; corrections via compensating adjustments."
       />
-      <div className="mb-4 flex gap-3 text-small">
-        <Link href="/admin/royalties" className="underline-offset-4 hover:underline">
-          Royalties
-        </Link>
-        <Link href="/admin/payouts" className="underline-offset-4 hover:underline">
-          Payouts
-        </Link>
-      </div>
+      <FinanceNav />
+      <Alert variant="warning" title="Payment provider">
+        {payment.message}
+      </Alert>
+      {(balances ?? []).length > 0 ? (
+        <ul className="mb-4 mt-4 grid gap-2 sm:grid-cols-2">
+          {(balances ?? []).map((b) => (
+            <li
+              key={`${b.owner_user_id}-${b.currency}`}
+              className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-3 text-small"
+            >
+              <p className="font-medium">{b.currency}</p>
+              <p className="tabular-nums text-caption text-[var(--nexo-text-muted)]">
+                available {formatMinorUnits(b.available_minor, b.currency)} · pending{" "}
+                {formatMinorUnits(b.pending_minor, b.currency)} · paid{" "}
+                {formatMinorUnits(b.paid_minor, b.currency)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {(ledgerCount ?? 0) === 0 ? (
         <EmptyState
           title="No financial data available yet"
-          description="Ledger entries appear when royalty imports or adjustments are recorded."
+          description="Ledger entries appear when royalty imports or adjustments are recorded. No fabricated balances."
         />
       ) : (
         <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
           {(recent ?? []).map((e) => (
             <li key={e.id} className="flex justify-between px-4 py-3 text-small">
               <span>
-                {e.kind} · {e.description || "—"}
+                {e.kind} · {e.balance_bucket} · {e.description || "—"}
               </span>
               <span className="tabular-nums">
                 {formatMinorUnits(e.amount_minor, e.currency)}

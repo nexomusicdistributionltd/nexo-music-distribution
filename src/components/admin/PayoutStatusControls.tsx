@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/Button";
 import { updatePayoutStatusAction } from "@/app/admin/actions";
+import { processPayoutWithProviderAction } from "@/app/admin/finance/actions";
 import { allowedPayoutTransitions, type PayoutStatus } from "@/lib/finance/money";
 
 export function PayoutStatusControls({
@@ -40,6 +41,23 @@ export function PayoutStatusControls({
           Mark {s}
         </Button>
       ))}
+      {(status === "approved" || status === "processing") && (
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={pending}
+          onClick={async () => {
+            setPending(true);
+            setError(null);
+            const r = await processPayoutWithProviderAction(payoutId);
+            setPending(false);
+            if (!r.ok) setError(r.error);
+            else window.location.reload();
+          }}
+        >
+          Process via provider
+        </Button>
+      )}
       <Button size="sm" variant="ghost" disabled title="Requires real payment operation">
         Mark paid (disabled)
       </Button>
