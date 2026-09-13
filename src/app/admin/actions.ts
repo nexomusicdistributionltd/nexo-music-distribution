@@ -13,6 +13,14 @@ import {
 import { canTransitionPayout, type PayoutStatus } from "@/lib/finance/money";
 import type { AppRole } from "@/lib/auth/types";
 import { isAllowedAdminSettingKey } from "@/lib/admin/settings";
+import { enqueueEmailEvent } from "@/lib/email/enqueue";
+import { processEmailEvent } from "@/lib/email/outbox";
+import {
+  templateKeysForQcDecision,
+  assertApprovedTemplateKey,
+} from "@/lib/email/catalog";
+import { resolveProfileRecipient, resolveReleaseOwnerRecipient } from "@/lib/email/resolve-recipient";
+import { createServiceClient } from "@/lib/supabase/admin";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -63,7 +71,7 @@ export async function performQcDecisionAction(input: {
   artistVisibleReason?: string;
   internalNote?: string;
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:qc");
+  const qcCtx = await RequireAdminPermission("admin:qc");
   const check = validateQcDecision({
     decision: input.decision,
     artistVisibleReason: input.artistVisibleReason,
@@ -85,10 +93,50 @@ export async function performQcDecisionAction(input: {
     p_internal_note: input.internalNote ?? null,
   });
   if (error) return { ok: false, error: error.message };
+
+  // Enqueue operational email ONLY after successful QC RPC (SQL also enqueues; app path is belt-and-suspenders)
+  try {
+    const owner = await resolveReleaseOwnerRecipient(supabase, input.releaseId);
+    const keys = templateKeysForQcDecision(input.decision);
+    const reviewId =
+      data && typeof data === "object" && data !== null && "id" in data
+        ? String((data as { id: string }).id)
+        : crypto.randomUUID();
+    for (const templateKey of keys) {
+      const enq = await enqueueEmailEvent(supabase, {
+        eventType: "release.qc",
+        templateKey,
+        recipientUserId: owner?.userId ?? null,
+        recipientEmail: owner?.email ?? null,
+        relatedReleaseId: input.releaseId,
+        relatedEntityType: "qc_review",
+        relatedEntityId: reviewId,
+        payload: {
+          RELEASE_ID: input.releaseId,
+          ARTIST_VISIBLE_REASON: input.artistVisibleReason ?? "",
+          STATUS: input.decision,
+        },
+        idempotencyKey: `${templateKey}:${input.releaseId}:${input.decision}:app:${reviewId}`,
+        createdBy: qcCtx.userId,
+      });
+      if (enq.id) {
+        try {
+          const svc = createServiceClient();
+          await processEmailEvent(svc, enq.id);
+        } catch {
+          // Provider may be unavailable — leave pending/unavailable; never fake sent
+        }
+      }
+    }
+  } catch {
+    // Do not fail the QC action if enqueue/process fails
+  }
+
   revalidateAdmin([
     "/admin/qc",
     "/admin/releases",
     `/admin/releases/${input.releaseId}`,
+    "/admin/emails",
   ]);
   return { ok: true, data };
 }
@@ -124,7 +172,45 @@ export async function setAccountStatusAction(input: {
     p_restriction: input.restriction ?? null,
   });
   if (error) return { ok: false, error: error.message };
-  revalidateAdmin(["/admin/users", "/admin/artists", "/admin/labels"]);
+
+  try {
+    const profile = await resolveProfileRecipient(supabase, input.userId);
+    const templateKey =
+      input.status === "suspended"
+        ? "ACCOUNT_SUSPENDED"
+        : input.status === "active"
+          ? "ACCOUNT_RESTORED"
+          : input.restriction && input.restriction !== "none"
+            ? "ACCOUNT_RESTRICTED"
+            : null;
+    if (templateKey && profile) {
+      const enq = await enqueueEmailEvent(supabase, {
+        eventType: "account.status",
+        templateKey,
+        recipientUserId: profile.userId,
+        recipientEmail: profile.email,
+        relatedEntityType: "profile",
+        relatedEntityId: input.userId,
+        payload: {
+          STATUS: input.status,
+          ARTIST_VISIBLE_REASON: input.reason.trim(),
+          FIRST_NAME: profile.displayName ?? "",
+        },
+        idempotencyKey: `${templateKey}:${input.userId}:${input.status}:app:${crypto.randomUUID()}`,
+      });
+      if (enq.id) {
+        try {
+          await processEmailEvent(createServiceClient(), enq.id);
+        } catch {
+          /* provider unavailable */
+        }
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  revalidateAdmin(["/admin/users", "/admin/artists", "/admin/labels", "/admin/emails"]);
   return { ok: true, data };
 }
 
@@ -201,16 +287,52 @@ export async function updateTicketAction(input: {
   }
 
   if (input.reply?.trim()) {
-    const { error } = await supabase.from("support_messages").insert({
+    const { data: msg, error } = await supabase.from("support_messages").insert({
       ticket_id: input.ticketId,
       author_user_id: ctx.userId,
       body: input.reply.trim(),
       is_internal: input.internal === true,
-    });
+    }).select("id").maybeSingle();
     if (error) return { ok: false, error: error.message };
+
+    // Non-internal staff replies: SQL trigger also enqueues; app path optional process
+    if (input.internal !== true && msg?.id) {
+      try {
+        const { data: ticket } = await supabase
+          .from("support_tickets")
+          .select("requester_user_id")
+          .eq("id", input.ticketId)
+          .maybeSingle();
+        if (ticket?.requester_user_id) {
+          const recipient = await resolveProfileRecipient(supabase, ticket.requester_user_id);
+          if (recipient) {
+            const enq = await enqueueEmailEvent(supabase, {
+              eventType: "support",
+              templateKey: "SUPPORT_TICKET_REPLY",
+              recipientUserId: recipient.userId,
+              recipientEmail: recipient.email,
+              relatedEntityType: "support_message",
+              relatedEntityId: msg.id,
+              payload: { FIRST_NAME: recipient.displayName ?? "", STATUS: "reply" },
+              idempotencyKey: `SUPPORT_TICKET_REPLY:${msg.id}:app`,
+              createdBy: ctx.userId,
+            });
+            if (enq.id) {
+              try {
+                await processEmailEvent(createServiceClient(), enq.id);
+              } catch {
+                /* unavailable */
+              }
+            }
+          }
+        }
+      } catch {
+        /* non-fatal */
+      }
+    }
   }
 
-  revalidateAdmin(["/admin/support"]);
+  revalidateAdmin(["/admin/support", "/admin/emails"]);
   return { ok: true, data: true };
 }
 
@@ -243,9 +365,52 @@ export async function updateComplianceCaseAction(input: {
   const patch: Record<string, string> = {};
   if (input.status) patch.status = input.status;
   if (input.summary !== undefined) patch.summary = input.summary;
+  const { data: before } = await supabase
+    .from("compliance_cases")
+    .select("id, subject_user_id, status, title")
+    .eq("id", input.id)
+    .maybeSingle();
   const { error } = await supabase.from("compliance_cases").update(patch).eq("id", input.id);
   if (error) return { ok: false, error: error.message };
-  revalidateAdmin(["/admin/compliance"]);
+
+  try {
+    if (input.status && before?.subject_user_id) {
+      const recipient = await resolveProfileRecipient(supabase, before.subject_user_id);
+      const templateKey =
+        input.status === "investigating"
+          ? "COMPLIANCE_WARNING"
+          : input.status === "resolved" || input.status === "dismissed"
+            ? "COMPLIANCE_APPEAL_DECISION"
+            : null;
+      if (templateKey && recipient) {
+        const enq = await enqueueEmailEvent(supabase, {
+          eventType: "compliance",
+          templateKey,
+          recipientUserId: recipient.userId,
+          recipientEmail: recipient.email,
+          relatedEntityType: "compliance_case",
+          relatedEntityId: input.id,
+          payload: {
+            STATUS: input.status,
+            FIRST_NAME: recipient.displayName ?? "",
+            ARTIST_VISIBLE_REASON: input.summary ?? "",
+          },
+          idempotencyKey: `${templateKey}:${input.id}:${input.status}`,
+        });
+        if (enq.id) {
+          try {
+            await processEmailEvent(createServiceClient(), enq.id);
+          } catch {
+            /* unavailable */
+          }
+        }
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  revalidateAdmin(["/admin/compliance", "/admin/emails"]);
   return { ok: true, data: true };
 }
 
@@ -344,4 +509,54 @@ export async function requestReportExportAction(input: {
 
   revalidateAdmin(["/admin/reports", "/admin/audit"]);
   return { ok: true, data: { id: data.id } };
+}
+
+/** Retry an email event: creates a NEW row with :retry:{uuid} idempotency suffix. Cannot fabricate SENT. */
+export async function retryEmailEventAction(eventId: string): Promise<ActionResult<{ id: string | null }>> {
+  const ctx = await RequireAdminPermission("admin:emails");
+  const supabase = await createClient();
+  const { data: existing, error } = await supabase
+    .from("email_events")
+    .select("*")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!existing) return { ok: false, error: "Email event not found." };
+
+  const retryKey = `${existing.idempotency_key}:retry:${crypto.randomUUID()}`;
+  const templateKey = assertApprovedTemplateKey(String(existing.template_key));
+  const enq = await enqueueEmailEvent(supabase, {
+    eventType: "manual.retry",
+    templateKey,
+    recipientUserId: existing.recipient_user_id,
+    recipientEmail: existing.recipient_email,
+    relatedReleaseId: existing.related_release_id,
+    relatedEntityType: existing.related_entity_type,
+    relatedEntityId: existing.related_entity_id,
+    payload: {
+      ...(typeof existing.payload === "object" && existing.payload ? existing.payload : {}),
+      RETRY_OF: eventId,
+    },
+    idempotencyKey: retryKey,
+    createdBy: ctx.userId,
+  });
+  if (enq.error) return { ok: false, error: enq.error };
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "email_retry",
+    p_entity_type: "email_event",
+    p_entity_id: enq.id,
+    p_metadata: { retry_of: eventId, template_key: existing.template_key },
+  });
+
+  if (enq.id) {
+    try {
+      await processEmailEvent(createServiceClient(), enq.id);
+    } catch {
+      /* unavailable — status stays truthful */
+    }
+  }
+
+  revalidateAdmin(["/admin/emails"]);
+  return { ok: true, data: { id: enq.id } };
 }
