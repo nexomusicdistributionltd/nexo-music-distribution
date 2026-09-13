@@ -233,3 +233,22 @@ describe("Batch 5 verification hardening regressions", () => {
     expect(hasAdminPermission(["admin"], "admin:users")).toBe(true);
   });
 });
+
+
+describe("Batch 5 pre-merge verification regressions", () => {
+  it("strips PostgREST .or() injection characters from admin search", () => {
+    const injected = sanitizeAdminSearchQuery("foo,status.eq.approved");
+    expect(injected).not.toContain(",");
+    expect(injected).not.toContain(".");
+    expect(injected).toBe("foo status eq approved");
+    expect(sanitizeAdminSearchQuery('a%b_c(d)"e')).not.toMatch(/[%_()"]/);
+  });
+
+  it("rejects unsigned / traversal signed-URL targets", async () => {
+    const { isAllowedSignedAssetTarget } = await import("@/lib/admin/queries");
+    expect(isAllowedSignedAssetTarget("release-audio", "user/rel/track.wav")).toBe(true);
+    expect(isAllowedSignedAssetTarget("public-bucket", "user/rel/track.wav")).toBe(false);
+    expect(isAllowedSignedAssetTarget("release-audio", "../other/track.wav")).toBe(false);
+    expect(isAllowedSignedAssetTarget("release-audio", "/abs/track.wav")).toBe(false);
+  });
+});

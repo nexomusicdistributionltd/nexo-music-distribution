@@ -31,7 +31,8 @@ export default async function AdminSupportPage({
       .from("support_messages")
       .select("*")
       .eq("ticket_id", selectedId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: true })
+      .limit(200);
     messages = data ?? [];
   }
 

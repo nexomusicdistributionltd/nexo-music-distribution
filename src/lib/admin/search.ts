@@ -9,7 +9,8 @@ export type AdminSearchEntity =
 
 export function sanitizeAdminSearchQuery(raw: string | null | undefined): string {
   if (!raw) return "";
-  return raw.replace(/[%_,()]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  // Strip PostgREST .or() metacharacters so commas cannot introduce extra filters.
+  return raw.replace(/[%_,()."'\\:*]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
 export function parseAdminSearchEntities(

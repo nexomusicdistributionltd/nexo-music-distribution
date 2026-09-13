@@ -207,15 +207,33 @@ export async function globalAdminSearch(qRaw: string, entities: AdminSearchEntit
   return { q, groups };
 }
 
+export const SIGNED_ASSET_BUCKETS = [
+  "release-audio",
+  "release-artwork",
+  "compliance-evidence",
+  "support-attachments",
+  "avatars",
+] as const;
+
+export function isAllowedSignedAssetTarget(bucket: string, path: string): boolean {
+  if (!(SIGNED_ASSET_BUCKETS as readonly string[]).includes(bucket)) return false;
+  if (!path || path.includes("..") || path.startsWith("/") || path.includes("\\") || path.includes("\0")) {
+    return false;
+  }
+  return true;
+}
+
 export async function createSignedAssetUrl(
   bucket: string,
   path: string,
   expiresIn = 120
 ): Promise<string | null> {
+  if (!isAllowedSignedAssetTarget(bucket, path)) return null;
+  const ttl = Math.min(300, Math.max(30, expiresIn));
   const supabase = await createClient();
   const { data, error } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(path, expiresIn);
+    .createSignedUrl(path, ttl);
   if (error) return null;
   return data.signedUrl;
 }
