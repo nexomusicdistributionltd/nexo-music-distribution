@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
 import {
   homePathForRoles,
-  isBlockedStatus,
+  isLoginRestricted,
+  isReadOnlyRestriction,
+  isSubmitBlocked,
   type AppRole,
   type AuthUserContext,
 } from "@/lib/auth/types";
@@ -25,11 +27,29 @@ export async function RequireAuth(options?: {
     redirect(`${next}${next.includes("?") ? "&" : "?"}reason=auth-required`);
   }
 
-  if (isBlockedStatus(ctx.profile?.account_status)) {
+  if (
+    isLoginRestricted(
+      ctx.profile?.account_status,
+      ctx.profile?.restriction_kind
+    )
+  ) {
     redirect("/login?reason=account-blocked");
   }
 
   return ctx;
+}
+
+/** Reject mutating portal actions for read_only / submit_blocked accounts. */
+export function assertCanMutateCatalog(ctx: AuthUserContext): void {
+  if (isReadOnlyRestriction(ctx.profile?.restriction_kind)) {
+    throw new Error("Account is read-only.");
+  }
+}
+
+export function assertCanSubmitRelease(ctx: AuthUserContext): void {
+  if (isSubmitBlocked(ctx.profile?.restriction_kind)) {
+    throw new Error("Account restriction prevents submitting releases.");
+  }
 }
 
 export async function RequireVerifiedEmail(

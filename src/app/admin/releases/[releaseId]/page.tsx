@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { RequireAdmin } from "@/lib/auth/guards";
+import { RequireAdminPermission } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { QcDecisionForm } from "@/components/admin/QcDecisionForm";
 import { TrackPlayer } from "@/components/admin/TrackPlayer";
@@ -17,12 +17,17 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+function fmtTs(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString();
+}
+
 export default async function AdminReleaseDetailPage({
   params,
 }: {
   params: Promise<{ releaseId: string }>;
 }) {
-  await RequireAdmin();
+  await RequireAdminPermission("admin:releases");
   const { releaseId } = await params;
   const detail = await getReleaseDetail(releaseId);
   if (!detail) notFound();
@@ -36,12 +41,24 @@ export default async function AdminReleaseDetailPage({
 
   const trackPlayers = await Promise.all(
     tracks.map(async (t) => {
-      const audio = assets.find((a) => a.kind === "audio" && a.track_id === t.id)
-        ?? assets.find((a) => a.kind === "audio" && !a.track_id);
+      const audio =
+        assets.find((a) => a.kind === "audio" && a.track_id === t.id) ??
+        assets.find((a) => a.kind === "audio" && !a.track_id);
       const url = audio
         ? await createSignedAssetUrl(audio.storage_bucket, audio.storage_path, 300)
         : null;
-      return { track: t, url };
+      const trackContributors = contributors
+        .filter((c) => c.track_id === t.id || c.track_id == null)
+        .filter((c) => c.track_id === t.id)
+        .map((c) => ({ name: c.name, role: c.role }));
+      const releaseLevel = contributors
+        .filter((c) => c.track_id == null)
+        .map((c) => ({ name: c.name, role: c.role }));
+      return {
+        track: t,
+        url,
+        contributors: trackContributors.length > 0 ? trackContributors : releaseLevel,
+      };
     })
   );
 
@@ -52,11 +69,50 @@ export default async function AdminReleaseDetailPage({
     .eq("release_id", releaseId)
     .order("created_at", { ascending: false });
 
+  const catalogNumber =
+    typeof release.distribution_settings?.catalog_number === "string"
+      ? release.distribution_settings.catalog_number
+      : typeof release.distribution_settings?.catalogNumber === "string"
+        ? release.distribution_settings.catalogNumber
+        : null;
+
+  const notes =
+    release.description ||
+    (typeof release.distribution_settings?.notes === "string"
+      ? release.distribution_settings.notes
+      : null);
+
+  const metaRows: [string, string][] = [
+    ["Title", release.title || "—"],
+    ["Version", release.version || "—"],
+    ["Type", release.release_type],
+    ["Primary artist", release.primary_artist_name || "—"],
+    ["Label", release.label_name || "—"],
+    ["Genre", release.genre || "—"],
+    ["Subgenre", release.subgenre || "—"],
+    ["Language", release.language || "—"],
+    ["Release date", release.release_date || "—"],
+    ["Original release date", release.original_release_date || "—"],
+    ["Copyright year", release.copyright_year != null ? String(release.copyright_year) : "—"],
+    ["Copyright", release.copyright_line || "—"],
+    ["Phonogram", release.phonogram_line || "—"],
+    ["Territories", (release.territories || []).join(", ") || "—"],
+    ["UPC", release.upc || "—"],
+    ["Catalog", catalogNumber || "—"],
+    ["Explicit", release.explicit ? "Yes" : "No"],
+    ["Status", release.status],
+    ["Submitted at", fmtTs(release.submitted_at)],
+    ["Locked at", fmtTs(release.locked_at)],
+    ["Created at", fmtTs(release.created_at)],
+    ["Updated at", fmtTs(release.updated_at)],
+    ["Provider connected", release.provider_connected ? "Yes" : "No"],
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={release.title || "Untitled release"}
-        description={`${release.primary_artist_name} · ${release.release_type}`}
+        description={`${release.primary_artist_name} · ${release.release_type}${release.version ? ` · ${release.version}` : ""}`}
       />
       <ProviderBanner connected={provider.connected} />
       <div className="flex flex-wrap items-center gap-3">
@@ -69,26 +125,28 @@ export default async function AdminReleaseDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-5">
-          <h2 className="text-h4">Metadata</h2>
+          <h2 className="text-h4">Complete release metadata</h2>
           <dl className="grid grid-cols-2 gap-2 text-small">
-            {[
-              ["Genre", release.genre],
-              ["Subgenre", release.subgenre],
-              ["Language", release.language],
-              ["Label", release.label_name],
-              ["Copyright", release.copyright_line],
-              ["Phonogram", release.phonogram_line],
-              ["Explicit", release.explicit ? "Yes" : "No"],
-              ["Territories", (release.territories || []).join(", ")],
-            ].map(([k, v]) => (
-              <div key={String(k)} className="contents">
+            {metaRows.map(([k, v]) => (
+              <div key={k} className="contents">
                 <dt className="text-[var(--nexo-text-muted)]">{k}</dt>
-                <dd>{v || "—"}</dd>
+                <dd>{v}</dd>
               </div>
             ))}
           </dl>
-          {release.description ? (
-            <p className="text-small text-[var(--nexo-text-secondary)]">{release.description}</p>
+          {notes ? (
+            <div>
+              <h3 className="text-label">Notes</h3>
+              <p className="text-small text-[var(--nexo-text-secondary)]">{notes}</p>
+            </div>
+          ) : (
+            <p className="text-caption text-[var(--nexo-text-muted)]">No notes.</p>
+          )}
+          {release.changes_requested_reason ? (
+            <p className="text-small">Changes requested: {release.changes_requested_reason}</p>
+          ) : null}
+          {release.rejection_reason ? (
+            <p className="text-small">Rejection: {release.rejection_reason}</p>
           ) : null}
           {artworkUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -107,16 +165,23 @@ export default async function AdminReleaseDetailPage({
           {trackPlayers.length === 0 ? (
             <p className="text-small text-[var(--nexo-text-muted)]">No tracks.</p>
           ) : (
-            trackPlayers.map(({ track, url }) => (
+            trackPlayers.map(({ track, url, contributors: trackCons }) => (
               <TrackPlayer
                 key={track.id}
                 trackNumber={track.track_number}
                 title={track.title}
+                version={track.version}
+                isrc={track.isrc}
+                explicit={track.explicit}
+                language={track.language}
+                durationMs={track.duration_ms}
+                lyrics={track.lyrics}
+                contributors={trackCons}
                 signedUrl={url}
               />
             ))
           )}
-          <h3 className="pt-2 text-label">Contributors</h3>
+          <h3 className="pt-2 text-label">All contributors</h3>
           {contributors.length === 0 ? (
             <p className="text-caption text-[var(--nexo-text-muted)]">None listed.</p>
           ) : (
@@ -124,6 +189,7 @@ export default async function AdminReleaseDetailPage({
               {contributors.map((c) => (
                 <li key={c.id}>
                   {c.name} · {c.role}
+                  {c.track_id ? " (track)" : " (release)"}
                 </li>
               ))}
             </ul>
@@ -134,36 +200,38 @@ export default async function AdminReleaseDetailPage({
       {isQcableStatus(release.status) ? <QcDecisionForm releaseId={release.id} /> : null}
 
       <section className="space-y-2">
-        <h2 className="text-h4">QC reviews</h2>
+        <h2 className="text-h4">QC reviews (staff only)</h2>
         {(reviews ?? []).length === 0 ? (
           <p className="text-small text-[var(--nexo-text-muted)]">No QC reviews yet.</p>
         ) : (
           <ul className="space-y-2 text-small">
-            {(reviews ?? []).map((r: {
-              id: string;
-              decision: string;
-              artist_visible_reason: string | null;
-              internal_note: string | null;
-              created_at: string;
-              reviewer_user_id: string;
-            }) => (
-              <li
-                key={r.id}
-                className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3"
-              >
-                <p className="font-medium">
-                  {r.decision} · {new Date(r.created_at).toLocaleString()}
-                </p>
-                {r.artist_visible_reason ? (
-                  <p className="mt-1">Artist reason: {r.artist_visible_reason}</p>
-                ) : null}
-                {r.internal_note ? (
-                  <p className="mt-1 text-[var(--nexo-text-muted)]">
-                    Internal: {r.internal_note}
+            {(reviews ?? []).map(
+              (r: {
+                id: string;
+                decision: string;
+                artist_visible_reason: string | null;
+                internal_note: string | null;
+                created_at: string;
+                reviewer_user_id: string;
+              }) => (
+                <li
+                  key={r.id}
+                  className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3"
+                >
+                  <p className="font-medium">
+                    {r.decision} · {new Date(r.created_at).toLocaleString()}
                   </p>
-                ) : null}
-              </li>
-            ))}
+                  {r.artist_visible_reason ? (
+                    <p className="mt-1">Artist reason: {r.artist_visible_reason}</p>
+                  ) : null}
+                  {r.internal_note ? (
+                    <p className="mt-1 text-[var(--nexo-text-muted)]">
+                      Internal: {r.internal_note}
+                    </p>
+                  ) : null}
+                </li>
+              )
+            )}
           </ul>
         )}
       </section>
@@ -173,8 +241,7 @@ export default async function AdminReleaseDetailPage({
         <ul className="space-y-1 text-small">
           {history.map((h) => (
             <li key={h.id}>
-              {h.previous_status ?? "—"} → {h.new_status} ·{" "}
-              {new Date(h.created_at).toLocaleString()}
+              {h.previous_status ?? "—"} → {h.new_status} · {fmtTs(h.created_at)}
               {h.reason ? ` · ${h.reason}` : ""}
             </li>
           ))}

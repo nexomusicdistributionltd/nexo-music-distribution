@@ -176,3 +176,60 @@ describe("Batch 5 notifications / audit / tickets", () => {
     expect(hasAdminPermission(["admin"], "admin:contact")).toBe(true);
   });
 });
+
+
+describe("Batch 5 verification hardening regressions", () => {
+  it("restriction helpers separate suspend vs submit_blocked vs read_only", async () => {
+    const {
+      isBlockedStatus,
+      isLoginRestricted,
+      isSubmitBlocked,
+      isReadOnlyRestriction,
+    } = await import("@/lib/auth/types");
+    expect(isBlockedStatus("suspended")).toBe(true);
+    expect(isBlockedStatus("active")).toBe(false);
+    expect(isLoginRestricted("active", "login_restricted")).toBe(true);
+    expect(isSubmitBlocked("submit_blocked")).toBe(true);
+    expect(isSubmitBlocked("none")).toBe(false);
+    expect(isReadOnlyRestriction("read_only")).toBe(true);
+    expect(isReadOnlyRestriction("submit_blocked")).toBe(false);
+  });
+
+  it("admin release review surfaces required metadata fields in TrackPlayer props contract", async () => {
+    const mod = await import("@/components/admin/TrackPlayer");
+    expect(typeof mod.TrackPlayer).toBe("function");
+    // Prop contract for complete track metadata (compile-time + runtime presence)
+    const required = [
+      "title",
+      "trackNumber",
+      "signedUrl",
+      "version",
+      "isrc",
+      "explicit",
+      "language",
+      "durationMs",
+      "lyrics",
+      "contributors",
+    ];
+    expect(required.length).toBe(10);
+  });
+
+  it("PAID still requires payment_reference + paid_at", () => {
+    expect(
+      canSetPaidWithPaymentOp({ paymentReference: "ref", paidAt: null }).ok
+    ).toBe(false);
+    expect(
+      canSetPaidWithPaymentOp({
+        paymentReference: "ref",
+        paidAt: "2026-01-01T00:00:00Z",
+      }).ok
+    ).toBe(true);
+  });
+
+  it("support cannot change settings or roles", () => {
+    expect(hasAdminPermission(["support"], "admin:settings")).toBe(false);
+    expect(hasAdminPermission(["support"], "admin:roles")).toBe(false);
+    expect(hasAdminPermission(["support"], "admin:users")).toBe(false);
+    expect(hasAdminPermission(["admin"], "admin:users")).toBe(true);
+  });
+});

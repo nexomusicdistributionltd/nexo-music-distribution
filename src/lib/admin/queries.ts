@@ -59,6 +59,8 @@ export async function listAdminReleases(filters: {
   status?: ReleaseStatus | "all";
   page?: number;
   pageSize?: number;
+  fromDate?: string;
+  toDate?: string;
 }) {
   const supabase = await createClient();
   const page = Math.max(1, filters.page ?? 1);
@@ -74,6 +76,12 @@ export async function listAdminReleases(filters: {
 
   if (filters.status && filters.status !== "all") {
     query = query.eq("status", filters.status);
+  }
+  if (filters.fromDate) {
+    query = query.gte("created_at", filters.fromDate);
+  }
+  if (filters.toDate) {
+    query = query.lte("created_at", `${filters.toDate}T23:59:59.999Z`);
   }
   const q = sanitizeAdminSearchQuery(filters.q);
   if (q) {
@@ -210,4 +218,36 @@ export async function createSignedAssetUrl(
     .createSignedUrl(path, expiresIn);
   if (error) return null;
   return data.signedUrl;
+}
+
+
+export async function listAuditLogs(filters: {
+  page?: number;
+  pageSize?: number;
+  fromDate?: string;
+  toDate?: string;
+  action?: string;
+}) {
+  const supabase = await createClient();
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, filters.pageSize ?? 50));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  let query = supabase
+    .from("audit_logs")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+  if (filters.fromDate) query = query.gte("created_at", filters.fromDate);
+  if (filters.toDate) query = query.lte("created_at", `${filters.toDate}T23:59:59.999Z`);
+  if (filters.action) query = query.eq("action", filters.action);
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return {
+    items: data ?? [],
+    total: count ?? 0,
+    page,
+    pageSize,
+    pageCount: Math.max(1, Math.ceil((count ?? 0) / pageSize)),
+  };
 }

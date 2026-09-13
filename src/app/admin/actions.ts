@@ -24,7 +24,7 @@ function revalidateAdmin(paths: string[] = []) {
 }
 
 export async function claimQcItem(itemId: string): Promise<ActionResult> {
-  await RequireAdmin();
+  await RequireAdminPermission("admin:qc");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("claim_qc_item", { p_item_id: itemId });
   if (error) return { ok: false, error: error.message };
@@ -33,7 +33,7 @@ export async function claimQcItem(itemId: string): Promise<ActionResult> {
 }
 
 export async function releaseQcClaim(itemId: string): Promise<ActionResult> {
-  await RequireAdmin();
+  await RequireAdminPermission("admin:qc");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("release_qc_item", { p_item_id: itemId });
   if (error) return { ok: false, error: error.message };
@@ -45,7 +45,7 @@ export async function setQcPriority(
   itemId: string,
   priority: QcPriority
 ): Promise<ActionResult> {
-  await RequireAdmin();
+  await RequireAdminPermission("admin:qc");
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_qc_item_priority", {
     p_item_id: itemId,
@@ -94,7 +94,7 @@ export async function performQcDecisionAction(input: {
 }
 
 export async function bulkClaimQc(itemIds: string[]): Promise<ActionResult<{ claimed: number; failed: string[] }>> {
-  await RequireAdmin();
+  await RequireAdminPermission("admin:qc");
   const ids = [...new Set(itemIds)].slice(0, 25);
   const failed: string[] = [];
   let claimed = 0;
@@ -298,12 +298,11 @@ export async function saveAdminSettingAction(input: {
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };
-  await supabase.from("audit_logs").insert({
-    actor_user_id: ctx.userId,
-    action: "settings_update",
-    entity_type: "admin_setting",
-    entity_id: null,
-    metadata: { key },
+  await supabase.rpc("write_audit_log", {
+    p_action: "settings_update",
+    p_entity_type: "admin_setting",
+    p_entity_id: null,
+    p_metadata: { key },
   });
   revalidateAdmin(["/admin/settings"]);
   return { ok: true, data: true };
@@ -336,12 +335,11 @@ export async function requestReportExportAction(input: {
     .single();
   if (error) return { ok: false, error: error.message };
 
-  await supabase.from("audit_logs").insert({
-    actor_user_id: ctx.userId,
-    action: "report_export",
-    entity_type: "report_export",
-    entity_id: data.id,
-    metadata: { report_type: input.reportType },
+  await supabase.rpc("write_audit_log", {
+    p_action: "report_export",
+    p_entity_type: "report_export",
+    p_entity_id: data.id,
+    p_metadata: { report_type: input.reportType },
   });
 
   revalidateAdmin(["/admin/reports", "/admin/audit"]);

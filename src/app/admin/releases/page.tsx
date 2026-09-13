@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function AdminReleasesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; page?: string; from?: string; to?: string }>;
 }) {
   await RequireAdmin();
   const sp = await searchParams;
@@ -24,6 +24,8 @@ export default async function AdminReleasesPage({
     q: sp.q,
     status,
     page: Number(sp.page || 1),
+    fromDate: sp.from,
+    toDate: sp.to,
   });
 
   return (
@@ -34,6 +36,19 @@ export default async function AdminReleasesPage({
         showSearch
         searchQ={sp.q}
       />
+      <form className="mb-4 flex flex-wrap gap-2 text-small" method="get">
+        {sp.q ? <input type="hidden" name="q" value={sp.q} /> : null}
+        {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
+        <label>
+          From{" "}
+          <input type="date" name="from" defaultValue={sp.from ?? ""} className="rounded border border-[var(--nexo-border)] bg-transparent px-2 py-1" />
+        </label>
+        <label>
+          To{" "}
+          <input type="date" name="to" defaultValue={sp.to ?? ""} className="rounded border border-[var(--nexo-border)] bg-transparent px-2 py-1" />
+        </label>
+        <button type="submit" className="underline-offset-4 hover:underline">Filter</button>
+      </form>
       {items.length === 0 ? (
         <EmptyState
           title="No releases found"
