@@ -27,7 +27,15 @@ export default async function LabelDetailPage({
     .maybeSingle();
   if (!label) notFound();
 
-  const [{ data: profile }, { data: releases }, { data: timeline }] = await Promise.all([
+  const [
+    { data: profile },
+    { data: releases },
+    { data: timeline },
+    { data: tickets },
+    { data: compliance },
+    { data: royalties },
+    { data: payouts },
+  ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", label.user_id).maybeSingle(),
     supabase
       .from("releases")
@@ -40,6 +48,26 @@ export default async function LabelDetailPage({
       .eq("subject_user_id", label.user_id)
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("support_tickets")
+      .select("id, subject, status")
+      .eq("requester_user_id", label.user_id)
+      .limit(10),
+    supabase
+      .from("compliance_cases")
+      .select("id, title, status")
+      .eq("subject_user_id", label.user_id)
+      .limit(10),
+    supabase
+      .from("royalty_statements")
+      .select("id, period_start, period_end, status, total_minor, currency")
+      .eq("owner_user_id", label.user_id)
+      .limit(10),
+    supabase
+      .from("payouts")
+      .select("id, status, amount_minor, currency")
+      .eq("owner_user_id", label.user_id)
+      .limit(10),
   ]);
 
   return (
@@ -61,6 +89,28 @@ export default async function LabelDetailPage({
                 <li key={r.id}>
                   <Link href={`/admin/releases/${r.id}`}>{r.title || "Untitled"}</Link>
                 </li>
+              ))}
+            </ul>
+          )}
+          <h2 className="mt-4 text-h4">Tickets / compliance</h2>
+          {(tickets ?? []).length === 0 && (compliance ?? []).length === 0 ? (
+            <p className="text-caption text-[var(--nexo-text-muted)]">No tickets or cases.</p>
+          ) : (
+            <ul className="space-y-1 text-small">
+              {(tickets ?? []).map((t) => <li key={t.id}>{t.subject} · {t.status}</li>)}
+              {(compliance ?? []).map((c) => <li key={c.id}>{c.title} · {c.status}</li>)}
+            </ul>
+          )}
+          <h2 className="mt-4 text-h4">Royalties / payouts</h2>
+          {(royalties ?? []).length === 0 && (payouts ?? []).length === 0 ? (
+            <p className="text-caption text-[var(--nexo-text-muted)]">No financial data available yet.</p>
+          ) : (
+            <ul className="space-y-1 text-small">
+              {(royalties ?? []).map((r) => (
+                <li key={r.id}>Statement {r.period_start}–{r.period_end} · {r.total_minor} {r.currency} minor units · {r.status}</li>
+              ))}
+              {(payouts ?? []).map((p) => (
+                <li key={p.id}>Payout {p.amount_minor} {p.currency} minor units · {p.status}</li>
               ))}
             </ul>
           )}

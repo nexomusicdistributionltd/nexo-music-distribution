@@ -28,8 +28,15 @@ export default async function ArtistDetailPage({
     .maybeSingle();
   if (!artist) notFound();
 
-  const [{ data: profile }, { data: releases }, { data: timeline }, { data: tickets }] =
-    await Promise.all([
+  const [
+    { data: profile },
+    { data: releases },
+    { data: timeline },
+    { data: tickets },
+    { data: compliance },
+    { data: royalties },
+    { data: payouts },
+  ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", artist.user_id).maybeSingle(),
       supabase
         .from("releases")
@@ -47,6 +54,21 @@ export default async function ArtistDetailPage({
         .from("support_tickets")
         .select("id, subject, status, updated_at")
         .eq("requester_user_id", artist.user_id)
+        .limit(10),
+      supabase
+        .from("compliance_cases")
+        .select("id, title, status, created_at")
+        .eq("subject_user_id", artist.user_id)
+        .limit(10),
+      supabase
+        .from("royalty_statements")
+        .select("id, period_start, period_end, status, total_minor, currency")
+        .eq("owner_user_id", artist.user_id)
+        .limit(10),
+      supabase
+        .from("payouts")
+        .select("id, status, amount_minor, currency, created_at")
+        .eq("owner_user_id", artist.user_id)
         .limit(10),
     ]);
 
@@ -87,6 +109,27 @@ export default async function ArtistDetailPage({
                 <li key={t.id}>
                   <Link href={`/admin/support?ticket=${t.id}`}>{t.subject}</Link>
                 </li>
+              ))}
+            </ul>
+          )}
+          <h2 className="pt-4 text-h4">Compliance</h2>
+          {(compliance ?? []).length === 0 ? (
+            <p className="text-caption text-[var(--nexo-text-muted)]">No cases.</p>
+          ) : (
+            <ul className="space-y-1 text-small">
+              {(compliance ?? []).map((c) => <li key={c.id}>{c.title} · {c.status}</li>)}
+            </ul>
+          )}
+          <h2 className="pt-4 text-h4">Royalties / payouts</h2>
+          {(royalties ?? []).length === 0 && (payouts ?? []).length === 0 ? (
+            <p className="text-caption text-[var(--nexo-text-muted)]">No financial data available yet.</p>
+          ) : (
+            <ul className="space-y-1 text-small">
+              {(royalties ?? []).map((r) => (
+                <li key={r.id}>Statement {r.period_start}–{r.period_end} · {r.total_minor} {r.currency} minor units · {r.status}</li>
+              ))}
+              {(payouts ?? []).map((p) => (
+                <li key={p.id}>Payout {p.amount_minor} {p.currency} minor units · {p.status}</li>
               ))}
             </ul>
           )}
