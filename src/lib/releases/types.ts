@@ -12,7 +12,8 @@ export type ReleaseStatus =
   | "delivered"
   | "live"
   | "takedown_requested"
-  | "taken_down";
+  | "taken_down"
+  | "failed";
 
 export type ContributorRole =
   | "primary_artist"
@@ -38,7 +39,10 @@ export type NotificationType =
   | "release_live"
   | "takedown_update"
   | "system"
-  | "provider_not_connected";
+  | "provider_not_connected"
+  | "distribution_update"
+  | "distribution_failed"
+  | "catalog_migration_update";
 
 export interface ReleaseRow {
   id: string;
@@ -153,6 +157,7 @@ export const RELEASE_STATUSES: ReleaseStatus[] = [
   "delivering",
   "delivered",
   "live",
+  "failed",
   "takedown_requested",
   "taken_down",
 ];
@@ -168,6 +173,7 @@ export const LOCKED_STATUSES: ReleaseStatus[] = [
   "delivering",
   "delivered",
   "live",
+  "failed",
   "takedown_requested",
   "taken_down",
 ];
@@ -190,7 +196,23 @@ export const STAFF_ONLY_STATUSES: ReleaseStatus[] = [
 ];
 
 export function statusLabel(status: ReleaseStatus): string {
-  return status.replace(/_/g, " ");
+  // Prefer shared Batch 6 labels (QC Review, Queued for distribution, Distributing, …)
+  const labels: Record<ReleaseStatus, string> = {
+    draft: "Draft",
+    submitted: "Submitted",
+    in_qc: "QC Review",
+    changes_requested: "Changes requested",
+    approved: "Approved",
+    rejected: "Rejected",
+    scheduled: "Queued for distribution",
+    delivering: "Distributing",
+    delivered: "Delivered",
+    live: "Live",
+    failed: "Failed",
+    takedown_requested: "Takedown requested",
+    taken_down: "Taken down",
+  };
+  return labels[status] ?? status.replace(/_/g, " ");
 }
 
 export function statusKind(
@@ -205,6 +227,7 @@ export function statusKind(
       return "approved";
     case "rejected":
     case "taken_down":
+    case "failed":
       return "rejected";
     case "draft":
       return "draft";

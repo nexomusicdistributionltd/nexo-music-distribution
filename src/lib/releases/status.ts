@@ -20,10 +20,12 @@ const STAFF_TRANSITIONS: Partial<Record<ReleaseStatus, ReleaseStatus[]>> = {
   submitted: ["in_qc", "changes_requested", "rejected", "approved"],
   in_qc: ["changes_requested", "rejected", "approved"],
   approved: ["scheduled", "rejected", "changes_requested"],
-  scheduled: ["delivering", "changes_requested"],
-  delivering: ["delivered", "live", "rejected"],
-  delivered: ["live"],
+  scheduled: ["delivering", "changes_requested", "failed"],
+  delivering: ["delivered", "live", "rejected", "failed"],
+  delivered: ["live", "failed"],
+  failed: ["scheduled", "approved", "changes_requested"],
   takedown_requested: ["taken_down", "live", "delivered"],
+  live: ["takedown_requested"],
   rejected: ["draft", "changes_requested"],
 };
 
@@ -77,6 +79,7 @@ export function canTransition(options: {
       "delivering",
       "delivered",
       "live",
+      "failed",
       "taken_down",
     ];
     if (forbidden.includes(to)) {

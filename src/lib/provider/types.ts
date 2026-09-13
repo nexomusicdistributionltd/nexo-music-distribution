@@ -1,8 +1,12 @@
 import "server-only";
 
-/** Provider-independent distribution adapter (Batch 4). Server-only. */
+/** Provider-independent distribution adapter. Server-only. */
 
-export { ProviderNotConnectedError } from "./errors";
+export {
+  ProviderNotConnectedError,
+  ProviderUnavailableError,
+  ProviderWebhookRejectedError,
+} from "./errors";
 
 export type ProviderReleasePayload = {
   releaseId: string;
@@ -45,11 +49,14 @@ export type ProviderWebhookEvent = {
   type: string;
   payload: Record<string, unknown>;
   receivedAt: string;
+  eventId?: string;
+  signature?: string | null;
+  rawBody?: string;
 };
 
 /**
  * Concrete adapters implement this. Until a real provider is wired,
- * getDistributionProvider() returns NotConnectedProvider.
+ * getProvider() / getDistributionProvider() returns NotConnectedProvider.
  */
 export interface DistributionProvider {
   readonly name: string;
@@ -61,6 +68,7 @@ export interface DistributionProvider {
     input: Partial<ProviderReleasePayload>
   ): Promise<void>;
   requestTakedown(providerReleaseId: string, reason?: string): Promise<void>;
+  reinstateRelease(providerReleaseId: string, reason?: string): Promise<void>;
   getReleaseStatus(providerReleaseId: string): Promise<ProviderStatusResult>;
   getDeliveryStatus(providerReleaseId: string): Promise<ProviderDeliveryStatus>;
   getCatalog(

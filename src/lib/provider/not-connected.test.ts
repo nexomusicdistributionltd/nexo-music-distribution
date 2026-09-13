@@ -28,5 +28,10 @@ describe("NotConnectedProvider", () => {
     await expect(p.handleWebhook({ type: "x", payload: {}, receivedAt: "" })).rejects.toBeInstanceOf(
       ProviderNotConnectedError
     );
+    await expect(p.reinstateRelease("x")).rejects.toBeInstanceOf(ProviderNotConnectedError);
+    await expect(p.requestTakedown("x")).rejects.toBeInstanceOf(ProviderNotConnectedError);
+    await expect(p.updateRelease("x", {})).rejects.toBeInstanceOf(ProviderNotConnectedError);
+    await expect(p.getReleaseStatus("x")).rejects.toBeInstanceOf(ProviderNotConnectedError);
+    await expect(p.getCatalog({})).rejects.toBeInstanceOf(ProviderNotConnectedError);
   });
 });

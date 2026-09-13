@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ProviderNotConnectedError } from "./errors";
+import { isDistributionProviderConfigured } from "./config";
 import type {
   DistributionProvider,
   ProviderCatalogQuery,
@@ -42,6 +43,12 @@ export class NotConnectedProvider implements DistributionProvider {
     this.fail();
   }
 
+  async reinstateRelease(providerReleaseId: string, reason?: string): Promise<void> {
+    void providerReleaseId;
+    void reason;
+    this.fail();
+  }
+
   async getReleaseStatus(providerReleaseId: string): Promise<ProviderStatusResult> {
     void providerReleaseId;
     this.fail();
@@ -71,6 +78,5 @@ export class NotConnectedProvider implements DistributionProvider {
 }
 
 export function isProviderConnected(): boolean {
-  // Future: check env for provider credentials. Batch 4: never connected.
-  return false;
+  return isDistributionProviderConfigured();
 }
