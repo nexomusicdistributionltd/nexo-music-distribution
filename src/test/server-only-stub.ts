@@ -1,0 +1,1 @@
+// Vitest stub for next/server-only\n

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { AppTopbar } from "@/components/app/AppTopbar";
+import { RealtimeRefresh } from "@/components/notifications/RealtimeRefresh";
 import { RequireAuth } from "@/lib/auth/guards";
 import { navForRoles } from "@/lib/auth/nav";
 import { isBlockedStatus } from "@/lib/auth/types";
@@ -36,6 +37,7 @@ export default async function PortalLayout({
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <AppTopbar items={items} displayName={displayName} />
+        <RealtimeRefresh userId={ctx.userId} />
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
