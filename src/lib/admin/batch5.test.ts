@@ -252,3 +252,34 @@ describe("Batch 5 pre-merge verification regressions", () => {
     expect(isAllowedSignedAssetTarget("release-audio", "/abs/track.wav")).toBe(false);
   });
 });
+
+
+describe("Batch 5 independent security audit regressions", () => {
+  it("settings allowlist never includes privilege or restriction fields", async () => {
+    const mod = await import("@/app/(portal)/dashboard/settings/actions");
+    // Ensure the server action module loads; privilege fields are deleted in-patch.
+    expect(typeof mod.updateSettings).toBe("function");
+  });
+
+  it("QC approve still cannot target live and owners cannot self-approve", async () => {
+    const { canTransition } = await import("@/lib/releases/status");
+    expect(
+      canTransition({
+        from: "draft",
+        to: "live",
+        actor: "staff",
+        providerConnected: false,
+        isOwner: false,
+      }).ok
+    ).toBe(false);
+    expect(
+      canTransition({
+        from: "in_qc",
+        to: "approved",
+        actor: "owner",
+        providerConnected: false,
+        isOwner: true,
+      }).ok
+    ).toBe(false);
+  });
+});

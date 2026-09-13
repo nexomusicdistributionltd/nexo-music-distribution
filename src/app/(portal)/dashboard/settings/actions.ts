@@ -36,6 +36,7 @@ export async function updateSettings(input: {
   // Never allow privilege fields through this action
   delete patch.account_type;
   delete patch.account_status;
+  delete patch.restriction_kind;
   delete patch.id;
   delete patch.email;
 
