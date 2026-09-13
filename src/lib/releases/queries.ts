@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeReleaseSearchQuery } from "./safe-update";
 import type {
   NotificationRow,
   ReleaseAssetRow,
@@ -73,8 +74,11 @@ export async function listReleases(userId: string, filters: ReleaseListFilters =
     query = query.eq("release_type", filters.type);
   }
   if (filters.q?.trim()) {
-    const q = `%${filters.q.trim()}%`;
-    query = query.or(`title.ilike.${q},primary_artist_name.ilike.${q}`);
+    const cleaned = sanitizeReleaseSearchQuery(filters.q);
+    if (cleaned) {
+      const q = `%${cleaned}%`;
+      query = query.or(`title.ilike.${q},primary_artist_name.ilike.${q}`);
+    }
   }
 
   query = query.order(sort, { ascending }).range(from, to);

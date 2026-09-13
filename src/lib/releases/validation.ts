@@ -121,7 +121,8 @@ export function validateReleaseForSubmit(input: {
     });
   }
 
-  if (!contributors.some((c) => c.role === "primary_artist" || c.name.trim())) {
+  const hasNamedContributor = contributors.some((c) => Boolean(c.name?.trim()));
+  if (!hasNamedContributor) {
     issues.push({
       field: "contributors",
       message: "At least one contributor is required.",

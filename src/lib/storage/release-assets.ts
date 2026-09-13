@@ -26,8 +26,52 @@ export function buildAssetPath(options: {
   filename: string;
   id: string;
 }): string {
-  const safe = options.filename.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);
+  assertSafeIdSegment(options.userId, "userId");
+  assertSafeIdSegment(options.releaseId, "releaseId");
+  const safe = sanitizeFilename(options.filename);
   return `${options.userId}/${options.releaseId}/${options.kind}-${options.id}-${safe}`;
+}
+
+export function sanitizeFilename(filename: string): string {
+  return filename.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120) || "file";
+}
+
+function assertSafeIdSegment(value: string, label: string) {
+  if (!value || value.includes("..") || value.includes("/") || value.includes("\\")) {
+    throw new Error(`Invalid ${label} for storage path.`);
+  }
+}
+
+/**
+ * Ensures a client-supplied storage path is exactly under the caller's release folder
+ * and contains no path traversal.
+ */
+export function assertOwnedAssetPath(
+  storagePath: string,
+  userId: string,
+  releaseId: string
+): string | null {
+  if (!storagePath || typeof storagePath !== "string") {
+    return "Invalid storage path.";
+  }
+  if (
+    storagePath.includes("..") ||
+    storagePath.includes("\\") ||
+    storagePath.startsWith("/") ||
+    storagePath.includes("//") ||
+    storagePath.includes("\0")
+  ) {
+    return "Invalid storage path.";
+  }
+  const prefix = `${userId}/${releaseId}/`;
+  if (!storagePath.startsWith(prefix)) {
+    return "Invalid storage path.";
+  }
+  const rest = storagePath.slice(prefix.length);
+  if (!rest || rest.includes("/") || rest.includes("..")) {
+    return "Invalid storage path.";
+  }
+  return null;
 }
 
 export function assertAudioFile(file: { type: string; size: number }): string | null {

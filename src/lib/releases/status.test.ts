@@ -86,3 +86,14 @@ describe("canTransition — no self-approve", () => {
     expect(canRequestTakedown("approved")).toBe(true);
   });
 });
+
+  it("blocks owner forging scheduled from draft", () => {
+    const res = canTransition({
+      from: "draft",
+      to: "scheduled",
+      actor: "owner",
+      providerConnected: true,
+      isOwner: true,
+    });
+    expect(res.ok).toBe(false);
+  });

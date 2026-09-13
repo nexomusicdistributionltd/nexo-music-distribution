@@ -11,6 +11,7 @@ import {
   canTransition,
   isEditableStatus,
 } from "@/lib/releases/status";
+import { pickReleaseUpdateFields } from "@/lib/releases/safe-update";
 import { validateReleaseForSubmit } from "@/lib/releases/validation";
 import type {
   ContributorRole,
@@ -23,6 +24,7 @@ import {
   AUDIO_BUCKET,
   assertArtworkFile,
   assertAudioFile,
+  assertOwnedAssetPath,
   buildAssetPath,
 } from "@/lib/storage/release-assets";
 
@@ -144,16 +146,7 @@ export async function updateReleaseInfo(
     return { ok: false, error: `Release is locked (${existing.status}).` };
   }
 
-  const safe = { ...patch } as Record<string, unknown>;
-  delete safe.status;
-  delete safe.provider_name;
-  delete safe.provider_release_id;
-  delete safe.provider_status;
-  delete safe.provider_metadata;
-  delete safe.provider_connected;
-  delete safe.locked_at;
-  delete safe.submitted_at;
-  delete safe.owner_user_id;
+  const safe = pickReleaseUpdateFields(patch as Record<string, unknown>);
 
   if (typeof safe.upc === "string" && safe.upc.trim() === "") safe.upc = null;
   if (typeof safe.upc === "string") {
@@ -162,6 +155,17 @@ export async function updateReleaseInfo(
       return { ok: false, error: "UPC must be 12–14 digits when provided." };
     }
     safe.upc = upc || null;
+  }
+
+  if (safe.distribution_settings !== undefined) {
+    const ds = safe.distribution_settings;
+    if (ds === null || typeof ds !== "object" || Array.isArray(ds)) {
+      return { ok: false, error: "Invalid distribution settings." };
+    }
+  }
+
+  if (Object.keys(safe).length === 0) {
+    return { ok: false, error: "No valid fields to update." };
   }
 
   const { data, error } = await supabase
@@ -255,7 +259,11 @@ export async function replaceTracks(
       lyrics: t.lyrics ?? null,
     };
     if (t.id) {
-      const { error } = await supabase.from("release_tracks").update(row).eq("id", t.id);
+      const { error } = await supabase
+        .from("release_tracks")
+        .update(row)
+        .eq("id", t.id)
+        .eq("release_id", releaseId);
       if (error) return { ok: false, error: error.message };
     } else {
       const { error } = await supabase.from("release_tracks").insert(row);
@@ -342,9 +350,8 @@ export async function registerUploadedAsset(input: {
   if (fileCheck) return { ok: false, error: fileCheck };
 
   const bucket = input.kind === "audio" ? AUDIO_BUCKET : ARTWORK_BUCKET;
-  if (!input.storagePath.startsWith(`${ctx.userId}/${input.releaseId}/`)) {
-    return { ok: false, error: "Invalid storage path." };
-  }
+  const pathErr = assertOwnedAssetPath(input.storagePath, ctx.userId, input.releaseId);
+  if (pathErr) return { ok: false, error: pathErr };
 
   if (input.replaceAssetId) {
     const { data: old } = await supabase
@@ -529,14 +536,7 @@ export async function requestTakedown(
   });
   if (error) return { ok: false, error: error.message };
 
-  await supabase.from("notifications").insert({
-    user_id: ctx.userId,
-    type: "takedown_update",
-    title: "Takedown requested",
-    body: `Takedown requested for "${release.title}".`,
-    entity_type: "release",
-    entity_id: releaseId,
-  });
+  // Owner notification is created inside transition_release_status (SECURITY DEFINER).
 
   revalidateReleasePaths(releaseId);
   return { ok: true, data: data as ReleaseRow };
