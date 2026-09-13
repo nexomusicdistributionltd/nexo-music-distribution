@@ -5,6 +5,8 @@ export const ADMIN_SETTING_KEYS = [
   "contact.auto_assign",
   "operations.maintenance_notice",
   "reports.retention_days",
+  "finance.min_payout_minor_usd",
+  "finance.payouts_enabled",
 ] as const;
 
 export type AdminSettingKey = (typeof ADMIN_SETTING_KEYS)[number];

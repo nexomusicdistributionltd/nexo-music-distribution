@@ -1,0 +1,61 @@
+import type { Metadata } from "next";
+import { RequireAdmin } from "@/lib/auth/guards";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Alert } from "@/components/ui/Alert";
+import { createClient } from "@/lib/supabase/server";
+import { FinanceNav } from "@/components/finance/FinanceNav";
+import { CreateImportBatchForm } from "@/components/finance/CreateImportBatchForm";
+
+export const metadata: Metadata = {
+  title: "Royalty imports",
+  robots: { index: false, follow: false },
+};
+
+export default async function RoyaltyImportsPage() {
+  await RequireAdmin();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("royalty_import_batches")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  return (
+    <div>
+      <PageHeader
+        title="Royalty imports"
+        description="Idempotent by source + report + row. No sample/demo import data."
+      />
+      <FinanceNav />
+      <Alert title="Provider reports">
+        When no royalty report provider is connected, imports remain empty / UNAVAILABLE — never invent figures.
+      </Alert>
+      <div className="mt-4">
+        <CreateImportBatchForm />
+      </div>
+      {(data ?? []).length === 0 ? (
+        <div className="mt-4">
+          <EmptyState
+            title="No import batches"
+            description="Create a batch when a real provider report is available."
+          />
+        </div>
+      ) : (
+        <ul className="mt-4 divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
+          {(data ?? []).map((b) => (
+            <li key={b.id} className="px-4 py-3 text-small">
+              <p className="font-medium">
+                {b.source_provider} · {b.report_id}
+              </p>
+              <p className="text-caption text-[var(--nexo-text-muted)]">
+                {b.status} · rows {b.row_count} · matched {b.matched_count} · conflicts{" "}
+                {b.conflict_count} · posted {b.posted_count}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
