@@ -1,0 +1,59 @@
+# Nexo Music Distribution LTD — Supabase local config (auth email templates)
+# Hosted projects: paste the same HTML into Authentication → Email Templates
+# (or apply via Management API). Never commit secrets.
+
+project_id = "nexo-music-distribution"
+
+[api]
+enabled = true
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+
+[auth]
+enabled = true
+# Site URL is overridden by dashboard / env per environment:
+# Dev:  http://localhost:3000
+# Prod: https://nexomusicdistribution.com
+site_url = "http://localhost:3000"
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://localhost:3000/auth/confirm",
+  "http://localhost:3000/reset-password",
+  "https://nexomusicdistribution.com/auth/callback",
+  "https://nexomusicdistribution.com/auth/confirm",
+  "https://nexomusicdistribution.com/reset-password"
+]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[auth.email.template.invite]
+subject = "You are invited to Nexo Music Distribution"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.confirmation]
+subject = "Verify Your Email Address"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Password Reset Request"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Your Nexo magic link"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Email Address Change Requested"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.reauthentication]
+subject = "Confirm it is you — Nexo security"
+content_path = "./supabase/templates/reauthentication.html"

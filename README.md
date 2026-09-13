@@ -137,3 +137,14 @@ Artist/label portal: dashboard counts, release wizard, catalog, QC submit, notif
 
 NEXO MUSIC DISTRIBUTION LTD  
 https://nexomusicdistribution.com
+
+---
+
+## Supabase Auth emails (branded)
+
+Branded Auth email templates live in `supabase/templates/` and are wired in `supabase/config.toml`.
+
+See **[docs/supabase-auth-emails.md](docs/supabase-auth-emails.md)** for the mapping (confirm / invite / magic link / recovery / email change / reauthentication), GoTrue variables, and hosted dashboard paste steps.
+
+Do not replace these with generic Supabase defaults. Do not commit secrets.
+
