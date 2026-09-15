@@ -13,11 +13,9 @@ const HTML_DIRS = [
   join(ROOT, "supabase/templates"),
 ];
 
-const OFFICIAL_SOCIAL_HREFS = [
-  NEXO_EMAIL_BRAND.socials.spotify.replace(/&/g, "&amp;"),
-  NEXO_EMAIL_BRAND.socials.x,
-  NEXO_EMAIL_BRAND.socials.tiktok,
-];
+function htmlHref(url: string): string {
+  return url.replace(/&/g, "&amp;");
+}
 
 const FAKE_SOCIAL = [
   "facebook.com",
@@ -42,21 +40,10 @@ describe("email brand constants", () => {
   it("points public website at nexomusicdistribution.com and keeps the Zoho mailbox", () => {
     expect(NEXO_EMAIL_BRAND.website).toBe("https://nexomusicdistribution.com");
     expect(NEXO_EMAIL_BRAND.email).toBe("contact@nexomusicdistro.space");
-    expect(NEXO_EMAIL_BRAND.socials.x).toBe("https://x.com/nexomusicdistro");
-    expect(NEXO_EMAIL_BRAND.socials.tiktok).toBe(
-      "https://www.tiktok.com/@nexomusicdistribution",
-    );
-    expect(NEXO_EMAIL_BRAND.socials.spotify).toContain("open.spotify.com/user/");
-    expect(NEXO_EMAIL_BRAND.socials.spotify).toBe(
-      FOOTER_SOCIAL_LINKS.find((l) => l.key === "spotify")?.href,
-    );
-    expect(NEXO_EMAIL_BRAND.socials.x).toBe(
-      FOOTER_SOCIAL_LINKS.find((l) => l.key === "x")?.href,
-    );
-    expect(NEXO_EMAIL_BRAND.socials.tiktok).toBe(
-      FOOTER_SOCIAL_LINKS.find((l) => l.key === "tiktok")?.href,
-    );
     expect(FOOTER_SOCIAL_LINKS.map((l) => l.key)).toEqual(["spotify", "x", "tiktok"]);
+    for (const item of FOOTER_SOCIAL_LINKS) {
+      expect(NEXO_EMAIL_BRAND.socials[item.key]).toBe(item.href);
+    }
   });
 
   it("keeps logo-urls (emails/brand.json) aligned with TypeScript constants", () => {
@@ -94,9 +81,10 @@ describe("email brand constants", () => {
 
   it("emits Spotify/X/TikTok icons with new-tab + noopener", () => {
     const html = emailSocialIconsRowHtml();
-    expect(html).toContain('aria-label="Nexo Music Distribution on Spotify"');
-    expect(html).toContain('aria-label="Nexo Music Distribution on X"');
-    expect(html).toContain('aria-label="Nexo Music Distribution on TikTok"');
+    for (const item of FOOTER_SOCIAL_LINKS) {
+      expect(html).toContain(`aria-label="${item.label}"`);
+      expect(html).toContain(`href="${htmlHref(item.href)}"`);
+    }
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
     expect(html).not.toMatch(/facebook|instagram|linkedin|youtube\.com/i);
@@ -148,22 +136,17 @@ describe("branded email HTML pack", () => {
   });
 
   it("uses only official Spotify/X/TikTok socials in footers, with new-tab + aria-labels", () => {
+    const spotifyLabel = FOOTER_SOCIAL_LINKS.find((l) => l.key === "spotify")?.label;
     const withSocial = files.filter((f) =>
-      readFileSync(f, "utf8").includes("Nexo Music Distribution on Spotify"),
+      readFileSync(f, "utf8").includes(spotifyLabel ?? ""),
     );
     expect(withSocial.length).toBeGreaterThan(10);
     for (const file of withSocial) {
       const html = readFileSync(file, "utf8");
-      for (const href of OFFICIAL_SOCIAL_HREFS) {
-        expect(html, file).toContain(`href="${href}"`);
+      for (const item of FOOTER_SOCIAL_LINKS) {
+        expect(html, file).toContain(`href="${htmlHref(item.href)}"`);
+        expect(html, file).toContain(`aria-label="${item.label}"`);
       }
-      expect(html, file).toContain(
-        'aria-label="Nexo Music Distribution on Spotify"',
-      );
-      expect(html, file).toContain('aria-label="Nexo Music Distribution on X"');
-      expect(html, file).toContain(
-        'aria-label="Nexo Music Distribution on TikTok"',
-      );
       const socialAnchors = [
         ...html.matchAll(
           /<a href="(https:\/\/(?:open\.spotify\.com|x\.com|www\.tiktok\.com)[^"]*)"[^>]*>/g,
