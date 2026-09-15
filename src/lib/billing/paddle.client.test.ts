@@ -58,7 +58,7 @@ describe("Paddle.js client token wiring", () => {
     expect(logger.error).not.toHaveBeenCalled();
   });
 
-  it("matches PADDLE_ENVIRONMENT production|sandbox and never silently defaults", () => {
+  it("matches PADDLE_ENVIRONMENT production|sandbox and infers production from a live_ token", () => {
     const live = resolvePaddleJsInit({
       environment: "production",
       token: "live_public_client_token_placeholder",
@@ -73,9 +73,20 @@ describe("Paddle.js client token wiring", () => {
       env: { NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "test_public_client_token" } as NodeJS.ProcessEnv,
     });
     expect(sandbox).toMatchObject({ ok: true, environment: "sandbox", token: "test_public_client_token" });
-    const missingEnv = resolvePaddleJsInit({
+    const inferredLive = resolvePaddleJsInit({
       environment: null,
       token: "live_public_client_token_placeholder",
+    });
+    expect(inferredLive).toMatchObject({ ok: true, environment: "production" });
+    const mismatch = resolvePaddleJsInit({
+      environment: "sandbox",
+      token: "live_public_client_token_placeholder",
+    });
+    expect(mismatch.ok).toBe(false);
+    if (!mismatch.ok) expect(mismatch.code).toBe("environment_mismatch");
+    const missingEnv = resolvePaddleJsInit({
+      environment: null,
+      token: "not-a-paddle-prefix-token",
     });
     expect(missingEnv.ok).toBe(false);
     if (!missingEnv.ok) expect(missingEnv.code).toBe("missing_environment");
@@ -99,6 +110,21 @@ describe("Paddle.js client token wiring", () => {
     const initialize = vi.fn().mockResolvedValue(paddle);
     const result = await getPaddleBrowserClient({
       environment: "production",
+      token: "live_nexo_client_token",
+      initialize,
+    });
+    expect(result.ok).toBe(true);
+    expect(initialize).toHaveBeenCalledWith({
+      token: "live_nexo_client_token",
+      environment: "production",
+    });
+  });
+
+  it("uses a live_ NEXT_PUBLIC token as production even when PADDLE_ENVIRONMENT is unset", async () => {
+    const paddle = { Checkout: { open: vi.fn() }, PricePreview: vi.fn() } as unknown as Paddle;
+    const initialize = vi.fn().mockResolvedValue(paddle);
+    const result = await getPaddleBrowserClient({
+      environment: null,
       token: "live_nexo_client_token",
       initialize,
     });
@@ -151,7 +177,8 @@ describe("frontend billing sources never grant paid access or leak secrets", () 
     expect(src).toContain("initializePaddle");
     expect(src).toContain("displayMode: \"overlay\"");
     expect(src).toContain('variant: "one-page"');
-    expect(src).not.toMatch(/process\.env\.PADDLE_API_KEY/);
+    expect(src).not.toMatch(/VITE_PADDLE/);
+    expect(src).not.toMatch(/import\.meta\.env/);
     expect(src).not.toMatch(/process\.env\.PADDLE_WEBHOOK_SECRET/);
     expect(src).not.toMatch(/paidAccess\s*=\s*true/);
     expect(src).not.toMatch(/grantPaid|markPaid/);

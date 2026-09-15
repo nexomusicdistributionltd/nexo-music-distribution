@@ -10,6 +10,7 @@ import {
   planFromApprovedPriceId,
   resolveApprovedPriceId,
   COUNTRY_PRICE_OVERRIDES_APPROVED,
+  unsetCatalogEnvNames,
 } from "./plans";
 import { authorizeCheckout, planEligibleForAccountType, selectFreeStarter } from "./eligibility";
 import {
@@ -17,6 +18,7 @@ import {
   PaddleEnvError,
   assertNoSecretInPublicEnv,
   paddleJsEnvironmentFromEnv,
+  paddleJsEnvironmentFromClientToken,
   getPaddleClientToken,
 } from "./env";
 import { getBillingEntitlements, subscriptionGrantsPaidAccess } from "./entitlements";
@@ -180,6 +182,9 @@ describe("env fail-loud", () => {
       "sandbox"
     );
     expect(paddleJsEnvironmentFromEnv({} as NodeJS.ProcessEnv)).toBeNull();
+    expect(paddleJsEnvironmentFromClientToken("live_abc")).toBe("production");
+    expect(paddleJsEnvironmentFromClientToken("test_abc")).toBe("sandbox");
+    expect(paddleJsEnvironmentFromClientToken("other")).toBeNull();
   });
 });
 
@@ -370,9 +375,10 @@ describe("webhook ingress order", () => {
 describe("secrets and env example", () => {
   it("env example lists names only and never NEXT_PUBLIC API/webhook secrets", () => {
     const env = readFileSync(join(process.cwd(), ".env.example"), "utf8");
-    expect(env).toContain("PADDLE_ENVIRONMENT=sandbox");
+    expect(env).toContain("PADDLE_ENVIRONMENT=production");
     expect(env).toContain("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=");
     expect(env).toContain("Netlify");
+    expect(env).not.toMatch(/^VITE_/m);
     expect(env).toContain("PADDLE_PRICE_ARTIST_PRO_MONTHLY=");
     expect(env).not.toMatch(/NEXT_PUBLIC_PADDLE_API_KEY/);
     expect(env).not.toMatch(/NEXT_PUBLIC_PADDLE_WEBHOOK_SECRET/);
@@ -397,6 +403,17 @@ describe("secrets and env example", () => {
     expect(catalog.catalogReady).toBe(false);
   });
 
+  it("with a Live client token still waits for env-mapped Price IDs", () => {
+    const catalog = publicBillingCatalog({
+      PADDLE_ENVIRONMENT: "production",
+      NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "live_nexo_client_token",
+    } as NodeJS.ProcessEnv);
+    expect(catalog.clientTokenPresent).toBe(true);
+    expect(catalog.catalogReady).toBe(false);
+    expect(catalog.prices.artist.month).toEqual([]);
+    expect(catalog.message).toMatch(/Price IDs are not configured/);
+  });
+
   it("missing NEXT_PUBLIC_PADDLE_CLIENT_TOKEN does not crash catalog and keeps checkout unready", () => {
     const env = {
       PADDLE_ENVIRONMENT: "production",
@@ -413,5 +430,14 @@ describe("secrets and env example", () => {
     expect(catalog.catalogReady).toBe(false);
     expect(catalog.message).toMatch(/NEXT_PUBLIC_PADDLE_CLIENT_TOKEN/);
     expect(catalog.displayUsd.artist_pro.month).toBe("$9.99");
+  });
+
+  it("keeps Live Price ID env mappings empty until real IDs exist", () => {
+    expect(unsetCatalogEnvNames({} as NodeJS.ProcessEnv)).toEqual(catalogEnvNames());
+    const env = readFileSync(join(process.cwd(), ".env.example"), "utf8");
+    for (const name of catalogEnvNames()) {
+      expect(env).toMatch(new RegExp(`^${name}=$`, "m"));
+    }
+    expect(resolveApprovedPriceId("artist_pro", "month", {})).toBeNull();
   });
 });

@@ -286,3 +286,8 @@ export function catalogConfigured(env: NodeJS.ProcessEnv = process.env): boolean
 export function catalogEnvNames(): string[] {
   return [...Object.values(PRICE_ID_ENV), ...Object.values(PRODUCT_ID_ENV)];
 }
+
+/** Empty placeholders until real Live catalog IDs exist. Never invent pri_/pro_ values. */
+export function unsetCatalogEnvNames(env: NodeJS.ProcessEnv = process.env): string[] {
+  return catalogEnvNames().filter((name) => !env[name]?.trim());
+}

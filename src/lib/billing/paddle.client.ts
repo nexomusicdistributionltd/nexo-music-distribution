@@ -1,20 +1,23 @@
 "use client";
 
 import { initializePaddle, type Environments, type Paddle } from "@paddle/paddle-js";
-import type { PaddleBillingEnvironment } from "./env";
+import {
+  MISSING_PADDLE_ENVIRONMENT_USER_MESSAGE,
+  resolvePaddleJsEnvironment,
+  type PaddleBillingEnvironment,
+} from "./env";
 
 /** User-facing copy when Paddle.js cannot start. Safe to show on /pricing. */
 export const MISSING_PADDLE_CLIENT_TOKEN_USER_MESSAGE =
   "Checkout is unavailable right now. Payment is not configured on this site yet.";
 
-export const MISSING_PADDLE_ENVIRONMENT_USER_MESSAGE =
-  "Checkout is unavailable right now. Billing environment is not configured.";
+export { MISSING_PADDLE_ENVIRONMENT_USER_MESSAGE };
 
 export const PADDLE_JS_INIT_FAILED_USER_MESSAGE =
   "Checkout could not start. Please try again in a moment.";
 
 export const MISSING_PADDLE_CLIENT_TOKEN_DEV_MESSAGE =
-  "[billing] NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not set. Paddle.js will not initialize. Set this Netlify environment variable (live_ for production, test_ for sandbox). Never expose PADDLE_API_KEY or PADDLE_WEBHOOK_SECRET to the browser.";
+  "[billing] NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not set. Paddle.js will not initialize. Set this Netlify environment variable (live_ for production, test_ for sandbox). Never use VITE_*. Never expose PADDLE_API_KEY or PADDLE_WEBHOOK_SECRET to the browser.";
 
 export type PaddleJsInitSuccess = {
   ok: true;
@@ -24,7 +27,7 @@ export type PaddleJsInitSuccess = {
 
 export type PaddleJsInitFailure = {
   ok: false;
-  code: "missing_token" | "missing_environment";
+  code: "missing_token" | "missing_environment" | "environment_mismatch";
   error: string;
 };
 
@@ -67,11 +70,15 @@ export function resolvePaddleJsInit(input: {
     return { ok: false, code: "missing_token", error: MISSING_PADDLE_CLIENT_TOKEN_USER_MESSAGE };
   }
 
-  if (input.environment !== "sandbox" && input.environment !== "production") {
-    return { ok: false, code: "missing_environment", error: MISSING_PADDLE_ENVIRONMENT_USER_MESSAGE };
+  const environment = resolvePaddleJsEnvironment({
+    environment: input.environment,
+    token,
+  });
+  if (!environment.ok) {
+    return environment;
   }
 
-  return { ok: true, token, environment: input.environment };
+  return { ok: true, token, environment: environment.environment };
 }
 
 /**
@@ -97,8 +104,8 @@ export function __resetPaddleBrowserClientForTests(): void {
 }
 
 /**
- * Client-only Paddle.js singleton. Uses the public client token only.
- * Callers must pass environment from server-resolved PADDLE_ENVIRONMENT.
+ * Client-only Paddle.js singleton. Uses NEXT_PUBLIC_PADDLE_CLIENT_TOKEN only (not VITE_*).
+ * Environment comes from PADDLE_ENVIRONMENT, or live_/test_ token prefix when that flag is unset.
  */
 export async function getPaddleBrowserClient(input: {
   environment: PaddleBillingEnvironment | null | undefined;
