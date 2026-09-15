@@ -18,3 +18,21 @@ export { buildNewReleaseMessageXml } from "./builder";
 export { mapCatalogToErn, DdexMappingError, newMessageId } from "./mapping";
 export { validateErnXml, officialSchemaPaths } from "./validate";
 export { NotConnectedDdexTransport, getDdexTransport } from "./transport";
+export {
+  validateReleaseForDdexFromSnapshot,
+} from "./validator";
+export {
+  generateDdexReleaseFromSnapshot,
+  buildDdexPackageFromGenerated,
+  assertCanSendDelivery,
+  deliveryIdempotencyKey,
+  MAX_DELIVERY_ATTEMPTS,
+} from "./pipeline";
+export { TEST_TARGET_SLUG, getNexoPartyName, getNexoDdexContact } from "./constants";
+export {
+  LOCKED_NEXO_PARTY_NAME,
+  LOCKED_NEXO_DPID_DISPLAY,
+  LOCKED_NEXO_DPID_COMPACT,
+  assertLockedSenderForDelivery,
+  ProductionDpidGuardError,
+} from "./identity";

@@ -54,8 +54,11 @@ This deploy cannot change the Supabase dashboard. In **Authentication → URL Co
 
 ## DDEX identity
 
-- Server-only `NEXO_DPID` (production value `PA-DPIDA-2026021501-H`). Never `NEXT_PUBLIC_*`.
-- **No authorized DSP recipient DPID.** Do not invent Spotify/Apple Party Ids. Leave `NEXO_DDEX_RECIPIENT_DPID` unset; production delivery stays disabled (NotConnected transport). Internal fixtures may use an isolated TEST recipient only.
+- Server-only `NEXO_DDEX_DPID` (alias `NEXO_DPID`). Locked production value `PA-DPIDA-2026021501-H`. Party name `NEXO MUSIC DISTRIBUTION LTD` via `NEXO_DDEX_PARTY_NAME`. Never `NEXT_PUBLIC_*`.
+- Production delivery is **blocked** unless the sender DPID matches the locked value.
+- `NEXO_DDEX_CONTACT` is **not configured** in this repo and must not be invented.
+- **No authorized commercial DSP recipient DPID.** Do not invent Spotify/Apple Party Ids. The isolated **Nexo Local Test Target** loopbacks to Nexo’s own DPID into private storage. That is not commercial DSP delivery.
+- Stardust Distro is an internal ERN generation + delivery layer only. It does not create commercial DSP relationships.
 
 ## Database / migrations
 

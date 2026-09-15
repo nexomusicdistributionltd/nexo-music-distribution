@@ -25,19 +25,25 @@ describe("roles / DDEX foundation", () => {
   });
   it("NEXO_DPID server-only", () => {
     const prev = process.env.NEXO_DPID;
+    const prevAlias = process.env.NEXO_DDEX_DPID;
     delete process.env.NEXO_DPID;
+    delete process.env.NEXO_DDEX_DPID;
     expect(getNexoDpid()).toBeNull();
     process.env.NEXO_DPID = "X";
     expect(getNexoDpid()).toBe("X");
     if (prev === undefined) delete process.env.NEXO_DPID; else process.env.NEXO_DPID = prev;
+    if (prevAlias === undefined) delete process.env.NEXO_DDEX_DPID; else process.env.NEXO_DDEX_DPID = prevAlias;
   });
   it("env example never exposes DPID to the client; recipient stays unset", () => {
     const env = readFileSync(join(root, ".env.example"), "utf8");
     expect(env).not.toMatch(/NEXT_PUBLIC_[A-Z0-9_]*DPID/);
     expect(env).toContain("NEXO_DPID=PA-DPIDA-YYYYMMDDNN-X");
+    expect(env).toContain("NEXO_DDEX_DPID=PA-DPIDA-YYYYMMDDNN-X");
     expect(env).toContain("PA-DPIDA-2026021501-H");
     expect(env).toMatch(/NEXO_DDEX_RECIPIENT_DPID=\s*$/m);
     expect(env).toContain("NO authorized DSP recipient DPID");
+    expect(env).toContain("NEXO_DDEX_CONTACT is NOT configured");
+    expect(env).not.toMatch(/^NEXO_DDEX_CONTACT=.+$/m);
     const cfgSrc = readFileSync(join(root, "src/lib/ddex/config.ts"), "utf8");
     expect(cfgSrc).toContain("import \"server-only\"");
     expect(cfgSrc).toContain("never includes DPID values");

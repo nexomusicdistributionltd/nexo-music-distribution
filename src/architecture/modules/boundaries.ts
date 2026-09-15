@@ -36,10 +36,14 @@ export const MODULES = {
   },
   ddexErn: {
     id: "ddex-ern",
-    description: "Server-side DDEX ERN 4.3.2 NewReleaseMessage generation and XSD validation",
+    description: "Server-side DDEX ERN 4.3.2 generation plus Stardust-backed packaging/delivery (no Firebase, no fake DSPs)",
     owns: [
       "src/lib/ddex",
       "ddex_messages",
+      "dsp_targets",
+      "ddex_validation_runs",
+      "ddex_delivery_attempts",
+      "ddex_acknowledgments",
       "release_deals",
       "admin/ddex",
     ],

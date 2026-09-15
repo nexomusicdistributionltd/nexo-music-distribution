@@ -1,20 +1,31 @@
 import "server-only";
 
 import { ddexConfigErrors, ddexConfigPublicStatus, readDdexConfig } from "./config";
-import { buildNewReleaseMessageXml } from "./builder";
-import { mapCatalogToErn, DdexMappingError } from "./mapping";
+import { DdexMappingError } from "./mapping";
 import { evaluateReleaseReadiness, type ReadinessReport } from "./readiness";
 import {
   downloadDdexXml,
   getDdexMessage,
   listDdexMessages,
   loadDdexSnapshot,
-  persistDdexMessage,
   sha256Utf8,
   updateDdexValidation,
 } from "./persistence";
 import { getDdexTransport } from "./transport";
 import { validateErnXml } from "./validate";
+import {
+  buildDdexPackage,
+  generateDdexPackage,
+  generateDdexRelease,
+  generateDdexTakedown,
+  generateDdexUpdate,
+  listPublicDspTargets,
+  processDdexAcknowledgment,
+  queueDdexDelivery,
+  retryDdexDelivery,
+  sendDdexDelivery,
+  validateReleaseForDdex,
+} from "./service";
 import type { DdexCatalogSnapshot, DdexMessageRecord } from "./types";
 
 export function readinessFromSnapshot(
@@ -39,7 +50,10 @@ export function readinessFromSnapshot(
   });
 }
 
-export async function generateErnForRelease(releaseId: string): Promise<
+export async function generateErnForRelease(
+  releaseId: string,
+  targetId?: string
+): Promise<
   | {
       ok: true;
       message: DdexMessageRecord;
@@ -48,62 +62,20 @@ export async function generateErnForRelease(releaseId: string): Promise<
     }
   | { ok: false; error: string; readiness?: ReadinessReport }
 > {
-  const cfg = readDdexConfig();
-  const cfgErrors = ddexConfigErrors(cfg);
-  if (cfgErrors.length) {
-    return { ok: false, error: cfgErrors.join(" ") };
-  }
-
-  const snapshot = await loadDdexSnapshot(releaseId);
-  if (!snapshot) return { ok: false, error: "Release not found." };
-
-  const readiness = readinessFromSnapshot(snapshot, cfg);
-  if (!readiness.canGenerate) {
+  const res = await generateDdexRelease(releaseId, targetId);
+  if (!res.ok) {
+    const snapshot = await loadDdexSnapshot(releaseId);
     return {
       ok: false,
-      error: "Release is not DDEX-ready. Resolve readiness errors before generating.",
-      readiness,
+      error: res.error,
+      readiness: snapshot ? readinessFromSnapshot(snapshot) : undefined,
     };
   }
-
-  let xml: string;
-  let filename: string;
-  let messageId: string;
-  try {
-    const model = mapCatalogToErn(snapshot, cfg);
-    xml = buildNewReleaseMessageXml(model);
-    filename = model.header.messageFileName;
-    messageId = model.header.messageId;
-  } catch (e) {
-    if (e instanceof DdexMappingError) {
-      return { ok: false, error: e.errors.join(" ") };
-    }
-    throw e;
-  }
-
-  const xsd = validateErnXml(xml);
-  const record = await persistDdexMessage({
-    releaseId,
-    messageId,
-    recipientConfigKey: cfg.recipientConfigKey,
-    filename,
-    xml,
-    validationStatus: xsd.ok ? "valid" : "invalid",
-    validationError: xsd.ok ? null : xsd.errors.join("\n"),
-  });
-
-  if (!xsd.ok) {
-    return {
-      ok: false,
-      error: `ERN built but official XSD validation failed. Message stored as invalid. ${xsd.errors[0] ?? ""}`,
-    };
-  }
-
   return {
     ok: true,
-    message: record,
-    xmlSha256: sha256Utf8(xml),
-    filename,
+    message: res.record,
+    xmlSha256: res.record.xml_sha256 || sha256Utf8(res.generated.xml),
+    filename: res.generated.filename,
   };
 }
 
@@ -134,14 +106,37 @@ export async function getErnDownload(messageId: string): Promise<
   return { ok: true, xml, filename: record.filename || `${record.message_id}_ERN432.xml` };
 }
 
-/** Transport stub — always refuses. Never marks DELIVERED. */
-export async function deliverErn(_messageId: string): Promise<{ ok: false; error: string }> {
-  void _messageId;
+/** Commercial default remains NotConnected. Local test target uses sendDdexDelivery. */
+export async function deliverErn(messageId: string): Promise<{ ok: false; error: string } | { ok: true }> {
   const transport = getDdexTransport();
-  if (!transport.connected) {
-    return { ok: false, error: "DDEX transport is not connected. Delivery is unavailable." };
+  const queued = await queueDdexDelivery(messageId);
+  if (!queued.ok) return { ok: false, error: queued.error };
+  const sent = await sendDdexDelivery(messageId);
+  if (!sent.ok) {
+    if (!transport.connected) {
+      return { ok: false, error: sent.error };
+    }
+    return { ok: false, error: sent.error };
   }
-  return { ok: false, error: "DDEX transport is not connected. Delivery is unavailable." };
+  return { ok: true };
 }
 
-export { ddexConfigPublicStatus, listDdexMessages, loadDdexSnapshot };
+export {
+  ddexConfigPublicStatus,
+  ddexConfigErrors,
+  listDdexMessages,
+  loadDdexSnapshot,
+  validateReleaseForDdex,
+  generateDdexRelease,
+  generateDdexUpdate,
+  generateDdexTakedown,
+  buildDdexPackage,
+  generateDdexPackage,
+  queueDdexDelivery,
+  sendDdexDelivery,
+  retryDdexDelivery,
+  processDdexAcknowledgment,
+  listPublicDspTargets,
+  DdexMappingError,
+};
+

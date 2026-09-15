@@ -4,11 +4,13 @@ import {
   AVS_VERSION_ID,
   ERN_NAMESPACE,
   ERN_VERSION,
-  NEXO_SENDER_NAME,
   RELEASE_PROFILE_VERSION_ID,
+  getNexoDdexContact,
   getNexoDpid,
+  getNexoPartyName,
 } from "./constants";
 import { compactDpid } from "./dpid";
+import { isLockedNexoDpid } from "./identity";
 
 export type DdexMessageControlType = "LiveMessage" | "TestMessage";
 
@@ -27,6 +29,8 @@ export type DdexRuntimeConfig = {
   testRecipient: boolean;
   messageControlType: DdexMessageControlType;
   proprietaryNamespace: string | null;
+  contactConfigured: boolean;
+  lockedProductionSender: boolean;
 };
 
 function trim(v: string | undefined | null): string {
@@ -40,7 +44,7 @@ function trim(v: string | undefined | null): string {
  * and a recipient DPID is configured.
  */
 export function readDdexConfig(env: NodeJS.ProcessEnv = process.env): DdexRuntimeConfig {
-  const senderDisplay = trim(env.NEXO_DPID) || getNexoDpid();
+  const senderDisplay = getNexoDpid(env);
   const senderPartyId = compactDpid(senderDisplay);
   const recipientDisplay = trim(env.NEXO_DDEX_RECIPIENT_DPID) || null;
   const recipientPartyId = compactDpid(recipientDisplay);
@@ -54,7 +58,7 @@ export function readDdexConfig(env: NodeJS.ProcessEnv = process.env): DdexRuntim
     ernNamespace: ERN_NAMESPACE,
     avsVersionId: AVS_VERSION_ID,
     releaseProfileVersionId: RELEASE_PROFILE_VERSION_ID,
-    senderName: trim(env.NEXO_DDEX_SENDER_NAME) || NEXO_SENDER_NAME,
+    senderName: getNexoPartyName(env),
     senderDpidDisplay: senderDisplay || null,
     senderPartyId,
     recipientConfigKey: trim(env.NEXO_DDEX_RECIPIENT_KEY) || (testRecipient ? "test" : "configured"),
@@ -64,13 +68,15 @@ export function readDdexConfig(env: NodeJS.ProcessEnv = process.env): DdexRuntim
     testRecipient,
     messageControlType,
     proprietaryNamespace: senderPartyId,
+    contactConfigured: Boolean(getNexoDdexContact(env)),
+    lockedProductionSender: isLockedNexoDpid(senderDisplay),
   };
 }
 
 export function ddexConfigErrors(cfg: DdexRuntimeConfig): string[] {
   const errors: string[] = [];
   if (!cfg.senderPartyId) {
-    errors.push("NEXO_DPID is missing or is not a valid DPID.");
+    errors.push("NEXO_DDEX_DPID / NEXO_DPID is missing or is not a valid DPID.");
   }
   if (!cfg.recipientPartyId) {
     errors.push(
@@ -101,5 +107,7 @@ export function ddexConfigPublicStatus(cfg: DdexRuntimeConfig = readDdexConfig()
     ernNamespace: cfg.ernNamespace,
     avsVersionId: cfg.avsVersionId,
     releaseProfileVersionId: cfg.releaseProfileVersionId,
+    lockedProductionSender: cfg.lockedProductionSender,
+    contactConfigured: cfg.contactConfigured,
   };
 }

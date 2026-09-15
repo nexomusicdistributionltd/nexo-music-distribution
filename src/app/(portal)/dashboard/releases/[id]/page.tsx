@@ -11,6 +11,8 @@ import {
   getLabelProfileIdForUser,
   listRosterArtists,
 } from "@/lib/roster/queries";
+import { DdexOwnerStatus } from "@/components/ddex/DdexOwnerStatus";
+import { listOwnerDdexStatus } from "@/lib/ddex/persistence";
 
 export const metadata: Metadata = {
   title: "Release",
@@ -76,6 +78,13 @@ export default async function ReleaseDetailPage({
     ? await createSignedAssetUrl(artwork.storage_bucket, artwork.storage_path, 300)
     : null;
 
+  let ownerStatus: Awaited<ReturnType<typeof listOwnerDdexStatus>> = [];
+  try {
+    ownerStatus = await listOwnerDdexStatus(id);
+  } catch {
+    ownerStatus = [];
+  }
+
   return (
     <ReleaseDetailView
       variant="portal"
@@ -85,6 +94,7 @@ export default async function ReleaseDetailPage({
       assets={assets}
       history={history}
       artworkUrl={artworkUrl}
+      ddexPanel={<DdexOwnerStatus rows={ownerStatus} />}
     />
   );
 }

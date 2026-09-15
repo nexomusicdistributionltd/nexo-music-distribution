@@ -15,7 +15,9 @@ export function ddexUiStatus(signals: DdexListSignals): DdexUiStatus {
       return "FAILED";
     }
     if (latest.validation_status === "valid") {
-      if (latest.delivery_status === "delivered") return "VALIDATED";
+      if (latest.delivery_status === "delivered" || latest.delivery_status === "acknowledged") {
+        return "VALIDATED";
+      }
       return "NOT DELIVERED";
     }
     if (signals.canGenerate) return "READY";

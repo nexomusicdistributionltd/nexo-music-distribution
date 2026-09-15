@@ -16,6 +16,8 @@ export const TEST_DDEX_CONFIG: DdexRuntimeConfig = {
   testRecipient: true,
   messageControlType: "TestMessage",
   proprietaryNamespace: "PADPIDA2026021501H",
+  contactConfigured: false,
+  lockedProductionSender: true,
 };
 
 const HASH_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
