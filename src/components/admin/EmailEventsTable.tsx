@@ -2,22 +2,9 @@
 
 import { useTransition } from "react";
 import { retryEmailEventAction } from "@/app/admin/actions";
+import type { OutboundListItem } from "@/lib/email/outbound-meta";
 
-export type EmailEventListItem = {
-  id: string;
-  event_type: string;
-  template_key: string;
-  recipient_email: string | null;
-  recipient_user_id: string | null;
-  related_release_id: string | null;
-  status: string;
-  provider: string | null;
-  provider_message_id: string | null;
-  error: string | null;
-  created_at: string;
-  sent_at: string | null;
-  attempt_count: number;
-};
+export type EmailEventListItem = OutboundListItem;
 
 function maskEmail(email: string | null): string {
   if (!email) return "—";
@@ -33,7 +20,7 @@ export function EmailEventsTable({ events }: { events: EmailEventListItem[] }) {
   if (events.length === 0) {
     return (
       <p className="text-small text-[var(--nexo-text-secondary)]">
-        No email events yet. Events are enqueued after successful RPCs; SENT only after a real provider accept.
+        No email events yet. Events are enqueued into email_outbound_events after successful RPCs; SENT only after a real provider accept.
       </p>
     );
   }

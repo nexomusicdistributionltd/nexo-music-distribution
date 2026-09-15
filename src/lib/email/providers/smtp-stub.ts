@@ -14,7 +14,15 @@ export function createSmtpStubProvider(_cfg: {
 }): EmailProvider {
   return {
     name: "smtp",
-    async send(): Promise<EmailSendResult> {
+    async send(input: {
+      to: string;
+      subject: string;
+      html: string;
+      from?: string;
+      idempotencyKey?: string;
+    }): Promise<EmailSendResult> {
+      void input;
+      void _cfg;
       return {
         accepted: false,
         unavailable: true,

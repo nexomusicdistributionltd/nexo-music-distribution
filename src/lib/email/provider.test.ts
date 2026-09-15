@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { NullEmailProvider } from "./providers/null-provider";
-import { getEmailProvider } from "./provider";
+import { getEmailProvider, getEmailProviderStatus } from "./provider";
 
 describe("NullEmailProvider", () => {
   it("returns unavailable — never accepted", async () => {
@@ -32,6 +32,9 @@ describe("getEmailProvider", () => {
     const r = await p.send({ to: "a@b.com", subject: "s", html: "h" });
     expect(r.accepted).toBe(false);
     expect(r.unavailable).toBe(true);
+    const status = getEmailProviderStatus();
+    expect(status.configured).toBe(false);
+    expect(status.message.toLowerCase()).toMatch(/queued or skipped|not fabricated|unset or none/);
   });
 
   it("resend without key → unavailable (no fake success)", async () => {

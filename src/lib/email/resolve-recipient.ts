@@ -54,6 +54,89 @@ export async function resolveProfileRecipient(
   };
 }
 
+export type ProfileRecipientRow = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  full_name: string | null;
+};
+
+function toProfileRecipient(row: ProfileRecipientRow): ResolvedRecipient | null {
+  const email = row.email?.trim();
+  if (!email) return null;
+  return {
+    userId: row.id,
+    email,
+    source: "profile",
+    displayName: row.display_name || row.full_name,
+  };
+}
+
+/**
+ * Newsletter / manual send: resolve from DB profiles by id.
+ * Ignores any client-supplied email addresses.
+ */
+export async function resolveManualRecipients(
+  supabase: SupabaseClient,
+  opts: { userIds?: string[]; selectAll?: boolean; limit?: number }
+): Promise<{ recipients: ResolvedRecipient[]; skippedWithoutEmail: number }> {
+  const limit = opts.limit ?? 2000;
+  if (opts.selectAll) {
+    const recipients: ResolvedRecipient[] = [];
+    let skippedWithoutEmail = 0;
+    let from = 0;
+    const pageSize = 1000;
+    while (recipients.length < limit) {
+      const to = from + pageSize - 1;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, display_name, full_name")
+        .order("created_at", { ascending: true })
+        .range(from, to);
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as ProfileRecipientRow[];
+      if (rows.length === 0) break;
+      for (const row of rows) {
+        const r = toProfileRecipient(row);
+        if (!r) {
+          skippedWithoutEmail += 1;
+          continue;
+        }
+        recipients.push(r);
+        if (recipients.length >= limit) break;
+      }
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return { recipients, skippedWithoutEmail };
+  }
+
+  const ids = [...new Set((opts.userIds ?? []).filter(Boolean))];
+  if (ids.length === 0) return { recipients: [], skippedWithoutEmail: 0 };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, display_name, full_name")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  const found = new Map(
+    ((data ?? []) as ProfileRecipientRow[]).map((row) => [row.id, row])
+  );
+  const recipients: ResolvedRecipient[] = [];
+  let skippedWithoutEmail = 0;
+  for (const id of ids) {
+    const row = found.get(id);
+    if (!row) continue;
+    const r = toProfileRecipient(row);
+    if (!r) {
+      skippedWithoutEmail += 1;
+      continue;
+    }
+    recipients.push(r);
+  }
+  return { recipients, skippedWithoutEmail };
+}
+
 /** Contact form acknowledgement — email comes from the persisted contact_messages row (server RPC), not a raw client trust boundary for owner mail. */
 export function resolveContactSubmissionRecipient(email: string): ResolvedRecipient {
   return {

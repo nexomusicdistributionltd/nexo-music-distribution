@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { createClient } from "@/lib/supabase/server";
-import {
-  EmailEventsTable,
-  type EmailEventListItem,
-} from "@/components/admin/EmailEventsTable";
+import { EmailEventsTable } from "@/components/admin/EmailEventsTable";
+import { Alert } from "@/components/ui/Alert";
 import { hasAdminPermission } from "@/lib/admin/permissions";
+import { outboundToListItem, type OutboundEventRow } from "@/lib/email/outbound-meta";
+import { getEmailProviderStatus } from "@/lib/email/provider";
 
 export const metadata: Metadata = {
   title: "Admin emails",
@@ -27,21 +28,36 @@ export default async function AdminEmailsPage() {
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("email_events")
+    .from("email_outbound_events")
     .select(
-      "id, event_type, template_key, recipient_email, recipient_user_id, related_release_id, status, provider, provider_message_id, error, created_at, sent_at, attempt_count"
+      "id, to_email, template_key, payload, status, provider, provider_message_id, error, related_entity_type, related_entity_id, created_at, updated_at"
     )
     .order("created_at", { ascending: false })
     .limit(100);
 
-  const events = (data ?? []) as EmailEventListItem[];
+  const events = ((data ?? []) as OutboundEventRow[]).map(outboundToListItem);
+  const provider = getEmailProviderStatus();
 
   return (
     <div>
       <PageHeader
         title="Email outbox"
-        description="Transactional email events. Status SENT is only set after a real provider accept — never fabricated. Retry creates a new event with a new idempotency key."
+        description="Canonical table: public.email_outbound_events (queued / skipped / failed / sent). Templates edit branded HTML; Send enqueues to selected users or everyone. SENT is only set after a real provider accept with provider_message_id — never fabricated. Retry creates a new row with a new idempotency key."
       />
+      <Alert
+        variant={provider.configured ? "success" : "warning"}
+        title="Provider"
+        className="mb-4"
+      >
+        {provider.message}{" "}
+        <Link className="underline-offset-4 hover:underline" href="/admin/emails/templates">
+          Templates
+        </Link>
+        {" · "}
+        <Link className="underline-offset-4 hover:underline" href="/admin/emails/send">
+          Send
+        </Link>
+      </Alert>
       {error ? (
         <p className="text-small text-red-400">Failed to load: {error.message}</p>
       ) : (

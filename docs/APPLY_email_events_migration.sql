@@ -1,3 +1,5 @@
+-- LEGACY COPY. New enqueue/send writes go to public.email_outbound_events
+-- (see docs/APPLY_email_outbound_retarget.sql). Do not grow email_events.
 -- Nexo Music Distribution LTD — email events outbox (Batch email architecture)
 -- Status vocabulary: pending | processing | sent | failed | unavailable
 -- Never fabricate SENT / LIVE. Never store auth tokens in payload.

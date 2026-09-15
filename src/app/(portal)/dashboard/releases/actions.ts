@@ -23,9 +23,9 @@ import type {
   ReleaseStatus,
   ReleaseType,
 } from "@/lib/releases/types";
-import {
 import { enqueueEmailEvent } from "@/lib/email/enqueue";
 import { resolveReleaseOwnerRecipient } from "@/lib/email/resolve-recipient";
+import {
   ARTWORK_BUCKET,
   AUDIO_BUCKET,
   assertArtworkFile,

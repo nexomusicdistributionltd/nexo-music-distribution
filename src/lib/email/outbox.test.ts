@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { EmailProvider } from "./types";
 
 /**
  * Provider failure / null provider behavior (unit-level).
@@ -15,17 +16,17 @@ describe("outbox provider outcomes", () => {
     });
     expect(r.accepted).toBe(false);
     expect(r.unavailable).toBe(true);
-    // outbox maps this to status unavailable — never sent
+    // outbox maps this to status skipped — never sent
   });
 
   it("provider failure → FAILED semantics (accepted false, not unavailable)", async () => {
-    const failing = {
+    const failing: EmailProvider = {
       name: "mock",
-      send: vi.fn(async () => ({
-        accepted: false as const,
+      send: async () => ({
+        accepted: false,
         provider: "mock",
         error: "boom",
-      })),
+      }),
     };
     const r = await failing.send({
       to: "x@y.z",

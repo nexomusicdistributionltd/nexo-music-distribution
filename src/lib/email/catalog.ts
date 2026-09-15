@@ -56,6 +56,9 @@ export const EMAIL_CATALOG: EmailCatalogEntry[] = [
   { eventType: "support", templateKey: "SUPPORT_TICKET_CREATED", filePath: "emails/templates/SUPPORT_TICKET_CREATED.html", subject: "Support ticket created" },
   { eventType: "support", templateKey: "SUPPORT_TICKET_REPLY", filePath: "emails/templates/SUPPORT_TICKET_REPLY.html", subject: "New reply on your support ticket" },
   { eventType: "contact", templateKey: "CONTACT_ACKNOWLEDGEMENT", filePath: "emails/templates/CONTACT_ACKNOWLEDGEMENT.html", subject: "We received your message" },
+
+  { eventType: "newsletter", templateKey: "NEWSLETTER", filePath: "emails/templates/NEWSLETTER.html", subject: "From Nexo Music Distribution LTD" },
+  { eventType: "newsletter", templateKey: "NEW_MUSIC_FRIDAY", filePath: "emails/templates/NEW_MUSIC_FRIDAY.html", subject: "New Music Friday — this week’s Nexo releases" },
 ];
 
 const byKey = new Map<TemplateKey, EmailCatalogEntry>(
