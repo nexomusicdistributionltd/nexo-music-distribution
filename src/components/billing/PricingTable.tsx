@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import type { PublicBillingCatalog } from "@/lib/billing/catalog";
 import { paddleAddressForPreview } from "@/lib/billing/country";
 import { loginHrefForPlan, registerHrefForPlan } from "@/lib/billing/auth-return";
-import type { BillingAccountType, BillingInterval, PaidTierId, TierId } from "@/lib/billing/plans";
+import type { BillingAccountType, BillingInterval, OverrideCountryCode, PaidTierId, TierId } from "@/lib/billing/plans";
 
 type AuthSlice = {
   signedIn: boolean;
@@ -216,7 +216,7 @@ export function PricingTable({
         <p className="max-w-xl text-center text-caption text-[var(--nexo-text-muted)]">
           {Object.keys(formatted).length > 0
             ? "Localized totals including estimated tax come from Paddle PricePreview."
-            : "Prices shown in USD. Applicable tax is calculated by Paddle at checkout."}
+            : listPriceCaption(initialCountry)}
         </p>
       </div>
 
@@ -233,8 +233,14 @@ export function PricingTable({
             paid && tier.id in catalog.displayUsd
               ? catalog.displayUsd[tier.id as PaidTierId][interval === "month" ? "month" : "year"]
               : "Free";
+          const countryDisplay =
+            paid && initialCountry && initialCountry in catalog.displayCountry
+              ? catalog.displayCountry[initialCountry as OverrideCountryCode][tier.id as PaidTierId][
+                  interval === "month" ? "month" : "year"
+                ]
+              : undefined;
           const paddleTotal = paid ? formatted[tier.id as PaidTierId] : undefined;
-          const priceLabel = paid ? paddleTotal ?? usd : "Free";
+          const priceLabel = paid ? paddleTotal ?? countryDisplay ?? usd : "Free";
           const cta = checkoutCta({
             tierId: tier.id as TierId,
             paid: Boolean(paid),
@@ -324,4 +330,17 @@ function checkoutCta(input: {
     };
   }
   return { kind: "button", label: "Subscribe" };
+}
+
+function listPriceCaption(country: string | null): string {
+  if (country === "GB") {
+    return "List prices shown in GBP for the United Kingdom. Tax is calculated by Paddle at checkout.";
+  }
+  if (country === "IE") {
+    return "List prices shown in EUR for Ireland. Tax is calculated by Paddle at checkout.";
+  }
+  if (country === "AU") {
+    return "List prices shown in AUD for Australia. Tax is calculated by Paddle at checkout.";
+  }
+  return "Prices shown in USD. Applicable tax is calculated by Paddle at checkout.";
 }
