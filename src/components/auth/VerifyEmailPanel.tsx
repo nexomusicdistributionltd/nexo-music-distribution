@@ -6,6 +6,7 @@ import * as React from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { friendlyAuthError } from "@/lib/auth/errors";
+import { authEmailRedirectUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/client";
 
 export function VerifyEmailPanel({ email }: { email?: string | null }) {
@@ -28,7 +29,7 @@ export function VerifyEmailPanel({ email }: { email?: string | null }) {
       const { error: resendError } = await supabase.auth.resend({
         type: "signup",
         email,
-        options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+        options: { emailRedirectTo: authEmailRedirectUrl("/auth/confirm") },
       });
       if (resendError) throw resendError;
       setMessage("Verification email sent. Check your inbox and spam folder.");

@@ -1,10 +1,20 @@
+import { DEFAULT_SITE_URL, getSiteUrl, isForbiddenAuthHost } from "@/lib/site-url";
+
 /** HTTP security headers compatible with Supabase Auth + storage signed URLs. */
 
+function cspSiteOrigin(): string {
+  try {
+    const site = getSiteUrl();
+    const host = new URL(site).hostname;
+    if (isForbiddenAuthHost(host)) return DEFAULT_SITE_URL;
+    return site;
+  } catch {
+    return DEFAULT_SITE_URL;
+  }
+}
+
 export function securityHeaders(): Record<string, string> {
-  const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://nexomusicdistribution.com").replace(
-    /\/$/,
-    ""
-  );
+  const site = cspSiteOrigin();
   // CSP careful: allow Supabase Auth/storage, inline not needed for most; Next may need 'unsafe-inline' for styles in some setups — keep styles self + google fonts.
   const csp = [
     "default-src 'self'",

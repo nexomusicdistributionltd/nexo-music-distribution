@@ -34,6 +34,16 @@ export const MODULES = {
     description: "Provider adapters, delivery pipeline, takedowns",
     owns: ["architecture/distribution", "dsp_deliveries"],
   },
+  ddexErn: {
+    id: "ddex-ern",
+    description: "Server-side DDEX ERN 4.3.2 NewReleaseMessage generation and XSD validation",
+    owns: [
+      "src/lib/ddex",
+      "ddex_messages",
+      "release_deals",
+      "admin/ddex",
+    ],
+  },
   royaltyEngine: {
     id: "royalty-engine",
     description: "Statements, transactions, payouts",

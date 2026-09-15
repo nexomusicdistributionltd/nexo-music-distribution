@@ -61,9 +61,17 @@ supabase db push
 supabase migration up
 ```
 
-5. Auth settings (Authentication → URL configuration):
-   - Site URL: `http://localhost:3000` (dev) / your production domain
-   - Redirect URLs: `http://localhost:3000/auth/callback`, `http://localhost:3000/auth/confirm`, `http://localhost:3000/reset-password`
+5. Auth settings (Authentication → URL configuration) — **MANUAL CONFIG REQUIRED** (this repo cannot write the dashboard):
+   - **Site URL:** `https://nexomusicdistribution.com`
+   - **Redirect URLs:**
+     - `https://nexomusicdistribution.com`
+     - `https://nexomusicdistribution.com/**`
+     - `https://nexomusicdistribution.com/reset-password`
+     - `https://nexomusicdistribution.com/auth/callback`
+     - `https://nexomusicdistribution.com/auth/callback?next=/reset-password`
+     - `https://nexomusicdistribution.com/auth/confirm`
+   - Do not use `localhost` or `nexomusicdistro.space` as production auth origins (`nexomusicdistro.space` is Zoho SMTP From only).
+   - Password recovery `redirectTo` is `/reset-password` (Set New Password). Implicit hash tokens are consumed there; PKCE/OTP query params are forwarded to `/auth/callback` or `/auth/confirm`.
 6. Enable **Email** provider. Confirm email templates point at `/auth/confirm` or use the default PKCE `/auth/callback` flow.
 7. Storage: migration creates a public `avatars` bucket + RLS. Confirm it exists under Storage.
 

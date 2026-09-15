@@ -16,6 +16,10 @@ describe("roster policy", () => {
     expect(page).not.toContain("ComingSoon");
     const actions = readFileSync(join(root, "src/app/(portal)/dashboard/releases/actions.ts"), "utf8");
     expect(actions).toContain("Select a roster artist before creating a release");
+    expect(actions).toContain("Mixed artist/label roles are not allowed.");
+    expect(actions).toContain("label_profile_id: labelProfileId");
+    expect(actions).toContain("artist_profile_id: artistProfileId");
+    expect(src).toContain("Does NOT mutate profiles.account_type (Label stays Label)");
     const wiz = readFileSync(join(root, "src/components/releases/ReleaseWizard.tsx"), "utf8");
     expect(wiz).toContain("rosterArtistId");
     expect(wiz).toContain("track_id");

@@ -27,7 +27,7 @@ export function friendlyAuthError(error: unknown, fallback = "Something went wro
   if (lower.includes("network") || lower.includes("fetch")) {
     return "Network error. Check your connection and try again.";
   }
-  if (lower.includes("expired") || lower.includes("otp")) {
+  if (lower.includes("expired") || lower.includes("otp") || lower.includes("session missing")) {
     return "This link has expired. Request a new one.";
   }
   if (lower.includes("same password")) {

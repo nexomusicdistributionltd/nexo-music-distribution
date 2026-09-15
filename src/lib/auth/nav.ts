@@ -17,6 +17,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/publishing", label: "Publishing" },
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/distribution", label: "Distribution" },
+  { href: "/admin/ddex", label: "DDEX" },
   { href: "/admin/website", label: "Website" },
   { href: "/admin/partners", label: "Partners" },
   { href: "/admin/blog", label: "Blog" },

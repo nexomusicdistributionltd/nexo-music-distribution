@@ -46,6 +46,10 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "nexomusicdistribution.com", pathname: "/**" },
     ],
   },
+  outputFileTracingIncludes: {
+    "/admin/ddex/**": ["./src/lib/ddex/xsd/**"],
+    "/admin/ddex/download/**": ["./src/lib/ddex/xsd/**"],
+  },
   async headers() {
     return [
       {

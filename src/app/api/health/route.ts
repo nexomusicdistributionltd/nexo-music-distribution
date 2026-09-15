@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { DEFAULT_SITE_URL, getSiteUrl, isForbiddenAuthHost } from "@/lib/site-url";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { getServiceRoleKey } from "@/lib/supabase/admin";
 import { readProviderConfig } from "@/lib/provider/config";
@@ -48,12 +49,21 @@ export async function GET() {
     }
   }
 
+  let site = DEFAULT_SITE_URL;
+  try {
+    const resolved = getSiteUrl();
+    const host = new URL(resolved).hostname;
+    site = isForbiddenAuthHost(host) ? DEFAULT_SITE_URL : resolved;
+  } catch {
+    site = DEFAULT_SITE_URL;
+  }
+
   const body = {
     ok: true,
     status: "up",
     time: new Date().toISOString(),
     app: "nexo-music-distribution",
-    site: process.env.NEXT_PUBLIC_SITE_URL || "https://nexomusicdistribution.com",
+    site,
     checks: {
       supabaseEnv: env.configured ? "configured" : "missing",
       serviceRole: getServiceRoleKey() ? "present" : "absent",

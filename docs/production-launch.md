@@ -20,9 +20,21 @@ This deploy cannot change the Supabase dashboard. In **Authentication → URL Co
 
 - **Site URL:** `https://nexomusicdistribution.com`
 - **Redirect URLs:** include
+  - `https://nexomusicdistribution.com`
   - `https://nexomusicdistribution.com/**`
+  - `https://nexomusicdistribution.com/reset-password`
   - `https://nexomusicdistribution.com/auth/callback`
+  - `https://nexomusicdistribution.com/auth/callback?next=/reset-password`
   - `https://nexomusicdistribution.com/auth/confirm`
+- Recovery `resetPasswordForEmail` `redirectTo` = `https://nexomusicdistribution.com/reset-password`
+- Live GoTrue may still deliver implicit `#access_token&refresh_token&type=recovery` on that path; Set New Password calls `setSession` then `updateUser`. PKCE `?code=` and OTP `token_hash` are forwarded to `/auth/callback` / `/auth/confirm`.
+- Optional OTP template: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`
+- Auth emails (signup confirm, resend verify, forgot/reset password) use this domain — never `localhost` or `nexomusicdistro.space`.
+
+## DDEX identity
+
+- Server-only `NEXO_DPID` (production value `PA-DPIDA-2026021501-H`). Never `NEXT_PUBLIC_*`.
+- **No authorized DSP recipient DPID.** Do not invent Spotify/Apple Party Ids. Leave `NEXO_DDEX_RECIPIENT_DPID` unset; production delivery stays disabled (NotConnected transport). Internal fixtures may use an isolated TEST recipient only.
 
 ## Database / migrations
 

@@ -75,6 +75,10 @@ export async function createReleaseDraft(input: {
   const isArtist = ctx.roles.includes("artist");
   const isLabel = ctx.roles.includes("label");
 
+  if (isArtist && isLabel) {
+    return { ok: false, error: "Mixed artist/label roles are not allowed." };
+  }
+
   if (isArtist) {
     const { data } = await supabase
       .from("artist_profiles")
@@ -143,6 +147,8 @@ export async function createReleaseDraft(input: {
     await supabase.from("release_deals").insert({
       release_id: data.id,
       territories: ["WW"],
+      use_types: ["OnDemandStream", "PermanentDownload"],
+      commercial_model_types: ["SubscriptionModel", "PayAsYouGoModel"],
       is_default: true,
     });
   } catch {

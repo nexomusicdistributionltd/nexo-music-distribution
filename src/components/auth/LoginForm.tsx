@@ -41,7 +41,9 @@ export function LoginForm({
           ? "Please sign in to continue."
           : reason === "access-denied"
             ? "This account does not have administrator access."
-            : null;
+            : reason === "password-updated"
+              ? "Password updated. Sign in with your new password."
+              : null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
