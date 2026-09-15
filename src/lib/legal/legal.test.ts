@@ -8,8 +8,8 @@ import {
   REFUND_POLICY_SECTIONS,
   TERMS_SECTIONS,
 } from "./copy";
-import { BRAND_PUBLIC_URL, BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
-import { COMPANY_LEGAL, NAV_LINKS } from "@/lib/site";
+import { BRAND_LEGAL_NAME, BRAND_PUBLIC_URL, BRAND_SOCIAL_LINKS, BRAND_SUPPORT_EMAIL } from "@/lib/brand/social";
+import { NAV_LINKS } from "@/lib/site";
 import { PADDLE_VERIFICATION_LINKS } from "./public-links";
 
 function read(rel: string) {
@@ -39,6 +39,7 @@ describe("public legal and pricing pages", () => {
       "/refund-policy",
     ]);
     expect(footer).not.toContain('href: "/return-policy"');
+    expect(footer).toContain('from "@/components/layout/SocialLinks"');
     expect(NAV_LINKS.some((l) => l.href === "/pricing")).toBe(true);
   });
 
@@ -61,8 +62,9 @@ describe("public legal and pricing pages", () => {
   });
 
   it("legal copy uses company, public site, mailbox, and official social", () => {
-    expect(COMPANY_LEGAL).toBe("NEXO MUSIC DISTRIBUTION LTD");
+    expect(BRAND_LEGAL_NAME).toBe("Nexo Music Distribution LTD");
     expect(BRAND_PUBLIC_URL).toBe("https://nexomusicdistribution.com");
+    expect(LEGAL_CONTACT_EMAIL).toBe(BRAND_SUPPORT_EMAIL);
     expect(LEGAL_CONTACT_EMAIL).toBe("contact@nexomusicdistro.space");
     const blob = [
       flatten(TERMS_SECTIONS),
@@ -89,13 +91,20 @@ describe("public legal and pricing pages", () => {
     expect(flatten(TERMS_SECTIONS)).toContain("£7.99");
     expect(flatten(TERMS_SECTIONS)).toContain("ireland");
     expect(flatten(TERMS_SECTIONS)).toContain("a$14.99");
+    expect(read("src/lib/legal/copy.ts")).not.toContain("NEXO MUSIC DISTRIBUTION LTD");
+    expect(read("src/app/(marketing)/terms/page.tsx")).not.toContain("NEXO MUSIC DISTRIBUTION LTD");
+    expect(read("src/app/(marketing)/privacy/page.tsx")).not.toContain("NEXO MUSIC DISTRIBUTION LTD");
+    expect(read("src/app/(marketing)/refund-policy/page.tsx")).not.toContain(
+      "NEXO MUSIC DISTRIBUTION LTD"
+    );
   });
 
   it("pricing page shows USD catalog fallback without requiring Paddle", () => {
     const pricing = read("src/app/(marketing)/pricing/page.tsx");
     expect(pricing).toContain("Music Distribution Pricing for Artists & Labels");
-    expect(pricing).toContain("$9.99");
-    expect(pricing).toContain("income are not guaranteed");
+    expect(pricing).toContain("BRAND_LEGAL_NAME");
+    expect(pricing).toContain("BRAND_PUBLIC_URL");
+    expect(pricing).not.toContain("NEXO MUSIC DISTRIBUTION LTD");
     const table = read("src/components/billing/PricingTable.tsx");
     expect(table).toContain("displayCountry");
     expect(table).toContain("formattedTotals.total");

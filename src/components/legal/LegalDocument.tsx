@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/marketing/PageHero";
 import { LegalArticle, type LegalSection } from "@/components/legal/LegalArticle";
-import { SITE_URL } from "@/lib/site";
+import { BRAND_LEGAL_NAME, BRAND_PUBLIC_URL } from "@/lib/brand/social";
 
 export function legalMetadata(input: {
   title: string;
@@ -11,12 +11,12 @@ export function legalMetadata(input: {
   return {
     title: input.title,
     description: input.description,
-    alternates: { canonical: `${SITE_URL}${input.path}` },
+    alternates: { canonical: `${BRAND_PUBLIC_URL}${input.path}` },
     openGraph: {
-      title: `${input.title} | NEXO Music Distribution`,
+      title: `${input.title} | ${BRAND_LEGAL_NAME}`,
       description: input.description,
-      url: `${SITE_URL}${input.path}`,
-      siteName: "NEXO Music Distribution",
+      url: `${BRAND_PUBLIC_URL}${input.path}`,
+      siteName: BRAND_LEGAL_NAME,
       type: "article",
     },
   };

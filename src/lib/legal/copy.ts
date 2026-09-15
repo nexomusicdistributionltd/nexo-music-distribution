@@ -1,9 +1,15 @@
-import { BRAND_PUBLIC_URL, BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
-import { COMPANY_LEGAL, PUBLISHING_DIVISION } from "@/lib/site";
+import {
+  BRAND_LEGAL_NAME,
+  BRAND_PUBLIC_URL,
+  BRAND_SOCIAL_LINKS,
+  BRAND_SUPPORT_EMAIL,
+} from "@/lib/brand/social";
+import { PUBLISHING_DIVISION } from "@/lib/site";
 import type { LegalSection } from "@/components/legal/LegalArticle";
 
 export const LEGAL_UPDATED = "15 September 2026";
-export const LEGAL_CONTACT_EMAIL = "contact@nexomusicdistro.space";
+export const LEGAL_CONTACT_EMAIL = BRAND_SUPPORT_EMAIL;
+export const LEGAL_BUSINESS_NAME = BRAND_LEGAL_NAME;
 
 const SITE = BRAND_PUBLIC_URL;
 const SOCIAL_LIST = BRAND_SOCIAL_LINKS.map((s) => s.href).join(", ");
@@ -14,7 +20,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "1. Who we are",
     paragraphs: [
-      `These Terms of Service (“Terms”) govern access to the websites, dashboards, APIs, and related services operated by ${COMPANY_LEGAL} (“Nexo”, “we”, “us”). Our public website is ${SITE}. ${PUBLISHING_DIVISION} is our publishing division.`,
+      `These Terms of Service (“Terms”) govern access to the websites, dashboards, APIs, and related services operated by ${LEGAL_BUSINESS_NAME} (“Nexo”, “we”, “us”). Our public website is ${SITE}. ${PUBLISHING_DIVISION} is our publishing division.`,
       `Official public profiles are listed at ${SITE} and include ${SOCIAL_LIST}. Support mail is ${LEGAL_CONTACT_EMAIL}.`,
       "By creating an account, submitting a release, browsing the public site, or purchasing a subscription, you agree to these Terms. If you use Nexo on behalf of a label or other organisation, you represent that you have authority to bind that organisation.",
     ],
@@ -106,7 +112,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "14. Company details",
     paragraphs: [
-      `${COMPANY_LEGAL} operates the public website at ${SITE}. A registered office address, company number, and a specific governing-law or court venue are not published here because they are not recorded in this product’s verified company details. We do not invent those facts.`,
+      `${LEGAL_BUSINESS_NAME} operates the public website at ${SITE}. A registered office address, company number, and a specific governing-law or court venue are not published here because they are not recorded in this product’s verified company details. We do not invent those facts.`,
       "If official company records later publish a registered office or governing law, they will be added to this page. Until then, use the contact details below for notices and disputes.",
     ],
   },
@@ -120,7 +126,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "1. Controller",
     paragraphs: [
-      `${COMPANY_LEGAL} is the controller of personal data processed through ${SITE} and the Nexo dashboards, except where Paddle acts as merchant of record for checkout, tax, and invoicing.`,
+      `${LEGAL_BUSINESS_NAME} is the controller of personal data processed through ${SITE} and the Nexo dashboards, except where Paddle acts as merchant of record for checkout, tax, and invoicing.`,
       LEGAL_CONTACT_LINE,
     ],
   },
@@ -209,7 +215,7 @@ export const REFUND_POLICY_SECTIONS: LegalSection[] = [
   {
     heading: "1. Digital services",
     paragraphs: [
-      `${COMPANY_LEGAL} supplies digital music-distribution software and related services. We do not ship physical goods. Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all paid orders.`,
+      `${LEGAL_BUSINESS_NAME} supplies digital music-distribution software and related services. We do not ship physical goods. Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all paid orders.`,
     ],
   },
   {
@@ -265,7 +271,7 @@ export const COOKIES_SECTIONS: LegalSection[] = [
   {
     heading: "1. Who we are",
     paragraphs: [
-      `This Cookie Policy explains how ${COMPANY_LEGAL} uses cookies and similar technologies on ${SITE} and signed-in dashboards.`,
+      `This Cookie Policy explains how ${LEGAL_BUSINESS_NAME} uses cookies and similar technologies on ${SITE} and signed-in dashboards.`,
       LEGAL_CONTACT_LINE,
     ],
   },

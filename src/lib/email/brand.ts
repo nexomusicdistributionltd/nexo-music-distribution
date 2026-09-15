@@ -6,6 +6,8 @@
  */
 import {
   BRAND_PUBLIC_URL,
+  BRAND_LEGAL_NAME,
+  BRAND_SUPPORT_EMAIL,
   BRAND_SOCIAL,
   BRAND_SOCIAL_LINKS,
 } from "@/lib/brand/social";
@@ -15,8 +17,8 @@ const JSDELIVR_EMAIL_ICON = (file: string) =>
 
 export const NEXO_EMAIL_BRAND = {
   website: BRAND_PUBLIC_URL,
-  email: "contact@nexomusicdistro.space",
-  company: "Nexo Music Distribution LTD",
+  email: BRAND_SUPPORT_EMAIL,
+  company: BRAND_LEGAL_NAME,
   tagline: "Digital Music Distribution | Publishing | Royalty Management",
   /** Silver wordmark on transparent (CloudFront). */
   wordmark:
