@@ -1,5 +1,4 @@
-
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { resolveContactSubmissionRecipient } from "./resolve-recipient";
 
 describe("resolveContactSubmissionRecipient", () => {
@@ -8,6 +7,39 @@ describe("resolveContactSubmissionRecipient", () => {
     expect(r.email).toBe("user@example.com");
     expect(r.source).toBe("contact_submission");
     expect(r.userId).toBeNull();
+  });
+});
+
+describe("manual recipients", () => {
+  it("resolves from profile rows and ignores extra emails", async () => {
+    const { resolveManualRecipients } = await import("./resolve-recipient");
+    const uid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const supabase = {
+      from(table: string) {
+        if (table !== "profiles") throw new Error(table);
+        return {
+          select: () => ({
+            in: async () => ({
+              data: [
+                {
+                  id: uid,
+                  email: "from-db@nexo.test",
+                  display_name: "DB User",
+                  full_name: "DB User",
+                },
+              ],
+              error: null,
+            }),
+          }),
+        };
+      },
+    };
+    const r = await resolveManualRecipients(supabase as never, {
+      userIds: [uid],
+    });
+    expect(r.recipients).toHaveLength(1);
+    expect(r.recipients[0].email).toBe("from-db@nexo.test");
+    expect(r.recipients[0].source).toBe("profile");
   });
 });
 

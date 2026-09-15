@@ -26,10 +26,15 @@ describe("template allowlist", () => {
     expect(getCatalogEntry("RELEASE_DELIVERED")?.dormant).toBe(true);
   });
 
-  it("includes AUTH and operational keys", () => {
+  it("includes AUTH, operational, and newsletter keys", () => {
     const keys = new Set(EMAIL_CATALOG.map((e) => e.templateKey));
     expect(keys.has("AUTH_CONFIRMATION")).toBe(true);
     expect(keys.has("CONTACT_ACKNOWLEDGEMENT")).toBe(true);
+    expect(keys.has("NEWSLETTER")).toBe(true);
+    expect(keys.has("NEW_MUSIC_FRIDAY")).toBe(true);
+    expect(getCatalogEntry("NEW_MUSIC_FRIDAY")?.filePath).toBe(
+      "emails/templates/NEW_MUSIC_FRIDAY.html"
+    );
   });
 });
 

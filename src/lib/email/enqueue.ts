@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { assertApprovedTemplateKey } from "./catalog";
+import { assertEnqueueableTemplateKey } from "./template-keys";
 import type { EnqueueEmailInput } from "./types";
 
 /**
@@ -13,7 +13,7 @@ export async function enqueueEmailEvent(
   supabase: SupabaseClient,
   input: EnqueueEmailInput
 ): Promise<{ id: string | null; enqueued: boolean; error?: string }> {
-  const templateKey = assertApprovedTemplateKey(input.templateKey);
+  const templateKey = assertEnqueueableTemplateKey(input.templateKey);
   const payload = scrubPayload(input.payload ?? {});
 
   const { data, error } = await supabase.rpc("enqueue_email_event", {

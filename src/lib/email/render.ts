@@ -46,6 +46,17 @@ export function substitutePlaceholders(
   });
 }
 
+export function renderHtmlDocument(
+  htmlBody: string,
+  subject: string,
+  vars: Record<string, string | number | null | undefined>
+): { html: string; subject: string } {
+  return {
+    html: substitutePlaceholders(htmlBody, vars),
+    subject: substitutePlaceholders(subject, vars),
+  };
+}
+
 export async function renderTemplate(
   templateKey: string,
   vars: Record<string, string | number | null | undefined>
@@ -54,7 +65,6 @@ export async function renderTemplate(
   const entry = getCatalogEntry(key);
   if (!entry) throw new Error(`Unauthorized or unknown template key: ${key}`);
   const raw = await loadTemplateHtml(key);
-  const html = substitutePlaceholders(raw, vars);
-  const subject = substitutePlaceholders(entry.subject, vars);
-  return { html, subject, dormant: Boolean(entry.dormant) };
+  const rendered = renderHtmlDocument(raw, entry.subject, vars);
+  return { ...rendered, dormant: Boolean(entry.dormant) };
 }

@@ -1,9 +1,10 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getCatalogEntry } from "./catalog";
+import { getCatalogEntry, isApprovedTemplateKey } from "./catalog";
 import { defaultFromAddress, getEmailProvider } from "./provider";
-import { renderTemplate } from "./render";
+import { renderHtmlDocument, renderTemplate } from "./render";
+import { tryLoadStoredTemplate } from "./stored";
 import type { EmailEventStatus, TemplateKey } from "./types";
 
 type EmailEventRow = {
@@ -54,10 +55,11 @@ export async function processEmailEvent(
   const row = data as EmailEventRow;
   if (row.status === "sent") return { status: "sent" };
 
+  const stored = await tryLoadStoredTemplate(supabase, row.template_key);
   const entry = getCatalogEntry(row.template_key);
-  if (!entry) {
+  if (!stored && !entry) {
     await markStatus(supabase, row.id, "failed", {
-      error: `Unauthorized template key: ${row.template_key}`,
+      error: `Unauthorized or unknown template key: ${row.template_key}`,
     });
     return { status: "failed", error: "Unauthorized template key" };
   }
@@ -79,9 +81,17 @@ export async function processEmailEvent(
   let html: string;
   let subject: string;
   try {
-    const rendered = await renderTemplate(row.template_key as TemplateKey, vars);
-    html = rendered.html;
-    subject = rendered.subject;
+    if (stored?.html_body) {
+      const rendered = renderHtmlDocument(stored.html_body, stored.subject, vars);
+      html = rendered.html;
+      subject = rendered.subject;
+    } else if (isApprovedTemplateKey(row.template_key)) {
+      const rendered = await renderTemplate(row.template_key as TemplateKey, vars);
+      html = rendered.html;
+      subject = rendered.subject;
+    } else {
+      throw new Error(`No HTML body for template key: ${row.template_key}`);
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Render failed";
     await markStatus(supabase, row.id, "failed", { error: msg });

@@ -30,6 +30,8 @@ export const APPROVED_TEMPLATE_KEYS = [
   "SUPPORT_TICKET_CREATED",
   "SUPPORT_TICKET_REPLY",
   "CONTACT_ACKNOWLEDGEMENT",
+  "NEWSLETTER",
+  "NEW_MUSIC_FRIDAY",
 ] as const;
 
 export type TemplateKey = (typeof APPROVED_TEMPLATE_KEYS)[number];
@@ -50,7 +52,22 @@ export type EmailEventType =
   | "support"
   | "contact"
   | "auth"
-  | "manual.retry";
+  | "manual.retry"
+  | "newsletter"
+  | "manual.send";
+
+export type StoredTemplateCategory = "ops" | "newsletter" | "custom";
+
+export interface StoredEmailTemplate {
+  key: string;
+  name: string;
+  category: StoredTemplateCategory;
+  subject: string;
+  html_body: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
 
 export interface EmailCatalogEntry {
   eventType: EmailEventType;
@@ -98,7 +115,8 @@ export interface ResolvedRecipient {
 
 export interface EnqueueEmailInput {
   eventType: EmailEventType;
-  templateKey: TemplateKey;
+  /** Catalog key or admin-created stored key (never AUTH_*). */
+  templateKey: string;
   recipientUserId?: string | null;
   recipientEmail?: string | null;
   relatedReleaseId?: string | null;

@@ -17,8 +17,8 @@ import { enqueueEmailEvent } from "@/lib/email/enqueue";
 import { processEmailEvent } from "@/lib/email/outbox";
 import {
   templateKeysForQcDecision,
-  assertApprovedTemplateKey,
 } from "@/lib/email/catalog";
+import { assertEnqueueableTemplateKey } from "@/lib/email/template-keys";
 import { resolveProfileRecipient, resolveReleaseOwnerRecipient } from "@/lib/email/resolve-recipient";
 import { createServiceClient } from "@/lib/supabase/admin";
 
@@ -524,7 +524,7 @@ export async function retryEmailEventAction(eventId: string): Promise<ActionResu
   if (!existing) return { ok: false, error: "Email event not found." };
 
   const retryKey = `${existing.idempotency_key}:retry:${crypto.randomUUID()}`;
-  const templateKey = assertApprovedTemplateKey(String(existing.template_key));
+  const templateKey = assertEnqueueableTemplateKey(String(existing.template_key));
   const enq = await enqueueEmailEvent(supabase, {
     eventType: "manual.retry",
     templateKey,
