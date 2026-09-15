@@ -38,6 +38,8 @@ export async function setReleaseWebsiteAction(input: {
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/website");
   revalidatePath("/music");
+  revalidatePath("/");
+  revalidatePath("/release", "layout");
   return { ok: true, data };
 }
 
@@ -49,6 +51,12 @@ export async function setArtistWebsiteAction(input: {
   tagline?: string;
   bioHtml?: string;
   sortOrder?: number;
+  artistName?: string;
+  genres?: string[];
+  country?: string | null;
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
+  socialLinks?: Record<string, string> | null;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:artists");
   const supabase = await createClient();
@@ -60,10 +68,65 @@ export async function setArtistWebsiteAction(input: {
     p_tagline: input.tagline ?? null,
     p_bio_html: input.bioHtml != null ? sanitizeCmsHtml(input.bioHtml) : null,
     p_bio_json: null,
-    p_social_links: null,
+    p_social_links: input.socialLinks ?? null,
     p_sort_order: input.sortOrder ?? null,
+    p_artist_name: input.artistName ?? null,
+    p_genres: input.genres ?? null,
+    p_country: input.country === undefined ? null : input.country,
+    p_avatar_url: input.avatarUrl === undefined ? null : input.avatarUrl,
+    p_cover_url: input.coverUrl === undefined ? null : input.coverUrl,
   });
   if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/website");
+  revalidatePath(`/admin/artists/${input.artistProfileId}`);
+  revalidatePath("/music");
+  revalidatePath("/");
+  return { ok: true, data };
+}
+
+export async function upsertHomepageSettingsAction(
+  value: Record<string, unknown>
+): Promise<ActionResult> {
+  await RequireAdminPermission("admin:settings");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_upsert_website_setting", {
+    p_key: "homepage",
+    p_value: value,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/website");
+  revalidatePath("/");
+  return { ok: true, data };
+}
+
+export async function upsertWebsiteVideoAction(input: {
+  id?: string;
+  title?: string;
+  url?: string;
+  thumbnailUrl?: string | null;
+  artistId?: string | null;
+  releaseId?: string | null;
+  trackId?: string | null;
+  published?: boolean;
+  sortOrder?: number;
+  delete?: boolean;
+}): Promise<ActionResult> {
+  await RequireAdminPermission("admin:settings");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_upsert_website_video", {
+    p_id: input.id ?? null,
+    p_title: input.title ?? null,
+    p_url: input.url ?? null,
+    p_thumbnail_url: input.thumbnailUrl === undefined ? null : input.thumbnailUrl,
+    p_artist_id: input.artistId === undefined ? null : input.artistId,
+    p_release_id: input.releaseId === undefined ? null : input.releaseId,
+    p_track_id: input.trackId === undefined ? null : input.trackId,
+    p_published: input.published ?? null,
+    p_sort_order: input.sortOrder ?? null,
+    p_delete: input.delete ?? false,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/videos");
   revalidatePath("/admin/website");
   return { ok: true, data };
 }

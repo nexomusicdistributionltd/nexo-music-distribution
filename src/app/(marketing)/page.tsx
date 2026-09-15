@@ -23,7 +23,14 @@ import { FeatureCard } from "@/components/ui/FeatureCard";
 import { Badge } from "@/components/ui/Badge";
 import { DspMarquee } from "@/components/marketing/DspMarquee";
 import { PartnerLogoMarquee } from "@/components/website/PartnerLogoMarquee";
+import { HomeFeaturedCatalog } from "@/components/website/HomeFeaturedCatalog";
+import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
 import { listActivePartners } from "@/lib/website/partners";
+import {
+  getWebsiteSetting,
+  listFeaturedPublicArtists,
+  listFeaturedPublicReleases,
+} from "@/lib/website/queries";
 import { Section, Eyebrow } from "@/components/marketing/Section";
 import { DashboardMock } from "@/components/marketing/home/DashboardMock";
 import { FinalCta } from "@/components/marketing/FinalCta";
@@ -177,9 +184,31 @@ const PUBLISHING_PILLARS = [
 ];
 
 export default async function HomePage() {
-  const partners = await listActivePartners();
+  const [partners, featuredReleases, featuredArtists, homepageSetting] = await Promise.all([
+    listActivePartners(),
+    listFeaturedPublicReleases(8),
+    listFeaturedPublicArtists(8),
+    getWebsiteSetting("homepage"),
+  ]);
+  const home = (homepageSetting?.value ?? {}) as Record<string, unknown>;
+  const heroEyebrow = String(home.hero_eyebrow || "Global Music Distribution & Publishing");
+  const heroTitle = String(home.hero_title || "Your Music.");
+  const heroAccent = String(home.hero_title_accent || "Everywhere.");
+  const heroBody = String(
+    home.hero_body ||
+      "NEXO Music Distribution helps independent artists and labels deliver releases to 450+ platforms, manage royalties with clarity, and unlock publishing opportunities through Nexo Publishing Group — infrastructure built for the modern music business."
+  );
+  const heroCtaLabel = String(home.hero_cta_label || "Get Started");
+  const heroCtaHref = String(home.hero_cta_href || "/get-started");
+  const showFeaturedReleases = home.show_featured_releases !== false;
+  const showFeaturedArtists = home.show_featured_artists !== false;
+  const showPartners = home.show_partners !== false;
+  const heroImageUrl =
+    typeof home.hero_image_url === "string" && home.hero_image_url ? home.hero_image_url : null;
+
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in overflow-x-hidden">
+      <PublicCatalogRealtime />
       {/* 1. Hero */}
       <section className="relative overflow-hidden border-b border-[var(--nexo-border)]">
         <div
@@ -201,22 +230,17 @@ export default async function HomePage() {
         />
         <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-8">
           <div>
-            <Eyebrow>Global Music Distribution &amp; Publishing</Eyebrow>
+            <Eyebrow>{heroEyebrow}</Eyebrow>
             <h1 className="mt-5 text-display text-[var(--nexo-text)]">
-              Your Music.
+              {heroTitle}
               <br />
-              <span className="text-[var(--nexo-text-secondary)]">Everywhere.</span>
+              <span className="text-[var(--nexo-text-secondary)]">{heroAccent}</span>
             </h1>
-            <p className="mt-6 max-w-xl text-body text-[var(--nexo-text-muted)]">
-              NEXO Music Distribution helps independent artists and labels deliver releases
-              to 450+ platforms, manage royalties with clarity, and unlock publishing
-              opportunities through Nexo Publishing Group — infrastructure built for the
-              modern music business.
-            </p>
+            <p className="mt-6 max-w-xl text-body text-[var(--nexo-text-muted)]">{heroBody}</p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/get-started">
+              <Link href={heroCtaHref}>
                 <Button size="lg" className="gap-2 rounded-full px-6">
-                  Get Started
+                  {heroCtaLabel}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -237,6 +261,10 @@ export default async function HomePage() {
           <div className="relative hidden lg:block">
             <div className="absolute -inset-6 rounded-[2rem] border border-[var(--nexo-border)] opacity-60" aria-hidden />
             <div className="relative overflow-hidden rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 shadow-[var(--nexo-shadow-lg)]">
+              {heroImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={heroImageUrl} alt="" className="mb-6 aspect-[16/10] w-full rounded-[var(--nexo-radius)] object-cover" />
+              ) : null}
               <div className="flex items-center justify-between">
                 <Music2 className="h-5 w-5 text-[var(--nexo-text)]" aria-hidden />
                 <span className="text-caption uppercase tracking-[0.14em] text-[var(--nexo-text-muted)]">
@@ -286,7 +314,13 @@ export default async function HomePage() {
 
       {/* 3. DSP marquee */}
       <DspMarquee />
-      <PartnerLogoMarquee partners={partners} />
+      {showPartners ? <PartnerLogoMarquee partners={partners} /> : null}
+      <HomeFeaturedCatalog
+        releases={featuredReleases}
+        artists={featuredArtists}
+        showReleases={showFeaturedReleases}
+        showArtists={showFeaturedArtists}
+      />
 
       {/* 4. Six feature cards */}
       <Section id="features">

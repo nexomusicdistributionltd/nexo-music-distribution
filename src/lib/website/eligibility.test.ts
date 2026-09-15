@@ -4,6 +4,7 @@ import {
   canOfferWebsitePlayback,
   publicStatusLabel,
   hasOfficialEmbed,
+  hasDspOutboundLinks,
 } from "./eligibility";
 
 describe("public music eligibility", () => {
@@ -28,9 +29,9 @@ describe("public music eligibility", () => {
     expect(publicStatusLabel("delivered")).toBe("Delivered");
   });
 
-  it("detects embeds", () => {
+  it("detects DSP outbound link fields (not primary embeds)", () => {
     expect(hasOfficialEmbed({})).toBe(false);
-    expect(hasOfficialEmbed({ website_embed_spotify_url: "https://open.spotify.com/x" })).toBe(
+    expect(hasDspOutboundLinks({ website_embed_spotify_url: "https://open.spotify.com/x" })).toBe(
       true
     );
   });
