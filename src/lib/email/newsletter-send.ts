@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
+import { emailSocialIconsRowHtml } from "@/lib/email/brand";
 import {
   DEFAULT_EMAIL_FROM,
   isZohoSmtpConfigured,
@@ -65,11 +66,12 @@ export function buildNewsletterHtml(opts: {
           <h1 style="margin:0 0 20px;font-size:22px;line-height:1.3;color:#fafafa;">${escapeHtml(opts.subject)}</h1>
           <div style="font-size:15px;line-height:1.6;color:#e5e5e5;">${opts.bodyHtml}</div>
           <hr style="border:none;border-top:1px solid #2a2a2a;margin:28px 0;"/>
-          <p style="margin:0;font-size:12px;color:#737373;">
+          <p style="margin:0 0 16px;font-size:12px;color:#737373;">
             You’re receiving this because you subscribed at
             <a href="${site}" style="color:#a3a3a3;">nexomusicdistribution.com</a>.
             <a href="${opts.unsubscribeUrl}" style="color:#a3a3a3;">Unsubscribe</a>
           </p>
+          ${emailSocialIconsRowHtml()}
         </td></tr>
       </table>
     </td></tr>

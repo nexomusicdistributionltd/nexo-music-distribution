@@ -115,5 +115,13 @@ describe("buildNewsletterHtml", () => {
     expect(html).toContain("NEXO Music Distribution");
     expect(html).toContain("Hello &lt;Nexo&gt;");
     expect(html).not.toMatch(/resend/i);
+    expect(html).toContain("https://nexomusicdistribution.com");
+    expect(html).toContain('aria-label="Nexo Music Distribution on Spotify"');
+    expect(html).toContain('aria-label="Nexo Music Distribution on X"');
+    expect(html).toContain('aria-label="Nexo Music Distribution on TikTok"');
+    expect(html).toContain("https://x.com/nexomusicdistro");
+    expect(html).toContain("https://www.tiktok.com/@nexomusicdistribution");
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).not.toMatch(/facebook\.com|instagram\.com|linkedin\.com/i);
   });
 });
