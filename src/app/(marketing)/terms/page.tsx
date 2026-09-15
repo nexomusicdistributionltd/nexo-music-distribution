@@ -1,5 +1,5 @@
 import { LegalDocument, legalMetadata } from "@/components/legal/LegalDocument";
-import { LEGAL_BUSINESS_NAME, LEGAL_CONTACT_EMAIL, LEGAL_UPDATED, TERMS_SECTIONS } from "@/lib/legal/copy";
+import { LEGAL_BUSINESS_NAME, LEGAL_UPDATED, TERMS_SECTIONS } from "@/lib/legal/copy";
 
 export const metadata = legalMetadata({
   title: "Terms of Service",

@@ -24,7 +24,7 @@ function flatten(sections: { paragraphs: string[]; bullets?: string[] }[]) {
 }
 
 describe("public legal and pricing pages", () => {
-  it("footer permanently links Pricing, Terms of Service, Privacy Policy, and Refund Policy", () => {
+  it("footer permanently links Pricing, Terms of Service, Privacy Policy, Refund Policy, and Cookies", () => {
     const footer = read("src/components/layout/Footer.tsx");
     expect(footer).toContain("PADDLE_VERIFICATION_LINKS");
     expect(footer).toContain('aria-label="Pricing and legal"');
@@ -37,6 +37,7 @@ describe("public legal and pricing pages", () => {
       "/terms",
       "/privacy",
       "/refund-policy",
+      "/cookies",
     ]);
     expect(footer).not.toContain('href: "/return-policy"');
     expect(footer).toContain('from "@/components/layout/SocialLinks"');
@@ -48,7 +49,9 @@ describe("public legal and pricing pages", () => {
     expect(cfg).toContain('source: "/return-policy"');
     expect(cfg).toContain('destination: "/refund-policy"');
     expect(cfg).not.toMatch(/source: "\/refund-policy"[\s\S]*destination: "\/return-policy"/);
-    expect(read("src/app/sitemap.ts")).toContain("/refund-policy");
+    expect(cfg).toContain('source: "/cookie-policy"');
+    expect(cfg).toContain('destination: "/cookies"');
+    expect(read("src/app/sitemap.ts")).toContain("/cookies");
   });
 
   it("cookies page ships full copy and never a CMS unpublished stub", () => {
@@ -56,8 +59,16 @@ describe("public legal and pricing pages", () => {
     expect(cookiesPage).not.toMatch(/Not published yet/);
     expect(cookiesPage).toContain("COOKIES_SECTIONS");
     const cookies = flatten(COOKIES_SECTIONS);
+    expect(cookiesPage).toContain("Cookies Policy");
     expect(cookies).toContain("essential");
-    expect(cookies).toContain("paddle");
+    expect(cookies).toContain("analytics");
+    expect(cookies).toContain("preference");
+    expect(cookies).toContain("marketing");
+    expect(cookies).toContain("nexo_otp_challenge");
+    expect(cookies).toContain("does not currently load google analytics");
+    expect(cookies).toContain("privacy policy");
+    expect(cookies).toContain("contact@nexomusicdistro.space");
+    expect(cookies).toContain("nexomusicdistribution.com");
     expect(cookies).not.toMatch(/lorem ipsum|todo|placeholder|tbd/);
   });
 
@@ -82,7 +93,7 @@ describe("public legal and pricing pages", () => {
     expect(blob).not.toMatch(/123 fake|lorem street|registered office: \[|acme inc/);
     expect(flatten(TERMS_SECTIONS)).toContain("do not invent those facts");
     expect(flatten(TERMS_SECTIONS)).toContain("paddle.com is the merchant of record");
-    expect(flatten(TERMS_SECTIONS)).toContain("does not receive or store raw payment card details");
+    expect(flatten(PRIVACY_SECTIONS)).toContain("/cookies");
     expect(flatten(PRIVACY_SECTIONS)).toContain("does not receive or store raw payment card numbers");
     expect(flatten(REFUND_POLICY_SECTIONS)).toContain("not an absolute no-refunds policy");
     expect(flatten(REFUND_POLICY_SECTIONS)).toContain("duplicate charge");
@@ -123,5 +134,6 @@ describe("public legal and pricing pages", () => {
     expect(mw).not.toMatch(/PROTECTED_PREFIXES = \[[^\]]*\/terms/);
     expect(mw).not.toMatch(/PROTECTED_PREFIXES = \[[^\]]*\/privacy/);
     expect(mw).not.toMatch(/PROTECTED_PREFIXES = \[[^\]]*\/refund-policy/);
+    expect(mw).not.toMatch(/PROTECTED_PREFIXES = \[[^\]]*\/cookies/);
   });
 });

@@ -194,7 +194,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "11. Cookies",
     paragraphs: [
-      `See ${SITE}/cookies for cookies and similar technologies used on the public site and dashboards.`,
+      `Cookies and similar technologies are described in our standalone Cookies Policy at ${SITE}/cookies. That page is part of this Privacy Policy for cookie-related processing.`,
     ],
   },
   {
@@ -271,73 +271,96 @@ export const COOKIES_SECTIONS: LegalSection[] = [
   {
     heading: "1. Who we are",
     paragraphs: [
-      `This Cookie Policy explains how ${LEGAL_BUSINESS_NAME} uses cookies and similar technologies on ${SITE} and signed-in dashboards.`,
-      LEGAL_CONTACT_LINE,
+      `This Cookies Policy explains how ${LEGAL_BUSINESS_NAME} (“Nexo”, “we”) uses cookies and similar technologies on ${SITE} and on signed-in artist, label, and staff dashboards.`,
+      `It should be read with our Privacy Policy at ${SITE}/privacy. Support: ${LEGAL_CONTACT_EMAIL}.`,
     ],
   },
   {
-    heading: "2. What cookies are",
+    heading: "2. What cookies and similar technologies are",
     paragraphs: [
-      "Cookies are small text files stored on your device. Similar technologies include local storage and pixels that remember a browser or session. Some cookies are essential for the site to function; others are optional.",
+      "Cookies are small text files stored on your device when you visit a website. Similar technologies include local storage, session storage, and pixels or scripts that remember a browser or session.",
+      "Cookies may be first-party (set by Nexo on nexomusicdistribution.com) or third-party (set by another domain when their service runs on a page, for example checkout or an embedded player).",
     ],
   },
   {
-    heading: "3. Essential cookies we use",
+    heading: "3. Categories",
     paragraphs: [
-      "We set cookies that are required to operate the service. These are not used for advertising.",
+      "We group cookies and similar technologies as follows. The later sections state which categories Nexo actually uses today. We do not invent trackers that are not in the product.",
     ],
     bullets: [
-      "Authentication cookies issued by our identity provider so you can stay signed in to artist, label, and staff workspaces.",
-      "Security cookies that protect forms and sessions against abuse.",
-      "Load-balancing or hosting cookies required to deliver the website reliably.",
+      "Essential — required to load the site, keep you signed in, complete security checks, or take payment. These are not used for advertising.",
+      "Preference — remember choices such as appearance. Nexo stores theme preference in local storage, not as a first-party cookie.",
+      "Analytics — measure how the public site is used. Nexo does not currently set a third-party analytics cookie or marketing measurement pixel on public pages.",
+      "Marketing — advertising or retargeting. Nexo does not currently run marketing cookies or ad pixels.",
     ],
   },
   {
-    heading: "4. Preferences stored on your device",
+    heading: "4. What Nexo actually uses",
     paragraphs: [
-      "Theme preference (light, dark, or system) is stored in your browser’s local storage rather than as a first-party cookie. Clearing site data will reset appearance to the system default.",
+      "After inspecting this application, the following first-party cookies and similar storage are in use. Names may include a project-specific prefix from our identity provider.",
+    ],
+    bullets: [
+      "Supabase authentication cookies (typically named like sb-…-auth-token) so a signed-in session can continue across page loads. These are essential for artist, label, and staff dashboards. They are not set merely because you browse public pages such as Pricing or this Cookies Policy.",
+      "nexo_otp_challenge — an HttpOnly cookie used only during email one-time-code login. It stores a challenge identifier (not the code itself) for about ten minutes, then expires or is cleared on logout.",
+      "Theme preference — stored by the site’s theme library in the browser’s local storage (not a cookie) so light, dark, or system appearance can persist. Clearing site data resets appearance to the system default.",
     ],
   },
   {
-    heading: "5. Checkout and payments (Paddle)",
+    heading: "5. Analytics and marketing — not currently used",
     paragraphs: [
-      "When you start a paid subscription, checkout is provided by Paddle as merchant of record. Paddle and its payment partners may set cookies or similar technologies on checkout pages (including overlay checkout) to process payment, prevent fraud, and calculate tax. Those technologies are governed by Paddle’s own notices.",
+      "This website does not currently load Google Analytics, Meta Pixel, or another third-party advertising or analytics tag on public pages. Internal admin “analytics” screens show operational counts from our own database; they are not a public tracking cookie.",
+      "We do not sell cookie data. If we later introduce optional analytics or marketing cookies, this Cookies Policy will be updated first and we will obtain consent where required.",
     ],
   },
   {
-    heading: "6. Analytics and advertising",
+    heading: "6. Third parties",
     paragraphs: [
-      "This website does not currently run a third-party advertising network or a marketing pixel on public pages. We do not sell cookie data. If we introduce optional analytics cookies later, this policy will be updated before those cookies are set, and we will obtain consent where required.",
+      "Some features run on other companies’ infrastructure. Those companies may set their own cookies when you use the feature. They are not Nexo first-party cookies.",
+    ],
+    bullets: [
+      "Paddle.com — Merchant of Record for paid subscriptions. Overlay checkout and Paddle’s payment partners may set cookies to process payment, prevent fraud, and calculate tax. Those cookies are governed by Paddle’s notices.",
+      "Supabase — hosts authentication and application data. Session cookies described above are issued as part of that identity service.",
+      "YouTube privacy-enhanced embeds (youtube-nocookie.com) — used only when a public page includes a YouTube video we have chosen to embed. YouTube may set cookies when you play the video. We do not load a YouTube tag on every page.",
+      "Official social profiles (Spotify, X, TikTok) listed from our brand social module are outbound links. Visiting those sites is subject to their own cookie policies. We do not set Facebook, Instagram, or LinkedIn cookies.",
     ],
   },
   {
     heading: "7. Newsletter and contact forms",
     paragraphs: [
-      "Newsletter signup and contact forms submit the information you enter. They do not require a non-essential tracking cookie. Transactional email (for example login codes) is sent to the address you provide.",
+      "Newsletter signup and contact forms submit the information you type. They do not require a non-essential tracking cookie. Transactional email (for example a login code) is sent to the address you provide.",
     ],
   },
   {
     heading: "8. How long cookies last",
     paragraphs: [
-      "Session cookies expire when you close the browser. Persistent authentication cookies last until they expire or you sign out. Paddle checkout cookies follow Paddle’s retention rules.",
+      "Session cookies last until you close the browser. Persistent authentication cookies last until they expire or you sign out. The OTP challenge cookie lasts about ten minutes. Paddle and YouTube cookies follow those providers’ rules.",
     ],
   },
   {
-    heading: "9. Managing cookies",
+    heading: "9. How to control cookies",
     paragraphs: [
-      "You can delete or block cookies in your browser settings. Blocking essential cookies will prevent sign-in and checkout from working. Signed-out browsing of public pages such as Pricing, Terms, Privacy, Refund Policy, and this Cookie Policy does not require an account cookie.",
+      "You can delete or block cookies in your browser settings (often under Privacy, Cookies, or Site data). You can also use private browsing. Blocking essential cookies will prevent sign-in, login codes, and Paddle checkout from working.",
+      "Signed-out browsing of public pages — including Pricing, Terms of Service, Privacy Policy, Refund Policy, and this Cookies Policy — does not require an account cookie.",
+      "Browser help: Chrome, Firefox, Safari, and Edge each publish their own cookie-control instructions. We do not override your browser’s cookie settings.",
     ],
   },
   {
-    heading: "10. Official channels",
+    heading: "10. Relationship to the Privacy Policy",
     paragraphs: [
-      `Public website: ${SITE}. Support: ${LEGAL_CONTACT_EMAIL}. Official social profiles: ${SOCIAL_LIST}.`,
+      `Personal data processed through cookies is also covered by the Privacy Policy at ${SITE}/privacy. If there is a conflict about cookies, this Cookies Policy describes the technologies; the Privacy Policy describes purposes, rights, and contact.`,
     ],
   },
   {
-    heading: "11. Changes",
+    heading: "11. Updates",
     paragraphs: [
-      "We will post updates to this Cookie Policy with a new “last updated” date.",
+      "We will post updates to this Cookies Policy with a new “last updated” date. Material changes will appear on this page before new optional cookies are introduced.",
+    ],
+  },
+  {
+    heading: "12. Contact",
+    paragraphs: [
+      LEGAL_CONTACT_LINE,
+      `Public website: ${SITE}. Official social profiles: ${SOCIAL_LIST}.`,
     ],
   },
 ];
