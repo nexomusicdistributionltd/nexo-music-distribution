@@ -7,6 +7,10 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { PasswordField } from "@/components/auth/PasswordField";
 import { friendlyAuthError } from "@/lib/auth/errors";
+import {
+  establishRecoverySessionFromHash,
+  stripLocationHash,
+} from "@/lib/auth/recovery-implicit";
 import { validatePassword } from "@/lib/auth/password";
 import { createClient } from "@/lib/supabase/client";
 
@@ -29,6 +33,31 @@ export function ResetPasswordForm({ initialReason }: { initialReason?: string | 
     let cancelled = false;
 
     async function check() {
+      const hash = typeof window !== "undefined" ? window.location.hash : "";
+      const fromHash = await establishRecoverySessionFromHash(supabase.auth, hash);
+      if (cancelled) return;
+
+      if (hash && typeof window !== "undefined") {
+        window.history.replaceState(
+          null,
+          "",
+          stripLocationHash(window.location.pathname, window.location.search)
+        );
+      }
+
+      if (fromHash === "ready") {
+        setSessionReady(true);
+        setChecking(false);
+        setError(null);
+        return;
+      }
+      if (fromHash === "invalid") {
+        setSessionReady(false);
+        setChecking(false);
+        setError("This reset link is invalid or expired. Request a new one.");
+        return;
+      }
+
       const { data, error: userError } = await supabase.auth.getUser();
       if (cancelled) return;
       setSessionReady(Boolean(data.user) && !userError);

@@ -24,25 +24,40 @@ export function isForbiddenAuthHost(hostname: string): boolean {
   );
 }
 
+function isZohoMailboxHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h === ZOHO_MAIL_HOST || h.endsWith(`.${ZOHO_MAIL_HOST}`);
+}
+
 /**
  * Public site origin for metadata, emails, and auth redirects.
- * Production never uses localhost or the Zoho mailbox domain.
+ * Never fall back to localhost. Production forbids localhost/127.0.0.1
+ * env values (throws) rather than emitting them in auth emails.
  */
-export function getSiteUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/$/, "");
+export function resolveSiteUrl(rawEnv: string, nodeEnv: string): string {
+  const raw = rawEnv.trim().replace(/\/$/, "");
   if (!raw) return DEFAULT_SITE_URL;
   try {
     const u = new URL(raw);
     if (isForbiddenAuthHost(u.hostname)) {
-      if (process.env.NODE_ENV === "production") return DEFAULT_SITE_URL;
-      if (u.hostname.toLowerCase() === ZOHO_MAIL_HOST || u.hostname.toLowerCase().endsWith(`.${ZOHO_MAIL_HOST}`)) {
-        return DEFAULT_SITE_URL;
+      if (isZohoMailboxHost(u.hostname)) return DEFAULT_SITE_URL;
+      if (nodeEnv === "production") {
+        throw new Error(
+          `NEXT_PUBLIC_SITE_URL must be ${DEFAULT_SITE_URL} in production (forbidden host: ${u.hostname})`
+        );
       }
     }
     return u.origin;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("NEXT_PUBLIC_SITE_URL must be")) {
+      throw err;
+    }
     return DEFAULT_SITE_URL;
   }
+}
+
+export function getSiteUrl(): string {
+  return resolveSiteUrl(process.env.NEXT_PUBLIC_SITE_URL ?? "", process.env.NODE_ENV ?? "");
 }
 
 export function absoluteUrl(path = "/"): string {
@@ -51,9 +66,23 @@ export function absoluteUrl(path = "/"): string {
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-/** Signup / verify / recovery email targets — never window.location.origin. */
+function normalizeAuthPath(path: string): string {
+  if (!path) return "/";
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+/**
+ * Signup / verify / recovery email targets.
+ * Always the official production domain — never the browser origin,
+ * never localhost, never the Zoho mailbox host. Misconfig throws.
+ */
 export function authEmailRedirectUrl(path: string): string {
-  return absoluteUrl(path);
+  const url = `${DEFAULT_SITE_URL}${normalizeAuthPath(path)}`;
+  const host = hostnameOf(url);
+  if (!host || isForbiddenAuthHost(host) || host !== "nexomusicdistribution.com") {
+    throw new Error("Refusing to emit an auth email redirect that is not the official production domain");
+  }
+  return url;
 }
 
 /**

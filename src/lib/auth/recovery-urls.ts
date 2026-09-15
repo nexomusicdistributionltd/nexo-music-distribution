@@ -1,9 +1,20 @@
 import { safeRedirectPath } from "@/lib/auth/safeRedirect";
+import { authEmailRedirectUrl } from "@/lib/site-url";
 
 export const RESET_PASSWORD_PATH = "/reset-password";
 
-/** PKCE recovery redirectTo — exchanged by /auth/callback, then next=/reset-password. */
-export const RECOVERY_EMAIL_REDIRECT_PATH = "/auth/callback?next=/reset-password";
+/**
+ * resetPasswordForEmail redirectTo — the actual Set New Password route.
+ * Live GoTrue recovery still delivers `#access_token&refresh_token&type=recovery`
+ * on this path (hash is never sent to /auth/callback). PKCE `?code=` and OTP
+ * `token_hash` that land here are forwarded by resetPasswordForwardPath.
+ */
+export const RECOVERY_EMAIL_REDIRECT_PATH = RESET_PASSWORD_PATH;
+
+/** Absolute redirectTo sent to GoTrue — official production host only. */
+export function recoveryEmailRedirectTo(): string {
+  return authEmailRedirectUrl(RECOVERY_EMAIL_REDIRECT_PATH);
+}
 
 export function isResetPasswordPath(path: string): boolean {
   return path === RESET_PASSWORD_PATH || path.startsWith(`${RESET_PASSWORD_PATH}?`);

@@ -41,12 +41,14 @@ describe("website forms + admin realtime", () => {
     ]) {
       const src = readFileSync(join(root, rel), "utf8");
       expect(src).not.toContain("window.location.origin");
-      expect(src).toContain("authEmailRedirectUrl");
+      expect(
+        src.includes("authEmailRedirectUrl") || src.includes("recoveryEmailRedirectTo")
+      ).toBe(true);
     }
     const forgot = readFileSync(
       join(root, "src/components/auth/ForgotPasswordForm.tsx"),
       "utf8"
     );
-    expect(forgot).toContain("RECOVERY_EMAIL_REDIRECT_PATH");
+    expect(forgot).toContain("recoveryEmailRedirectTo");
   });
 });

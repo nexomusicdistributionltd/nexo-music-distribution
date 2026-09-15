@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { RecoveryHashCatcher } from "@/components/auth/RecoveryHashCatcher";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 import { getSiteUrl } from "@/lib/site-url";
@@ -97,6 +98,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
       >
         <ThemeProvider>
+          <RecoveryHashCatcher />
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
       </body>
