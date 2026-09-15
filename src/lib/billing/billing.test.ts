@@ -349,6 +349,11 @@ describe("RLS expectations", () => {
       "utf8"
     );
     expect(harden).toContain("revoke insert, update, delete on public.billing_subscriptions");
+    const realtime = readFileSync(
+      join(process.cwd(), "supabase/migrations/20260915900000_billing_subscriptions_realtime.sql"),
+      "utf8"
+    );
+    expect(realtime).toContain("billing_subscriptions");
   });
 });
 

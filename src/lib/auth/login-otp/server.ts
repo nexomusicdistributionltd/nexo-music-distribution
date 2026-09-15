@@ -26,17 +26,34 @@ import { sendViaZohoSmtp } from "@/lib/email/zoho-smtp";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "node:crypto";
+import {
+  OTP_SEND_FAILED_USER_MESSAGE,
+  OTP_UNAVAILABLE_USER_MESSAGE,
+  challengeWriteLooksLikeMissingTable,
+  getOtpPepper,
+  loginOtpHealthSnapshot,
+} from "@/lib/auth/login-otp/env";
 
 export { getPasswordSessionIdentity, isCurrentSessionOtpVerified } from "@/lib/auth/login-otp/status";
 
 function otpPepper(): string {
-  const pepper =
-    (process.env.NEXO_OTP_PEPPER ?? "").trim() ||
-    (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+  const pepper = getOtpPepper();
   if (!pepper) {
     throw new Error("OTP pepper not configured");
   }
   return pepper;
+}
+
+function sendNotReady(): OtpStartResult {
+  return { ok: false, error: OTP_UNAVAILABLE_USER_MESSAGE, status: 503 };
+}
+
+function verifyNotReady(): OtpVerifyResult {
+  return { ok: false, error: OTP_UNAVAILABLE_USER_MESSAGE, status: 503 };
+}
+
+function mapChallengeWriteFailure(): { ok: false; error: string; status: number } {
+  return { ok: false, error: OTP_UNAVAILABLE_USER_MESSAGE, status: 503 };
 }
 
 async function writeOtpAudit(
@@ -181,6 +198,23 @@ export async function startLoginOtp(opts?: {
   auditPasswordSuccess?: boolean;
   entry?: string;
 }): Promise<OtpStartResult> {
+  try {
+    return await startLoginOtpInner(opts);
+  } catch {
+    return sendNotReady();
+  }
+}
+
+async function startLoginOtpInner(opts?: {
+  resend?: boolean;
+  auditPasswordSuccess?: boolean;
+  entry?: string;
+}): Promise<OtpStartResult> {
+  const health = loginOtpHealthSnapshot();
+  if (!health.sendReady) {
+    return sendNotReady();
+  }
+
   const identity = await getPasswordSessionIdentity();
   if (!identity) {
     return { ok: false, error: "Please sign in to continue.", status: 401 };
@@ -265,6 +299,9 @@ export async function startLoginOtp(opts?: {
   });
 
   if (insertError) {
+    if (challengeWriteLooksLikeMissingTable(insertError)) {
+      return mapChallengeWriteFailure();
+    }
     return { ok: false, error: "Could not start verification.", status: 500 };
   }
 
@@ -280,7 +317,7 @@ export async function startLoginOtp(opts?: {
     });
     return {
       ok: false,
-      error: "We could not send a verification code. Try again in a moment.",
+      error: OTP_SEND_FAILED_USER_MESSAGE,
       status: 503,
     };
   }
@@ -307,6 +344,19 @@ export type OtpVerifyResult =
   | { ok: false; error: string; status: number; locked?: boolean };
 
 export async function verifyLoginOtp(rawCode: string): Promise<OtpVerifyResult> {
+  try {
+    return await verifyLoginOtpInner(rawCode);
+  } catch {
+    return verifyNotReady();
+  }
+}
+
+async function verifyLoginOtpInner(rawCode: string): Promise<OtpVerifyResult> {
+  const health = loginOtpHealthSnapshot();
+  if (!health.verifyReady) {
+    return verifyNotReady();
+  }
+
   const identity = await getPasswordSessionIdentity();
   if (!identity) {
     return { ok: false, error: "Please sign in to continue.", status: 401 };
@@ -398,6 +448,9 @@ export async function verifyLoginOtp(rawCode: string): Promise<OtpVerifyResult> 
 
   if (upsertError) {
     await writeOtpAudit(LOGIN_OTP_AUDIT.OTP_FAILED, identity.userId, { reason: "persist_failed" });
+    if (challengeWriteLooksLikeMissingTable(upsertError)) {
+      return { ok: false, error: OTP_UNAVAILABLE_USER_MESSAGE, status: 503 };
+    }
     return { ok: false, error: "Could not complete verification.", status: 500 };
   }
 

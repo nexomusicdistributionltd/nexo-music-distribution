@@ -35,7 +35,8 @@ npm start
 |----------|------------|---------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser + server | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser + server | Supabase anon (public) key |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | Optional privileged key — never prefix with `NEXT_PUBLIC_` |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | **Required** for login email OTP, webhooks, privileged jobs — never prefix with `NEXT_PUBLIC_` |
+| `NEXO_OTP_PEPPER` | **Server only** | Optional dedicated HMAC pepper for login OTP (falls back to the service role key) |
 
 **Note:** Some earlier project briefs mentioned `VITE_*` variables. This app is **Next.js** and uses `NEXT_PUBLIC_*` for client-exposed values.
 
@@ -47,7 +48,7 @@ Never commit `.env`, `.env.local`, or real secrets. `.env.example` is safe to co
 
 1. Create a project at [https://supabase.com](https://supabase.com).
 2. In **Project Settings → API**, copy the Project URL and `anon` `public` key into `.env.local`.
-3. (Optional) Copy the `service_role` key into `SUPABASE_SERVICE_ROLE_KEY` for server-only admin jobs — **do not** expose it to the browser.
+3. Copy the `service_role` key into `SUPABASE_SERVICE_ROLE_KEY` (Netlify env, server-only) for login email OTP, webhooks, and admin jobs — **do not** expose it to the browser. Optional aliases: `SUPABASE_SERVICE_ROLE`, `SUPABASE_SECRET_KEY`. Optional dedicated OTP pepper: `NEXO_OTP_PEPPER`.
 4. Run the SQL migration in the Supabase SQL editor (or via Supabase CLI):
 
 ```bash

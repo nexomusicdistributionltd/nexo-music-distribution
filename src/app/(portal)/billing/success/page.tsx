@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RequireRole } from "@/lib/auth/guards";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { BillingSyncRefresh } from "@/components/billing/BillingSyncRefresh";
 
 export const metadata: Metadata = {
   title: "Checkout confirmation",
@@ -14,6 +15,7 @@ export default async function BillingSuccessPage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
+      <BillingSyncRefresh />
       <h1 className="text-h2">Thanks — confirmation is pending</h1>
       <Alert title="Access is not granted from this page">
         Paddle is confirming your payment. Paid access is applied only after a verified webhook

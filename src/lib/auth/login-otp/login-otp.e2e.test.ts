@@ -58,6 +58,7 @@ describe("logout + OTP e2e wiring (all roles)", () => {
     expect(otpForm).toContain("OTP_VERIFY_API_PATH");
     expect(otpForm).toContain("Resend code");
     expect(otpForm).toContain("maskedEmail");
+    expect(otpForm).toContain("startFailed");
     expect(otpForm).not.toContain("console.log");
   });
 
@@ -85,8 +86,15 @@ describe("logout + OTP e2e wiring (all roles)", () => {
     expect(server).not.toContain("Math.random");
     expect(server).toContain("generateOtpDigits");
     expect(server).toContain("code_hash");
+    expect(server).toContain("loginOtpHealthSnapshot");
+    expect(server).toContain("OTP_UNAVAILABLE_USER_MESSAGE");
     const zoho = read("src/lib/email/zoho-smtp.ts");
     expect(zoho).toContain("smtp.zoho.com");
+    const envExample = read(".env.example");
+    expect(envExample).toContain("SUPABASE_SERVICE_ROLE_KEY=");
+    expect(envExample).toContain("NEXO_OTP_PEPPER");
+    expect(envExample).toContain("Netlify");
+    expect(envExample).not.toMatch(/NEXT_PUBLIC_SUPABASE_SERVICE_ROLE/);
   });
 
   it("logout API invalidates unfinished OTP + verified second-step", () => {

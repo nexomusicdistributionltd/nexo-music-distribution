@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { ManageBillingButton } from "@/components/billing/ManageBillingButton";
+import { PlanFeaturesPanel } from "@/components/billing/PlanFeaturesPanel";
 import { billingAccountTypeFromRoles } from "@/lib/billing/eligibility";
 import { getBillingEntitlements } from "@/lib/billing/entitlements";
 import {
@@ -56,6 +57,8 @@ export default async function BillingPage() {
           <p className="mt-2">Cancellation is scheduled. Access continues until the period ends.</p>
         ) : null}
       </Alert>
+
+      <PlanFeaturesPanel entitlements={entitlements} />
 
       {primary ? (
         <dl className="grid gap-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4 text-small sm:grid-cols-2">

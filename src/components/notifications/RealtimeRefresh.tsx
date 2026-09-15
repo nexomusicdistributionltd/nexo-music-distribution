@@ -37,6 +37,16 @@ export function RealtimeRefresh({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "support_messages" },
         () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "billing_subscriptions",
+          ...(staff ? {} : { filter: `user_id=eq.${userId}` }),
+        },
+        () => router.refresh()
       );
 
     if (staff) {
@@ -59,7 +69,17 @@ export function RealtimeRefresh({
     }
 
     channel.subscribe();
+
+    const refresh = () => router.refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisibility);
       void supabase.removeChannel(channel);
     };
   }, [userId, staff, router]);
