@@ -58,7 +58,7 @@ export default async function PricingPage({
       <PageHero
         eyebrow="Pricing"
         title="Plans for artists and labels"
-        description={`${COMPANY_LEGAL} publishes USD list prices plus approved Paddle country prices for the United Kingdom, Ireland, and Australia. Artist Starter is free. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout.`}
+        description={`${COMPANY_LEGAL} publishes USD list prices plus approved Paddle country prices for the United Kingdom, Ireland, and Australia. Artist Starter is $0. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout. Storefront or DSP acceptance and income are not guaranteed.`}
         crumbs={[{ label: "Home", href: "/" }, { label: "Pricing" }]}
       />
 

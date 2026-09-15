@@ -13,6 +13,7 @@ export default function PrivacyPage() {
     <LegalDocument
       title="Privacy Policy"
       crumb="Privacy Policy"
+      description="How NEXO MUSIC DISTRIBUTION LTD processes account, catalog, and billing data. Paddle.com is Merchant of Record for paid checkout."
       updated={LEGAL_UPDATED}
       sections={PRIVACY_SECTIONS}
     />

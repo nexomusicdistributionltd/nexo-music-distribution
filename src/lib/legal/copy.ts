@@ -45,7 +45,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     paragraphs: [
       "Artist Starter is free and does not create a Paddle subscription. Artist Pro, Label Starter, and Label Pro are paid subscriptions. Published USD list prices are: Artist Pro $9.99 per month or $99 per year; Label Starter $19.99 per month or $199 per year; Label Pro $49.99 per month or $499 per year.",
       "Approved Paddle country unit-price overrides (not a frontend currency conversion) are: United Kingdom (GBP) Artist Pro £7.99 / £79, Label Starter £15.99 / £159, Label Pro £39.99 / £399; Ireland (EUR) Artist Pro €9.49 / €94, Label Starter €18.99 / €189, Label Pro €47.99 / €479; Australia (AUD) Artist Pro A$14.99 / A$149, Label Starter A$29.99 / A$299, Label Pro A$74.99 / A$749. Monthly then annual. Other countries use the USD catalog price plus tax calculated by Paddle.",
-      "Paid plans include a 7-day trial on monthly and annual intervals unless checkout displays a different trial. Paddle is the merchant of record: it collects payment details, calculates applicable taxes, and issues invoices. Localized totals at checkout may also include tax.",
+      "Paid plans include a 7-day trial on monthly and annual intervals unless checkout displays a different trial. Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all paid orders: Paddle collects payment details, calculates applicable taxes, and issues invoices. Nexo does not receive or store raw payment card details.",
       "Paid access is granted only after Paddle confirms the subscription (typically via a verified webhook). Completing the checkout overlay on your device is not by itself a grant of entitlements. You authorise recurring billing until you cancel.",
     ],
   },
@@ -104,7 +104,14 @@ export const TERMS_SECTIONS: LegalSection[] = [
     ],
   },
   {
-    heading: "14. Contact",
+    heading: "14. Company details",
+    paragraphs: [
+      `${COMPANY_LEGAL} operates the public website at ${SITE}. A registered office address, company number, and a specific governing-law or court venue are not published here because they are not recorded in this product’s verified company details. We do not invent those facts.`,
+      "If official company records later publish a registered office or governing law, they will be added to this page. Until then, use the contact details below for notices and disputes.",
+    ],
+  },
+  {
+    heading: "15. Contact",
     paragraphs: [LEGAL_CONTACT_LINE],
   },
 ];
@@ -121,7 +128,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     heading: "2. Data we collect",
     paragraphs: [
       "We collect account data (name, email, country, artist or label profile), authentication data (including one-time login codes), catalog metadata and audio files you upload, support messages, newsletter subscriptions, and server logs needed to operate and secure the service.",
-      "If you subscribe, Paddle processes payment card or wallet details. Nexo stores Paddle customer, subscription, and transaction identifiers needed to recognise your plan. We do not store full card numbers.",
+      "If you subscribe, checkout is conducted by Paddle.com as Merchant of Record. Paddle processes payment card and wallet details. Nexo does not receive or store raw payment card numbers. Nexo stores Paddle customer, subscription, and transaction identifiers needed to recognise your plan.",
     ],
   },
   {
@@ -139,7 +146,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "4. Paddle and other processors",
     paragraphs: [
-      "Paddle.com Market Ltd and its affiliates process checkout, tax, invoicing, and subscription data. Hosting, database, and email delivery providers process data on our instructions. We require processors to protect data and use it only for the contracted purpose.",
+      "Paddle.com Market Ltd and its affiliates act as Merchant of Record for paid orders and process checkout, tax, invoicing, and subscription data under Paddle’s own privacy notice. Hosting, database, and email delivery providers process data on our instructions. We require processors to protect data and use it only for the contracted purpose.",
     ],
   },
   {
@@ -202,7 +209,7 @@ export const REFUND_POLICY_SECTIONS: LegalSection[] = [
   {
     heading: "1. Digital services",
     paragraphs: [
-      `${COMPANY_LEGAL} supplies digital music-distribution software and related services. We do not ship physical goods. Paid subscriptions are sold through Paddle, which is the merchant of record for payment, tax, and invoicing.`,
+      `${COMPANY_LEGAL} supplies digital music-distribution software and related services. We do not ship physical goods. Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all paid orders.`,
     ],
   },
   {
@@ -220,7 +227,9 @@ export const REFUND_POLICY_SECTIONS: LegalSection[] = [
   {
     heading: "4. Refunds",
     paragraphs: [
-      "Because the service is digital and provisioned when Paddle confirms the subscription, fees for completed billing periods are generally non-refundable. We will consider refund requests where required by applicable consumer law, where Paddle could not complete checkout, or where we failed to supply the subscribed service.",
+      "This is not an absolute no-refunds policy. We review refund requests in good faith.",
+      "We will consider a refund where there is a duplicate charge, a billing error, an unauthorised payment, where we failed to supply the subscribed service, or where a refund is required by applicable consumer law.",
+      "Cancelling a subscription stops future renewals. Cancellation is not an automatic refund for time already used in a paid period, unless a review finds that a refund is due under the reasons above or the law.",
       "Refunds, when approved, are processed by Paddle to the original payment method. Tax treatment of refunds follows Paddle’s invoicing.",
     ],
   },

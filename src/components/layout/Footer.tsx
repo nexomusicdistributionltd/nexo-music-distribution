@@ -3,6 +3,7 @@ import { Logo } from "@/components/brand/Logo";
 import { SocialLinks } from "@/components/layout/SocialLinks";
 import { NewsletterForm } from "@/components/newsletter/NewsletterForm";
 import { COMPANY_LEGAL, PUBLISHING_DIVISION, SITE_URL } from "@/lib/site";
+import { PADDLE_VERIFICATION_LINKS } from "@/lib/legal/public-links";
 
 const COMPANY = [
   { href: "/about", label: "About" },
@@ -153,11 +154,24 @@ export function Footer() {
       </div>
 
       <div className="border-t border-[var(--nexo-divider)]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-caption text-[var(--nexo-text-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <p>
-            © {year} {COMPANY_LEGAL}. All rights reserved.
-          </p>
-          <p>Digital distribution · Publishing · Royalty management</p>
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 text-caption text-[var(--nexo-text-muted)] sm:px-6 lg:px-8">
+          <nav aria-label="Pricing and legal" className="flex flex-wrap gap-x-5 gap-y-2">
+            {PADDLE_VERIFICATION_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-[var(--nexo-text-muted)] underline-offset-4 hover:text-[var(--nexo-text)] hover:underline"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              © {year} {COMPANY_LEGAL}. All rights reserved.
+            </p>
+            <p>Digital distribution · Publishing · Royalty management</p>
+          </div>
         </div>
       </div>
     </footer>

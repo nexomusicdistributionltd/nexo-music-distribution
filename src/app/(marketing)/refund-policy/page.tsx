@@ -13,6 +13,7 @@ export default function RefundPolicyPage() {
     <LegalDocument
       title="Refund Policy"
       crumb="Refund Policy"
+      description="Refund Policy for NEXO MUSIC DISTRIBUTION LTD subscriptions billed by Paddle. Cancellation is not an automatic refund for time already used."
       updated={LEGAL_UPDATED}
       sections={REFUND_POLICY_SECTIONS}
     />

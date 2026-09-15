@@ -10,6 +10,7 @@ import {
 } from "./copy";
 import { BRAND_PUBLIC_URL, BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
 import { COMPANY_LEGAL, NAV_LINKS } from "@/lib/site";
+import { PADDLE_VERIFICATION_LINKS } from "./public-links";
 
 function read(rel: string) {
   return readFileSync(join(process.cwd(), rel), "utf8");
@@ -23,13 +24,20 @@ function flatten(sections: { paragraphs: string[]; bullets?: string[] }[]) {
 }
 
 describe("public legal and pricing pages", () => {
-  it("footer and nav link the five publishable URLs", () => {
+  it("footer permanently links Pricing, Terms of Service, Privacy Policy, and Refund Policy", () => {
     const footer = read("src/components/layout/Footer.tsx");
-    expect(footer).toContain('href: "/pricing"');
-    expect(footer).toContain('href: "/terms"');
-    expect(footer).toContain('href: "/privacy"');
-    expect(footer).toContain('href: "/refund-policy"');
-    expect(footer).toContain('href: "/cookies"');
+    expect(footer).toContain("PADDLE_VERIFICATION_LINKS");
+    expect(footer).toContain('aria-label="Pricing and legal"');
+    for (const link of PADDLE_VERIFICATION_LINKS) {
+      expect(footer).toContain(`href: "${link.href}"`);
+      expect(PADDLE_VERIFICATION_LINKS.some((l) => l.label === link.label)).toBe(true);
+    }
+    expect(PADDLE_VERIFICATION_LINKS.map((l) => l.href)).toEqual([
+      "/pricing",
+      "/terms",
+      "/privacy",
+      "/refund-policy",
+    ]);
     expect(footer).not.toContain('href: "/return-policy"');
     expect(NAV_LINKS.some((l) => l.href === "/pricing")).toBe(true);
   });
@@ -69,6 +77,15 @@ describe("public legal and pricing pages", () => {
       expect(blob).toContain(social.href.toLowerCase());
     }
     expect(blob).not.toMatch(/lorem ipsum|not published yet|\[insert|todo:|coming soon/);
+    expect(blob).not.toMatch(/123 fake|lorem street|registered office: \[|acme inc/);
+    expect(flatten(TERMS_SECTIONS)).toContain("do not invent those facts");
+    expect(flatten(TERMS_SECTIONS)).toContain("paddle.com is the merchant of record");
+    expect(flatten(TERMS_SECTIONS)).toContain("does not receive or store raw payment card details");
+    expect(flatten(PRIVACY_SECTIONS)).toContain("does not receive or store raw payment card numbers");
+    expect(flatten(REFUND_POLICY_SECTIONS)).toContain("not an absolute no-refunds policy");
+    expect(flatten(REFUND_POLICY_SECTIONS)).toContain("duplicate charge");
+    expect(flatten(REFUND_POLICY_SECTIONS)).toContain("unauthorised payment");
+    expect(flatten(REFUND_POLICY_SECTIONS)).toContain("not an automatic refund for time already used");
     expect(flatten(TERMS_SECTIONS)).toContain("£7.99");
     expect(flatten(TERMS_SECTIONS)).toContain("ireland");
     expect(flatten(TERMS_SECTIONS)).toContain("a$14.99");
@@ -78,10 +95,24 @@ describe("public legal and pricing pages", () => {
     const pricing = read("src/app/(marketing)/pricing/page.tsx");
     expect(pricing).toContain("Music Distribution Pricing for Artists & Labels");
     expect(pricing).toContain("$9.99");
+    expect(pricing).toContain("income are not guaranteed");
     const table = read("src/components/billing/PricingTable.tsx");
     expect(table).toContain("displayCountry");
     expect(table).toContain("formattedTotals.total");
+    expect(table).toContain('"$0"');
+    expect(table).toContain("PADDLE_VERIFICATION_LINKS");
+    expect(table).toContain("CheckoutLegalLinks");
     expect(table).not.toMatch(/Price via Paddle checkout/);
     expect(table).not.toMatch(/Paddle catalog pending/);
+    expect(table).toMatch(/DSP acceptance and income are not guaranteed/);
+  });
+
+  it("verification routes are not behind the auth wall", () => {
+    const mw = read("src/middleware.ts");
+    expect(mw).toContain('"/billing"');
+    expect(mw).not.toMatch(/PROTECTED_PREFIXES = \[[^\]]*\/pricing/);
+    expect(mw).not.toMatch(/PROTECTED_PREFIXES = \[[^\]]*\/terms/);
+    expect(mw).not.toMatch(/PROTECTED_PREFIXES = \[[^\]]*\/privacy/);
+    expect(mw).not.toMatch(/PROTECTED_PREFIXES = \[[^\]]*\/refund-policy/);
   });
 });

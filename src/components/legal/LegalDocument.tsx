@@ -27,17 +27,20 @@ export function LegalDocument({
   crumb,
   updated,
   sections,
+  description,
 }: {
   title: string;
   crumb: string;
   updated: string;
   sections: LegalSection[];
+  description?: string;
 }) {
   return (
     <>
       <PageHero
         eyebrow="Legal"
         title={title}
+        description={description}
         crumbs={[{ label: "Home", href: "/" }, { label: crumb }]}
         showAside={false}
       />

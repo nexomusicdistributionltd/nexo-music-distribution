@@ -13,6 +13,7 @@ import type { PublicBillingCatalog } from "@/lib/billing/catalog";
 import { paddleAddressForPreview } from "@/lib/billing/country";
 import { loginHrefForPlan, registerHrefForPlan } from "@/lib/billing/auth-return";
 import type { BillingAccountType, BillingInterval, OverrideCountryCode, PaidTierId, TierId } from "@/lib/billing/plans";
+import { PADDLE_VERIFICATION_LINKS } from "@/lib/legal/public-links";
 
 type AuthSlice = {
   signedIn: boolean;
@@ -216,7 +217,8 @@ export function PricingTable({
         <p className="max-w-xl text-center text-caption text-[var(--nexo-text-muted)]">
           {Object.keys(formatted).length > 0
             ? "Localized totals including estimated tax come from Paddle PricePreview."
-            : listPriceCaption(initialCountry)}
+            : listPriceCaption(initialCountry)}{" "}
+          Plans cover Nexo distribution operations. Storefront or DSP acceptance and income are not guaranteed.
         </p>
       </div>
 
@@ -240,7 +242,7 @@ export function PricingTable({
                 ]
               : undefined;
           const paddleTotal = paid ? formatted[tier.id as PaidTierId] : undefined;
-          const priceLabel = paid ? paddleTotal ?? countryDisplay ?? usd : "Free";
+          const priceLabel = paid ? paddleTotal ?? countryDisplay ?? usd : "$0";
           const cta = checkoutCta({
             tierId: tier.id as TierId,
             paid: Boolean(paid),
@@ -263,7 +265,7 @@ export function PricingTable({
               ) : paid ? (
                 <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">Billed monthly</p>
               ) : (
-                <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">No Paddle subscription</p>
+                <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">Free — no Paddle subscription</p>
               )}
               {tier.trialDays && paid ? (
                 <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
@@ -295,6 +297,7 @@ export function PricingTable({
                   </Button>
                 </Link>
               )}
+              <CheckoutLegalLinks />
             </article>
           );
         })}
@@ -330,6 +333,22 @@ function checkoutCta(input: {
     };
   }
   return { kind: "button", label: "Subscribe" };
+}
+
+function CheckoutLegalLinks() {
+  const links = PADDLE_VERIFICATION_LINKS.filter((l) => l.href !== "/pricing");
+  return (
+    <p className="mt-3 text-caption text-[var(--nexo-text-muted)]">
+      {links.map((l, i) => (
+        <span key={l.href}>
+          {i > 0 ? " · " : null}
+          <Link href={l.href} className="underline underline-offset-4 hover:text-[var(--nexo-text)]">
+            {l.label}
+          </Link>
+        </span>
+      ))}
+    </p>
+  );
 }
 
 function listPriceCaption(country: string | null): string {

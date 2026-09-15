@@ -13,6 +13,7 @@ export default function TermsPage() {
     <LegalDocument
       title="Terms of Service"
       crumb="Terms of Service"
+      description="NEXO MUSIC DISTRIBUTION LTD — terms for the public website, artist and label accounts, and Paddle-billed subscriptions."
       updated={LEGAL_UPDATED}
       sections={TERMS_SECTIONS}
     />
