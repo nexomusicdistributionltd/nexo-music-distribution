@@ -41,6 +41,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      { protocol: "https", hostname: "**.supabase.co", pathname: "/**" },
+      { protocol: "https", hostname: "nexomusicdistribution.com", pathname: "/**" },
+    ],
   },
   async headers() {
     return [
