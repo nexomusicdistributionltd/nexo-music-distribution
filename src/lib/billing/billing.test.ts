@@ -4,12 +4,16 @@ import {
   PRICE_ID_ENV,
   catalogEnvNames,
   catalogUsdDisplay,
+  configuredListPrice,
   formatCatalogUsdDisplay,
   getTiers,
+  paddleUnitPriceOverridesFor,
   planConfigId,
   planFromApprovedPriceId,
   resolveApprovedPriceId,
+  CATALOG_COUNTRY_OVERRIDE_MINOR,
   COUNTRY_PRICE_OVERRIDES_APPROVED,
+  COUNTRY_PRICE_OVERRIDES_CREATED_IN_PADDLE,
 } from "./plans";
 import { authorizeCheckout, planEligibleForAccountType, selectFreeStarter } from "./eligibility";
 import { requirePaddleEnvironment, PaddleEnvError, assertNoSecretInPublicEnv } from "./env";
@@ -66,8 +70,59 @@ describe("canonical plan mapping", () => {
     expect(planFromApprovedPriceId("pri_forged", paidEnv)).toBeNull();
   });
 
-  it("does not create country overrides yet", () => {
-    expect(COUNTRY_PRICE_OVERRIDES_APPROVED).toBe(false);
+  it("records approved GB/IE/AU Paddle unit-price overrides without creating catalog", () => {
+    expect(COUNTRY_PRICE_OVERRIDES_APPROVED).toBe(true);
+    expect(COUNTRY_PRICE_OVERRIDES_CREATED_IN_PADDLE).toBe(false);
+    expect(CATALOG_COUNTRY_OVERRIDE_MINOR.artist_pro.month).toEqual({
+      GB: "799",
+      IE: "949",
+      AU: "1499",
+    });
+    expect(CATALOG_COUNTRY_OVERRIDE_MINOR.artist_pro.year).toEqual({
+      GB: "7900",
+      IE: "9400",
+      AU: "14900",
+    });
+    expect(CATALOG_COUNTRY_OVERRIDE_MINOR.label_starter.month).toEqual({
+      GB: "1599",
+      IE: "1899",
+      AU: "2999",
+    });
+    expect(CATALOG_COUNTRY_OVERRIDE_MINOR.label_starter.year).toEqual({
+      GB: "15900",
+      IE: "18900",
+      AU: "29900",
+    });
+    expect(CATALOG_COUNTRY_OVERRIDE_MINOR.label_pro.month).toEqual({
+      GB: "3999",
+      IE: "4799",
+      AU: "7499",
+    });
+    expect(CATALOG_COUNTRY_OVERRIDE_MINOR.label_pro.year).toEqual({
+      GB: "39900",
+      IE: "47900",
+      AU: "74900",
+    });
+    expect(configuredListPrice({ tierId: "artist_pro", interval: "month", country: "GB" })).toBe(
+      "£7.99"
+    );
+    expect(configuredListPrice({ tierId: "artist_pro", interval: "year", country: "IE" })).toBe("€94");
+    expect(configuredListPrice({ tierId: "label_pro", interval: "month", country: "AU" })).toBe(
+      "A$74.99"
+    );
+    expect(configuredListPrice({ tierId: "artist_pro", interval: "month", country: null })).toBe(
+      "$9.99"
+    );
+    expect(configuredListPrice({ tierId: "artist_pro", interval: "month", country: "DE" })).toBe(
+      "$9.99"
+    );
+    const gb = paddleUnitPriceOverridesFor("artist_pro", "month");
+    expect(gb).toEqual([
+      { countryCodes: ["GB"], unitPrice: { amount: "799", currencyCode: "GBP" } },
+      { countryCodes: ["IE"], unitPrice: { amount: "949", currencyCode: "EUR" } },
+      { countryCodes: ["AU"], unitPrice: { amount: "1499", currencyCode: "AUD" } },
+    ]);
+    expect(gb.find((o) => o.countryCodes[0] === "DE")).toBeUndefined();
   });
 
   it("keeps artist starter free with no price IDs", () => {
@@ -375,6 +430,9 @@ describe("secrets and env example", () => {
     expect(catalog.displayUsd.label_starter.year).toBe("$199");
     expect(catalog.displayUsd.label_pro.month).toBe("$49.99");
     expect(catalog.displayUsd.label_pro.year).toBe("$499");
+    expect(catalog.displayCountry.GB.artist_pro.month).toBe("£7.99");
+    expect(catalog.displayCountry.IE.label_starter.year).toBe("€189");
+    expect(catalog.displayCountry.AU.label_pro.year).toBe("A$749");
     expect(catalog.catalogReady).toBe(false);
   });
 });

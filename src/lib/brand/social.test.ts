@@ -4,6 +4,8 @@ import {
   BRAND_SOCIAL,
   BRAND_SOCIAL_LINKS,
   BRAND_SOCIAL_NAV_LABEL,
+  BRAND_LEGAL_NAME,
+  BRAND_SUPPORT_EMAIL,
 } from "@/lib/brand/social";
 import { SITE_URL } from "@/lib/site";
 
@@ -26,6 +28,8 @@ describe("canonical brand social constants", () => {
       "Nexo Music Distribution on TikTok",
     );
     expect(BRAND_SOCIAL_NAV_LABEL).toBe("Nexo Music Distribution on social media");
+    expect(BRAND_LEGAL_NAME).toBe("Nexo Music Distribution LTD");
+    expect(BRAND_SUPPORT_EMAIL).toBe("contact@nexomusicdistro.space");
   });
 
   it("keeps public brand URL on .com and does not treat Zoho From as a public link", () => {

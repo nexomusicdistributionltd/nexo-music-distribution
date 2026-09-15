@@ -1,10 +1,12 @@
 import {
   catalogConfigured,
+  catalogOverrideDisplayMap,
   catalogUsdDisplayMap,
   getTiers,
   paidPriceIdsForPreview,
   type BillingAccountType,
   type BillingInterval,
+  type OverrideCountryCode,
   type PaidTierId,
   type PriceIdPair,
   type Tier,
@@ -30,6 +32,8 @@ export type PublicBillingCatalog = {
   };
   /** Canonical USD list prices. Used when PricePreview cannot run. */
   displayUsd: Record<PaidTierId, PriceIdPair>;
+  /** Approved GB/IE/AU Paddle override list prices (not frontend FX). */
+  displayCountry: Record<OverrideCountryCode, Record<PaidTierId, PriceIdPair>>;
 };
 
 function pricesFor(accountType: BillingAccountType, env: NodeJS.ProcessEnv) {
@@ -71,6 +75,7 @@ export function publicBillingCatalog(env: NodeJS.ProcessEnv = process.env): Publ
       label: pricesFor("label", env),
     },
     displayUsd: catalogUsdDisplayMap(),
+    displayCountry: catalogOverrideDisplayMap(),
   };
 }
 

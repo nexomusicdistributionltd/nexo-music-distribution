@@ -67,6 +67,7 @@ const nextConfig: NextConfig = {
       { source: "/for-labels", destination: "/labels", permanent: true },
       { source: "/for-labels/:path*", destination: "/labels", permanent: true },
       { source: "/return-policy", destination: "/refund-policy", permanent: true },
+      { source: "/cookie-policy", destination: "/cookies", permanent: true },
     ];
   },
 };

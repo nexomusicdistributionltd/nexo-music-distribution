@@ -1,6 +1,8 @@
 export { getSiteUrl, absoluteUrl, DEFAULT_SITE_URL } from "@/lib/site-url";
 export {
   BRAND_PUBLIC_URL,
+  BRAND_LEGAL_NAME,
+  BRAND_SUPPORT_EMAIL,
   BRAND_SOCIAL,
   BRAND_SOCIAL_LINKS,
   BRAND_SOCIAL_NAV_LABEL,

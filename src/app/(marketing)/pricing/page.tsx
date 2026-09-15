@@ -10,21 +10,20 @@ import { getPaddleClientToken } from "@/lib/billing/env";
 import { parseBillingSelection } from "@/lib/billing/auth-return";
 import { billingAccountTypeFromRoles } from "@/lib/billing/eligibility";
 import { getOptionalAuth } from "@/lib/auth/guards";
-import { COMPANY_LEGAL, SITE_URL } from "@/lib/site";
-import { BRAND_PUBLIC_URL } from "@/lib/brand/social";
+import { BRAND_LEGAL_NAME, BRAND_PUBLIC_URL } from "@/lib/brand/social";
 import { isPaidTierId } from "@/lib/billing/plans";
 
 export const metadata: Metadata = {
   title: "Music Distribution Pricing for Artists & Labels",
   description:
-    "Music distribution pricing for artists and labels from NEXO MUSIC DISTRIBUTION LTD. Artist Starter is free. Artist Pro from $9.99/month, Label Starter from $19.99/month, Label Pro from $49.99/month, billed in USD with a 7-day trial on paid plans.",
-  alternates: { canonical: `${SITE_URL}/pricing` },
+    `Music distribution pricing for artists and labels from ${BRAND_LEGAL_NAME}. Artist Starter is $0. Artist Pro from $9.99/month, Label Starter from $19.99/month, Label Pro from $49.99/month (USD), with approved Paddle prices for the UK, Ireland, and Australia. Paid plans include a 7-day trial.`,
+  alternates: { canonical: `${BRAND_PUBLIC_URL}/pricing` },
   openGraph: {
-    title: "Music Distribution Pricing for Artists & Labels | NEXO Music Distribution",
+    title: `Music Distribution Pricing for Artists & Labels | ${BRAND_LEGAL_NAME}`,
     description:
-      "USD plans for artists and labels. Artist Starter is free. Paid plans include a 7-day trial. Tax is calculated at checkout.",
+      "USD plans for artists and labels. Artist Starter is $0. Paid plans include a 7-day trial. Tax is calculated at checkout.",
     url: `${BRAND_PUBLIC_URL}/pricing`,
-    siteName: "NEXO Music Distribution",
+    siteName: BRAND_LEGAL_NAME,
     type: "website",
   },
 };
@@ -58,7 +57,7 @@ export default async function PricingPage({
       <PageHero
         eyebrow="Pricing"
         title="Plans for artists and labels"
-        description={`${COMPANY_LEGAL} publishes USD list prices for Artist Starter (free), Artist Pro, Label Starter, and Label Pro. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout.`}
+        description={`${BRAND_LEGAL_NAME} publishes USD list prices plus approved Paddle country prices for the United Kingdom, Ireland, and Australia. Artist Starter is $0. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout. Storefront or DSP acceptance and income are not guaranteed.`}
         crumbs={[{ label: "Home", href: "/" }, { label: "Pricing" }]}
       />
 

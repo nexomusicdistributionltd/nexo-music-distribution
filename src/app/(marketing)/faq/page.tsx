@@ -36,7 +36,7 @@ const FAQS = [
   {
     question: "How does pricing work?",
     answer:
-      "Artist Starter is free. Artist Pro is $9.99/month or $99/year, Label Starter is $19.99/month or $199/year, and Label Pro is $49.99/month or $499/year (USD list prices). Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout.",
+      "Artist Starter is free. Artist Pro is $9.99/month or $99/year, Label Starter is $19.99/month or $199/year, and Label Pro is $49.99/month or $499/year (USD). Approved Paddle country prices apply in the United Kingdom, Ireland, and Australia. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout.",
   },
   {
     question: "Can labels use Nexo?",

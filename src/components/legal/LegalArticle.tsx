@@ -1,6 +1,5 @@
-import { BRAND_PUBLIC_URL, BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
+import { BRAND_LEGAL_NAME, BRAND_PUBLIC_URL, BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
 import { LEGAL_CONTACT_EMAIL } from "@/lib/legal/copy";
-import { COMPANY_LEGAL } from "@/lib/site";
 import type { ReactNode } from "react";
 
 export type LegalSection = {
@@ -35,7 +34,7 @@ export function LegalArticle({
         </section>
       ))}
       <footer className="mt-10 border-t border-[var(--nexo-border)] pt-6 not-prose">
-        <p className="text-small text-[var(--nexo-text)]">{COMPANY_LEGAL}</p>
+        <p className="text-small text-[var(--nexo-text)]">{BRAND_LEGAL_NAME}</p>
         <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
           <a href={BRAND_PUBLIC_URL} className="underline underline-offset-4">
             nexomusicdistribution.com
