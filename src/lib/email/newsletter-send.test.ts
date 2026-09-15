@@ -4,7 +4,11 @@ import {
   isEmailProviderConfigured,
   resolveEmailProviderName,
 } from "./newsletter-send";
-import { isZohoSmtpConfigured, resolveZohoSmtpConfig } from "./zoho-smtp";
+import {
+  DEFAULT_EMAIL_FROM,
+  isZohoSmtpConfigured,
+  resolveZohoSmtpConfig,
+} from "./zoho-smtp";
 
 const ENV_KEYS = [
   "EMAIL_PROVIDER",
@@ -114,6 +118,37 @@ describe("buildNewsletterHtml", () => {
     expect(html).toContain("#0a0a0a");
     expect(html).toContain("NEXO Music Distribution");
     expect(html).toContain("Hello &lt;Nexo&gt;");
+    expect(html).toContain("https://nexomusicdistribution.com");
+    expect(html).toContain(">nexomusicdistribution.com</a>");
+    expect(html).not.toContain("nexomusicdistro.space");
     expect(html).not.toMatch(/resend/i);
+  });
+});
+
+describe("EMAIL_FROM override (Zoho mailbox stays env-driven)", () => {
+  it("defaults From to the Zoho-verified .space mailbox", () => {
+    clearEmailEnv();
+    process.env.SMTP_HOST = "smtp.zoho.com";
+    process.env.SMTP_USER = "contact@nexomusicdistro.space";
+    process.env.SMTP_PASSWORD = "app-password-placeholder";
+    const cfg = resolveZohoSmtpConfig();
+    expect(DEFAULT_EMAIL_FROM).toBe(
+      "Nexo Music Distribution LTD <contact@nexomusicdistro.space>",
+    );
+    expect(cfg?.from).toBe(DEFAULT_EMAIL_FROM);
+  });
+
+  it("uses EMAIL_FROM when set (ops must verify that From domain in Zoho)", () => {
+    clearEmailEnv();
+    process.env.SMTP_HOST = "smtp.zoho.com";
+    process.env.SMTP_USER = "contact@nexomusicdistro.space";
+    process.env.SMTP_PASSWORD = "app-password-placeholder";
+    process.env.EMAIL_FROM =
+      "Nexo Music Distribution LTD <contact@nexomusicdistribution.com>";
+    const cfg = resolveZohoSmtpConfig();
+    expect(cfg?.from).toBe(
+      "Nexo Music Distribution LTD <contact@nexomusicdistribution.com>",
+    );
+    expect(cfg?.user).toBe("contact@nexomusicdistro.space");
   });
 });

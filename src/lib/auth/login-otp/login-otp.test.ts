@@ -89,6 +89,7 @@ describe("email mask + template", () => {
     expect(html).toContain("10 minutes");
     expect(html).toMatch(/ignore this email/i);
     expect(html).toContain("nexomusicdistribution.com");
+    expect(html).not.toContain("nexomusicdistro.space");
     const src = readFileSync(join(__dirname, "email-template.ts"), "utf8");
     expect(src).not.toContain("console.log");
   });

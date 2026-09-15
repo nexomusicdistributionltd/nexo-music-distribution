@@ -112,6 +112,13 @@ Contact, support, webhooks, release submit, uploads, payout create, royalty impo
 - Admin/auth/portal layouts set `robots: noindex`.
 - Localhost purged from production metadata defaults.
 
+## Public brand URL vs Zoho From
+
+- Website, CTA, Site URL, footer copy, and email HTML body links use **https://nexomusicdistribution.com**.
+- SMTP From may remain `Nexo Music Distribution LTD <contact@nexomusicdistro.space>` (Zoho-verified mailbox).
+- `EMAIL_FROM` overrides the From header; `SMTP_USER` must stay the authenticated Zoho mailbox.
+- Ops: do not point From at a `.com` mailbox until that domain is verified in Zoho Mail, or delivery will break.
+
 ## Launch checklist
 
 - [ ] Env vars set; no secrets in git
