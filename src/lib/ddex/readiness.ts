@@ -3,9 +3,14 @@
  * Differentiates Nexo-internal catalog readiness vs DSP/DDEX delivery readiness.
  * Missing ISRC/UPC flags delivery — does NOT block draft editing.
  * Never invents identifiers or tech metadata.
+ * Generation is blocked unless dspStatus === READY and canGenerate.
  */
 
-export type ReadinessStatus = "READY" | "MISSING" | "REQUIRES_ACTION";
+import { mapGenreToAvs } from "./genre-map";
+import { isAllowedCommercialModel, isAllowedUseType } from "./avs-maps";
+import { validateTerritories } from "./territories";
+
+export type ReadinessStatus = "READY" | "MISSING" | "REQUIRES_ACTION" | "ERROR";
 
 export type ReadinessCheckKey =
   | "isrc"
@@ -17,8 +22,14 @@ export type ReadinessCheckKey =
   | "artist_link"
   | "contributors"
   | "deal_territories"
+  | "deal_use_types"
+  | "deal_commercial_models"
+  | "deal_validity"
+  | "genre"
   | "audio_tech_meta"
-  | "artwork_dimensions";
+  | "artwork_dimensions"
+  | "sender_dpid"
+  | "recipient";
 
 export type ReadinessItem = {
   key: ReadinessCheckKey;
@@ -34,7 +45,9 @@ export type ReadinessInput = {
   phonogram_line?: string | null;
   artist_profile_id?: string | null;
   primary_artist_name?: string | null;
+  genre?: string | null;
   territories?: string[] | null;
+  release_date?: string | null;
   tracks?: Array<{
     id?: string;
     isrc?: string | null;
@@ -52,7 +65,15 @@ export type ReadinessInput = {
     checksum?: string | null;
     codec?: string | null;
   }>;
-  deals?: Array<{ territories?: string[] | null }>;
+  deals?: Array<{
+    territories?: string[] | null;
+    use_types?: string[] | null;
+    commercial_model_types?: string[] | null;
+    validity_start?: string | null;
+    validity_end?: string | null;
+  }>;
+  senderConfigured?: boolean;
+  recipientConfigured?: boolean;
 };
 
 export type ReadinessReport = {
@@ -60,11 +81,17 @@ export type ReadinessReport = {
   dspStatus: ReadinessStatus;
   items: ReadinessItem[];
   blocksDspDelivery: boolean;
+  canGenerate: boolean;
+  errors: string[];
 };
 
 function worst(a: ReadinessStatus, b: ReadinessStatus): ReadinessStatus {
-  const rank = { READY: 0, REQUIRES_ACTION: 1, MISSING: 2 };
+  const rank = { READY: 0, REQUIRES_ACTION: 1, MISSING: 2, ERROR: 3 };
   return rank[a] >= rank[b] ? a : b;
+}
+
+function blocking(status: ReadinessStatus): boolean {
+  return status === "MISSING" || status === "ERROR";
 }
 
 export function evaluateReleaseReadiness(input: ReadinessInput): ReadinessReport {
@@ -143,17 +170,17 @@ export function evaluateReleaseReadiness(input: ReadinessInput): ReadinessReport
     items.push({
       key: "isrc",
       label: "ISRC codes",
-      status: "MISSING",
+      status: "ERROR",
       scope: "dsp",
-      detail: "ISRCs required before DDEX delivery (drafts OK without).",
+      detail: "ISRCs required before DDEX delivery (drafts OK without). Never fabricated.",
     });
   } else if (missingIsrc.length > 0) {
     items.push({
       key: "isrc",
       label: "ISRC codes",
-      status: "MISSING",
+      status: "ERROR",
       scope: "dsp",
-      detail: `${missingIsrc.length} track(s) missing ISRC — required before DDEX delivery.`,
+      detail: `${missingIsrc.length} track(s) missing ISRC — required before DDEX delivery. Never fabricated.`,
     });
   } else {
     items.push({ key: "isrc", label: "ISRC codes", status: "READY", scope: "dsp" });
@@ -163,9 +190,9 @@ export function evaluateReleaseReadiness(input: ReadinessInput): ReadinessReport
     items.push({
       key: "upc",
       label: "UPC / EAN",
-      status: "MISSING",
+      status: "ERROR",
       scope: "dsp",
-      detail: "UPC required before DDEX delivery (drafts OK without).",
+      detail: "UPC required before DDEX delivery (drafts OK without). Never fabricated.",
     });
   } else {
     items.push({ key: "upc", label: "UPC / EAN", status: "READY", scope: "dsp" });
@@ -207,30 +234,136 @@ export function evaluateReleaseReadiness(input: ReadinessInput): ReadinessReport
     scope: "nexo",
   });
 
-  const territorySource =
-    deals.find((d) => (d.territories?.length ?? 0) > 0)?.territories ??
-    input.territories ??
-    [];
+  const genre = mapGenreToAvs(input.genre);
   items.push({
-    key: "deal_territories",
-    label: "Deal / territories",
-    status: territorySource.length > 0 ? "READY" : "MISSING",
+    key: "genre",
+    label: "Genre map",
+    status: genre ? "READY" : "ERROR",
+    scope: "dsp",
+    detail: genre ? undefined : "Genre missing or unmapped — will not be invented in ERN.",
+  });
+
+  const deal = deals[0];
+  const territorySource = deal?.territories?.length ? deal.territories : input.territories ?? [];
+  const territoryCheck = validateTerritories(territorySource);
+  if (territoryCheck.invalid.length > 0) {
+    items.push({
+      key: "deal_territories",
+      label: "Deal / territories",
+      status: "ERROR",
+      scope: "dsp",
+      detail: `Invalid territories: ${territoryCheck.invalid.join(", ")}.`,
+    });
+  } else if (!territoryCheck.ok) {
+    items.push({
+      key: "deal_territories",
+      label: "Deal / territories",
+      status: "MISSING",
+      scope: "dsp",
+      detail: "Set territories on a release_deals row.",
+    });
+  } else {
+    items.push({
+      key: "deal_territories",
+      label: "Deal / territories",
+      status: "READY",
+      scope: "dsp",
+    });
+  }
+
+  const useTypes = deal?.use_types?.filter((u) => u?.trim()) ?? [];
+  const badUse = useTypes.filter((u) => !isAllowedUseType(u));
+  items.push({
+    key: "deal_use_types",
+    label: "Deal UseType",
+    status: useTypes.length === 0 ? "MISSING" : badUse.length ? "ERROR" : "READY",
     scope: "dsp",
     detail:
-      territorySource.length > 0
-        ? undefined
-        : "Set territories on the release or a release_deals row.",
+      useTypes.length === 0
+        ? "release_deals.use_types is required."
+        : badUse.length
+          ? `Invalid UseType: ${badUse.join(", ")}.`
+          : undefined,
   });
+
+  const models = deal?.commercial_model_types?.filter((u) => u?.trim()) ?? [];
+  const badModel = models.filter((u) => !isAllowedCommercialModel(u));
+  items.push({
+    key: "deal_commercial_models",
+    label: "Deal CommercialModelType",
+    status: models.length === 0 ? "MISSING" : badModel.length ? "ERROR" : "READY",
+    scope: "dsp",
+    detail:
+      models.length === 0
+        ? "release_deals.commercial_model_types is required."
+        : badModel.length
+          ? `Invalid CommercialModelType: ${badModel.join(", ")}.`
+          : undefined,
+  });
+
+  items.push({
+    key: "deal_validity",
+    label: "Deal ValidityPeriod",
+    status: deal?.validity_start?.trim() || input.release_date?.trim() ? "READY" : "MISSING",
+    scope: "dsp",
+    detail:
+      deal?.validity_start?.trim() || input.release_date?.trim()
+        ? undefined
+        : "release_deals.validity_start or release_date is required for ValidityPeriod.",
+  });
+
+  if (input.senderConfigured === false) {
+    items.push({
+      key: "sender_dpid",
+      label: "Sender DPID",
+      status: "ERROR",
+      scope: "dsp",
+      detail: "NEXO_DPID is not configured on the server.",
+    });
+  } else if (input.senderConfigured === true) {
+    items.push({
+      key: "sender_dpid",
+      label: "Sender DPID",
+      status: "READY",
+      scope: "dsp",
+    });
+  }
+
+  if (input.recipientConfigured === false) {
+    items.push({
+      key: "recipient",
+      label: "Recipient",
+      status: "ERROR",
+      scope: "dsp",
+      detail: "No recipient DPID configured (test recipient only if explicitly set).",
+    });
+  } else if (input.recipientConfigured === true) {
+    items.push({
+      key: "recipient",
+      label: "Recipient",
+      status: "READY",
+      scope: "dsp",
+    });
+  }
 
   const nexoItems = items.filter((i) => i.scope === "nexo");
   const dspItems = items.filter((i) => i.scope === "dsp");
   const nexoStatus = nexoItems.reduce<ReadinessStatus>((acc, i) => worst(acc, i.status), "READY");
   const dspStatus = dspItems.reduce<ReadinessStatus>((acc, i) => worst(acc, i.status), "READY");
+  const errors = items
+    .filter((i) => blocking(i.status) || i.status === "REQUIRES_ACTION")
+    .filter((i) => i.scope === "dsp" || blocking(i.status))
+    .map((i) => i.detail || `${i.label}: ${i.status}`);
+
+  const canGenerate =
+    !items.some((i) => blocking(i.status) || (i.scope === "dsp" && i.status === "REQUIRES_ACTION"));
 
   return {
     nexoStatus,
     dspStatus,
     items,
     blocksDspDelivery: dspStatus !== "READY",
+    canGenerate,
+    errors,
   };
 }

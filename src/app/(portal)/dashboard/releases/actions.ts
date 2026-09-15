@@ -143,6 +143,8 @@ export async function createReleaseDraft(input: {
     await supabase.from("release_deals").insert({
       release_id: data.id,
       territories: ["WW"],
+      use_types: ["OnDemandStream", "PermanentDownload"],
+      commercial_model_types: ["SubscriptionModel", "PayAsYouGoModel"],
       is_default: true,
     });
   } catch {

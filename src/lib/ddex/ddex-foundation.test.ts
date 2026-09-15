@@ -16,7 +16,7 @@ describe("roles / DDEX foundation", () => {
   it("ERN constants", () => {
     expect(ERN_VERSION).toBe("4.3.2");
     expect(ERN_NAMESPACE).toBe("http://ddex.net/xml/ern/432");
-    expect(AVS_NAMESPACE).toBe("http://ddex.net/xml/avs");
+    expect(AVS_NAMESPACE).toBe("http://ddex.net/xml/allowed-value-sets");
     expect(AVS_VERSION_ID).toBe(9);
   });
   it("NEXO_DPID server-only", () => {
@@ -42,19 +42,22 @@ describe("roles / DDEX foundation", () => {
   it("readiness nexo vs dsp", () => {
     const missing = evaluateReleaseReadiness({
       upc: null, copyright_line: "c", phonogram_line: "p", artist_profile_id: "a",
+      genre: "pop",
       territories: ["WW"], tracks: [{ id: "t", isrc: null }], contributors: [{ name: "A" }],
       assets: [{ kind: "artwork", width: 3000, height: 3000 }, { kind: "audio", duration_ms: 1, sample_rate_hz: 44100, checksum: "x" }],
-      deals: [{ territories: ["WW"] }],
+      deals: [{ territories: ["WW"], use_types: ["OnDemandStream"], commercial_model_types: ["SubscriptionModel"], validity_start: "2026-09-15" }],
     });
     expect(missing.nexoStatus).toBe("READY");
-    expect(missing.dspStatus).toBe("MISSING");
+    expect(missing.dspStatus).toBe("ERROR");
     const ready = evaluateReleaseReadiness({
       upc: "123456789012", copyright_line: "c", phonogram_line: "p", artist_profile_id: "a",
+      genre: "pop",
       territories: ["WW"], tracks: [{ id: "t", isrc: "USRC17607839" }], contributors: [{ name: "A" }],
       assets: [{ kind: "artwork", width: 3000, height: 3000 }, { kind: "audio", duration_ms: 1, sample_rate_hz: 44100, checksum: "x" }],
-      deals: [{ territories: ["WW"] }],
+      deals: [{ territories: ["WW"], use_types: ["OnDemandStream"], commercial_model_types: ["SubscriptionModel"], validity_start: "2026-09-15" }],
     });
     expect(ready.dspStatus).toBe("READY");
+    expect(ready.canGenerate).toBe(true);
     expect(sha256Hex(Buffer.from("nexo"))).toHaveLength(64);
   });
 });

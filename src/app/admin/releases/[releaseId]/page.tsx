@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -80,7 +81,7 @@ export default async function AdminReleaseDetailPage({
 
   const { data: deals } = await supabase
     .from("release_deals")
-    .select("territories")
+    .select("territories, use_types, commercial_model_types, validity_start, validity_end")
     .eq("release_id", releaseId);
 
   const readiness = evaluateReleaseReadiness({
@@ -89,7 +90,9 @@ export default async function AdminReleaseDetailPage({
     phonogram_line: release.phonogram_line,
     artist_profile_id: release.artist_profile_id,
     primary_artist_name: release.primary_artist_name,
+    genre: release.genre,
     territories: release.territories,
+    release_date: release.release_date,
     tracks,
     contributors,
     assets,
@@ -218,6 +221,11 @@ export default async function AdminReleaseDetailPage({
       </div>
 
       <DdexReadinessPanel report={readiness} />
+      <p className="text-small">
+        <Link className="underline-offset-4 hover:underline" href={`/admin/ddex/${release.id}`}>
+          Open DDEX ERN 4.3.2 operations
+        </Link>
+      </p>
 
       {isQcableStatus(release.status) ? <QcDecisionForm releaseId={release.id} /> : null}
 

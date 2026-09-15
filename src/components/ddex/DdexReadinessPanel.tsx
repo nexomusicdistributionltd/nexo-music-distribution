@@ -6,6 +6,8 @@ function statusClass(status: string) {
       return "text-emerald-600";
     case "REQUIRES_ACTION":
       return "text-amber-600";
+    case "ERROR":
+      return "text-rose-700";
     default:
       return "text-rose-600";
   }
@@ -20,8 +22,9 @@ export function DdexReadinessPanel({ report }: { report: ReadinessReport }) {
       <div>
         <h2 className="text-h4">DDEX / delivery readiness</h2>
         <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
-          Advisory only — complements QC checklist. Missing ISRC/UPC flags DSP
-          delivery without blocking draft edits. No ERN XML is generated here.
+          Advisory only for drafts — complements QC checklist. Missing ISRC/UPC is a DDEX
+          ERROR and blocks ERN generation without fabricating identifiers. Generate XML from
+          the DDEX admin section.
         </p>
       </div>
       <div className="flex flex-wrap gap-4 text-small">
@@ -42,6 +45,11 @@ export function DdexReadinessPanel({ report }: { report: ReadinessReport }) {
             Blocks DSP delivery until resolved
           </span>
         ) : null}
+        {report.canGenerate ? (
+          <span className="text-emerald-600">Can generate ERN 4.3.2</span>
+        ) : (
+          <span className="text-[var(--nexo-text-muted)]">Cannot generate ERN yet</span>
+        )}
       </div>
       <ul className="space-y-2 text-small">
         {report.items.map((item) => (

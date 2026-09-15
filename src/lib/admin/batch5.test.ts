@@ -39,7 +39,7 @@ describe("Batch 5 admin route protection / roles", () => {
   });
 
   it("permission helpers are granular", () => {
-    expect(hasAdminPermission(["support"], "admin:qc")).toBe(true);
+    expect(hasAdminPermission(["support"], "admin:ddex")).toBe(true);
     expect(hasAdminPermission(["support"], "admin:settings")).toBe(false);
     expect(hasAdminPermission(["admin"], "admin:settings")).toBe(true);
     expect(hasAdminPermission(["super_admin"], "admin:roles")).toBe(true);
@@ -59,6 +59,7 @@ describe("Batch 5 admin route protection / roles", () => {
       "/admin/payouts",
       "/admin/analytics",
       "/admin/distribution",
+      "/admin/ddex",
       "/admin/compliance",
       "/admin/support",
       "/admin/contact",
