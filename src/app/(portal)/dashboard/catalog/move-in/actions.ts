@@ -1,0 +1,144 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { RequireAuth, assertCanMutateCatalog } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
+import { discoverExternalCatalog } from "@/lib/migration/external-catalog";
+import type { ArtistProvidedCatalogItem, MoveInImportMethod } from "@/lib/migration/move-in";
+
+export type ActionResult<T = unknown> =
+  | { ok: true; data: T }
+  | { ok: false; error: string };
+
+function revalidateMoveIn(id?: string) {
+  revalidatePath("/dashboard/catalog/move-in");
+  if (id) revalidatePath(`/dashboard/catalog/move-in/${id}`);
+  revalidatePath("/admin/distribution/migration");
+}
+
+async function loadMigrationBundle(migrationId: string) {
+  const supabase = await createClient();
+  const { data: migration, error } = await supabase
+    .from("catalog_migrations")
+    .select("*")
+    .eq("id", migrationId)
+    .maybeSingle();
+  if (error) throw error;
+  const { data: items, error: iErr } = await supabase
+    .from("catalog_migration_items")
+    .select(
+      "id, external_title, external_artist_name, external_upc, external_isrcs, status, selected, metadata_gaps, conflict_reason, draft_release_id"
+    )
+    .eq("migration_id", migrationId)
+    .order("created_at", { ascending: true });
+  if (iErr) throw iErr;
+  return { migration, items: items ?? [] };
+}
+
+export async function createOwnMigrationAction(input: {
+  title?: string;
+  previousDistributor: string;
+  importMethod?: MoveInImportMethod;
+}): Promise<ActionResult> {
+  const ctx = await RequireAuth({ redirectTo: "/login" });
+  assertCanMutateCatalog(ctx);
+  if (!input.previousDistributor?.trim()) {
+    return { ok: false, error: "Previous distributor is required." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_own_catalog_migration", {
+    p_title: input.title ?? null,
+    p_previous_distributor: input.previousDistributor.trim(),
+    p_import_method: input.importMethod ?? "manual",
+    p_notes: null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidateMoveIn(data?.id);
+  const bundle = await loadMigrationBundle(data.id);
+  return { ok: true, data: bundle };
+}
+
+export async function importOwnMigrationItemsAction(input: {
+  migrationId: string;
+  items: ArtistProvidedCatalogItem[];
+  importMethod?: MoveInImportMethod;
+}): Promise<ActionResult> {
+  const ctx = await RequireAuth({ redirectTo: "/login" });
+  assertCanMutateCatalog(ctx);
+  if (!input.items?.length) {
+    return { ok: false, error: "No items to import." };
+  }
+  const supabase = await createClient();
+  // Persist import method / previous distributor notes without inventing fields
+  if (input.importMethod) {
+    await supabase
+      .from("catalog_migrations")
+      .update({
+        import_method: input.importMethod,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.migrationId)
+      .eq("owner_user_id", ctx.userId);
+  }
+
+  const payload = input.items.map((it) => ({
+    title: it.title ?? null,
+    artist_name: it.artist_name ?? null,
+    upc: it.upc ?? null,
+    isrcs: it.isrcs ?? [],
+    track_count: it.track_count ?? null,
+    previous_distributor: it.previous_distributor ?? null,
+    external_release_id: it.external_release_id ?? null,
+    selected: true,
+  }));
+
+  const { data, error } = await supabase.rpc("import_own_catalog_migration_items", {
+    p_migration_id: input.migrationId,
+    p_items: payload,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidateMoveIn(input.migrationId);
+  const bundle = await loadMigrationBundle(data.id);
+  return { ok: true, data: bundle };
+}
+
+export async function setMigrationStepAction(input: {
+  migrationId: string;
+  step: string;
+  selectedItemIds?: string[];
+}): Promise<ActionResult> {
+  const ctx = await RequireAuth({ redirectTo: "/login" });
+  assertCanMutateCatalog(ctx);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_own_catalog_migration_step", {
+    p_migration_id: input.migrationId,
+    p_step: input.step,
+    p_selected_item_ids: input.selectedItemIds ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidateMoveIn(input.migrationId);
+  const bundle = await loadMigrationBundle(data.id);
+  return { ok: true, data: bundle };
+}
+
+export async function moveInMigrationAction(migrationId: string): Promise<ActionResult> {
+  const ctx = await RequireAuth({ redirectTo: "/login" });
+  assertCanMutateCatalog(ctx);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("move_in_own_catalog_migration", {
+    p_migration_id: migrationId,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidateMoveIn(migrationId);
+  revalidatePath("/dashboard/releases");
+  const bundle = await loadMigrationBundle(data.id);
+  return { ok: true, data: bundle };
+}
+
+export async function tryExternalDiscoverAction(
+  source: "spotify" | "apple_music" | "other"
+) {
+  await RequireAuth({ redirectTo: "/login" });
+  // Real adapter only — never invents catalog
+  return discoverExternalCatalog({ source });
+}

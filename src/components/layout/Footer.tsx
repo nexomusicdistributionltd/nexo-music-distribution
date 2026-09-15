@@ -28,13 +28,15 @@ const PUBLISHING = [
 const RESOURCES = [
   { href: "/pricing", label: "Pricing" },
   { href: "/faq", label: "FAQ" },
+  { href: "/blog", label: "Blog" },
+  { href: "/music", label: "Music" },
   { href: "/login", label: "Login" },
 ];
 
 const LEGAL = [
-  { label: "Privacy Policy" },
-  { label: "Terms of Service" },
-  { label: "Cookie Policy" },
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/terms", label: "Terms of Service" },
+  { href: "/cookies", label: "Cookie Policy" },
 ];
 
 const SOCIAL = ["Instagram", "X", "TikTok", "YouTube", "LinkedIn", "Spotify"];
@@ -125,14 +127,13 @@ export function Footer() {
             <h3 className="mt-6 text-label text-[var(--nexo-text)]">Legal</h3>
             <ul className="mt-3 space-y-2">
               {LEGAL.map((l) => (
-                <li key={l.label}>
-                  <span
-                    className="text-small text-[var(--nexo-text-muted)] opacity-70"
-                    title="Coming soon"
+                <li key={l.href}>
+                  <Link
+                    href={l.href}
+                    className="text-small text-[var(--nexo-text-muted)] hover:text-[var(--nexo-text)]"
                   >
-                    {l.label}{" "}
-                    <span className="text-caption">(soon)</span>
-                  </span>
+                    {l.label}
+                  </Link>
                 </li>
               ))}
             </ul>

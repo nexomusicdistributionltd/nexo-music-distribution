@@ -7,3 +7,4 @@ export {
   type ExternalCatalogResult,
   type ExternalCatalogSource,
 } from "./external-catalog";
+export * from "./move-in";

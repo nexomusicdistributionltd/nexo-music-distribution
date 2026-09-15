@@ -12,8 +12,12 @@
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.8",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "isomorphic-dompurify": "^2.22.0",
     "lucide-react": "^1.45.0",
     "next": "15.5.25",
     "next-themes": "^0.4.6",
@@ -26,6 +30,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/dompurify": "^3.2.0",
     "@types/node": "^20.19.43",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -36,5 +41,5 @@
     "typescript": "^5",
     "vitest": "^3.2.7"
   },
-  "description": "NEXO Music Distribution \u2014 Batches 1\u20138 (auth + releases + admin + distribution + royalties/publishing/finance + production hardening)"
+  "description": "NEXO Music Distribution \u2014 Batches 1\u20138 + Featured Website Update & Move In Catalog"
 }

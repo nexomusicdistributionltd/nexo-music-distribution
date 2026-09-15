@@ -297,18 +297,32 @@
   to { transform: translateX(-50%); }
 }
 
+@keyframes nexo-marquee-rtl {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
 .nexo-marquee-track {
   display: flex;
   width: max-content;
   animation: nexo-marquee 40s linear infinite;
 }
 
-.nexo-marquee-track:hover {
+.nexo-marquee-track-rtl {
+  display: flex;
+  width: max-content;
+  animation: nexo-marquee-rtl 45s linear infinite;
+  direction: ltr;
+}
+
+.nexo-marquee-track:hover,
+.nexo-marquee-track-rtl:hover {
   animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nexo-marquee-track {
+  .nexo-marquee-track,
+  .nexo-marquee-track-rtl {
     animation: none;
   }
   .animate-fade-in,
