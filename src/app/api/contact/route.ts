@@ -66,6 +66,30 @@ export async function POST(request: Request) {
     );
   }
 
+  try {
+    const { createServiceClient } = await import("@/lib/supabase/admin");
+    const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
+    const service = createServiceClient();
+    await enqueueTransactionalEmail({
+      supabase: service,
+      templateKey: "CONTACT_ACKNOWLEDGEMENT",
+      eventType: "contact",
+      to: email,
+      relatedEntityType: "contact_message",
+      relatedEntityId: typeof data === "string" ? data : null,
+      payload: {
+        FIRST_NAME: name.split(/\s+/)[0] || "there",
+        CONTACT_SUBJECT: subject,
+        CTA_URL: "https://nexomusicdistribution.com",
+        CTA_LABEL: "Visit Nexo",
+        PREHEADER: "We received your message",
+      },
+      idempotencyKey: `CONTACT_ACK:${typeof data === "string" ? data : email}:${subject}`,
+    });
+  } catch {
+    /* acknowledgement is best-effort; the inquiry is stored */
+  }
+
   return NextResponse.json(
     { ok: true, id: data },
     { headers: rateLimitHeaders(limited) }

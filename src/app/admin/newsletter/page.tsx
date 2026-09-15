@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { createClient } from "@/lib/supabase/server";
 import { NewsletterRealtime } from "@/components/admin/NewsletterRealtime";
 import { NewsletterComposer } from "@/components/admin/NewsletterComposer";
+import { EmailsSubnav } from "@/components/admin/EmailsSubnav";
 import { isEmailProviderConfigured, resolveEmailProviderName } from "@/lib/email/newsletter-send";
 
 export const metadata: Metadata = {
@@ -40,6 +41,7 @@ export default async function AdminNewsletterPage() {
   return (
     <div>
       <NewsletterRealtime />
+      <EmailsSubnav />
       <PageHeader
         title="Newsletter"
         description="Subscribers and campaign composer. Sends use email_outbound_events — never fake delivered."

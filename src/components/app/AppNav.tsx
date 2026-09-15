@@ -49,6 +49,7 @@ const ICONS: Record<NavIconId, React.ComponentType<{ className?: string }>> = {
   support: Mail,
   search: FileSearch,
   compliance: Scale,
+  email: Mail,
 };
 
 function Icon({ id, className }: { id?: NavIconId; className?: string }) {

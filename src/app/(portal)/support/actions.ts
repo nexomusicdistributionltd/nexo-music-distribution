@@ -50,6 +50,30 @@ export async function createSupportTicket(input: {
   });
   if (messageError) return { ok: false, error: publicErrorMessage(messageError.message) };
 
+  try {
+    const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
+    await enqueueTransactionalEmail({
+      supabase,
+      templateKey: "SUPPORT_TICKET_CREATED",
+      eventType: "support",
+      to: ctx.email,
+      recipientUserId: ctx.userId,
+      relatedEntityType: "support_ticket",
+      relatedEntityId: ticket.id,
+      payload: {
+        FIRST_NAME: ctx.profile?.display_name || ctx.email || "there",
+        TICKET_SUBJECT: subject,
+        CTA_URL: `https://nexomusicdistribution.com/support`,
+        CTA_LABEL: "Open ticket",
+        PREHEADER: "Support ticket created",
+      },
+      idempotencyKey: `SUPPORT_TICKET_CREATED:${ticket.id}`,
+      createdBy: ctx.userId,
+    });
+  } catch {
+    /* ticket exists regardless of mail */
+  }
+
   revalidatePath("/support");
   revalidatePath("/admin/support");
   return { ok: true, id: ticket.id };

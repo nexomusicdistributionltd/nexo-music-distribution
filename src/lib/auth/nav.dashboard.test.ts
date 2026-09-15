@@ -46,12 +46,19 @@ describe("premium dashboard nav", () => {
       "/admin/distribution",
       "/admin/contact",
       "/admin/newsletter",
+      "/admin/emails",
+      "/admin/emails/templates",
+      "/admin/emails/automated",
       "/admin/settings",
     ]) {
       expect(hrefs).toContain(h);
     }
     expect(navForRoles(["support"]).map((n) => n.href)).not.toContain("/admin/settings");
     expect(navSectionsForRoles(["admin"]).length).toBeGreaterThan(4);
+    expect(navForRoles(["artist"]).map((n) => n.href)).not.toContain("/admin/emails");
+    expect(navForRoles(["label"]).map((n) => n.href)).not.toContain("/admin/emails");
+    expect(isNavActive("/admin/emails/compose", "/admin/emails")).toBe(false);
+    expect(isNavActive("/admin/emails/inbox/abc", "/admin/emails")).toBe(true);
   });
 
   it("treats new release as distinct from catalog list", () => {

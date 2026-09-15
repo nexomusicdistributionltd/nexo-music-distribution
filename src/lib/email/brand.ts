@@ -1,20 +1,24 @@
 /**
  * Public HTTPS brand assets for outbound email.
- * Website + social URLs come from `@/lib/brand/social` (also re-exported from `@/lib/site`).
+ * Website + social URLs come from `@/lib/website/social-links` (href/label sourced
+ * from `@/lib/brand/social` — do not duplicate Spotify/X/TikTok constants here).
  * Mailbox (Zoho SMTP From / support mailto): contact@nexomusicdistro.space
  * Never use relative /public paths in messages — clients cannot fetch them.
  */
-import {
-  BRAND_PUBLIC_URL,
-  BRAND_SOCIAL,
-  BRAND_SOCIAL_LINKS,
-} from "@/lib/brand/social";
+import { SITE_URL } from "@/lib/site";
+import { FOOTER_SOCIAL_LINKS } from "@/lib/website/social-links";
+
+const socialByKey = Object.fromEntries(
+  FOOTER_SOCIAL_LINKS.map((item) => [item.key, item]),
+) as {
+  [K in (typeof FOOTER_SOCIAL_LINKS)[number]["key"]]: (typeof FOOTER_SOCIAL_LINKS)[number];
+};
 
 const JSDELIVR_EMAIL_ICON = (file: string) =>
   `https://cdn.jsdelivr.net/gh/nexomusicdistributionltd/nexo-music-distribution@main/public/brand/email/${file}`;
 
 export const NEXO_EMAIL_BRAND = {
-  website: BRAND_PUBLIC_URL,
+  website: SITE_URL,
   email: "contact@nexomusicdistro.space",
   company: "Nexo Music Distribution LTD",
   tagline: "Digital Music Distribution | Publishing | Royalty Management",
@@ -24,9 +28,9 @@ export const NEXO_EMAIL_BRAND = {
   /** Light icon for dark fields. */
   iconLight: "https://nexomusicdistribution.com/brand/email/nexo-icon-light-v2.png",
   socials: {
-    spotify: BRAND_SOCIAL.spotify.href,
-    x: BRAND_SOCIAL.x.href,
-    tiktok: BRAND_SOCIAL.tiktok.href,
+    spotify: socialByKey.spotify.href,
+    x: socialByKey.x.href,
+    tiktok: socialByKey.tiktok.href,
   },
   icons: {
     spotifyWhite: JSDELIVR_EMAIL_ICON("icon-spotify-white.png"),
@@ -55,10 +59,10 @@ function escapeAttr(s: string): string {
 
 /** Centered Spotify / X / TikTok icon row for branded email footers. */
 export function emailSocialIconsRowHtml(): string {
-  const cells = BRAND_SOCIAL_LINKS.map(
+  const cells = FOOTER_SOCIAL_LINKS.map(
     (item) => `<td align="center" style="padding:0 10px;">
-                            <a href="${escapeAttr(item.href)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeAttr(item.ariaLabel)}" style="text-decoration:none;">
-                              <img src="${escapeAttr(ICON_BY_KEY[item.key])}" width="22" height="22" alt="${escapeAttr(item.ariaLabel)}" style="display:block;border:0;outline:none;width:22px;height:22px;" />
+                            <a href="${escapeAttr(item.href)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeAttr(item.label)}" style="text-decoration:none;">
+                              <img src="${escapeAttr(ICON_BY_KEY[item.key])}" width="22" height="22" alt="${escapeAttr(item.label)}" style="display:block;border:0;outline:none;width:22px;height:22px;" />
                             </a>
                           </td>`,
   ).join("\n                          ");
