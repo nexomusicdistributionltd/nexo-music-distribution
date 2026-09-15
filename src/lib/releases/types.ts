@@ -102,7 +102,10 @@ export interface ReleaseContributorRow {
   track_id: string | null;
   name: string;
   role: ContributorRole;
+  /** Optional ownership/share metadata only. NOT a DDEX DisplayArtist %. */
   share_percent: number | null;
+  ipi_cae: string | null;
+  isni: string | null;
   created_at: string;
 }
 
@@ -119,6 +122,13 @@ export interface ReleaseAssetRow {
   checksum: string | null;
   width: number | null;
   height: number | null;
+  codec: string | null;
+  container: string | null;
+  sample_rate_hz: number | null;
+  bit_depth: number | null;
+  channels: number | null;
+  duration_ms: number | null;
+  hash_algorithm: string | null;
   uploaded_by: string | null;
   created_at: string;
 }

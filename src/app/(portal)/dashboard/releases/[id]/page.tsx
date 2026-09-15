@@ -12,6 +12,10 @@ import { isEditableStatus } from "@/lib/releases/status";
 import { getReleaseDetail } from "@/lib/releases/queries";
 import type { ReleaseStatus } from "@/lib/releases/types";
 import { providerNotConnectedMessage } from "@/lib/provider/errors";
+import {
+  getLabelProfileIdForUser,
+  listRosterArtists,
+} from "@/lib/roster/queries";
 
 export const metadata: Metadata = {
   title: "Release",
@@ -36,6 +40,20 @@ export default async function ReleaseDetailPage({
   const { release, tracks, contributors, assets, history } = detail;
   const editable = isEditableStatus(release.status);
 
+  const isLabel = ctx.roles.includes("label");
+  let rosterArtists: { id: string; artist_name: string; stage_name: string }[] = [];
+  if (isLabel && edit && editable) {
+    const labelId = await getLabelProfileIdForUser(ctx.userId);
+    if (labelId) {
+      const roster = await listRosterArtists(labelId);
+      rosterArtists = roster.map((a) => ({
+        id: a.id,
+        artist_name: a.artist_name,
+        stage_name: a.stage_name,
+      }));
+    }
+  }
+
   if (edit && editable) {
     return (
       <div className="space-y-6">
@@ -51,6 +69,8 @@ export default async function ReleaseDetailPage({
           tracks={tracks}
           contributors={contributors}
           assets={assets}
+          accountRole={isLabel ? "label" : "artist"}
+          rosterArtists={rosterArtists}
         />
       </div>
     );

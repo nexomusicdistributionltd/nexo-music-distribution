@@ -16,11 +16,17 @@ import {
   isEditableStatus,
 } from "@/lib/releases/status";
 import { pickReleaseUpdateFields } from "@/lib/releases/safe-update";
+import { applyUpcPreserveGuard, preserveExistingIsrc } from "@/lib/releases/identifiers";
+import {
+  extractArtworkTechMeta,
+  extractAudioTechMeta,
+} from "@/lib/releases/tech-meta";
 import { validateReleaseForSubmit } from "@/lib/releases/validation";
 import type {
   ContributorRole,
   ReleaseRow,
   ReleaseStatus,
+  ReleaseTrackRow,
   ReleaseType,
 } from "@/lib/releases/types";
 import {
@@ -51,6 +57,8 @@ function revalidateReleasePaths(id?: string) {
 
 export async function createReleaseDraft(input: {
   release_type: ReleaseType;
+  /** Required for Label users — must be on their roster. Ignored for Artist users. */
+  artist_profile_id?: string | null;
 }): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireArtistOrLabel();
   try {
@@ -64,7 +72,10 @@ export async function createReleaseDraft(input: {
   let labelProfileId: string | null = null;
   let primaryArtistName = ctx.profile?.display_name || ctx.profile?.full_name || "";
 
-  if (ctx.roles.includes("artist")) {
+  const isArtist = ctx.roles.includes("artist");
+  const isLabel = ctx.roles.includes("label");
+
+  if (isArtist) {
     const { data } = await supabase
       .from("artist_profiles")
       .select("id, artist_name, stage_name")
@@ -73,13 +84,38 @@ export async function createReleaseDraft(input: {
     artistProfileId = data?.id ?? null;
     primaryArtistName = data?.artist_name || data?.stage_name || primaryArtistName;
   }
-  if (ctx.roles.includes("label")) {
+
+  if (isLabel) {
     const { data } = await supabase
       .from("label_profiles")
       .select("id, label_name")
       .eq("user_id", ctx.userId)
       .maybeSingle();
     labelProfileId = data?.id ?? null;
+    if (!labelProfileId) return { ok: false, error: "Label profile not found." };
+
+    const rosterArtistId = input.artist_profile_id?.trim() || null;
+    if (!rosterArtistId) {
+      return { ok: false, error: "Select a roster artist before creating a release." };
+    }
+
+    const { data: link } = await supabase
+      .from("label_roster_artists")
+      .select("artist_profile_id")
+      .eq("label_profile_id", labelProfileId)
+      .eq("artist_profile_id", rosterArtistId)
+      .maybeSingle();
+    if (!link) return { ok: false, error: "Selected artist is not on your roster." };
+
+    const { data: ap } = await supabase
+      .from("artist_profiles")
+      .select("id, artist_name, stage_name")
+      .eq("id", rosterArtistId)
+      .maybeSingle();
+    if (!ap) return { ok: false, error: "Roster artist not found." };
+
+    artistProfileId = ap.id;
+    primaryArtistName = ap.artist_name || ap.stage_name || primaryArtistName;
   }
 
   const { data, error } = await supabase
@@ -104,11 +140,25 @@ export async function createReleaseDraft(input: {
   if (error) return { ok: false, error: error.message };
 
   try {
+    await supabase.from("release_deals").insert({
+      release_id: data.id,
+      territories: ["WW"],
+      is_default: true,
+    });
+  } catch {
+    /* ignore */
+  }
+
+  try {
     await supabase.rpc("write_audit_log", {
       p_action: "release_create",
       p_entity_type: "release",
       p_entity_id: data.id,
-      p_metadata: { release_type: input.release_type },
+      p_metadata: {
+        release_type: input.release_type,
+        artist_profile_id: artistProfileId,
+        label_profile_id: labelProfileId,
+      },
     });
   } catch {
     /* ignore */
@@ -161,7 +211,9 @@ export async function updateReleaseInfo(
     return { ok: false, error: `Release is locked (${existing.status}).` };
   }
 
-  const safe = pickReleaseUpdateFields(patch as Record<string, unknown>);
+  let safe = pickReleaseUpdateFields(patch as Record<string, unknown>);
+  // Never overwrite existing UPC
+  safe = applyUpcPreserveGuard(safe, existing.upc as string | null);
 
   if (typeof safe.upc === "string" && safe.upc.trim() === "") safe.upc = null;
   if (typeof safe.upc === "string") {
@@ -221,7 +273,7 @@ export async function replaceTracks(
     language?: string | null;
     lyrics?: string | null;
   }>
-): Promise<ActionResult<{ count: number }>> {
+): Promise<ActionResult<{ count: number; tracks: ReleaseTrackRow[] }>> {
   const ctx = await requireArtistOrLabel();
   try {
     assertCanMutateCatalog(ctx);
@@ -241,9 +293,17 @@ export async function replaceTracks(
     return { ok: false, error: "Release is locked." };
   }
 
+  const { data: current } = await supabase
+    .from("release_tracks")
+    .select("id, isrc")
+    .eq("release_id", releaseId);
+  const existingById = new Map((current ?? []).map((t) => [t.id, t.isrc as string | null]));
+
   for (const t of tracks) {
-    if (t.isrc) {
-      const code = t.isrc.trim().toUpperCase();
+    const existingIsrc = t.id ? existingById.get(t.id) : null;
+    const preserved = preserveExistingIsrc(existingIsrc, t.isrc);
+    if (preserved) {
+      const code = String(preserved).trim().toUpperCase();
       if (!/^[A-Z]{2}[A-Z0-9]{3}[0-9]{7}$/.test(code)) {
         return {
           ok: false,
@@ -255,11 +315,6 @@ export async function replaceTracks(
       t.isrc = null;
     }
   }
-
-  const { data: current } = await supabase
-    .from("release_tracks")
-    .select("id")
-    .eq("release_id", releaseId);
   const keepIds = new Set(tracks.map((t) => t.id).filter(Boolean) as string[]);
   const toDelete = (current ?? []).filter((t) => !keepIds.has(t.id)).map((t) => t.id);
   if (toDelete.length) {
@@ -291,8 +346,17 @@ export async function replaceTracks(
     }
   }
 
+  const { data: persisted } = await supabase
+    .from("release_tracks")
+    .select("id, track_number, title, version, isrc, duration_ms, explicit, language, lyrics, created_at, updated_at, release_id")
+    .eq("release_id", releaseId)
+    .order("track_number", { ascending: true });
+
   revalidateReleasePaths(releaseId);
-  return { ok: true, data: { count: tracks.length } };
+  return {
+    ok: true,
+    data: { count: tracks.length, tracks: (persisted ?? []) as ReleaseTrackRow[] },
+  };
 }
 
 export async function replaceContributors(
@@ -301,7 +365,10 @@ export async function replaceContributors(
     name: string;
     role: ContributorRole;
     track_id?: string | null;
+    /** Optional share metadata only — NOT a DDEX DisplayArtist %. */
     share_percent?: number | null;
+    ipi_cae?: string | null;
+    isni?: string | null;
   }>
 ): Promise<ActionResult<{ count: number }>> {
   const ctx = await requireArtistOrLabel();
@@ -332,7 +399,10 @@ export async function replaceContributors(
         name: c.name.trim(),
         role: c.role,
         track_id: c.track_id ?? null,
+        // share_percent is optional ownership metadata only — NOT DisplayArtist %
         share_percent: c.share_percent ?? null,
+        ipi_cae: c.ipi_cae?.trim() || null,
+        isni: c.isni?.trim() || null,
       }))
     );
     if (error) return { ok: false, error: error.message };
@@ -408,6 +478,46 @@ export async function registerUploadedAsset(input: {
     }
   }
 
+  let width = input.width ?? null;
+  let height = input.height ?? null;
+  let codec: string | null = null;
+  let container: string | null = null;
+  let sample_rate_hz: number | null = null;
+  let bit_depth: number | null = null;
+  let channels: number | null = null;
+  let duration_ms: number | null = null;
+  let checksum: string | null = null;
+  let hash_algorithm: string | null = null;
+
+  try {
+    const { data: blob, error: dlErr } = await supabase.storage
+      .from(bucket)
+      .download(input.storagePath);
+    if (!dlErr && blob) {
+      const ab = await blob.arrayBuffer();
+      const buf = Buffer.from(ab);
+      if (input.kind === "audio") {
+        const meta = await extractAudioTechMeta(buf, input.mimeType);
+        codec = meta.codec;
+        container = meta.container;
+        sample_rate_hz = meta.sample_rate_hz;
+        bit_depth = meta.bit_depth;
+        channels = meta.channels;
+        duration_ms = meta.duration_ms;
+        checksum = meta.checksum;
+        hash_algorithm = meta.hash_algorithm;
+      } else {
+        const meta = extractArtworkTechMeta(buf);
+        width = meta.width ?? width;
+        height = meta.height ?? height;
+        checksum = meta.checksum;
+        hash_algorithm = meta.hash_algorithm;
+      }
+    }
+  } catch {
+    // leave nulls — readiness will surface missing tech meta
+  }
+
   const { data, error } = await supabase
     .from("release_assets")
     .insert({
@@ -419,14 +529,30 @@ export async function registerUploadedAsset(input: {
       filename: input.filename,
       mime_type: input.mimeType,
       size_bytes: input.sizeBytes,
-      width: input.width ?? null,
-      height: input.height ?? null,
+      width,
+      height,
+      codec,
+      container,
+      sample_rate_hz,
+      bit_depth,
+      channels,
+      duration_ms,
+      checksum,
+      hash_algorithm,
       uploaded_by: ctx.userId,
     })
     .select("id")
     .single();
 
   if (error) return { ok: false, error: error.message };
+
+  if (input.kind === "audio" && input.trackId && duration_ms != null) {
+    await supabase
+      .from("release_tracks")
+      .update({ duration_ms })
+      .eq("id", input.trackId)
+      .eq("release_id", input.releaseId);
+  }
 
   try {
     await supabase.rpc("write_audit_log", {

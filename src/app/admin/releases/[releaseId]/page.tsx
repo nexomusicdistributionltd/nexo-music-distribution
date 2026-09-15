@@ -10,6 +10,8 @@ import { getReleaseDetail } from "@/lib/releases/queries";
 import { createSignedAssetUrl } from "@/lib/admin/queries";
 import { createClient } from "@/lib/supabase/server";
 import { isQcableStatus } from "@/lib/admin/qc";
+import { evaluateReleaseReadiness } from "@/lib/ddex/readiness";
+import { DdexReadinessPanel } from "@/components/ddex/DdexReadinessPanel";
 import { getProviderConnectionState } from "@/lib/provider";
 
 export const metadata: Metadata = {
@@ -75,6 +77,24 @@ export default async function AdminReleaseDetailPage({
       : typeof release.distribution_settings?.catalogNumber === "string"
         ? release.distribution_settings.catalogNumber
         : null;
+
+  const { data: deals } = await supabase
+    .from("release_deals")
+    .select("territories")
+    .eq("release_id", releaseId);
+
+  const readiness = evaluateReleaseReadiness({
+    upc: release.upc,
+    copyright_line: release.copyright_line,
+    phonogram_line: release.phonogram_line,
+    artist_profile_id: release.artist_profile_id,
+    primary_artist_name: release.primary_artist_name,
+    territories: release.territories,
+    tracks,
+    contributors,
+    assets,
+    deals: deals ?? [],
+  });
 
   const notes =
     release.description ||
@@ -196,6 +216,8 @@ export default async function AdminReleaseDetailPage({
           )}
         </section>
       </div>
+
+      <DdexReadinessPanel report={readiness} />
 
       {isQcableStatus(release.status) ? <QcDecisionForm releaseId={release.id} /> : null}
 

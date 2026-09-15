@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
@@ -53,7 +54,12 @@ type ContribDraft = {
   name: string;
   role: ContributorRole;
   share_percent: string;
+  track_id: string;
+  ipi_cae: string;
+  isni: string;
 };
+
+export type RosterOption = { id: string; artist_name: string; stage_name: string };
 
 export function ReleaseWizard({
   initial,
@@ -61,17 +67,24 @@ export function ReleaseWizard({
   contributors: initialContributors,
   assets: initialAssets,
   mode = "create",
+  accountRole = "artist",
+  rosterArtists = [],
 }: {
   initial?: ReleaseRow | null;
   tracks?: ReleaseTrackRow[];
   contributors?: ReleaseContributorRow[];
   assets?: ReleaseAssetRow[];
   mode?: "create" | "edit";
+  accountRole?: "artist" | "label";
+  rosterArtists?: RosterOption[];
 }) {
   const router = useRouter();
   const [step, setStep] = React.useState(0);
   const [releaseId, setReleaseId] = React.useState<string | null>(initial?.id ?? null);
   const [type, setType] = React.useState<ReleaseType>(initial?.release_type ?? "single");
+  const [rosterArtistId, setRosterArtistId] = React.useState<string>(
+    initial?.artist_profile_id ?? ""
+  );
   const [info, setInfo] = React.useState({
     title: initial?.title ?? "",
     version: initial?.version ?? "",
@@ -112,8 +125,18 @@ export function ReleaseWizard({
           name: c.name,
           role: c.role,
           share_percent: c.share_percent?.toString() ?? "",
+          track_id: c.track_id ?? "",
+          ipi_cae: (c as ReleaseContributorRow).ipi_cae ?? "",
+          isni: (c as ReleaseContributorRow).isni ?? "",
         }))
-      : [{ name: initial?.primary_artist_name ?? "", role: "primary_artist", share_percent: "" }]
+      : [{
+          name: initial?.primary_artist_name ?? "",
+          role: "primary_artist",
+          share_percent: "",
+          track_id: "",
+          ipi_cae: "",
+          isni: "",
+        }]
   );
   const [assets, setAssets] = React.useState(initialAssets ?? []);
   const [error, setError] = React.useState<string | null>(null);
@@ -122,9 +145,15 @@ export function ReleaseWizard({
 
   async function ensureDraft(): Promise<string> {
     if (releaseId) return releaseId;
+    if (accountRole === "label" && !rosterArtistId) {
+      throw new Error("Select a roster artist before creating the release.");
+    }
     setBusy(true);
     try {
-      const res = await createReleaseDraft({ release_type: type });
+      const res = await createReleaseDraft({
+        release_type: type,
+        artist_profile_id: accountRole === "label" ? rosterArtistId : undefined,
+      });
       if (!res.ok) throw new Error(res.error);
       setReleaseId(res.data.id);
       return res.data.id;
@@ -176,9 +205,22 @@ export function ReleaseWizard({
       }))
     );
     if (!res.ok) throw new Error(res.error);
+    if (res.data.tracks?.length) {
+      setTracks(
+        res.data.tracks.map((t) => ({
+          id: t.id,
+          track_number: t.track_number,
+          title: t.title,
+          version: t.version ?? "",
+          isrc: t.isrc ?? "",
+          explicit: t.explicit,
+        }))
+      );
+    }
   }
 
   async function saveContributors(id: string) {
+    // share_percent is optional ownership metadata only — NOT DDEX DisplayArtist %
     const res = await replaceContributors(
       id,
       contributors
@@ -186,7 +228,10 @@ export function ReleaseWizard({
         .map((c) => ({
           name: c.name,
           role: c.role,
+          track_id: c.track_id || null,
           share_percent: c.share_percent ? Number(c.share_percent) : null,
+          ipi_cae: c.ipi_cae || null,
+          isni: c.isni || null,
         }))
     );
     if (!res.ok) throw new Error(res.error);
@@ -263,6 +308,13 @@ export function ReleaseWizard({
           checksum: null,
           width: null,
           height: null,
+          codec: null,
+          container: null,
+          sample_rate_hz: null,
+          bit_depth: null,
+          channels: null,
+          duration_ms: null,
+          hash_algorithm: null,
           uploaded_by: null,
           created_at: new Date().toISOString(),
         },
@@ -350,6 +402,45 @@ export function ReleaseWizard({
                   </p>
                 </button>
               ))}
+              {accountRole === "label" ? (
+                <div className="sm:col-span-3 space-y-2">
+                  <label className="block space-y-1">
+                    <span className="text-caption text-[var(--nexo-text-muted)]">Roster artist *</span>
+                    <Select
+                      value={rosterArtistId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setRosterArtistId(id);
+                        const a = rosterArtists.find((r) => r.id === id);
+                        if (a) {
+                          setInfo((prev) => ({
+                            ...prev,
+                            primary_artist_name: a.artist_name || a.stage_name,
+                          }));
+                        }
+                      }}
+                      disabled={Boolean(releaseId)}
+                    >
+                      <option value="">Select roster artist…</option>
+                      {rosterArtists.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.artist_name || a.stage_name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  {rosterArtists.length === 0 ? (
+                    <p className="text-small text-[var(--nexo-text-muted)]">
+                      No roster artists yet.{" "}
+                      <Link href="/app/artists/new" className="underline">Create an artist</Link> first.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="sm:col-span-3 text-small text-[var(--nexo-text-muted)]">
+                  Artist account: your artist profile is linked automatically.
+                </p>
+              )}
             </div>
           ) : null}
 
@@ -368,6 +459,7 @@ export function ReleaseWizard({
                 <Input
                   value={info.primary_artist_name}
                   onChange={(e) => setInfo({ ...info, primary_artist_name: e.target.value })}
+                  readOnly={accountRole === "label"}
                 />
               </label>
               <label className="block space-y-1">
@@ -524,8 +616,12 @@ export function ReleaseWizard({
 
           {step === 3 ? (
             <div className="space-y-3">
+              <p className="text-small text-[var(--nexo-text-muted)]">
+                Assign each contributor to the whole release or a specific track. Share % is optional
+                ownership metadata only — not a DDEX DisplayArtist percentage.
+              </p>
               {contributors.map((c, idx) => (
-                <div key={idx} className="grid gap-2 sm:grid-cols-3">
+                <div key={idx} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   <Input
                     placeholder="Name"
                     value={c.name}
@@ -561,12 +657,45 @@ export function ReleaseWizard({
                       </option>
                     ))}
                   </Select>
+                  <Select
+                    value={c.track_id}
+                    onChange={(e) => {
+                      const next = [...contributors];
+                      next[idx] = { ...c, track_id: e.target.value };
+                      setContributors(next);
+                    }}
+                  >
+                    <option value="">Entire release</option>
+                    {tracks.map((t, ti) => (
+                      <option key={t.id ?? `t${ti}`} value={t.id ?? ""} disabled={!t.id}>
+                        Track {ti + 1}{t.title ? `: ${t.title}` : ""}{!t.id ? " (save tracks first)" : ""}
+                      </option>
+                    ))}
+                  </Select>
                   <Input
-                    placeholder="Share % (optional)"
+                    placeholder="Share % (optional metadata)"
                     value={c.share_percent}
                     onChange={(e) => {
                       const next = [...contributors];
                       next[idx] = { ...c, share_percent: e.target.value };
+                      setContributors(next);
+                    }}
+                  />
+                  <Input
+                    placeholder="IPI/CAE (optional)"
+                    value={c.ipi_cae}
+                    onChange={(e) => {
+                      const next = [...contributors];
+                      next[idx] = { ...c, ipi_cae: e.target.value };
+                      setContributors(next);
+                    }}
+                  />
+                  <Input
+                    placeholder="ISNI (optional)"
+                    value={c.isni}
+                    onChange={(e) => {
+                      const next = [...contributors];
+                      next[idx] = { ...c, isni: e.target.value };
                       setContributors(next);
                     }}
                   />
@@ -576,7 +705,10 @@ export function ReleaseWizard({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setContributors([...contributors, { name: "", role: "other", share_percent: "" }])
+                  setContributors([
+                    ...contributors,
+                    { name: "", role: "other", share_percent: "", track_id: "", ipi_cae: "", isni: "" },
+                  ])
                 }
               >
                 Add contributor
