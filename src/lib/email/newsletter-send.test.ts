@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { FOOTER_SOCIAL_LINKS } from "@/lib/website/social-links";
+import { BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
 import {
   buildNewsletterHtml,
   isEmailProviderConfigured,
@@ -124,8 +124,8 @@ describe("buildNewsletterHtml", () => {
     expect(html).not.toContain("nexomusicdistro.space");
     expect(html).not.toMatch(/resend/i);
     expect(html).toContain("https://nexomusicdistribution.com");
-    for (const item of FOOTER_SOCIAL_LINKS) {
-      expect(html).toContain(`aria-label="${item.label}"`);
+    for (const item of BRAND_SOCIAL_LINKS) {
+      expect(html).toContain(`aria-label="${item.ariaLabel}"`);
       expect(html).toContain(item.href.replace(/&/g, "&amp;"));
     }
     expect(html).toContain('rel="noopener noreferrer"');
