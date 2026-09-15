@@ -1,3 +1,4 @@
+import * as React from "react";
 import { FOOTER_SOCIAL_LINKS } from "@/lib/website/social-links";
 import { cn } from "@/lib/utils";
 

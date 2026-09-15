@@ -26,9 +26,10 @@ describe("official footer social links", () => {
     expect(html).toContain('aria-label="Nexo Music Distribution on Spotify"');
     expect(html).toContain('aria-label="Nexo Music Distribution on X"');
     expect(html).toContain('aria-label="Nexo Music Distribution on TikTok"');
-    expect(html).toContain(`href="${DESTINATIONS.spotify}"`);
-    expect(html).toContain(`href="${DESTINATIONS.x}"`);
-    expect(html).toContain(`href="${DESTINATIONS.tiktok}"`);
+    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) =>
+      m[1].replaceAll("&amp;", "&"),
+    );
+    expect(hrefs).toEqual([DESTINATIONS.spotify, DESTINATIONS.x, DESTINATIONS.tiktok]);
     expect(html.match(/target="_blank"/g)?.length).toBe(3);
     expect(html.match(/rel="noopener noreferrer"/g)?.length).toBe(3);
     expect(html).not.toMatch(/facebook|instagram|youtube|linkedin/i);
