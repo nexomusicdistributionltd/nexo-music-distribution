@@ -4,6 +4,7 @@ import { getServiceRoleKey } from "@/lib/supabase/admin";
 import { readProviderConfig } from "@/lib/provider/config";
 import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { createClient } from "@supabase/supabase-js";
+import { isZohoSmtpConfigured } from "@/lib/email/zoho-smtp";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,10 +24,7 @@ export async function GET() {
   const fxConfigured = Boolean(
     process.env.FX_PROVIDER_NAME?.trim() && process.env.FX_PROVIDER_API_KEY?.trim()
   );
-  const emailConfigured = Boolean(
-    (process.env.EMAIL_PROVIDER?.trim() || process.env.SMTP_HOST?.trim()) &&
-      (process.env.SMTP_PASSWORD?.trim() || process.env.EMAIL_FROM?.trim())
-  );
+  const emailConfigured = isZohoSmtpConfigured();
 
   let db: "ok" | "unreachable" | "unconfigured" = "unconfigured";
   if (env.configured) {

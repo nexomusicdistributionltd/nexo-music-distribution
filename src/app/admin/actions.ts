@@ -345,3 +345,80 @@ export async function requestReportExportAction(input: {
   revalidateAdmin(["/admin/reports", "/admin/audit"]);
   return { ok: true, data: { id: data.id } };
 }
+
+/** Retry an email event: new outbox row. Cannot fabricate SENT. */
+export async function retryEmailEventAction(
+  eventId: string
+): Promise<ActionResult<{ id: string | null }>> {
+  const ctx = await RequireAdminPermission("admin:emails");
+  const { enqueueEmailEvent } = await import("@/lib/email/enqueue");
+  const { processEmailEvent } = await import("@/lib/email/outbox");
+  const { assertOutboundTemplateKey } = await import("@/lib/email/template-keys");
+  const { createServiceClient } = await import("@/lib/supabase/admin");
+  const supabase = await createClient();
+  const { data: existing, error } = await supabase
+    .from("email_outbound_events")
+    .select("*")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!existing) return { ok: false, error: "Email event not found." };
+
+  const payload =
+    existing.payload && typeof existing.payload === "object" && !Array.isArray(existing.payload)
+      ? (existing.payload as Record<string, unknown>)
+      : {};
+  const priorKey =
+    typeof payload._idempotency_key === "string" && payload._idempotency_key.trim()
+      ? payload._idempotency_key
+      : eventId;
+  const retryKey = `${priorKey}:retry:${crypto.randomUUID()}`;
+  const templateKey = assertOutboundTemplateKey(String(existing.template_key));
+  const relatedReleaseId =
+    existing.related_entity_type === "release" && existing.related_entity_id
+      ? String(existing.related_entity_id)
+      : typeof payload._related_release_id === "string"
+        ? payload._related_release_id
+        : null;
+  const recipientUserId =
+    typeof payload._recipient_user_id === "string" ? payload._recipient_user_id : null;
+  const eventTypeRaw =
+    typeof payload._event_type === "string" ? payload._event_type : "manual.retry";
+  const enq = await enqueueEmailEvent(supabase, {
+    eventType: "manual.retry",
+    templateKey,
+    recipientUserId,
+    recipientEmail: existing.to_email ? String(existing.to_email) : null,
+    relatedReleaseId,
+    relatedEntityType: existing.related_entity_type
+      ? String(existing.related_entity_type)
+      : null,
+    relatedEntityId: existing.related_entity_id ? String(existing.related_entity_id) : null,
+    payload: {
+      ...payload,
+      RETRY_OF: eventId,
+      ORIGINAL_EVENT_TYPE: eventTypeRaw,
+    },
+    idempotencyKey: retryKey,
+    createdBy: ctx.userId,
+  });
+  if (enq.error) return { ok: false, error: enq.error };
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "email_retry",
+    p_entity_type: "email_event",
+    p_entity_id: enq.id,
+    p_metadata: { retry_of: eventId, template_key: existing.template_key },
+  });
+
+  if (enq.id) {
+    try {
+      await processEmailEvent(createServiceClient(), enq.id);
+    } catch {
+      /* unavailable — status stays truthful */
+    }
+  }
+
+  revalidateAdmin(["/admin/emails", "/admin/emails/sent"]);
+  return { ok: true, data: { id: enq.id } };
+}
