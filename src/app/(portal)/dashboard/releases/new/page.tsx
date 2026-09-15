@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { ReleaseWizard } from "@/components/releases/ReleaseWizard";
 import { RequireRole } from "@/lib/auth/guards";
+import {
+  getLabelProfileIdForUser,
+  listRosterArtists,
+} from "@/lib/roster/queries";
 
 export const metadata: Metadata = {
   title: "New release",
@@ -8,7 +12,21 @@ export const metadata: Metadata = {
 };
 
 export default async function NewReleasePage() {
-  await RequireRole(["artist", "label"]);
+  const ctx = await RequireRole(["artist", "label"]);
+  const isLabel = ctx.roles.includes("label");
+  let rosterArtists: { id: string; artist_name: string; stage_name: string }[] = [];
+  if (isLabel) {
+    const labelId = await getLabelProfileIdForUser(ctx.userId);
+    if (labelId) {
+      const roster = await listRosterArtists(labelId);
+      rosterArtists = roster.map((a) => ({
+        id: a.id,
+        artist_name: a.artist_name,
+        stage_name: a.stage_name,
+      }));
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -17,7 +35,11 @@ export default async function NewReleasePage() {
           Multi-step wizard — drafts save as you continue. No ISRC/UPC is auto-fabricated.
         </p>
       </div>
-      <ReleaseWizard mode="create" />
+      <ReleaseWizard
+        mode="create"
+        accountRole={isLabel ? "label" : "artist"}
+        rosterArtists={rosterArtists}
+      />
     </div>
   );
 }

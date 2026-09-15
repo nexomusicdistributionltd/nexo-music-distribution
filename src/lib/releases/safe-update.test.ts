@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pickReleaseUpdateFields, sanitizeReleaseSearchQuery } from "./safe-update";
+import { applyUpcPreserveGuard } from "./identifiers";
 
 describe("pickReleaseUpdateFields — mass assignment shield", () => {
   it("keeps only allowlisted metadata fields", () => {
@@ -53,5 +54,13 @@ describe("sanitizeReleaseSearchQuery", () => {
     expect(cleaned).not.toContain("status.eq");
     expect(sanitizeReleaseSearchQuery('a"b\\c')).not.toMatch(/["\\]/);
     expect(sanitizeReleaseSearchQuery("  hello world  ")).toBe("hello world");
+  });
+});
+
+describe("UPC never overwrite on update", () => {
+  it("drops upc from patch when existing UPC is set", () => {
+    const safe = pickReleaseUpdateFields({ title: "T", upc: "999999999999" });
+    const guarded = applyUpcPreserveGuard(safe, "123456789012");
+    expect(guarded).toEqual({ title: "T" });
   });
 });
