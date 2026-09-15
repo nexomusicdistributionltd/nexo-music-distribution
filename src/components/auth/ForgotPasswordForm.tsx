@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { friendlyAuthError } from "@/lib/auth/errors";
+import { RECOVERY_EMAIL_REDIRECT_PATH } from "@/lib/auth/recovery-urls";
 import { authEmailRedirectUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -28,7 +29,7 @@ export function ForgotPasswordForm() {
     try {
       const supabase = createClient();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: authEmailRedirectUrl("/reset-password"),
+        redirectTo: authEmailRedirectUrl(RECOVERY_EMAIL_REDIRECT_PATH),
       });
       if (resetError) throw resetError;
       setSent(true);

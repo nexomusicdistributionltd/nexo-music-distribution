@@ -1,21 +1,7 @@
-import { NextResponse } from "next/server";
-import { safeRedirectPath } from "@/lib/auth/safeRedirect";
-import { authAppOrigin } from "@/lib/site-url";
-import { createClient } from "@/lib/supabase/server";
+import { type NextRequest } from "next/server";
+import { completeAuthRedirect } from "@/lib/supabase/auth-redirect";
 
-export async function GET(request: Request) {
-  const { searchParams, origin: requestOrigin } = new URL(request.url);
-  const origin = authAppOrigin(requestOrigin);
-  const code = searchParams.get("code");
-  const next = safeRedirectPath(searchParams.get("next"));
-
-  if (code) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(new URL(next, origin));
-    }
-  }
-
-  return NextResponse.redirect(`${origin}/login?reason=auth-required`);
+/** PKCE only — password recovery redirectTo lands here with ?code=&next=/reset-password */
+export async function GET(request: NextRequest) {
+  return completeAuthRedirect(request, "pkce");
 }

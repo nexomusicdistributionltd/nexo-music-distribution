@@ -22,8 +22,11 @@ This deploy cannot change the Supabase dashboard. In **Authentication → URL Co
 - **Redirect URLs:** include
   - `https://nexomusicdistribution.com/**`
   - `https://nexomusicdistribution.com/auth/callback`
+  - `https://nexomusicdistribution.com/auth/callback?next=/reset-password`
   - `https://nexomusicdistribution.com/auth/confirm`
   - `https://nexomusicdistribution.com/reset-password`
+- Recovery (PKCE): `resetPasswordForEmail` `redirectTo` = `https://nexomusicdistribution.com/auth/callback?next=/reset-password`
+- Recovery (OTP template, optional): `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`
 - Auth emails (signup confirm, resend verify, forgot/reset password) use this domain — never `localhost` or `nexomusicdistro.space`.
 
 ## DDEX identity

@@ -40,8 +40,8 @@ describe("site URL / auth redirects", () => {
     expect(authEmailRedirectUrl("/auth/confirm")).toBe(
       "https://nexomusicdistribution.com/auth/confirm"
     );
-    expect(authEmailRedirectUrl("/reset-password")).toBe(
-      "https://nexomusicdistribution.com/reset-password"
+    expect(authEmailRedirectUrl("/auth/callback?next=/reset-password")).toBe(
+      "https://nexomusicdistribution.com/auth/callback?next=/reset-password"
     );
     expect(absoluteUrl("/auth/callback")).toBe(
       "https://nexomusicdistribution.com/auth/callback"
