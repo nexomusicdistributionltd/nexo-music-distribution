@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import * as React from "react";
 import { LogOut, Menu, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
-import { createClient } from "@/lib/supabase/client";
+import { hardRedirectToLogin, performClientLogout } from "@/lib/auth/logout-client";
 import type { NavItem } from "@/lib/auth/nav";
 import { cn } from "@/lib/utils";
 
@@ -18,29 +18,17 @@ export function AppTopbar({
   displayName: string;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [loggingOut, setLoggingOut] = React.useState(false);
 
   React.useEffect(() => setOpen(false), [pathname]);
 
   async function logout() {
+    if (loggingOut) return;
     setLoggingOut(true);
     try {
-      const supabase = createClient();
-      try {
-        await supabase.rpc("write_audit_log", {
-          p_action: "logout",
-          p_entity_type: "user",
-          p_entity_id: null,
-          p_metadata: {},
-        });
-      } catch {
-        /* audit must not block logout */
-      }
-      await supabase.auth.signOut();
-      router.replace("/login");
-      router.refresh();
+      await performClientLogout();
+      hardRedirectToLogin();
     } finally {
       setLoggingOut(false);
     }
@@ -68,9 +56,10 @@ export function AppTopbar({
             size="sm"
             onClick={logout}
             disabled={loggingOut}
-            aria-label="Log out"
+            aria-label="Sign out"
           >
             <LogOut className="h-4 w-4" />
+            <span className="sr-only">Sign out</span>
           </Button>
         </div>
       </header>
@@ -80,7 +69,7 @@ export function AppTopbar({
           Signed in as <span className="text-[var(--nexo-text)]">{displayName}</span>
         </p>
         <Button variant="outline" size="sm" className="rounded-full" onClick={logout} disabled={loggingOut}>
-          {loggingOut ? "Signing out…" : "Log out"}
+          {loggingOut ? "Signing out…" : "Sign out"}
         </Button>
       </div>
 
@@ -109,6 +98,15 @@ export function AppTopbar({
                 </Link>
               );
             })}
+            <button
+              type="button"
+              className="mt-2 flex w-full items-center gap-2 rounded-[var(--nexo-radius-sm)] px-3 py-2 text-left text-small text-[var(--nexo-text-secondary)]"
+              onClick={logout}
+              disabled={loggingOut}
+            >
+              <LogOut className="h-4 w-4" />
+              {loggingOut ? "Signing out…" : "Sign out"}
+            </button>
           </nav>
         </div>
       ) : null}

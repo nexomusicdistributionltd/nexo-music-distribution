@@ -8,6 +8,8 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { isAdministratorRole } from "@/lib/admin/permissions";
 import { getOptionalAuth } from "@/lib/auth/guards";
+import { isCurrentSessionOtpVerified } from "@/lib/auth/login-otp/status";
+import { LOGIN_OTP_VERIFY_PATH } from "@/lib/auth/login-otp/constants";
 
 export const metadata: Metadata = {
   title: "Administrator sign-in",
@@ -19,7 +21,10 @@ export default async function NexoAdminLoginPage() {
   const ctx = await getOptionalAuth();
 
   if (ctx && isAdministratorRole(ctx.roles)) {
-    redirect("/admin");
+    if (await isCurrentSessionOtpVerified()) {
+      redirect("/admin");
+    }
+    redirect(`${LOGIN_OTP_VERIFY_PATH}?from=/admin&entry=nexo-admin`);
   }
 
   if (ctx) {

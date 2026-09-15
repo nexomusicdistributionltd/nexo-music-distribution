@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import * as React from "react";
+import { LogOut } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { hardRedirectToLogin, performClientLogout } from "@/lib/auth/logout-client";
 import type { NavItem } from "@/lib/auth/nav";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +27,18 @@ export function AppSidebar({
   logoHref?: string;
 }) {
   const pathname = usePathname();
+  const [loggingOut, setLoggingOut] = React.useState(false);
+
+  async function logout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await performClientLogout();
+      hardRedirectToLogin();
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
@@ -65,6 +80,16 @@ export function AppSidebar({
           </Link>
           <ThemeToggle />
         </div>
+        <button
+          type="button"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--nexo-radius-sm)] px-3 py-2 text-small text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)] hover:text-[var(--nexo-text)]"
+          onClick={logout}
+          disabled={loggingOut}
+          aria-label="Sign out"
+        >
+          <LogOut className="h-4 w-4" />
+          {loggingOut ? "Signing out…" : "Sign out"}
+        </button>
       </div>
     </aside>
   );

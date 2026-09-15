@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
+import { isCurrentSessionOtpVerified } from "@/lib/auth/login-otp/status";
+import { LOGIN_OTP_VERIFY_PATH } from "@/lib/auth/login-otp/constants";
 import {
   homePathForRoles,
   isLoginRestricted,
@@ -34,6 +36,13 @@ export async function RequireAuth(options?: {
     )
   ) {
     redirect("/login?reason=account-blocked");
+  }
+
+  if (ctx.emailVerified) {
+    const otpOk = await isCurrentSessionOtpVerified();
+    if (!otpOk) {
+      redirect(`${LOGIN_OTP_VERIFY_PATH}?reason=otp-required`);
+    }
   }
 
   return ctx;
