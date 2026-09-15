@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync, statSync } from "fs";
 import { join } from "path";
 import {
