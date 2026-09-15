@@ -80,6 +80,11 @@ export async function RequireAdmin(): Promise<AuthUserContext> {
   return RequireRole(["admin", "super_admin", "support"]);
 }
 
+/** Strict administrators only (excludes support). Used by /nexo-admin entry. */
+export async function RequireAdministrator(): Promise<AuthUserContext> {
+  return RequireRole(["admin", "super_admin"]);
+}
+
 export async function RequireSuperAdmin(): Promise<AuthUserContext> {
   return RequireRole("super_admin");
 }

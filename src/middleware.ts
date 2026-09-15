@@ -151,6 +151,45 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Signed-in visitors on /nexo-admin — admin/super_admin → /admin;
+  // support and other roles stay on the page (AccessDenied UI). Do NOT treat like AUTH_PAGES.
+  if (user && supabase && pathname === "/nexo-admin") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("account_status, restriction_kind")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (
+      isLoginRestricted(
+        profile?.account_status as string | undefined,
+        profile?.restriction_kind as string | undefined
+      )
+    ) {
+      return clearSessionAndRedirectBlocked(request, supabase, getResponse);
+    }
+
+    if (!user.email_confirmed_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/verify-email";
+      return redirectWithSession(url, getResponse);
+    }
+
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const list = (roles ?? []).map((r) => r.role as string);
+    if (list.includes("admin") || list.includes("super_admin")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin";
+      url.search = "";
+      return redirectWithSession(url, getResponse);
+    }
+
+    return getResponse();
+  }
+
   // Signed-in visitors on login/register/forgot-password
   if (user && supabase && isAuthPage) {
     const { data: profile } = await supabase
@@ -199,5 +238,6 @@ export const config = {
     "/register",
     "/forgot-password",
     "/verify-email",
+    "/nexo-admin",
   ],
 };

@@ -82,3 +82,26 @@ export function canMarkPayoutPaid(roles: AppRole[]): boolean {
   void roles;
   return false;
 }
+
+/** Strict administrator roles for /nexo-admin (excludes support). */
+export const ADMINISTRATOR_ROLES: AppRole[] = ["admin", "super_admin"];
+
+export function isAdministratorRole(roles: AppRole[]): boolean {
+  return roles.some((r) => ADMINISTRATOR_ROLES.includes(r));
+}
+
+/**
+ * Post-password gate for administrator login.
+ * Does not name denied roles in the user-facing message.
+ */
+export function evaluateAdministratorLogin(roles: AppRole[]): {
+  ok: boolean;
+  message?: string;
+} {
+  if (isAdministratorRole(roles)) return { ok: true };
+  return {
+    ok: false,
+    message:
+      "This account does not have administrator access. Staff who use the standard portal can sign in from the main login page.",
+  };
+}

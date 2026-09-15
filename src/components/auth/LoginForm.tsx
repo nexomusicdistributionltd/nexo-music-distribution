@@ -7,20 +7,29 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PasswordField } from "@/components/auth/PasswordField";
+import { evaluateAdministratorLogin } from "@/lib/admin/permissions";
 import { friendlyAuthError } from "@/lib/auth/errors";
 import { safeRedirectPath } from "@/lib/auth/safeRedirect";
 import { isBlockedStatus, type AppRole } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-export function LoginForm() {
+export type LoginFormMode = "default" | "administrator";
+
+export function LoginForm({
+  mode = "default",
+}: {
+  mode?: LoginFormMode;
+} = {}) {
   const router = useRouter();
   const search = useSearchParams();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const configured = getSupabaseEnv().configured;
+  const isAdministrator = mode === "administrator";
 
   const reason = search.get("reason");
   const reasonMessage =
@@ -30,11 +39,14 @@ export function LoginForm() {
         ? "This account is suspended or deactivated. Contact support if you need help."
         : reason === "auth-required"
           ? "Please sign in to continue."
-          : null;
+          : reason === "access-denied"
+            ? "This account does not have administrator access."
+            : null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setAccessDenied(false);
     if (!configured) {
       setError("Authentication is not configured yet.");
       return;
@@ -62,12 +74,27 @@ export function LoginForm() {
         return;
       }
 
+      const roles = (roleRows ?? []).map((r) => r.role as AppRole);
+
+      if (isAdministrator) {
+        const gate = evaluateAdministratorLogin(roles);
+        if (!gate.ok) {
+          await supabase.auth.signOut();
+          setAccessDenied(true);
+          setError(gate.message ?? "Access denied.");
+          return;
+        }
+      }
+
       try {
         await supabase.rpc("write_audit_log", {
           p_action: "login",
           p_entity_type: "user",
           p_entity_id: userId,
-          p_metadata: { method: "password" },
+          p_metadata: {
+            method: "password",
+            ...(isAdministrator ? { entry: "nexo-admin" } : {}),
+          },
         });
       } catch {
         /* ignore audit errors */
@@ -79,7 +106,13 @@ export function LoginForm() {
         return;
       }
 
-      const roles = (roleRows ?? []).map((r) => r.role as AppRole);
+      if (isAdministrator) {
+        const from = search.get("from") ?? "/admin";
+        router.replace(safeRedirectPath(from, roles, "/admin"));
+        router.refresh();
+        return;
+      }
+
       const from = search.get("from");
       router.replace(safeRedirectPath(from, roles));
       router.refresh();
@@ -93,7 +126,11 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
       {reasonMessage ? <Alert variant="warning">{reasonMessage}</Alert> : null}
-      {error ? <Alert variant="error" title="Could not sign in">{error}</Alert> : null}
+      {error ? (
+        <Alert variant="error" title={accessDenied ? "Access denied" : "Could not sign in"}>
+          {error}
+        </Alert>
+      ) : null}
       {!configured ? (
         <Alert variant="warning" title="Setup required">
           Set <code className="text-caption">NEXT_PUBLIC_SUPABASE_*</code> env vars to enable login.
@@ -129,7 +166,7 @@ export function LoginForm() {
       </div>
 
       <Button type="submit" className="w-full rounded-full" disabled={loading || !configured}>
-        {loading ? "Signing you in…" : "Sign in"}
+        {loading ? "Signing you in…" : isAdministrator ? "Sign in as administrator" : "Sign in"}
       </Button>
     </form>
   );
