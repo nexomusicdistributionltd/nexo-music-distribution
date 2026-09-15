@@ -5,7 +5,10 @@ import nodemailer from "nodemailer";
 /**
  * Nexo Zoho Mail SMTP transport (newsletter / outbound).
  * Canonical live Auth SMTP: smtp.zoho.com:465 (Zoho Mail SMTP — do not invent other hosts).
- * From: Nexo Music Distribution LTD <contact@nexomusicdistro.space>
+ * Public brand URL is https://nexomusicdistribution.com (site, CTA, email HTML).
+ * SMTP From is env-driven (`EMAIL_FROM`); default remains the Zoho-verified mailbox
+ * contact@nexomusicdistro.space. Do not change SMTP_USER / this default to a .com
+ * address unless ops has verified that From domain in Zoho Mail.
  * Never fakes success — callers must treat missing messageId as failure.
  */
 
