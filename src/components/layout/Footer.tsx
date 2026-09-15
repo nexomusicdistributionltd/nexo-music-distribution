@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
+import { SocialLinks } from "@/components/layout/SocialLinks";
 import { NewsletterForm } from "@/components/newsletter/NewsletterForm";
 import { COMPANY_LEGAL, PUBLISHING_DIVISION, SITE_URL } from "@/lib/site";
 
@@ -37,8 +38,6 @@ const LEGAL = [
   { href: "/terms", label: "Terms of Service" },
   { href: "/cookies", label: "Cookie Policy" },
 ];
-
-const SOCIAL = ["Instagram", "X", "TikTok", "YouTube", "LinkedIn", "Spotify"];
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -147,22 +146,7 @@ export function Footer() {
           <NewsletterForm source="footer" />
           <div className="mt-6">
             <h3 className="text-label text-[var(--nexo-text)]">Social</h3>
-            <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
-              Official profiles will be linked when published.
-            </p>
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {SOCIAL.map((s) => (
-                <li key={s}>
-                  <span
-                    className="inline-flex rounded-full border border-[var(--nexo-border)] px-2.5 py-1 text-caption text-[var(--nexo-text-muted)] opacity-70"
-                    title="URL not published yet"
-                    aria-disabled="true"
-                  >
-                    {s}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <SocialLinks className="mt-3" />
           </div>
         </div>
       </div>
