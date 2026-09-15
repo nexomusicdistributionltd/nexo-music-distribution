@@ -1,43 +1,20 @@
-import type { Metadata } from "next";
-import { PageHero } from "@/components/marketing/PageHero";
-import { SafeHtml } from "@/components/cms/SafeHtml";
-import { getPublishedPageBySlug } from "@/lib/cms/pages";
-import { SITE_URL } from "@/lib/site";
-import { Alert } from "@/components/ui/Alert";
+import { LegalDocument, legalMetadata } from "@/components/legal/LegalDocument";
+import { LEGAL_UPDATED, PRIVACY_SECTIONS } from "@/lib/legal/copy";
 
-export const metadata: Metadata = {
+export const metadata = legalMetadata({
   title: "Privacy Policy",
-  alternates: { canonical: `${SITE_URL}/privacy` },
-};
+  description:
+    "Privacy Policy for NEXO MUSIC DISTRIBUTION LTD explaining how we process account, catalog, and billing data. Contact contact@nexomusicdistro.space.",
+  path: "/privacy",
+});
 
-export default async function PrivacyPage() {
-  const page = await getPublishedPageBySlug("privacy");
-
+export default function PrivacyPage() {
   return (
-    <>
-      <PageHero
-        eyebrow="Legal"
-        title={page?.title || "Privacy Policy"}
-        crumbs={[
-          { label: "Home", href: "/" },
-          { label: page?.title || "Privacy Policy" },
-        ]}
-        showAside={false}
-      />
-      <section className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-        {page ? (
-          <SafeHtml
-            html={page.body_html}
-            className="prose prose-neutral dark:prose-invert max-w-none"
-          />
-        ) : (
-          <Alert variant="warning" title="Not published yet">
-            This legal page exists in the CMS but is not published. Staff can
-            publish it from Admin → Pages. The footer link stays live so it is
-            never a dead button.
-          </Alert>
-        )}
-      </section>
-    </>
+    <LegalDocument
+      title="Privacy Policy"
+      crumb="Privacy Policy"
+      updated={LEGAL_UPDATED}
+      sections={PRIVACY_SECTIONS}
+    />
   );
 }

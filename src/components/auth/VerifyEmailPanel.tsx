@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { friendlyAuthError } from "@/lib/auth/errors";
 import { authEmailRedirectUrl } from "@/lib/site-url";
+import { preserveBillingQuery } from "@/lib/billing/auth-return";
 import { createClient } from "@/lib/supabase/client";
 
 export function VerifyEmailPanel({ email }: { email?: string | null }) {
@@ -68,7 +69,10 @@ export function VerifyEmailPanel({ email }: { email?: string | null }) {
         {loading ? "Sending…" : "Resend verification email"}
       </Button>
       <p className="text-center text-caption text-[var(--nexo-text-muted)]">
-        <Link href="/login" className="underline underline-offset-4 hover:text-[var(--nexo-text)]">
+        <Link
+          href={`/login${preserveBillingQuery(search)}`}
+          className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+        >
           Back to login
         </Link>
         {" · "}

@@ -43,5 +43,6 @@ export function legalHrefForSlug(slug: string): string {
   if (slug === "privacy") return "/privacy";
   if (slug === "terms") return "/terms";
   if (slug === "cookies") return "/cookies";
+  if (slug === "return-policy" || slug === "refund-policy") return "/refund-policy";
   return `/pages/${slug}`;
 }

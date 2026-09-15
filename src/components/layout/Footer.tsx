@@ -36,6 +36,7 @@ const RESOURCES = [
 const LEGAL = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms of Service" },
+  { href: "/refund-policy", label: "Refund Policy" },
   { href: "/cookies", label: "Cookie Policy" },
 ];
 

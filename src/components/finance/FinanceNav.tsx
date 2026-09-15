@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/admin/royalties/ledger", label: "Ledger" },
   { href: "/admin/statements", label: "Statements" },
   { href: "/admin/payouts", label: "Payouts" },
+  { href: "/admin/finance/billing", label: "Billing" },
   { href: "/admin/publishing", label: "Publishing" },
 ];
 
