@@ -48,6 +48,13 @@ export function getPaddleClientToken(env: NodeJS.ProcessEnv = process.env): stri
   return env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.trim() || "";
 }
 
+/** Maps PADDLE_ENVIRONMENT onto Paddle.js Environments. Never silently defaults. */
+export function paddleJsEnvironmentFromEnv(
+  env: NodeJS.ProcessEnv = process.env
+): "sandbox" | "production" | null {
+  return readPaddleEnvironment(env);
+}
+
 export function assertNoSecretInPublicEnv(env: NodeJS.ProcessEnv = process.env): void {
   const forbidden = [
     "NEXT_PUBLIC_PADDLE_API_KEY",

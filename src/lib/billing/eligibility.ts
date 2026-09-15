@@ -129,7 +129,7 @@ export function authorizeCheckout(input: {
     return {
       ok: false,
       error:
-        "Paddle Sandbox catalog Price IDs are not configured yet. Checkout cannot start until catalog IDs are set.",
+        "Paddle catalog Price IDs are not configured yet. Checkout cannot start until catalog IDs are set.",
       status: 503,
     };
   }

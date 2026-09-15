@@ -12,7 +12,13 @@ import {
   COUNTRY_PRICE_OVERRIDES_APPROVED,
 } from "./plans";
 import { authorizeCheckout, planEligibleForAccountType, selectFreeStarter } from "./eligibility";
-import { requirePaddleEnvironment, PaddleEnvError, assertNoSecretInPublicEnv } from "./env";
+import {
+  requirePaddleEnvironment,
+  PaddleEnvError,
+  assertNoSecretInPublicEnv,
+  paddleJsEnvironmentFromEnv,
+  getPaddleClientToken,
+} from "./env";
 import { getBillingEntitlements, subscriptionGrantsPaidAccess } from "./entitlements";
 import { parseTrustedCountryCode, countryFromTrustedHeaders, paddleAddressForPreview } from "./country";
 import { authorizeCustomerPortal } from "./portal";
@@ -164,6 +170,16 @@ describe("env fail-loud", () => {
     expect(() =>
       assertNoSecretInPublicEnv({ NEXT_PUBLIC_PADDLE_API_KEY: "pdl_live" } as NodeJS.ProcessEnv)
     ).toThrow(/must never be set/);
+  });
+
+  it("maps PADDLE_ENVIRONMENT onto Paddle.js without a silent default", () => {
+    expect(paddleJsEnvironmentFromEnv({ PADDLE_ENVIRONMENT: "production" } as NodeJS.ProcessEnv)).toBe(
+      "production"
+    );
+    expect(paddleJsEnvironmentFromEnv({ PADDLE_ENVIRONMENT: "sandbox" } as NodeJS.ProcessEnv)).toBe(
+      "sandbox"
+    );
+    expect(paddleJsEnvironmentFromEnv({} as NodeJS.ProcessEnv)).toBeNull();
   });
 });
 
@@ -355,10 +371,13 @@ describe("secrets and env example", () => {
   it("env example lists names only and never NEXT_PUBLIC API/webhook secrets", () => {
     const env = readFileSync(join(process.cwd(), ".env.example"), "utf8");
     expect(env).toContain("PADDLE_ENVIRONMENT=sandbox");
+    expect(env).toContain("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=");
+    expect(env).toContain("Netlify");
     expect(env).toContain("PADDLE_PRICE_ARTIST_PRO_MONTHLY=");
     expect(env).not.toMatch(/NEXT_PUBLIC_PADDLE_API_KEY/);
     expect(env).not.toMatch(/NEXT_PUBLIC_PADDLE_WEBHOOK_SECRET/);
     expect(env).not.toMatch(/pdl_/);
+    expect(env).not.toMatch(/pri_[a-zA-Z0-9]/);
     expect(catalogEnvNames().length).toBeGreaterThan(6);
   });
 
@@ -376,5 +395,23 @@ describe("secrets and env example", () => {
     expect(catalog.displayUsd.label_pro.month).toBe("$49.99");
     expect(catalog.displayUsd.label_pro.year).toBe("$499");
     expect(catalog.catalogReady).toBe(false);
+  });
+
+  it("missing NEXT_PUBLIC_PADDLE_CLIENT_TOKEN does not crash catalog and keeps checkout unready", () => {
+    const env = {
+      PADDLE_ENVIRONMENT: "production",
+      PADDLE_PRICE_ARTIST_PRO_MONTHLY: "pri_artist_pro_m",
+      PADDLE_PRICE_ARTIST_PRO_ANNUAL: "pri_artist_pro_y",
+      PADDLE_PRICE_LABEL_STARTER_MONTHLY: "pri_label_starter_m",
+      PADDLE_PRICE_LABEL_STARTER_ANNUAL: "pri_label_starter_y",
+      PADDLE_PRICE_LABEL_PRO_MONTHLY: "pri_label_pro_m",
+      PADDLE_PRICE_LABEL_PRO_ANNUAL: "pri_label_pro_y",
+    } as NodeJS.ProcessEnv;
+    expect(getPaddleClientToken(env)).toBe("");
+    const catalog = publicBillingCatalog(env);
+    expect(catalog.clientTokenPresent).toBe(false);
+    expect(catalog.catalogReady).toBe(false);
+    expect(catalog.message).toMatch(/NEXT_PUBLIC_PADDLE_CLIENT_TOKEN/);
+    expect(catalog.displayUsd.artist_pro.month).toBe("$9.99");
   });
 });

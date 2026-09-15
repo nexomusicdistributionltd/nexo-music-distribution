@@ -49,7 +49,7 @@ export function publicBillingCatalog(env: NodeJS.ProcessEnv = process.env): Publ
     message = "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not set. Localized prices cannot load from Paddle.js.";
   } else if (!catalogConfigured(env)) {
     message =
-      "Paddle Sandbox Product/Price IDs are not configured yet. USD list prices still display; checkout stays unavailable until the catalog exists.";
+      "Paddle Product/Price IDs are not configured yet. USD list prices still display; checkout stays unavailable until catalog IDs are set.";
   }
 
   return {

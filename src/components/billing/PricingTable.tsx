@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { initializePaddle, type Paddle, type Environments } from "@paddle/paddle-js";
+import type { Paddle } from "@paddle/paddle-js";
 import { ArrowRight, Check } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,12 @@ import type { PublicBillingCatalog } from "@/lib/billing/catalog";
 import { paddleAddressForPreview } from "@/lib/billing/country";
 import { loginHrefForPlan, registerHrefForPlan } from "@/lib/billing/auth-return";
 import type { BillingAccountType, BillingInterval, PaidTierId, TierId } from "@/lib/billing/plans";
+import {
+  getPaddleBrowserClient,
+  openPaddleOverlayCheckout,
+  resolvePaddleJsInit,
+  warnIfPaddleClientTokenMissing,
+} from "@/lib/billing/paddle.client";
 
 type AuthSlice = {
   signedIn: boolean;
@@ -48,6 +54,7 @@ export function PricingTable({
   const [checkoutLoading, setCheckoutLoading] = React.useState<string | null>(null);
   const paddleRef = React.useRef<Paddle | null>(null);
   const autoStarted = React.useRef(false);
+  const checkoutLock = React.useRef(false);
 
   const tiers = catalog.tiers.filter((t) => t.accountType === accountType);
   const priceEntries = catalog.prices[accountType][interval === "month" ? "month" : "year"];
@@ -55,18 +62,25 @@ export function PricingTable({
   const priceIdKey = priceEntries.map((p) => p.priceId).join(",");
 
   React.useEffect(() => {
+    const resolved = resolvePaddleJsInit({
+      environment: catalog.environment,
+      token: clientToken || process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
+    });
+    warnIfPaddleClientTokenMissing(resolved);
+  }, [catalog.environment, clientToken]);
+
+  React.useEffect(() => {
     let cancelled = false;
     async function boot() {
-      if (!clientToken || !catalog.environment || !priceIdKey) return;
+      if (!priceIdKey) return;
+      const loaded = await getPaddleBrowserClient({
+        environment: catalog.environment,
+        token: clientToken || process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
+      });
+      if (cancelled) return;
+      if (!loaded.ok) return;
+      paddleRef.current = loaded.paddle;
       try {
-        if (!paddleRef.current) {
-          const instance = await initializePaddle({
-            token: clientToken,
-            environment: catalog.environment as Environments,
-          });
-          if (!instance) throw new Error("Paddle.js failed to initialize.");
-          paddleRef.current = instance;
-        }
         const address = paddleAddressForPreview(initialCountry);
         const entries = catalog.prices[accountType][interval === "month" ? "month" : "year"];
         const items = entries.map((p) => ({ priceId: p.priceId, quantity: 1 }));
@@ -74,7 +88,7 @@ export function PricingTable({
           setFormatted({});
           return;
         }
-        const result = await paddleRef.current.PricePreview({
+        const result = await loaded.paddle.PricePreview({
           items,
           ...(address ? { address } : {}),
         });
@@ -100,13 +114,14 @@ export function PricingTable({
   }, [priceIdKey, clientToken, catalog.environment, catalog.prices, accountType, interval, initialCountry]);
 
   async function startCheckout(planId: PaidTierId) {
+    if (checkoutLock.current || checkoutLoading) return;
     setCheckoutError(null);
     if (!auth.signedIn) {
       const href =
         auth.accountType && auth.accountType !== accountType
           ? loginHrefForPlan({ planId, interval })
           : registerHrefForPlan({ planId, interval, accountType });
-      router.push(auth.signedIn ? loginHrefForPlan({ planId, interval }) : href);
+      router.push(href);
       return;
     }
     if (auth.accountType && auth.accountType !== accountType) {
@@ -117,8 +132,18 @@ export function PricingTable({
       );
       return;
     }
+    checkoutLock.current = true;
     setCheckoutLoading(planId);
     try {
+      const paddleReady = await getPaddleBrowserClient({
+        environment: catalog.environment,
+        token: clientToken || process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
+      });
+      if (!paddleReady.ok) {
+        setCheckoutError(paddleReady.error);
+        return;
+      }
+      paddleRef.current = paddleReady.paddle;
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,31 +165,16 @@ export function PricingTable({
       if (!res.ok || !json.ok || !json.priceId) {
         throw new Error(json.error || "Checkout could not start.");
       }
-      if (!paddleRef.current) {
-        if (!clientToken || !catalog.environment) {
-          throw new Error("Paddle.js is not configured.");
-        }
-        const instance = await initializePaddle({
-          token: clientToken,
-          environment: catalog.environment as Environments,
-        });
-        if (!instance) throw new Error("Paddle.js failed to initialize.");
-        paddleRef.current = instance;
-      }
-      paddleRef.current.Checkout.open({
-        items: [{ priceId: json.priceId, quantity: 1 }],
-        customer: json.email ? { email: json.email } : undefined,
+      openPaddleOverlayCheckout(paddleReady.paddle, {
+        priceId: json.priceId,
+        email: json.email || auth.email || undefined,
         customData: json.customData,
-        settings: {
-          displayMode: "overlay",
-          variant: "one-page",
-          successUrl: json.settings?.successUrl,
-          allowLogout: false,
-        },
+        settings: json.settings,
       });
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : "Checkout could not start.");
     } finally {
+      checkoutLock.current = false;
       setCheckoutLoading(null);
     }
   }
@@ -276,7 +286,8 @@ export function PricingTable({
                 <Button
                   className="mt-6 gap-2 rounded-full"
                   disabled={Boolean(checkoutLoading)}
-                  onClick={() => startCheckout(tier.id as PaidTierId)}
+                  aria-busy={checkoutLoading === tier.id}
+                  onClick={() => void startCheckout(tier.id as PaidTierId)}
                 >
                   {checkoutLoading === tier.id ? "Opening checkout…" : cta.label}
                   <ArrowRight className="h-3.5 w-3.5" />
