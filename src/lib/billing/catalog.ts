@@ -43,13 +43,13 @@ export function publicBillingCatalog(env: NodeJS.ProcessEnv = process.env): Publ
   const cfg = paddleClientConfig(env);
   const ready = catalogConfigured(env) && cfg.clientTokenPresent && Boolean(cfg.environment);
   let message: string | null = null;
-  if (!cfg.environment) {
-    message = "PADDLE_ENVIRONMENT is not set. Billing cannot default to sandbox.";
-  } else if (!cfg.clientTokenPresent) {
+  if (!cfg.clientTokenPresent) {
     message = "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not set. Localized prices cannot load from Paddle.js.";
   } else if (!catalogConfigured(env)) {
     message =
-      "Paddle Sandbox Product/Price IDs are not configured yet. USD list prices still display; checkout stays unavailable until the catalog exists.";
+      "Paddle Product/Price IDs are not configured yet. USD list prices still display; checkout stays unavailable until catalog IDs are set.";
+  } else if (!cfg.environment) {
+    message = "PADDLE_ENVIRONMENT is not set. Billing cannot default to sandbox.";
   }
 
   return {

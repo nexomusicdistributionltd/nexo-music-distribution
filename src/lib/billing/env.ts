@@ -48,6 +48,59 @@ export function getPaddleClientToken(env: NodeJS.ProcessEnv = process.env): stri
   return env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.trim() || "";
 }
 
+/** Maps PADDLE_ENVIRONMENT onto Paddle.js Environments. Never silently defaults. */
+export function paddleJsEnvironmentFromEnv(
+  env: NodeJS.ProcessEnv = process.env
+): PaddleBillingEnvironment | null {
+  return readPaddleEnvironment(env);
+}
+
+/**
+ * Match a client-side token to Paddle.js environment.
+ * live_ → production, test_ → sandbox. Unknown prefixes do not default to sandbox.
+ */
+export function paddleJsEnvironmentFromClientToken(
+  token: string | null | undefined
+): PaddleBillingEnvironment | null {
+  const value = token?.trim() ?? "";
+  if (value.startsWith("live_")) return "production";
+  if (value.startsWith("test_")) return "sandbox";
+  return null;
+}
+
+export const PADDLE_ENV_TOKEN_MISMATCH_USER_MESSAGE =
+  "Checkout is unavailable right now. The Paddle environment does not match the client-side token.";
+
+export const MISSING_PADDLE_ENVIRONMENT_USER_MESSAGE =
+  "Checkout is unavailable right now. Billing environment is not configured.";
+
+/**
+ * Prefer explicit PADDLE_ENVIRONMENT when set. Otherwise infer from live_/test_ token prefix.
+ * Never silently default to sandbox. Mismatch is an error.
+ */
+export function resolvePaddleJsEnvironment(input: {
+  environment?: PaddleBillingEnvironment | null;
+  token: string;
+}):
+  | { ok: true; environment: PaddleBillingEnvironment }
+  | { ok: false; code: "missing_environment" | "environment_mismatch"; error: string } {
+  const fromFlag =
+    input.environment === "sandbox" || input.environment === "production" ? input.environment : null;
+  const fromToken = paddleJsEnvironmentFromClientToken(input.token);
+  if (fromFlag && fromToken && fromFlag !== fromToken) {
+    return {
+      ok: false,
+      code: "environment_mismatch",
+      error: PADDLE_ENV_TOKEN_MISMATCH_USER_MESSAGE,
+    };
+  }
+  const environment = fromFlag ?? fromToken;
+  if (!environment) {
+    return { ok: false, code: "missing_environment", error: MISSING_PADDLE_ENVIRONMENT_USER_MESSAGE };
+  }
+  return { ok: true, environment };
+}
+
 export function assertNoSecretInPublicEnv(env: NodeJS.ProcessEnv = process.env): void {
   const forbidden = [
     "NEXT_PUBLIC_PADDLE_API_KEY",
