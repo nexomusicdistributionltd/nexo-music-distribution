@@ -8,6 +8,7 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { listAdminReleases } from "@/lib/admin/queries";
 import { ddexConfigPublicStatus } from "@/lib/ddex/config";
 import { listDdexMessages } from "@/lib/ddex/persistence";
+import { listPublicDspTargets } from "@/lib/ddex/admin-ops";
 import { ddexUiStatus } from "@/lib/ddex/ui-status";
 import { DdexStatusBadge } from "@/components/ddex/DdexStatusBadge";
 import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
@@ -25,6 +26,12 @@ export default async function AdminDdexPage() {
     listAdminReleases({ pageSize: 30 }),
     listDdexMessages(),
   ]);
+  let targets: Awaited<ReturnType<typeof listPublicDspTargets>> = [];
+  try {
+    targets = await listPublicDspTargets();
+  } catch {
+    targets = [];
+  }
 
   const latestByRelease = new Map<string, (typeof history)[number]>();
   for (const m of history) {
@@ -35,15 +42,57 @@ export default async function AdminDdexPage() {
     <div className="space-y-6">
       <PageIntro
         title="DDEX"
-        description="ERN 4.3.2 NewReleaseMessage. Sender DPID stays on the server. Delivery is never marked complete without a real transport."
+        description="ERN 4.3.2 generation and Stardust-backed test delivery. Sender DPID stays on the server. Commercial DSP delivery is NOT CONNECTED."
       />
       <Alert title="Recipient / transport">
-        Sender configured: {cfg.senderConfigured ? "yes" : "no"} · Recipient configured:{" "}
-        {cfg.recipientConfigured ? "yes" : "no"}
-        {cfg.recipientName ? ` (${cfg.recipientName})` : ""} · Key: {cfg.recipientConfigKey} ·{" "}
-        {cfg.testRecipient ? "test recipient" : "configured recipient"} · MessageControlType:{" "}
-        {cfg.messageControlType}. Transport is not connected — messages are never marked delivered.
+        Sender configured: {cfg.senderConfigured ? "yes" : "no"}
+        {cfg.lockedProductionSender ? " · locked production identity" : " · delivery blocked until locked DPID is set"}.
+        Recipient configured: {cfg.recipientConfigured ? "yes" : "no (local test target uses Nexo loopback)"}.
+        MessageControlType: {cfg.messageControlType}. Stardust does not create commercial DSP relationships.
+        Contact env: {cfg.contactConfigured ? "set" : "not set / not invented"}.
       </Alert>
+
+      <section className="space-y-3">
+        <h2 className="text-h4">Delivery targets</h2>
+        {targets.length === 0 ? (
+          <EmptyState
+            title="No targets loaded"
+            description="Apply the Stardust DDEX migration to create the isolated Nexo Local Test Target. No commercial DSPs are seeded."
+          />
+        ) : (
+          <Table>
+            <THead>
+              <TR>
+                <TH>Target</TH>
+                <TH>Protocol</TH>
+                <TH>ERN</TH>
+                <TH>Status</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {targets.map((t) => (
+                <TR key={t.id}>
+                  <TD>
+                    {t.displayName}
+                    {t.isTest ? " · test" : ""}
+                  </TD>
+                  <TD className="uppercase">{t.protocol}</TD>
+                  <TD>{t.ernVersion}</TD>
+                  <TD>
+                    {t.planningOnly
+                      ? "NOT CONNECTED (planning)"
+                      : t.connected
+                        ? t.isTest
+                          ? "Test connected"
+                          : "Connected"
+                        : "NOT CONNECTED"}
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        )}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-h4">Releases</h2>

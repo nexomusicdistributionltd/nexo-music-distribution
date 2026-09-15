@@ -1,6 +1,20 @@
 import type { ContributorRole, ReleaseType } from "@/lib/releases/types";
 import type { DdexMessageControlType } from "./config";
 
+export type DdexMessageSubType = "Initial" | "Update" | "Takedown";
+export type DdexErnVersion = "4.3.2" | "4.3" | "4.2" | "3.8.2";
+export type DdexProtocol = "local" | "ftp" | "sftp" | "s3" | "rest" | "azure";
+export type DdexPackageStatus = "none" | "packaged" | "ready_for_delivery";
+export type DdexDeliveryStatus =
+  | "pending"
+  | "queued"
+  | "sending"
+  | "ready_for_delivery"
+  | "delivered"
+  | "failed"
+  | "acknowledged"
+  | "cancelled";
+
 export type DdexDealInput = {
   id?: string;
   territories?: string[] | null;
@@ -166,6 +180,7 @@ export type ErnMessageModel = {
     recipientPartyId: string;
     recipientName: string;
     messageControlType: DdexMessageControlType;
+    messageSubType: DdexMessageSubType;
   };
   parties: ErnParty[];
   soundRecordings: ErnSoundRecording[];
@@ -216,7 +231,7 @@ export type DdexMessageRecord = {
   message_type: string;
   ern_version: string;
   validation_status: "pending" | "valid" | "invalid";
-  delivery_status: "pending" | "failed" | "delivered";
+  delivery_status: DdexDeliveryStatus;
   created_at: string;
   validated_at: string | null;
   delivered_at: string | null;
@@ -225,4 +240,81 @@ export type DdexMessageRecord = {
   xml_sha256: string | null;
   error: string | null;
   retry_count: number;
+  target_id?: string | null;
+  message_subtype?: DdexMessageSubType;
+  message_thread_id?: string | null;
+  package_status?: DdexPackageStatus;
+  package_storage_path?: string | null;
+  package_sha256?: string | null;
+  idempotency_key?: string | null;
+  acknowledged_at?: string | null;
+  ack_reference?: string | null;
+  queued_at?: string | null;
+  last_attempt_at?: string | null;
+  next_retry_at?: string | null;
+  validation_report?: unknown;
+};
+
+export type DspTargetRow = {
+  id: string;
+  slug: string;
+  display_name: string;
+  protocol: DdexProtocol;
+  ern_version: DdexErnVersion;
+  recipient_name: string | null;
+  recipient_dpid_env_key: string | null;
+  credential_env_prefix: string | null;
+  is_test: boolean;
+  is_active: boolean;
+  commercial_approval_required: boolean;
+  planning_only: boolean;
+  notes: string | null;
+};
+
+export type DspTargetPublic = {
+  id: string;
+  slug: string;
+  displayName: string;
+  protocol: DdexProtocol;
+  ernVersion: DdexErnVersion;
+  isTest: boolean;
+  isActive: boolean;
+  connected: boolean;
+  commercialApprovalRequired: boolean;
+  planningOnly: boolean;
+  notes: string | null;
+};
+
+export type DdexPackageFile = {
+  name: string;
+  kind: "ern" | "audio" | "image" | "manifest";
+  sha256: string;
+  md5: string;
+  sizeBytes: number;
+  storagePath?: string | null;
+};
+
+export type DdexPackageManifest = {
+  messageId: string;
+  messageSubType: DdexMessageSubType;
+  ernVersion: string;
+  releaseId: string;
+  upc: string;
+  targetSlug: string;
+  createdAt: string;
+  xmlSha256: string;
+  files: DdexPackageFile[];
+};
+
+export type OwnerDdexStatusRow = {
+  message_id: string;
+  message_subtype: string;
+  validation_status: string;
+  delivery_status: string;
+  package_status: string;
+  ern_version: string;
+  created_at: string;
+  acknowledged_at: string | null;
+  target_name: string | null;
+  target_is_test: boolean;
 };

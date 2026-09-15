@@ -53,7 +53,7 @@ export function ReleaseDetailView({
   ddexPanel?: ReactNode;
   qcPanel?: ReactNode;
 }) {
-  const showDdex = variant === "admin" && Boolean(ddexPanel);
+  const showDdex = Boolean(ddexPanel);
   const publishers = contributors.filter((c) => c.role === "publisher");
 
   return (
@@ -104,7 +104,9 @@ export function ReleaseDetailView({
           <TabsTrigger value="distribution">Distribution</TabsTrigger>
           <TabsTrigger value="publishing">Publishing</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
-          {showDdex ? <TabsTrigger value="ddex">DDEX</TabsTrigger> : null}
+          {showDdex ? (
+            <TabsTrigger value="ddex">{variant === "admin" ? "DDEX" : "Delivery status"}</TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="overview">

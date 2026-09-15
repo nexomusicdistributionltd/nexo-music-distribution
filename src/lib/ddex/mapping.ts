@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DdexRuntimeConfig } from "./config";
 import { NEXO_SENDER_NAME } from "./constants";
+import type { DdexMessageSubType } from "./types";
 import { msToIsoDuration, sumDurationsIso } from "./duration";
 import { ern432Filename, isPublicOrRemoteUrl, privateResourceUri } from "./filename";
 import { mapGenreToAvs } from "./genre-map";
@@ -58,7 +59,13 @@ function pickArtwork(assets: DdexAssetInput[]): DdexAssetInput | undefined {
 export function mapCatalogToErn(
   snapshot: DdexCatalogSnapshot,
   cfg: DdexRuntimeConfig,
-  options?: { messageId?: string; createdAt?: Date }
+  options?: {
+    messageId?: string;
+    createdAt?: Date;
+    messageThreadId?: string;
+    messageSubType?: DdexMessageSubType;
+    takedownDate?: string;
+  }
 ): ErnMessageModel {
   const errors: string[] = [];
   const { release, tracks, contributors, assets, deals } = snapshot;
@@ -176,6 +183,12 @@ export function mapCatalogToErn(
   const startDate = deal?.validity_start?.trim() || release.release_date?.trim() || "";
   if (!startDate) errors.push("Deal ValidityPeriod StartDate is required.");
   const releaseDate = release.release_date?.trim() || startDate;
+  const messageSubType: DdexMessageSubType = options?.messageSubType ?? "Initial";
+  let endDate = deal?.validity_end?.trim() || null;
+  if (messageSubType === "Takedown") {
+    endDate = options?.takedownDate?.trim() || endDate || new Date().toISOString().slice(0, 10);
+    if (!endDate) errors.push("Takedown requires a ValidityPeriod EndDate (never fabricated from DSP calendars).");
+  }
 
   const imageRef = refs.imageResource();
   const imageTech = refs.imageTechnical();
@@ -283,12 +296,13 @@ export function mapCatalogToErn(
   const messageId = options?.messageId || newMessageId();
   const createdAt = (options?.createdAt ?? new Date()).toISOString().replace(/\.(\d{3})Z$/, "Z");
   const filename = ern432Filename(release.title, messageId);
+  const messageThreadId = options?.messageThreadId?.trim() || messageId;
 
   return {
     languageAndScriptCode: lang,
     header: {
       messageId,
-      messageThreadId: messageId,
+      messageThreadId,
       messageFileName: filename,
       createdAt,
       senderPartyId: cfg.senderPartyId!,
@@ -296,6 +310,7 @@ export function mapCatalogToErn(
       recipientPartyId: cfg.recipientPartyId!,
       recipientName: cfg.recipientName || cfg.recipientConfigKey,
       messageControlType: cfg.messageControlType,
+      messageSubType,
     },
     parties,
     soundRecordings,
@@ -341,7 +356,7 @@ export function mapCatalogToErn(
       releaseReferences: [refs.mainRelease(), ...trackReleases.map((t) => t.releaseReference)],
       territories: territoryCheck.mapped,
       startDate,
-      endDate: deal?.validity_end?.trim() || null,
+      endDate,
       commercialModelTypes: commercial,
       useTypes,
     },

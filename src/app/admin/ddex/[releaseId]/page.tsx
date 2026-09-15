@@ -7,7 +7,7 @@ import { DdexReadinessPanel } from "@/components/ddex/DdexReadinessPanel";
 import { DdexAdminOps } from "@/components/ddex/DdexAdminOps";
 import { ddexConfigPublicStatus } from "@/lib/ddex/config";
 import { listDdexMessages, loadDdexSnapshot } from "@/lib/ddex/persistence";
-import { readinessFromSnapshot } from "@/lib/ddex/admin-ops";
+import { listPublicDspTargets, readinessFromSnapshot } from "@/lib/ddex/admin-ops";
 import { Alert } from "@/components/ui/Alert";
 
 export const metadata: Metadata = {
@@ -28,6 +28,12 @@ export default async function AdminDdexReleasePage({
   const readiness = readinessFromSnapshot(snapshot);
   const history = await listDdexMessages(releaseId);
   const latest = history[0] ?? null;
+  let targets: Awaited<ReturnType<typeof listPublicDspTargets>> = [];
+  try {
+    targets = await listPublicDspTargets();
+  } catch {
+    targets = [];
+  }
 
   return (
     <div className="space-y-6">
@@ -45,12 +51,13 @@ export default async function AdminDdexReleasePage({
         </Link>
       </p>
       <Alert>
-        Sender DPID {cfg.senderConfigured ? "configured" : "missing"} · Recipient{" "}
-        {cfg.recipientConfigured ? "configured" : "missing"}
-        {cfg.recipientName ? ` (${cfg.recipientName})` : ""}. DPIDs are not shown in the UI.
+        Sender {cfg.senderConfigured ? "configured" : "missing"}
+        {cfg.lockedProductionSender ? " (locked production identity)" : " (production DPID guard will block delivery)"}.
+        Recipient {cfg.recipientConfigured ? "configured" : "not required for local test target"}.
+        DPIDs are not shown in the UI. NEXO_DDEX_CONTACT is {cfg.contactConfigured ? "set" : "not set (not invented)"}.
       </Alert>
       <DdexReadinessPanel report={readiness} />
-      <DdexAdminOps releaseId={releaseId} latestMessageId={latest?.message_id} />
+      <DdexAdminOps releaseId={releaseId} latestMessageId={latest?.message_id} targets={targets} />
       <section className="space-y-2">
         <h2 className="text-h4">History</h2>
         {history.length === 0 ? (
@@ -61,7 +68,8 @@ export default async function AdminDdexReleasePage({
               <li key={m.id} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3">
                 <p className="font-medium">{m.filename || m.message_id}</p>
                 <p className="text-caption text-[var(--nexo-text-muted)]">
-                  validation {m.validation_status} · delivery {m.delivery_status} · {m.ern_version}
+                  {m.message_subtype ?? "Initial"} · validation {m.validation_status} · delivery {m.delivery_status}
+                  {m.package_status ? ` · package ${m.package_status}` : ""} · {m.ern_version}
                   {m.xml_sha256 ? ` · sha256 ${m.xml_sha256}` : ""}
                 </p>
                 {m.validation_status === "valid" ? (
