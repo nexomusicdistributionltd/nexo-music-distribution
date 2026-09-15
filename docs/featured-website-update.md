@@ -45,4 +45,4 @@ Apply via us-west-2 pooler with `SUPABASE_DB_PASSWORD` (additive only).
 
 ## Footer / SEO
 
-Legal links point to `/privacy`, `/terms`, `/cookies` (CMS-backed). Sitemap includes music + blog. Manifest at `/manifest.webmanifest`. Official footer social profiles: Spotify, X, TikTok only (`SocialLinks`). Public brand URL is https://nexomusicdistribution.com.
+Legal links point to `/privacy`, `/terms`, `/cookies` (CMS-backed). Sitemap includes music + blog. Manifest at `/manifest.webmanifest`. Official footer social profiles: Spotify, X, TikTok only (`SocialLinks`). Canonical URLs + aria-labels live in `@/lib/brand/social` (re-exported from `@/lib/site`) so email HTML can import the same constants. Public brand URL is https://nexomusicdistribution.com. Zoho SMTP From stays `contact@nexomusicdistro.space`.
