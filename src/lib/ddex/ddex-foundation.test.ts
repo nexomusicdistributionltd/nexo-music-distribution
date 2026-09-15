@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { AVS_NAMESPACE, AVS_VERSION_ID, ERN_NAMESPACE, ERN_VERSION, getNexoDpid } from "./constants";
 import { parentalWarningFromExplicit } from "./parental-warning";
 import { mapGenreToAvsStub, normalizeGenre } from "./genre-map";
@@ -7,6 +9,8 @@ import { applyUpcPreserveGuard, preserveExistingIsrc, preserveExistingUpc } from
 import { pickReleaseUpdateFields } from "@/lib/releases/safe-update";
 import { navForRoles } from "@/lib/auth/nav";
 import { sha256Hex } from "@/lib/releases/tech-meta";
+
+const root = join(__dirname, "../../..");
 
 describe("roles / DDEX foundation", () => {
   it("label nav has roster", () => {
@@ -26,6 +30,21 @@ describe("roles / DDEX foundation", () => {
     process.env.NEXO_DPID = "X";
     expect(getNexoDpid()).toBe("X");
     if (prev === undefined) delete process.env.NEXO_DPID; else process.env.NEXO_DPID = prev;
+  });
+  it("env example never exposes DPID to the client; recipient stays unset", () => {
+    const env = readFileSync(join(root, ".env.example"), "utf8");
+    expect(env).not.toMatch(/NEXT_PUBLIC_[A-Z0-9_]*DPID/);
+    expect(env).toContain("NEXO_DPID=PA-DPIDA-YYYYMMDDNN-X");
+    expect(env).toContain("PA-DPIDA-2026021501-H");
+    expect(env).toMatch(/NEXO_DDEX_RECIPIENT_DPID=\s*$/m);
+    expect(env).toContain("NO authorized DSP recipient DPID");
+    const cfgSrc = readFileSync(join(root, "src/lib/ddex/config.ts"), "utf8");
+    expect(cfgSrc).toContain("import \"server-only\"");
+    expect(cfgSrc).toContain("never includes DPID values");
+    expect(cfgSrc).toContain("senderConfigured: Boolean(cfg.senderPartyId)");
+    expect(cfgSrc).toContain("recipientConfigured: Boolean(cfg.recipientPartyId)");
+    expect(cfgSrc).not.toMatch(/ddexConfigPublicStatus[\s\S]*senderDpidDisplay/);
+    expect(cfgSrc).not.toMatch(/ddexConfigPublicStatus[\s\S]*recipientDpidDisplay/);
   });
   it("parental + genre", () => {
     expect(parentalWarningFromExplicit(true)).toBe("Explicit");

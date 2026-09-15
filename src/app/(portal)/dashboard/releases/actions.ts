@@ -75,6 +75,10 @@ export async function createReleaseDraft(input: {
   const isArtist = ctx.roles.includes("artist");
   const isLabel = ctx.roles.includes("label");
 
+  if (isArtist && isLabel) {
+    return { ok: false, error: "Mixed artist/label roles are not allowed." };
+  }
+
   if (isArtist) {
     const { data } = await supabase
       .from("artist_profiles")

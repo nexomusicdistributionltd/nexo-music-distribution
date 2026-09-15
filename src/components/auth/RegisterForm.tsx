@@ -12,6 +12,7 @@ import { COUNTRIES } from "@/lib/auth/countries";
 import { friendlyAuthError } from "@/lib/auth/errors";
 import { validatePassword } from "@/lib/auth/password";
 import type { SignupRole } from "@/lib/auth/types";
+import { authEmailRedirectUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { cn } from "@/lib/utils";
@@ -63,7 +64,6 @@ export function RegisterForm() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const origin = window.location.origin;
       const metadata =
         role === "artist"
           ? {
@@ -87,7 +87,7 @@ export function RegisterForm() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${origin}/auth/confirm`,
+          emailRedirectTo: authEmailRedirectUrl("/auth/confirm"),
           data: metadata,
         },
       });

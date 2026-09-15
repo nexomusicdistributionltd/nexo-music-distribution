@@ -23,6 +23,13 @@ This deploy cannot change the Supabase dashboard. In **Authentication → URL Co
   - `https://nexomusicdistribution.com/**`
   - `https://nexomusicdistribution.com/auth/callback`
   - `https://nexomusicdistribution.com/auth/confirm`
+  - `https://nexomusicdistribution.com/reset-password`
+- Auth emails (signup confirm, resend verify, forgot/reset password) use this domain — never `localhost` or `nexomusicdistro.space`.
+
+## DDEX identity
+
+- Server-only `NEXO_DPID` (production value `PA-DPIDA-2026021501-H`). Never `NEXT_PUBLIC_*`.
+- **No authorized DSP recipient DPID.** Do not invent Spotify/Apple Party Ids. Leave `NEXO_DDEX_RECIPIENT_DPID` unset; production delivery stays disabled (NotConnected transport). Internal fixtures may use an isolated TEST recipient only.
 
 ## Database / migrations
 
