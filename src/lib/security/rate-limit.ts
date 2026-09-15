@@ -87,6 +87,7 @@ export function rateLimitHeaders(result: RateLimitResult): HeadersInit {
 /** Presets used across Batch 8 surfaces */
 export const RATE_LIMITS = {
   contact: { limit: 5, windowMs: 15 * 60_000 },
+  newsletter: { limit: 8, windowMs: 15 * 60_000 },
   supportTicket: { limit: 10, windowMs: 60 * 60_000 },
   supportReply: { limit: 30, windowMs: 60 * 60_000 },
   releaseSubmit: { limit: 20, windowMs: 60 * 60_000 },

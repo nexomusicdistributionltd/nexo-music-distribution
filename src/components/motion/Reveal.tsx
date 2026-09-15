@@ -3,11 +3,19 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+export type RevealVariant =
+  | "fade-up"
+  | "fade-down"
+  | "fade-left"
+  | "fade-right"
+  | "scale-in"
+  | "fade"
+  | "mask";
+
 type RevealProps = {
   children: React.ReactNode;
   className?: string;
-  /** fade-up | scale-in | fade */
-  variant?: "fade-up" | "scale-in" | "fade";
+  variant?: RevealVariant;
   delayMs?: number;
   as?: "div" | "section" | "li" | "article";
 };
@@ -15,6 +23,7 @@ type RevealProps = {
 /**
  * Scroll-in reveal. Respects prefers-reduced-motion (shows immediately).
  * Uses IntersectionObserver — no layout thrash / no horizontal overflow.
+ * Professional ease only — no bounce.
  */
 export function Reveal({
   children,
@@ -55,12 +64,30 @@ export function Reveal({
     return () => io.disconnect();
   }, [reduce]);
 
-  const hidden =
-    variant === "scale-in"
-      ? "opacity-0 scale-[0.98]"
-      : variant === "fade"
-        ? "opacity-0"
-        : "opacity-0 translate-y-3";
+  const hidden = (() => {
+    switch (variant) {
+      case "scale-in":
+        return "opacity-0 scale-[0.98]";
+      case "fade":
+        return "opacity-0";
+      case "fade-left":
+        return "opacity-0 -translate-x-3";
+      case "fade-right":
+        return "opacity-0 translate-x-3";
+      case "fade-down":
+        return "opacity-0 -translate-y-3";
+      case "mask":
+        return "opacity-0 [clip-path:inset(8%_0_0_0)] translate-y-2";
+      case "fade-up":
+      default:
+        return "opacity-0 translate-y-3";
+    }
+  })();
+
+  const shown =
+    variant === "mask"
+      ? "translate-y-0 scale-100 opacity-100 [clip-path:inset(0)]"
+      : "translate-y-0 translate-x-0 scale-100 opacity-100";
 
   return (
     <Tag
@@ -68,8 +95,8 @@ export function Reveal({
       ref={ref}
       className={cn(
         "transform-gpu will-change-transform",
-        !reduce && "transition-[opacity,transform] duration-700 ease-out",
-        visible ? "translate-y-0 scale-100 opacity-100" : hidden,
+        !reduce && "transition-[opacity,transform,clip-path] duration-700 ease-out",
+        visible ? shown : hidden,
         className
       )}
       style={delayMs && !reduce ? { transitionDelay: `${delayMs}ms` } : undefined}
@@ -83,16 +110,18 @@ export function Stagger({
   children,
   className,
   stepMs = 70,
+  variant = "fade-up",
 }: {
   children: React.ReactNode;
   className?: string;
   stepMs?: number;
+  variant?: RevealVariant;
 }) {
   const items = React.Children.toArray(children);
   return (
     <div className={className}>
       {items.map((child, i) => (
-        <Reveal key={i} delayMs={i * stepMs}>
+        <Reveal key={i} delayMs={i * stepMs} variant={variant}>
           {child}
         </Reveal>
       ))}

@@ -8,6 +8,7 @@ import {
 
 describe("resolveHomepageImage", () => {
   it("falls back to vinyl preset when url is null/empty", () => {
+    expect(resolveHomepageImage(null, "singer")).toBe(HOMEPAGE_IMAGE_PRESETS.singer);
     expect(resolveHomepageImage(null, "vinyl")).toBe(HOMEPAGE_IMAGE_PRESETS.vinyl);
     expect(resolveHomepageImage("", "console")).toBe(HOMEPAGE_IMAGE_PRESETS.console);
     expect(resolveHomepageImage("   ", "score")).toBe(HOMEPAGE_IMAGE_PRESETS.score);
@@ -47,9 +48,9 @@ describe("resolveHomepageImage", () => {
       artists_image_url: "",
     });
     expect(map.hero_image_url).toBe("https://cdn.example.com/hero.jpg");
-    expect(map.artists_image_url).toBe(HOMEPAGE_IMAGE_PRESETS.waveform);
-    expect(map.publishing_image_url).toBe(HOMEPAGE_IMAGE_PRESETS.score);
-    expect(map.cta_image_url).toBe(HOMEPAGE_IMAGE_PRESETS.vinyl);
+    expect(map.artists_image_url).toBe(HOMEPAGE_IMAGE_PRESETS.live);
+    expect(map.publishing_image_url).toBe(HOMEPAGE_IMAGE_PRESETS.headphones);
+    expect(map.cta_image_url).toBe(HOMEPAGE_IMAGE_PRESETS.live);
     expect(isLocalHomepageImage(map.royalties_image_url)).toBe(true);
   });
 });

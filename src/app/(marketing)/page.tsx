@@ -36,6 +36,7 @@ import { resolveHomepageImageMap } from "@/lib/website/homepage-images";
 import { Section, Eyebrow } from "@/components/marketing/Section";
 import { DashboardMock } from "@/components/marketing/home/DashboardMock";
 import { FinalCta } from "@/components/marketing/FinalCta";
+import { Reveal, Stagger } from "@/components/motion/Reveal";
 import { CONFIRMED_STATS, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -230,7 +231,7 @@ export default async function HomePage() {
           }}
         />
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:gap-12 sm:px-6 sm:py-24 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-8 lg:py-28">
-          <div>
+          <Reveal variant="fade-up">
             <Eyebrow>{heroEyebrow}</Eyebrow>
             <h1 className="mt-5 text-display text-[var(--nexo-text)]">
               {heroTitle}
@@ -258,14 +259,14 @@ export default async function HomePage() {
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="relative">
+          </Reveal>
+          <Reveal variant="fade-left" delayMs={120} className="relative">
             <div className="absolute -inset-4 rounded-[2rem] border border-[var(--nexo-border)] opacity-60 hidden sm:block" aria-hidden />
             <div className="relative overflow-hidden rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-3 shadow-[var(--nexo-shadow-lg)] sm:p-4">
               <HeroImage
                 src={images.hero_image_url}
-                preset="vinyl"
-                alt="Vinyl and studio atmosphere"
+                preset="singer"
+                alt="Vocalist performing at a microphone"
                 priority
                 aspectClassName="aspect-[16/10]"
               />
@@ -295,13 +296,13 @@ export default async function HomePage() {
                 Confirmed company figures · not invented metrics
               </p>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* 2. Trust / value indicators */}
       <section className="border-b border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
+        <Stagger className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8" stepMs={80} variant="fade-up">
           {[
             { title: "Distribution", body: "Release delivery across major and specialist platforms." },
             { title: "Publishing", body: "Nexo Publishing Group for rights and creative pathways." },
@@ -313,7 +314,7 @@ export default async function HomePage() {
               <p className="mt-2 text-small text-[var(--nexo-text-muted)]">{item.body}</p>
             </div>
           ))}
-        </div>
+        </Stagger>
       </section>
 
       {/* 3. DSP marquee */}
@@ -328,15 +329,15 @@ export default async function HomePage() {
 
       {/* 4. Six feature cards */}
       <Section id="features">
-        <div className="max-w-2xl">
+        <Reveal variant="fade-up" className="max-w-2xl">
           <Eyebrow>Platform</Eyebrow>
           <h2 className="mt-3 text-h2 text-[var(--nexo-text)]">Built for modern catalogs</h2>
           <p className="mt-3 text-body text-[var(--nexo-text-muted)]">
             Distribution, royalties, analytics, protection, support, and publishing —
             connected under one professional system.
           </p>
-        </div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        </Reveal>
+        <Stagger className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" stepMs={60} variant="scale-in">
           {FEATURES.map((f) => (
             <FeatureCard
               key={f.title}
@@ -346,7 +347,7 @@ export default async function HomePage() {
               badge={f.badge}
             />
           ))}
-        </div>
+        </Stagger>
       </Section>
 
       {/* 5. Product showcase */}
@@ -388,7 +389,7 @@ export default async function HomePage() {
       {/* 6. For Artists */}
       <Section id="artists">
         <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
-          <div>
+          <Reveal variant="fade-right">
             <Eyebrow>For Artists</Eyebrow>
             <h2 className="mt-3 text-h2">Release with confidence</h2>
             <p className="mt-3 text-body text-[var(--nexo-text-muted)]">
@@ -404,12 +405,12 @@ export default async function HomePage() {
             <Link href="/artists" className="mt-8 inline-flex">
               <Button variant="outline" className="rounded-full">Explore For Artists</Button>
             </Link>
-          </div>
+          </Reveal>
           <div>
             <EditorialImage
               src={images.artists_image_url}
-              fallbackPreset="waveform"
-              alt="Creators and waveform atmosphere"
+              fallbackPreset="live"
+              alt="Live performance energy for independent artists"
               motion="mask-up"
               aspectClassName="aspect-[4/3]"
             />
@@ -427,8 +428,8 @@ export default async function HomePage() {
           <div className="order-2 lg:order-1">
             <EditorialImage
               src={images.labels_image_url || images.distribution_image_url}
-              fallbackPreset="studio"
-              alt="Label roster and studio operations"
+              fallbackPreset="studioSession"
+              alt="Studio session for label roster operations"
               motion="mask-left"
               aspectClassName="aspect-[4/3]"
             />
@@ -465,8 +466,8 @@ export default async function HomePage() {
           </div>
           <EditorialImage
             src={images.publishing_image_url}
-            fallbackPreset="score"
-            alt="Publishing score and rights atmosphere"
+            fallbackPreset="headphones"
+            alt="Creative listening and publishing focus"
             motion="clip-diagonal"
             aspectClassName="aspect-[16/10]"
           />
@@ -500,9 +501,9 @@ export default async function HomePage() {
           </div>
           <Workflow className="hidden h-8 w-8 text-[var(--nexo-text-muted)] sm:block" aria-hidden />
         </div>
-        <ol className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <Stagger className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-6" stepMs={55} variant="fade-up">
           {WORKFLOW.map((item) => (
-            <li
+            <article
               key={item.step}
               className="relative rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5"
             >
@@ -511,9 +512,9 @@ export default async function HomePage() {
               </p>
               <h3 className="mt-3 text-h4">{item.title}</h3>
               <p className="mt-2 text-small text-[var(--nexo-text-muted)]">{item.description}</p>
-            </li>
+            </article>
           ))}
-        </ol>
+        </Stagger>
       </Section>
 
       {/* 10. QC */}
@@ -557,8 +558,8 @@ export default async function HomePage() {
           <div className="space-y-4">
             <EditorialImage
               src={images.royalties_image_url}
-              fallbackPreset="console"
-              alt="Analytics console and royalty workspace"
+              fallbackPreset="producer"
+              alt="Producer console and royalty workspace"
               motion="fade-parallax"
               aspectClassName="aspect-[16/10]"
             />
@@ -603,8 +604,8 @@ export default async function HomePage() {
           <div>
             <EditorialImage
               src={images.distribution_image_url}
-              fallbackPreset="studio"
-              alt="Global distribution and studio lines"
+              fallbackPreset="producer"
+              alt="Studio production for global distribution"
               motion="mask-up"
               aspectClassName="aspect-[4/3]"
             />
@@ -628,7 +629,7 @@ export default async function HomePage() {
             Only verified figures are shown. No invented stream counts, revenue, or testimonials.
           </p>
         </div>
-        <dl className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stagger className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" stepMs={70} variant="mask">
           {CONFIRMED_STATS.map((stat) => (
             <div
               key={stat.label}
@@ -642,7 +643,7 @@ export default async function HomePage() {
               </dd>
             </div>
           ))}
-        </dl>
+        </Stagger>
       </Section>
 
       {/* 14. Final CTA */}

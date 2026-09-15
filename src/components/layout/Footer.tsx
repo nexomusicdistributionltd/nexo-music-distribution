@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
+import { NewsletterForm } from "@/components/newsletter/NewsletterForm";
 import { COMPANY_LEGAL, PUBLISHING_DIVISION, SITE_URL } from "@/lib/site";
 
 const COMPANY = [
@@ -143,19 +142,9 @@ export function Footer() {
         <div className="lg:col-span-3">
           <h3 className="text-label text-[var(--nexo-text)]">Newsletter</h3>
           <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
-            Coming soon — subscriptions are not open yet.
+            Release notes, catalog highlights, and publishing updates.
           </p>
-          <div className="mt-3 flex gap-2">
-            <Input
-              type="email"
-              placeholder="Email"
-              disabled
-              aria-label="Newsletter email (coming soon)"
-            />
-            <Button type="button" disabled title="Newsletter coming soon">
-              Join
-            </Button>
-          </div>
+          <NewsletterForm source="footer" />
           <div className="mt-6">
             <h3 className="text-label text-[var(--nexo-text)]">Social</h3>
             <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">

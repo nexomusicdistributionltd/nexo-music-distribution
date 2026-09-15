@@ -51,8 +51,8 @@ export function FinalCta({
             {aboutImageSrc ? (
               <EditorialImage
                 src={aboutImageSrc}
-                fallbackPreset="studio"
-                alt="Nexo studio atmosphere"
+                fallbackPreset="studioSession"
+                alt="Recording studio session atmosphere"
                 motion="mask-left"
                 aspectClassName="aspect-[4/3]"
                 hoverZoom
@@ -61,8 +61,8 @@ export function FinalCta({
             {imageSrc ? (
               <EditorialImage
                 src={imageSrc}
-                fallbackPreset="vinyl"
-                alt="Nexo catalog ready"
+                fallbackPreset="live"
+                alt="Live performance and catalog energy"
                 motion="clip-diagonal"
                 aspectClassName="aspect-[4/3]"
                 hoverZoom
