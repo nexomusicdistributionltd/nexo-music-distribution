@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/Button";
 import { FeatureCard } from "@/components/ui/FeatureCard";
 import { Badge } from "@/components/ui/Badge";
 import { DspMarquee } from "@/components/marketing/DspMarquee";
+import { PartnerLogoMarquee } from "@/components/website/PartnerLogoMarquee";
+import { listActivePartners } from "@/lib/website/partners";
 import { Section, Eyebrow } from "@/components/marketing/Section";
 import { DashboardMock } from "@/components/marketing/home/DashboardMock";
 import { FinalCta } from "@/components/marketing/FinalCta";
@@ -174,7 +176,8 @@ const PUBLISHING_PILLARS = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const partners = await listActivePartners();
   return (
     <div className="animate-fade-in">
       {/* 1. Hero */}
@@ -283,6 +286,7 @@ export default function HomePage() {
 
       {/* 3. DSP marquee */}
       <DspMarquee />
+      <PartnerLogoMarquee partners={partners} />
 
       {/* 4. Six feature cards */}
       <Section id="features">

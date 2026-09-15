@@ -29,7 +29,7 @@ const securityHeaders = [
       // Next.js / Supabase Auth need these; avoid breaking login + realtime
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nexomusicdistribution.com",
-      "frame-src 'self' https://*.supabase.co",
+      "frame-src 'self' https://*.supabase.co https://open.spotify.com https://embed.spotify.com https://embed.music.apple.com https://www.youtube.com https://www.youtube-nocookie.com",
       "worker-src 'self' blob:",
       "upgrade-insecure-requests",
     ].join("; "),

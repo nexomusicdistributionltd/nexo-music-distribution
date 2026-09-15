@@ -49,9 +49,9 @@ export const metadata: Metadata = {
       "Digital music distribution, publishing, and royalty management for artists and labels.",
     images: [
       {
-        url: "/brand/nexo-logo-dark.png",
-        width: 1143,
-        height: 316,
+        url: "/brand/og-default.jpg",
+        width: 1200,
+        height: 630,
         alt: "NEXO Music Distribution",
       },
     ],
@@ -61,16 +61,21 @@ export const metadata: Metadata = {
     title: "NEXO Music Distribution",
     description:
       "Digital music distribution, publishing, and royalty management.",
-    images: ["/brand/nexo-logo-dark.png"],
+    images: ["/brand/og-default.jpg"],
   },
   robots: {
     index: true,
     follow: true,
   },
   icons: {
-    icon: [{ url: "/brand/nexo-logo-dark.png", type: "image/png" }],
-    apple: [{ url: "/brand/nexo-logo-dark.png" }],
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
+  manifest: "/manifest.webmanifest",
 };
 
 export const viewport: Viewport = {

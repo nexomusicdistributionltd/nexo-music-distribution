@@ -82,6 +82,10 @@ export function MigrationClient() {
         </Button>
       </div>
       {msg ? <p className="text-caption text-[var(--nexo-text-muted)]">{msg}</p> : null}
+      <p className="text-caption text-[var(--nexo-text-muted)]">
+        Artists use <strong>Dashboard → Move In</strong> for Search→Select→Review→MOVE IN with
+        JSON/CSV/manual import when external APIs are not connected.
+      </p>
     </div>
   );
 }

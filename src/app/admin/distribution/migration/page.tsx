@@ -65,11 +65,18 @@ export default async function MigrationPage() {
             <li key={m.id} className="px-4 py-3 text-small">
               <p className="font-medium">{m.title || m.id}</p>
               <p className="text-caption text-[var(--nexo-text-muted)]">
-                {m.status} · source {m.source_name}
+                {m.status} · step {(m as { workflow_step?: string }).workflow_step || "—"} ·
+                source {m.source_name}
+                {(m as { previous_distributor?: string | null }).previous_distributor
+                  ? ` · prev ${(m as { previous_distributor?: string }).previous_distributor}`
+                  : ""}
                 {m.external_catalog_unavailable_reason
                   ? ` · ${m.external_catalog_unavailable_reason}`
                   : ""}
                 {" · "}items {m.item_count} · conflicts {m.conflict_count}
+                {(m as { last_job_status?: string | null }).last_job_status
+                  ? ` · job ${(m as { last_job_status?: string }).last_job_status}`
+                  : ""}
               </p>
             </li>
           ))}

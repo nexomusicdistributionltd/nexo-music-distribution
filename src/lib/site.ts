@@ -9,9 +9,11 @@ export const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/distribution", label: "Distribution" },
   { href: "/publishing", label: "Publishing", badge: "New" as const },
+  { href: "/music", label: "Music" },
   { href: "/artists", label: "For Artists" },
   { href: "/labels", label: "For Labels" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/blog", label: "Blog" },
   { href: "/services", label: "Services" },
   { href: "/about", label: "About" },
 ] as const;

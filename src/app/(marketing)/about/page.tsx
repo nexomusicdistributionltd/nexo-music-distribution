@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero } from "@/components/marketing/PageHero";
+import { HeroImage } from "@/components/website/HeroImage";
 import { FinalCta } from "@/components/marketing/FinalCta";
 import { Section, Eyebrow } from "@/components/marketing/Section";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +22,7 @@ export default function Page() {
         title={COMPANY_LEGAL}
         description="Digital music distribution, publishing, and royalty management for independent artists and labels. Publishing division: Nexo Publishing Group."
         crumbs={[{ label: "Home", href: "/" }, { label: "About" }]}
+        aside={<HeroImage preset="console" alt="" />}
       />
 
       <Section>
