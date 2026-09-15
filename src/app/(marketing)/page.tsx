@@ -6,7 +6,6 @@ import {
   Check,
   Globe2,
   Headphones,
-  Building2,
   Lock,
   PenLine,
   Scale,
@@ -25,12 +24,15 @@ import { DspMarquee } from "@/components/marketing/DspMarquee";
 import { PartnerLogoMarquee } from "@/components/website/PartnerLogoMarquee";
 import { HomeFeaturedCatalog } from "@/components/website/HomeFeaturedCatalog";
 import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
+import { HeroImage } from "@/components/website/HeroImage";
+import { EditorialImage } from "@/components/website/EditorialImage";
 import { listActivePartners } from "@/lib/website/partners";
 import {
   getWebsiteSetting,
   listFeaturedPublicArtists,
   listFeaturedPublicReleases,
 } from "@/lib/website/queries";
+import { resolveHomepageImageMap } from "@/lib/website/homepage-images";
 import { Section, Eyebrow } from "@/components/marketing/Section";
 import { DashboardMock } from "@/components/marketing/home/DashboardMock";
 import { FinalCta } from "@/components/marketing/FinalCta";
@@ -203,8 +205,7 @@ export default async function HomePage() {
   const showFeaturedReleases = home.show_featured_releases !== false;
   const showFeaturedArtists = home.show_featured_artists !== false;
   const showPartners = home.show_partners !== false;
-  const heroImageUrl =
-    typeof home.hero_image_url === "string" && home.hero_image_url ? home.hero_image_url : null;
+  const images = resolveHomepageImageMap(home);
 
   return (
     <div className="animate-fade-in overflow-x-hidden">
@@ -228,7 +229,7 @@ export default async function HomePage() {
             maskImage: "linear-gradient(90deg, transparent, black 35%)",
           }}
         />
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:gap-12 sm:px-6 sm:py-24 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-8 lg:py-28">
           <div>
             <Eyebrow>{heroEyebrow}</Eyebrow>
             <h1 className="mt-5 text-display text-[var(--nexo-text)]">
@@ -258,28 +259,31 @@ export default async function HomePage() {
               ))}
             </ul>
           </div>
-          <div className="relative hidden lg:block">
-            <div className="absolute -inset-6 rounded-[2rem] border border-[var(--nexo-border)] opacity-60" aria-hidden />
-            <div className="relative overflow-hidden rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 shadow-[var(--nexo-shadow-lg)]">
-              {heroImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImageUrl} alt="" className="mb-6 aspect-[16/10] w-full rounded-[var(--nexo-radius)] object-cover" />
-              ) : null}
-              <div className="flex items-center justify-between">
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-[2rem] border border-[var(--nexo-border)] opacity-60 hidden sm:block" aria-hidden />
+            <div className="relative overflow-hidden rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-3 shadow-[var(--nexo-shadow-lg)] sm:p-4">
+              <HeroImage
+                src={images.hero_image_url}
+                preset="vinyl"
+                alt="Vinyl and studio atmosphere"
+                priority
+                aspectClassName="aspect-[16/10]"
+              />
+              <div className="mt-4 flex items-center justify-between px-1">
                 <Music2 className="h-5 w-5 text-[var(--nexo-text)]" aria-hidden />
                 <span className="text-caption uppercase tracking-[0.14em] text-[var(--nexo-text-muted)]">
                   Editorial
                 </span>
               </div>
               <p
-                className="mt-10 font-serif text-3xl italic leading-snug text-[var(--nexo-text-secondary)]"
+                className="mt-4 px-1 font-serif text-2xl italic leading-snug text-[var(--nexo-text-secondary)] sm:text-3xl"
                 style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
               >
                 Independent artists.
                 <br />
                 Global reach.
               </p>
-              <div className="mt-10 grid grid-cols-3 gap-3 border-t border-[var(--nexo-divider)] pt-6">
+              <div className="mt-6 grid grid-cols-3 gap-3 border-t border-[var(--nexo-divider)] px-1 pt-5">
                 {CONFIRMED_STATS.slice(0, 3).map((s) => (
                   <div key={s.label}>
                     <p className="text-h4 text-[var(--nexo-text)]">{s.value}</p>
@@ -287,7 +291,7 @@ export default async function HomePage() {
                   </div>
                 ))}
               </div>
-              <p className="mt-4 text-caption text-[var(--nexo-text-muted)]">
+              <p className="mt-3 px-1 text-caption text-[var(--nexo-text-muted)]">
                 Confirmed company figures · not invented metrics
               </p>
             </div>
@@ -401,12 +405,17 @@ export default async function HomePage() {
               <Button variant="outline" className="rounded-full">Explore For Artists</Button>
             </Link>
           </div>
-          <div className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-8">
-            <Headphones className="h-8 w-8 text-[var(--nexo-text)]" />
-            <p className="mt-6 text-h3">Independent by design</p>
-            <p className="mt-3 text-small text-[var(--nexo-text-muted)]">
-              Keep ownership of your masters and move at the pace of your career — with
-              infrastructure that feels like a finished music company, not a template.
+          <div>
+            <EditorialImage
+              src={images.artists_image_url}
+              fallbackPreset="waveform"
+              alt="Creators and waveform atmosphere"
+              motion="mask-up"
+              aspectClassName="aspect-[4/3]"
+            />
+            <p className="mt-4 text-small text-[var(--nexo-text-muted)]">
+              Independent by design — keep ownership of your masters with infrastructure
+              that feels like a finished music company.
             </p>
           </div>
         </div>
@@ -415,12 +424,17 @@ export default async function HomePage() {
       {/* 7. For Labels */}
       <Section id="labels" surface>
         <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
-          <div className="order-2 rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-8 lg:order-1">
-            <Building2 className="h-8 w-8 text-[var(--nexo-text)]" />
-            <p className="mt-6 text-h3">Built for roster operations</p>
-            <p className="mt-3 text-small text-[var(--nexo-text-muted)]">
-              Coordinate multi-artist releases, shared QC standards, and royalty reporting
-              without inventing a new process for every project.
+          <div className="order-2 lg:order-1">
+            <EditorialImage
+              src={images.labels_image_url || images.distribution_image_url}
+              fallbackPreset="studio"
+              alt="Label roster and studio operations"
+              motion="mask-left"
+              aspectClassName="aspect-[4/3]"
+            />
+            <p className="mt-4 text-small text-[var(--nexo-text-muted)]">
+              Built for roster operations — multi-artist releases, shared QC, and reporting
+              that holds up across a catalog.
             </p>
           </div>
           <div className="order-1 lg:order-2">
@@ -439,14 +453,23 @@ export default async function HomePage() {
 
       {/* 8. Nexo Publishing Group */}
       <Section id="publishing">
-        <div className="max-w-2xl">
-          <Eyebrow>Nexo Publishing Group</Eyebrow>
-          <h2 className="mt-3 text-h2">Your music. Our publishing power.</h2>
-          <p className="mt-3 text-body text-[var(--nexo-text-muted)]">
-            Publishing sits alongside distribution — sync, mechanical, performance
-            administration, creative services, and statements. We describe capabilities
-            accurately and do not invent PRO or DSP partnership claims.
-          </p>
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+          <div className="max-w-2xl">
+            <Eyebrow>Nexo Publishing Group</Eyebrow>
+            <h2 className="mt-3 text-h2">Your music. Our publishing power.</h2>
+            <p className="mt-3 text-body text-[var(--nexo-text-muted)]">
+              Publishing sits alongside distribution — sync, mechanical, performance
+              administration, creative services, and statements. We describe capabilities
+              accurately and do not invent PRO or DSP partnership claims.
+            </p>
+          </div>
+          <EditorialImage
+            src={images.publishing_image_url}
+            fallbackPreset="score"
+            alt="Publishing score and rights atmosphere"
+            motion="clip-diagonal"
+            aspectClassName="aspect-[16/10]"
+          />
         </div>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PUBLISHING_PILLARS.map((p) => (
@@ -531,27 +554,36 @@ export default async function HomePage() {
               <Button variant="outline" className="rounded-full">View Services</Button>
             </Link>
           </div>
-          <div className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 shadow-[var(--nexo-shadow)]">
-            <div className="flex items-center justify-between">
-              <p className="text-label">Royalty overview · Demo</p>
-              <Badge>Showcase</Badge>
+          <div className="space-y-4">
+            <EditorialImage
+              src={images.royalties_image_url}
+              fallbackPreset="console"
+              alt="Analytics console and royalty workspace"
+              motion="fade-parallax"
+              aspectClassName="aspect-[16/10]"
+            />
+            <div className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 shadow-[var(--nexo-shadow)]">
+              <div className="flex items-center justify-between">
+                <p className="text-label">Royalty overview · Demo</p>
+                <Badge>Showcase</Badge>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {[
+                  { label: "Estimated Earnings", value: "$2,480" },
+                  { label: "Available Balance", value: "$1,250" },
+                  { label: "Pending", value: "$430" },
+                  { label: "Last Statement", value: "Feb 2026" },
+                ].map((row) => (
+                  <div key={row.label} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-4">
+                    <p className="text-caption text-[var(--nexo-text-muted)]">{row.label}</p>
+                    <p className="mt-1 text-h4">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-caption text-[var(--nexo-text-muted)]">
+                Demo values for product illustration — not real balances.
+              </p>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              {[
-                { label: "Estimated Earnings", value: "$2,480" },
-                { label: "Available Balance", value: "$1,250" },
-                { label: "Pending", value: "$430" },
-                { label: "Last Statement", value: "Feb 2026" },
-              ].map((row) => (
-                <div key={row.label} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-4">
-                  <p className="text-caption text-[var(--nexo-text-muted)]">{row.label}</p>
-                  <p className="mt-1 text-h4">{row.value}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-4 text-caption text-[var(--nexo-text-muted)]">
-              Demo values for product illustration — not real balances.
-            </p>
           </div>
         </div>
       </Section>
@@ -568,13 +600,21 @@ export default async function HomePage() {
               meet listeners where they already are.
             </p>
           </div>
-          <div className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-8">
-            <Globe2 className="h-10 w-10 text-[var(--nexo-text)]" />
-            <p className="mt-6 text-h3">450+ platforms</p>
-            <p className="mt-2 text-small text-[var(--nexo-text-muted)]">
-              Streaming, download, social, and specialty destinations — continuously expanding
-              as the market evolves.
-            </p>
+          <div>
+            <EditorialImage
+              src={images.distribution_image_url}
+              fallbackPreset="studio"
+              alt="Global distribution and studio lines"
+              motion="mask-up"
+              aspectClassName="aspect-[4/3]"
+            />
+            <div className="mt-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-5">
+              <p className="text-h3">450+ platforms</p>
+              <p className="mt-2 text-small text-[var(--nexo-text-muted)]">
+                Streaming, download, social, and specialty destinations — continuously expanding
+                as the market evolves.
+              </p>
+            </div>
           </div>
         </div>
       </Section>
@@ -606,7 +646,7 @@ export default async function HomePage() {
       </Section>
 
       {/* 14. Final CTA */}
-      <FinalCta />
+      <FinalCta imageSrc={images.cta_image_url} aboutImageSrc={images.about_image_url} />
     </div>
   );
 }
