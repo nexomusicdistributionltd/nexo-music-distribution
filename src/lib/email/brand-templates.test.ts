@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { FOOTER_SOCIAL_LINKS } from "@/lib/website/social-links";
+import { BRAND_PUBLIC_URL, BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
 import { NEXO_EMAIL_BRAND, emailSocialIconsRowHtml } from "./brand";
 
 const ROOT = join(process.cwd());
@@ -38,21 +38,20 @@ function walkHtml(dir: string): string[] {
 
 describe("email brand constants", () => {
   it("points public website at nexomusicdistribution.com and keeps the Zoho mailbox", () => {
+    expect(NEXO_EMAIL_BRAND.website).toBe(BRAND_PUBLIC_URL);
     expect(NEXO_EMAIL_BRAND.website).toBe("https://nexomusicdistribution.com");
     expect(NEXO_EMAIL_BRAND.email).toBe("contact@nexomusicdistro.space");
-    expect(FOOTER_SOCIAL_LINKS.map((l) => l.key)).toEqual(["spotify", "x", "tiktok"]);
-    for (const item of FOOTER_SOCIAL_LINKS) {
+    expect(BRAND_SOCIAL_LINKS.map((l) => l.key)).toEqual(["spotify", "x", "tiktok"]);
+    for (const item of BRAND_SOCIAL_LINKS) {
       expect(NEXO_EMAIL_BRAND.socials[item.key]).toBe(item.href);
     }
   });
 
-  it("imports social destinations from @/lib/website/social-links, without duplicating URLs", () => {
+  it("imports social destinations from @/lib/brand/social, not website footer SVG paths", () => {
     const src = readFileSync(join(ROOT, "src/lib/email/brand.ts"), "utf8");
-    expect(src).toContain('from "@/lib/website/social-links"');
-    expect(src).toContain("FOOTER_SOCIAL_LINKS");
-    expect(src).not.toContain("open.spotify.com");
-    expect(src).not.toContain("x.com/nexomusicdistro");
-    expect(src).not.toContain("tiktok.com/@nexomusicdistribution");
+    expect(src).toContain('from "@/lib/brand/social"');
+    expect(src).not.toContain("@/lib/website/social-links");
+    expect(src).not.toContain("FOOTER_SOCIAL_LINKS");
   });
 
   it("keeps logo-urls (emails/brand.json) aligned with TypeScript constants", () => {
@@ -90,8 +89,8 @@ describe("email brand constants", () => {
 
   it("emits Spotify/X/TikTok icons with new-tab + noopener", () => {
     const html = emailSocialIconsRowHtml();
-    for (const item of FOOTER_SOCIAL_LINKS) {
-      expect(html).toContain(`aria-label="${item.label}"`);
+    for (const item of BRAND_SOCIAL_LINKS) {
+      expect(html).toContain(`aria-label="${item.ariaLabel}"`);
       expect(html).toContain(`href="${htmlHref(item.href)}"`);
     }
     expect(html).toContain('target="_blank"');
@@ -145,16 +144,16 @@ describe("branded email HTML pack", () => {
   });
 
   it("uses only official Spotify/X/TikTok socials in footers, with new-tab + aria-labels", () => {
-    const spotifyLabel = FOOTER_SOCIAL_LINKS.find((l) => l.key === "spotify")?.label;
+    const spotifyLabel = BRAND_SOCIAL_LINKS.find((l) => l.key === "spotify")?.ariaLabel;
     const withSocial = files.filter((f) =>
       readFileSync(f, "utf8").includes(spotifyLabel ?? ""),
     );
     expect(withSocial.length).toBeGreaterThan(10);
     for (const file of withSocial) {
       const html = readFileSync(file, "utf8");
-      for (const item of FOOTER_SOCIAL_LINKS) {
+      for (const item of BRAND_SOCIAL_LINKS) {
         expect(html, file).toContain(`href="${htmlHref(item.href)}"`);
-        expect(html, file).toContain(`aria-label="${item.label}"`);
+        expect(html, file).toContain(`aria-label="${item.ariaLabel}"`);
       }
       const socialAnchors = [
         ...html.matchAll(
