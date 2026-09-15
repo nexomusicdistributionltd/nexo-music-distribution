@@ -1,78 +1,86 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { headers } from "next/headers";
 import { PageHero } from "@/components/marketing/PageHero";
 import { FinalCta } from "@/components/marketing/FinalCta";
-import { Section, Eyebrow } from "@/components/marketing/Section";
-import { Button } from "@/components/ui/Button";
-import { Alert } from "@/components/ui/Alert";
-import { SITE_URL } from "@/lib/site";
+import { Section } from "@/components/marketing/Section";
+import { PricingTable } from "@/components/billing/PricingTable";
+import { publicBillingCatalog } from "@/lib/billing/catalog";
+import { countryFromTrustedHeaders } from "@/lib/billing/country";
+import { getPaddleClientToken } from "@/lib/billing/env";
+import { parseBillingSelection } from "@/lib/billing/auth-return";
+import { billingAccountTypeFromRoles } from "@/lib/billing/eligibility";
+import { getOptionalAuth } from "@/lib/auth/guards";
+import { COMPANY_LEGAL, SITE_URL } from "@/lib/site";
+import { BRAND_PUBLIC_URL } from "@/lib/brand/social";
+import { isPaidTierId } from "@/lib/billing/plans";
 
 export const metadata: Metadata = {
-  title: "Pricing",
+  title: "Music Distribution Pricing for Artists & Labels",
   description:
-    "Pricing for NEXO Music Distribution is being finalized. Contact Nexo for current plans and label options.",
+    "Music distribution pricing for artists and labels from NEXO MUSIC DISTRIBUTION LTD. Artist Starter is free. Artist Pro from $9.99/month, Label Starter from $19.99/month, Label Pro from $49.99/month, billed in USD with a 7-day trial on paid plans.",
   alternates: { canonical: `${SITE_URL}/pricing` },
+  openGraph: {
+    title: "Music Distribution Pricing for Artists & Labels | NEXO Music Distribution",
+    description:
+      "USD plans for artists and labels. Artist Starter is free. Paid plans include a 7-day trial. Tax is calculated at checkout.",
+    url: `${BRAND_PUBLIC_URL}/pricing`,
+    siteName: "NEXO Music Distribution",
+    type: "website",
+  },
 };
 
-export default function Page() {
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plan?: string; interval?: string; checkout?: string; type?: string }>;
+}) {
+  const sp = await searchParams;
+  const catalog = publicBillingCatalog();
+  const headerList = await headers();
+  const country = countryFromTrustedHeaders(headerList);
+  const token = getPaddleClientToken();
+  const ctx = await getOptionalAuth();
+  const accountType =
+    billingAccountTypeFromRoles(ctx?.roles ?? [], ctx?.profile?.account_type) ??
+    (sp.type === "label" ? "label" : "artist");
+  const selection = parseBillingSelection({ plan: sp.plan, interval: sp.interval });
+  const initialAccountType =
+    selection && isPaidTierId(selection.planId)
+      ? selection.planId.startsWith("label")
+        ? "label"
+        : "artist"
+      : accountType;
+  const autoCheckout =
+    sp.checkout === "1" && selection && ctx?.userId ? selection.planId : null;
+
   return (
     <>
       <PageHero
         eyebrow="Pricing"
-        title="Plans that match your catalog"
-        description="Commercial pricing is being finalized. Until published rates are available, contact Nexo for artist and label options — we will not invent numbers here."
+        title="Plans for artists and labels"
+        description={`${COMPANY_LEGAL} publishes USD list prices for Artist Starter (free), Artist Pro, Label Starter, and Label Pro. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout.`}
         crumbs={[{ label: "Home", href: "/" }, { label: "Pricing" }]}
       />
 
       <Section>
-        <Alert title="Pricing is being finalized">
-          Contact Nexo for current distribution and publishing options. No invented prices,
-          percentages, or promotional claims appear on this page.
-        </Alert>
-
-        <div className="mt-10 grid gap-4 lg:grid-cols-3">
-          {[
-            {
-              name: "Artists",
-              body: "Independent release distribution with royalty workflows and optional publishing pathways.",
-              cta: { href: "/get-started", label: "Get Started" },
-            },
-            {
-              name: "Labels",
-              body: "Multi-artist delivery, QC standards, and reporting structured for roster operations.",
-              cta: { href: "/contact", label: "Contact Sales" },
-            },
-            {
-              name: "Publishing",
-              body: "Nexo Publishing Group capabilities — sync, mechanical, administration, and statements.",
-              cta: { href: "/publishing", label: "Explore Publishing" },
-            },
-          ].map((tier) => (
-            <article
-              key={tier.name}
-              className="flex flex-col rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6"
-            >
-              <Eyebrow>{tier.name}</Eyebrow>
-              <h2 className="mt-3 text-h3">Custom quote</h2>
-              <p className="mt-2 flex-1 text-small text-[var(--nexo-text-muted)]">{tier.body}</p>
-              <p className="mt-6 text-caption uppercase tracking-[0.12em] text-[var(--nexo-text-muted)]">
-                Price — contact Nexo
-              </p>
-              <Link href={tier.cta.href} className="mt-4 inline-flex">
-                <Button variant="outline" className="gap-2 rounded-full">
-                  {tier.cta.label}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              </Link>
-            </article>
-          ))}
-        </div>
+        <PricingTable
+          initialCatalog={catalog}
+          initialCountry={country}
+          clientToken={token}
+          auth={{
+            signedIn: Boolean(ctx?.userId),
+            email: ctx?.email ?? null,
+            accountType: billingAccountTypeFromRoles(ctx?.roles ?? [], ctx?.profile?.account_type),
+          }}
+          initialAccountType={initialAccountType}
+          initialInterval={selection?.interval ?? "month"}
+          autoCheckoutPlan={autoCheckout}
+        />
       </Section>
 
       <FinalCta
-        title="Request pricing from Nexo"
-        description="Share your release volume and whether you need publishing. We will respond with accurate commercial options."
+        title="Questions about distribution plans?"
+        description="Start on Artist Starter at no cost, or subscribe to a paid plan. Paddle handles tax and checkout. Cancel or update payment details through the customer portal after you subscribe."
       />
     </>
   );

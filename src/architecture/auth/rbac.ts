@@ -109,6 +109,7 @@ export const PROTECTED_ROUTE_PREFIXES = [
   "/dashboard",
   "/releases",
   "/earnings",
+  "/billing",
   "/analytics",
   "/profile",
   "/app",

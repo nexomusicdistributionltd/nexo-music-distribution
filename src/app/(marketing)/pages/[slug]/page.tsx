@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CmsPage({ params }: Props) {
   const { slug } = await params;
   // Dedicated legal routes take precedence
-  if (["privacy", "terms", "cookies"].includes(slug)) notFound();
+  if (["privacy", "terms", "cookies", "return-policy", "refund-policy"].includes(slug)) notFound();
   const page = await getPublishedPageBySlug(slug);
   if (!page) notFound();
 

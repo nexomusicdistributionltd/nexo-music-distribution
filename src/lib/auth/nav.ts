@@ -111,6 +111,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/royalties", label: "Royalties", icon: "finance" },
       { href: "/admin/statements", label: "Statements", icon: "finance" },
       { href: "/admin/payouts", label: "Payouts", icon: "finance" },
+      { href: "/admin/finance/billing", label: "Billing", icon: "finance" },
       { href: "/admin/analytics", label: "Analytics", icon: "analytics" },
     ],
   },
@@ -197,6 +198,7 @@ function artistSections(): NavSection[] {
       collapsible: true,
       items: [
         { href: "/earnings", label: "Royalties", icon: "finance" },
+        { href: "/billing", label: "Plan & billing", icon: "finance" },
         { href: "/app/publishing", label: "Publishing", icon: "publishing" },
       ],
     },
@@ -254,6 +256,7 @@ function labelSections(): NavSection[] {
       collapsible: true,
       items: [
         { href: "/earnings", label: "Royalties", icon: "finance" },
+        { href: "/billing", label: "Plan & billing", icon: "finance" },
         { href: "/app/publishing", label: "Publishing", icon: "publishing" },
       ],
     },
@@ -327,6 +330,9 @@ export function isNavActive(pathname: string, href: string) {
   }
   if (href === "/dashboard/releases/new") {
     return pathname === "/dashboard/releases/new";
+  }
+  if (href === "/admin/finance") {
+    return pathname === "/admin/finance";
   }
   if (href === "/admin/emails") {
     return pathname === "/admin/emails" || pathname.startsWith("/admin/emails/inbox");

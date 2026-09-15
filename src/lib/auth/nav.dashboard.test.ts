@@ -16,12 +16,14 @@ describe("premium dashboard nav", () => {
     expect(artist).toContain("/dashboard/releases");
     expect(artist).toContain("/dashboard/catalog");
     expect(artist).toContain("/earnings");
+    expect(artist).toContain("/billing");
     expect(artist).toContain("/app/publishing");
     expect(artist).toContain("/support");
     expect(artist).not.toContain("/app/artists");
     expect(artist).not.toContain("/admin/ddex");
     expect(artist).not.toContain("/analytics");
 
+    expect(label).toContain("/billing");
     expect(label).toContain("/app/artists");
     expect(label).toContain("/dashboard/releases/new");
     expect(label).toContain("/dashboard/profile");
@@ -53,6 +55,7 @@ describe("premium dashboard nav", () => {
     ]) {
       expect(hrefs).toContain(h);
     }
+    expect(hrefs).toContain("/admin/finance/billing");
     expect(navForRoles(["support"]).map((n) => n.href)).not.toContain("/admin/settings");
     expect(navSectionsForRoles(["admin"]).length).toBeGreaterThan(4);
     expect(navForRoles(["artist"]).map((n) => n.href)).not.toContain("/admin/emails");

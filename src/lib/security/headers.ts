@@ -26,9 +26,9 @@ export function securityHeaders(): Record<string, string> {
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://fonts.gstatic.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${site}`,
-    "frame-src 'self' https://*.supabase.co https://www.youtube.com https://www.youtube-nocookie.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.paddle.com https://sandbox-cdn.paddle.com",
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${site} https://*.paddle.com https://sandbox-api.paddle.com https://api.paddle.com`,
+    "frame-src 'self' https://*.supabase.co https://www.youtube.com https://www.youtube-nocookie.com https://buy.paddle.com https://sandbox-buy.paddle.com https://*.paddle.com",
     "worker-src 'self' blob:",
     "upgrade-insecure-requests",
   ].join("; ");
@@ -39,7 +39,7 @@ export function securityHeaders(): Record<string, string> {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy":
-      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+      "camera=(), microphone=(), geolocation=(), payment=(self \"https://buy.paddle.com\" \"https://sandbox-buy.paddle.com\"), usb=(), interest-cohort=()",
     "X-DNS-Prefetch-Control": "on",
     "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
   };

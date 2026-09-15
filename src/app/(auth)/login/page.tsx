@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { LoginRegisterLink } from "@/components/auth/LoginRegisterLink";
 import { LoadingState } from "@/components/ui/LoadingState";
 
 export const metadata: Metadata = {
@@ -19,9 +19,9 @@ export default function LoginPage() {
       footer={
         <>
           New to Nexo?{" "}
-          <Link href="/register" className="underline underline-offset-4 hover:text-[var(--nexo-text)]">
-            Create an account
-          </Link>
+          <Suspense fallback={<span>Create an account</span>}>
+            <LoginRegisterLink />
+          </Suspense>
         </>
       }
     >

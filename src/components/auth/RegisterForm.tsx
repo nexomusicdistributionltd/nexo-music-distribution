@@ -15,6 +15,7 @@ import type { SignupRole } from "@/lib/auth/types";
 import { authEmailRedirectUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
+import { parseBillingSelection, preserveBillingQuery } from "@/lib/billing/auth-return";
 import { cn } from "@/lib/utils";
 
 export function RegisterForm() {
@@ -22,8 +23,17 @@ export function RegisterForm() {
   const search = useSearchParams();
   const initial: SignupRole =
     search.get("type") === "label" ? "label" : "artist";
+  const billingSelection = parseBillingSelection({
+    plan: search.get("plan"),
+    interval: search.get("interval"),
+  });
+  const lockedType: SignupRole | null = billingSelection
+    ? billingSelection.planId.startsWith("label")
+      ? "label"
+      : "artist"
+    : null;
 
-  const [role, setRole] = React.useState<SignupRole>(initial);
+  const [role, setRole] = React.useState<SignupRole>(lockedType ?? initial);
   const [fullName, setFullName] = React.useState("");
   const [stageOrLabel, setStageOrLabel] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -87,13 +97,26 @@ export function RegisterForm() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: authEmailRedirectUrl("/auth/confirm"),
+          emailRedirectTo: authEmailRedirectUrl(
+            billingSelection
+              ? `/auth/confirm?next=${encodeURIComponent(
+                  `/pricing?plan=${billingSelection.planId}&interval=${billingSelection.interval}&checkout=1`
+                )}`
+              : "/auth/confirm"
+          ),
           data: metadata,
         },
       });
       if (signError) throw signError;
 
-      router.replace("/verify-email?registered=1");
+      const verifyQs = new URLSearchParams({ registered: "1" });
+      if (billingSelection) {
+        verifyQs.set("plan", billingSelection.planId);
+        verifyQs.set("interval", billingSelection.interval);
+      }
+      const from = search.get("from");
+      if (from?.startsWith("/") && !from.startsWith("//")) verifyQs.set("from", from);
+      router.replace(`/verify-email?${verifyQs.toString()}`);
       router.refresh();
     } catch (err) {
       setError(friendlyAuthError(err, "Could not create your account. Please try again."));
@@ -122,6 +145,7 @@ export function RegisterForm() {
             type="button"
             role="tab"
             aria-selected={role === r}
+            disabled={Boolean(lockedType) && lockedType !== r}
             className={cn(
               "rounded-[var(--nexo-radius-sm)] px-3 py-2 text-small capitalize transition-colors",
               role === r
@@ -219,8 +243,19 @@ export function RegisterForm() {
           required
         />
         <span>
-          I agree to the Nexo terms of service and privacy policy, and confirm I am registering as an{" "}
-          {role === "artist" ? "artist" : "label"} (not staff).
+          I agree to the{" "}
+          <Link href="/terms" className="underline underline-offset-4">
+            Terms of Service
+          </Link>
+          ,{" "}
+          <Link href="/privacy" className="underline underline-offset-4">
+            Privacy Policy
+          </Link>
+          , and{" "}
+          <Link href="/refund-policy" className="underline underline-offset-4">
+            Refund Policy
+          </Link>
+          , and confirm I am registering as an {role === "artist" ? "artist" : "label"} (not staff).
         </span>
       </label>
 
@@ -230,7 +265,10 @@ export function RegisterForm() {
 
       <p className="text-center text-caption text-[var(--nexo-text-muted)]">
         Already have an account?{" "}
-        <Link href="/login" className="underline underline-offset-4 hover:text-[var(--nexo-text)]">
+        <Link
+          href={`/login${preserveBillingQuery(search)}`}
+          className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+        >
           Sign in
         </Link>
       </p>
