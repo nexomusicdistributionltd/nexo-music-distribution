@@ -1,3 +1,4 @@
+import { toCanonicalEmailStatus, type CanonicalEmailStatus } from "./status";
 import type { EmailEventType, StoredTemplateCategory } from "./types";
 
 export function campaignIdempotencyKey(
@@ -31,17 +32,15 @@ export const MANUAL_SEND_MAX_RECIPIENTS = 2000;
 
 export function summarizeSendResults(
   statuses: Array<{ status: string }>
-): Record<string, number> {
-  const counts: Record<string, number> = {
-    pending: 0,
-    processing: 0,
+): Record<CanonicalEmailStatus, number> {
+  const counts: Record<CanonicalEmailStatus, number> = {
+    queued: 0,
+    skipped: 0,
     sent: 0,
     failed: 0,
-    unavailable: 0,
   };
   for (const row of statuses) {
-    const s = row.status;
-    if (s in counts) counts[s] += 1;
+    counts[toCanonicalEmailStatus(row.status)] += 1;
   }
   return counts;
 }
@@ -51,18 +50,20 @@ export function sendOutcomeMessage(
   counts: Record<string, number>,
   providerConfigured: boolean
 ): string {
-  const total =
-    (counts.pending ?? 0) +
-    (counts.processing ?? 0) +
-    (counts.sent ?? 0) +
-    (counts.failed ?? 0) +
-    (counts.unavailable ?? 0);
+  const queued = counts.queued ?? counts.pending ?? 0;
+  const skipped = counts.skipped ?? counts.unavailable ?? 0;
+  const sent = counts.sent ?? 0;
+  const failed = counts.failed ?? 0;
+  const total = queued + skipped + sent + failed;
   if (total === 0) return "No events were enqueued.";
   if (!providerConfigured) {
-    return `Enqueued ${total} event(s). EMAIL_PROVIDER is not configured — statuses stay pending or unavailable. Nothing was marked sent.`;
+    return `Enqueued ${total} event(s). EMAIL_PROVIDER is not configured — statuses stay queued or skipped. Nothing was marked sent.`;
   }
-  const parts = Object.entries(counts)
-    .filter(([, n]) => n > 0)
-    .map(([k, n]) => `${n} ${k}`);
+  const parts = [
+    queued ? `${queued} queued` : null,
+    skipped ? `${skipped} skipped` : null,
+    sent ? `${sent} sent` : null,
+    failed ? `${failed} failed` : null,
+  ].filter(Boolean);
   return `Processed ${total} event(s): ${parts.join(", ")}. SENT only after the provider accepted the send.`;
 }

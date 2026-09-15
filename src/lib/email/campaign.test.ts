@@ -29,12 +29,14 @@ describe("campaign send helpers", () => {
   it("summarizes truthful statuses without inventing sent", () => {
     const counts = summarizeSendResults([
       { status: "unavailable" },
-      { status: "unavailable" },
+      { status: "skipped" },
       { status: "pending" },
     ]);
     expect(counts.sent).toBe(0);
-    expect(counts.unavailable).toBe(2);
+    expect(counts.skipped).toBe(2);
+    expect(counts.queued).toBe(1);
     expect(sendOutcomeMessage(counts, false)).toMatch(/not configured/);
+    expect(sendOutcomeMessage(counts, false)).toMatch(/queued or skipped/);
     expect(sendOutcomeMessage(counts, false)).not.toMatch(/delivered/i);
   });
 });

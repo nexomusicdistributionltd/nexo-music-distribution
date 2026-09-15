@@ -36,12 +36,7 @@ export const APPROVED_TEMPLATE_KEYS = [
 
 export type TemplateKey = (typeof APPROVED_TEMPLATE_KEYS)[number];
 
-export type EmailEventStatus =
-  | "pending"
-  | "processing"
-  | "sent"
-  | "failed"
-  | "unavailable";
+export type { CanonicalEmailStatus, EmailEventStatus } from "./status";
 
 export type EmailEventType =
   | "release.status"

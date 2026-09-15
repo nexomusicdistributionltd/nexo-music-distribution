@@ -34,7 +34,7 @@ describe("getEmailProvider", () => {
     expect(r.unavailable).toBe(true);
     const status = getEmailProviderStatus();
     expect(status.configured).toBe(false);
-    expect(status.message.toLowerCase()).toMatch(/unavailable|not fabricated|unset or none/);
+    expect(status.message.toLowerCase()).toMatch(/queued or skipped|not fabricated|unset or none/);
   });
 
   it("resend without key → unavailable (no fake success)", async () => {

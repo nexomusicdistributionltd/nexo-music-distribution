@@ -265,7 +265,7 @@ export async function sendEmailTemplateAction(input: {
       const result = await processEmailEvent(supabase, id);
       processed.push({ status: result.status });
     } catch {
-      processed.push({ status: "pending" });
+      processed.push({ status: "queued" });
     }
   }
 

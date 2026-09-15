@@ -61,7 +61,7 @@ export function getEmailProviderStatus(): EmailProviderStatus {
         mode,
         name: "null",
         message:
-          "EMAIL_PROVIDER=resend but RESEND_API_KEY is missing. Sends stay unavailable — nothing is marked sent.",
+          "EMAIL_PROVIDER=resend but RESEND_API_KEY is missing. Sends stay skipped — nothing is marked sent.",
       };
     }
     return {
@@ -81,7 +81,7 @@ export function getEmailProviderStatus(): EmailProviderStatus {
         mode,
         name: "null",
         message:
-          "EMAIL_PROVIDER=smtp but SMTP_* is incomplete. Sends stay unavailable — nothing is marked sent.",
+          "EMAIL_PROVIDER=smtp but SMTP_* is incomplete. Sends stay skipped — nothing is marked sent.",
       };
     }
     return {
@@ -96,6 +96,6 @@ export function getEmailProviderStatus(): EmailProviderStatus {
     mode: "none",
     name: "null",
     message:
-      "EMAIL_PROVIDER is unset or none. Events stay pending or unavailable. Delivery is not fabricated.",
+      "EMAIL_PROVIDER is unset or none. Events stay queued or skipped. Delivery is not fabricated.",
   };
 }

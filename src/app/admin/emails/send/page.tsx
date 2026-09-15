@@ -52,7 +52,7 @@ export default async function AdminEmailSendPage({
     <div>
       <PageHeader
         title="Send template"
-        description="Pick a stored template and recipients from the user directory. Addresses always resolve from profiles. Confirm before enqueue — SENT is never fabricated."
+        description="Pick a stored template and recipients from the user directory. Addresses always resolve from profiles. Confirm before enqueue into email_outbound_events — SENT is never fabricated."
       />
       {tmplError ? (
         <p className="mb-4 text-small text-red-400">Templates: {tmplError.message}</p>

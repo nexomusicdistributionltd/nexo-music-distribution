@@ -143,6 +143,6 @@ https://nexomusicdistribution.com
 - Auth templates: `supabase/templates/` + `docs/supabase-auth-emails.md` (Supabase Go templates).
 - Operational + newsletter templates: `emails/templates/` with catalog in `src/lib/email/catalog.ts` / `emails/catalog.ts`.
 - Admin store: `email_templates` (migrations `20260915090000_email_templates_audit_enum.sql` + `20260915090100_email_templates.sql`). Seeded from repo files; admin edits subject + HTML.
-- Outbox table: `email_events` (migration `supabase/migrations/20260913180000_email_events_outbox.sql`).
-- Provider: set `EMAIL_PROVIDER` / `RESEND_API_KEY` — without a real provider, events stay `pending`/`unavailable` (never fake `sent`).
+- Canonical outbox: `email_outbound_events` (Batch 5) with `protect_email_outbound_sent`. Enqueue RPCs retargeted in `20260915100000_retarget_enqueue_to_email_outbound_events.sql`. Legacy `email_events` (PR #5) is not written by new sends.
+- Provider: set `EMAIL_PROVIDER` / `RESEND_API_KEY` — without a real provider, events stay `queued`/`skipped` (never fake `sent`).
 - Admin UI: `/admin/emails` (outbox), `/admin/emails/templates` (edit/create), `/admin/emails/send` (permission `admin:emails`).

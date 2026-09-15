@@ -1,7 +1,7 @@
 -- Nexo Music Distribution LTD — email_templates (admin-owned branded HTML)
 -- Category: ops | newsletter | custom
 -- Staff RLS only. Seeded from emails/templates/*.html by the app (ON CONFLICT DO NOTHING).
--- Never fabricate delivery; sending still goes through email_events + provider adapter.
+-- Never fabricate delivery; sending still goes through email_outbound_events + provider adapter.
 
 create table if not exists public.email_templates (
   key text primary key,

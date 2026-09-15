@@ -38,7 +38,7 @@ export default async function EditEmailTemplatePage({
     <div>
       <PageHeader
         title={data.name}
-        description="Edits apply to the next enqueue. Delivery status is still pending, unavailable, failed, or sent only after the provider accepts."
+        description="Edits apply to the next enqueue. Delivery status is still queued, skipped, failed, or sent only after the provider accepts."
       />
       <EmailTemplateEditor
         templateKey={data.key}

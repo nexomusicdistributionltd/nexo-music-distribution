@@ -16,7 +16,7 @@ describe("outbox provider outcomes", () => {
     });
     expect(r.accepted).toBe(false);
     expect(r.unavailable).toBe(true);
-    // outbox maps this to status unavailable — never sent
+    // outbox maps this to status skipped — never sent
   });
 
   it("provider failure → FAILED semantics (accepted false, not unavailable)", async () => {

@@ -6,8 +6,9 @@ import type { EnqueueEmailInput } from "./types";
 
 /**
  * Server-side enqueue via SECURITY DEFINER RPC.
- * Idempotent on idempotency_key (ON CONFLICT DO NOTHING).
- * Never stores auth tokens in payload.
+ * Writes to canonical public.email_outbound_events (not the legacy email_events table).
+ * Idempotent on payload._idempotency_key. Never stores auth tokens in payload.
+ * Never marks sent — rows start as queued.
  */
 export async function enqueueEmailEvent(
   supabase: SupabaseClient,
@@ -15,12 +16,20 @@ export async function enqueueEmailEvent(
 ): Promise<{ id: string | null; enqueued: boolean; error?: string }> {
   const templateKey = assertEnqueueableTemplateKey(input.templateKey);
   const payload = scrubPayload(input.payload ?? {});
+  const to = input.recipientEmail?.trim();
+  if (!to) {
+    return {
+      id: null,
+      enqueued: false,
+      error: "recipient_email required (email_outbound_events.to_email is NOT NULL)",
+    };
+  }
 
   const { data, error } = await supabase.rpc("enqueue_email_event", {
     p_event_type: input.eventType,
     p_template_key: templateKey,
     p_recipient_user_id: input.recipientUserId ?? null,
-    p_recipient_email: input.recipientEmail ?? null,
+    p_recipient_email: to,
     p_related_release_id: input.relatedReleaseId ?? null,
     p_related_entity_type: input.relatedEntityType ?? null,
     p_related_entity_id: input.relatedEntityId ?? null,

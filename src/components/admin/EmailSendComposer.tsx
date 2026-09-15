@@ -187,8 +187,8 @@ export function EmailSendComposer({
         title="Enqueue branded email?"
         description={
           selectAll
-            ? `This will enqueue “${templateKey}” to all ${userCount} profile emails from the database. Status stays pending or unavailable until a real provider accepts the send.`
-            : `This will enqueue “${templateKey}” to ${selected.size} selected user(s). Addresses come from profiles, not from the form. Status stays pending or unavailable until a real provider accepts the send.`
+            ? `This will enqueue “${templateKey}” to all ${userCount} profile emails from the database. Status stays queued or skipped until a real provider accepts the send.`
+            : `This will enqueue “${templateKey}” to ${selected.size} selected user(s). Addresses come from profiles, not from the form. Status stays queued or skipped until a real provider accepts the send.`
         }
         confirmLabel={pending ? "Enqueueing…" : "Confirm enqueue"}
         confirmDisabled={pending}
