@@ -132,7 +132,8 @@ function transitionReleaseStatus(
   return { status: release.status };
 }
 
-function leftoverBatch6Enqueue(_templateKey: string): null {
+function leftoverBatch6Enqueue(templateKey: string): null {
+  void templateKey;
   return enqueueDistributionEmail();
 }
 
