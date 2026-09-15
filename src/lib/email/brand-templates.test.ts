@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { FOOTER_SOCIAL_LINKS } from "@/lib/website/social-links";
 import { NEXO_EMAIL_BRAND, emailSocialIconsRowHtml } from "./brand";
 
 const ROOT = join(process.cwd());
@@ -46,6 +47,16 @@ describe("email brand constants", () => {
       "https://www.tiktok.com/@nexomusicdistribution",
     );
     expect(NEXO_EMAIL_BRAND.socials.spotify).toContain("open.spotify.com/user/");
+    expect(NEXO_EMAIL_BRAND.socials.spotify).toBe(
+      FOOTER_SOCIAL_LINKS.find((l) => l.key === "spotify")?.href,
+    );
+    expect(NEXO_EMAIL_BRAND.socials.x).toBe(
+      FOOTER_SOCIAL_LINKS.find((l) => l.key === "x")?.href,
+    );
+    expect(NEXO_EMAIL_BRAND.socials.tiktok).toBe(
+      FOOTER_SOCIAL_LINKS.find((l) => l.key === "tiktok")?.href,
+    );
+    expect(FOOTER_SOCIAL_LINKS.map((l) => l.key)).toEqual(["spotify", "x", "tiktok"]);
   });
 
   it("keeps logo-urls (emails/brand.json) aligned with TypeScript constants", () => {
@@ -71,6 +82,12 @@ describe("email brand constants", () => {
     expect(json.icons.spotify_white).toBe(NEXO_EMAIL_BRAND.icons.spotifyWhite);
     expect(json.icons.x_white).toBe(NEXO_EMAIL_BRAND.icons.xWhite);
     expect(json.icons.tiktok_white).toBe(NEXO_EMAIL_BRAND.icons.tiktokWhite);
+    expect(json.icons.spotify_white).toContain(
+      "nexo-music-distribution@main/public/brand/email/icon-spotify-white.png",
+    );
+    expect(json.icons.x_white).toContain(
+      "nexo-music-distribution@main/public/brand/email/icon-x-white.png",
+    );
     const logoUrls = readFileSync(join(ROOT, "emails/logo-urls.json"), "utf8");
     expect(logoUrls).toBe(readFileSync(join(ROOT, "emails/brand.json"), "utf8"));
   });

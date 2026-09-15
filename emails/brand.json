@@ -9,8 +9,8 @@
   "tiktok": "https://www.tiktok.com/@nexomusicdistribution",
   "email": "contact@nexomusicdistro.space",
   "icons": {
-    "spotify_white": "https://nexomusicdistribution.com/brand/email/icon-spotify-white.png",
-    "x_white": "https://nexomusicdistribution.com/brand/email/icon-x-white.png",
+    "spotify_white": "https://cdn.jsdelivr.net/gh/nexomusicdistributionltd/nexo-music-distribution@main/public/brand/email/icon-spotify-white.png",
+    "x_white": "https://cdn.jsdelivr.net/gh/nexomusicdistributionltd/nexo-music-distribution@main/public/brand/email/icon-x-white.png",
     "tiktok_white": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/ab90abbb-2019-4161-877c-b2cbb0b92826.png",
     "globe_white": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/a46131aa-a854-42f5-b65d-358571cea2fd.png",
     "mail_white": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/0a190c12-e78c-4f1c-a230-aead6a8ced17.png"
