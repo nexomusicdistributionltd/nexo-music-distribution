@@ -33,6 +33,7 @@ export function LoginOtpForm({
   const [maskedEmail, setMaskedEmail] = React.useState<string>("your email");
   const [loading, setLoading] = React.useState(false);
   const [starting, setStarting] = React.useState(true);
+  const [startFailed, setStartFailed] = React.useState(false);
   const [resendAt, setResendAt] = React.useState(0);
   const [now, setNow] = React.useState(() => Date.now());
 
@@ -68,9 +69,11 @@ export function LoginOtpForm({
         const json = (await res.json()) as StartPayload;
         if (cancelled) return;
         if (!res.ok || json.ok === false) {
+          setStartFailed(true);
           setError(json.error ?? "We could not send a verification code.");
           return;
         }
+        setStartFailed(false);
         applyStart(json);
       } catch {
         if (!cancelled) setError("We could not send a verification code.");
@@ -135,6 +138,7 @@ export function LoginOtpForm({
         if (json.resendAvailableAt) applyStart(json);
         return;
       }
+      setStartFailed(false);
       applyStart(json);
       setInfo("A new code was sent. Previous codes no longer work.");
     } catch {
@@ -149,15 +153,17 @@ export function LoginOtpForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <Alert title="Check your email">
-        We sent a 6-digit code to <strong>{maskedEmail}</strong>. It expires in 10 minutes.
-        Enter it here to finish signing in.
-      </Alert>
       {starting ? (
         <p className="text-small text-[var(--nexo-text-muted)]">Sending your verification code…</p>
       ) : null}
       {info ? <Alert variant="success">{info}</Alert> : null}
       {error ? <Alert variant="error">{error}</Alert> : null}
+      {!starting && !startFailed ? (
+        <Alert title="Check your email">
+          We sent a 6-digit code to <strong>{maskedEmail}</strong>. It expires in 10 minutes.
+          Enter it here to finish signing in.
+        </Alert>
+      ) : null}
 
       <label className="block space-y-1.5">
         <span className="text-label">Verification code</span>
@@ -173,10 +179,11 @@ export function LoginOtpForm({
           aria-label="6-digit verification code"
           className="text-center font-mono tracking-[0.4em] text-h3"
           required
+          disabled={starting || startFailed}
         />
       </label>
 
-      <Button type="submit" className="w-full rounded-full" disabled={loading || code.length !== 6}>
+      <Button type="submit" className="w-full rounded-full" disabled={loading || startFailed || code.length !== 6}>
         {loading ? "Verifying…" : "Verify and continue"}
       </Button>
 

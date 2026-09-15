@@ -10,9 +10,30 @@ Canonical site: **https://nexomusicdistribution.com**
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 3. Server-only (never `NEXT_PUBLIC_*`):
-   - `SUPABASE_SERVICE_ROLE_KEY` (webhooks / privileged jobs)
+   - `SUPABASE_SERVICE_ROLE_KEY` (**required** for login email OTP 2FA, webhooks / privileged jobs)
+   - Optional aliases if the canonical name is unset: `SUPABASE_SERVICE_ROLE`, `SUPABASE_SECRET_KEY`
+   - `NEXO_OTP_PEPPER` (recommended dedicated HMAC pepper; otherwise the service role key is used)
    - `PROVIDER_*`, `PAYMENT_*`, `ROYALTY_*`, `FX_*`, email/SMTP, webhook/cron secrets
 4. Unset integrations must surface as **NOT CONNECTED / UNAVAILABLE** — never invent LIVE DSP, PAID payouts, or SENT email.
+
+### Netlify production env (login OTP 2FA)
+
+Site settings → Environment variables → Production (then **redeploy**; env changes do not apply to an existing deploy).
+
+| Name | Required | Notes |
+|------|----------|--------|
+| `SUPABASE_SERVICE_ROLE_KEY` | **Yes** | Supabase Project Settings → API → `service_role` (secret). Never `NEXT_PUBLIC_*`. Health `/api/health` → `checks.serviceRole` must be `present`. |
+| `NEXO_OTP_PEPPER` | Recommended | Dedicated HMAC pepper. If unset, the service role key is used. |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` (or `SMTP_PASS` / `ZOHO_SMTP_APP_PASSWORD`) | **Yes** | Already present in production when `checks.email` is `CREDENTIALS_PRESENT`. |
+| `NEXT_PUBLIC_SUPABASE_URL` | **Yes** | Public project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **Yes** | Anon key — must not be copied into the service role slot (`checks.serviceRole` becomes `invalid`) |
+
+Apply login OTP migrations if health `checks.loginOtp.tables` is `missing`:
+
+- `supabase/migrations/20260915600000_login_otp_audit_enum.sql`
+- `supabase/migrations/20260915600001_login_otp_challenges.sql`
+
+OTP stores HMAC hashes only (RLS deny-all). The service role key is required to insert challenges and persist verified sessions. SMTP failure never grants access.
 
 ## Supabase Auth URL configuration (manual)
 
@@ -97,7 +118,7 @@ Rate-limited per IP. Service role required to persist.
 
 ## Health
 
-- `GET /api/health` — liveness + truthful integration flags (`CONNECTED` vs `NOT CONNECTED`).
+- `GET /api/health` — liveness + truthful integration flags (`CONNECTED` vs `NOT CONNECTED`). Includes `checks.loginOtp` (`serviceRole`, `smtp`, `pepper`, `tables`, `ready`).
 - `GET /api/health/ready` — DB reachable (anon). Returns 503 if Supabase env missing or DB unreachable.
 - Unconfigured providers are **not** reported as healthy/connected.
 

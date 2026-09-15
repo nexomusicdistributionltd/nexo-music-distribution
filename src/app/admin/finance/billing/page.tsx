@@ -4,6 +4,8 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { listBillingSubscriptionsAdmin } from "@/lib/billing/queries";
+import { getBillingEntitlements } from "@/lib/billing/entitlements";
+import { subscriptionRowToSnapshot } from "@/lib/billing/types";
 import type { BillingAccountType } from "@/lib/billing/plans";
 
 export const metadata: Metadata = {
@@ -97,13 +99,19 @@ export default async function AdminBillingPage({
                 <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2">Plan</th>
                 <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Access</th>
                 <th className="px-3 py-2">Interval</th>
                 <th className="px-3 py-2">Period end</th>
                 <th className="px-3 py-2">Paddle sub</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {rows.map((row) => {
+                const access = getBillingEntitlements({
+                  accountType: row.account_type,
+                  subscription: subscriptionRowToSnapshot(row),
+                });
+                return (
                 <tr key={row.id} className="border-b border-[var(--nexo-divider)]">
                   <td className="px-3 py-2">
                     <span className="font-mono text-caption">{row.user_id.slice(0, 8)}</span>
@@ -111,6 +119,12 @@ export default async function AdminBillingPage({
                   <td className="px-3 py-2">{row.account_type}</td>
                   <td className="px-3 py-2">{row.plan_id ?? "—"}</td>
                   <td className="px-3 py-2">{row.status}</td>
+                  <td className="px-3 py-2">
+                    {access.paidAccess ? "paid" : "grandfathered"}
+                    <span className="block text-caption text-[var(--nexo-text-muted)]">
+                      {access.source}
+                    </span>
+                  </td>
                   <td className="px-3 py-2">{row.interval ?? "—"}</td>
                   <td className="px-3 py-2 text-caption">
                     {row.current_period_ends_at
@@ -119,7 +133,8 @@ export default async function AdminBillingPage({
                   </td>
                   <td className="px-3 py-2 font-mono text-caption">{row.paddle_subscription_id}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

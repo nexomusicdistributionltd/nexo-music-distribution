@@ -2,6 +2,7 @@ export * from "./plans";
 export * from "./env";
 export * from "./eligibility";
 export * from "./entitlements";
+export * from "./feature-access";
 export * from "./country";
 export * from "./auth-return";
 export * from "./catalog";

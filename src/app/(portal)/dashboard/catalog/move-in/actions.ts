@@ -5,6 +5,9 @@ import { RequireAuth, assertCanMutateCatalog } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { discoverExternalCatalog } from "@/lib/migration/external-catalog";
 import type { ArtistProvidedCatalogItem, MoveInImportMethod } from "@/lib/migration/move-in";
+import { hasCatalogMigrationAccess } from "@/lib/billing/feature-access";
+import { safeGetEntitlementsForAuth } from "@/lib/billing/queries";
+import type { AuthUserContext } from "@/lib/auth/types";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -14,6 +17,19 @@ function revalidateMoveIn(id?: string) {
   revalidatePath("/dashboard/catalog/move-in");
   if (id) revalidatePath(`/dashboard/catalog/move-in/${id}`);
   revalidatePath("/admin/distribution/migration");
+}
+
+async function requireCatalogMigrationEntitlement(
+  ctx: AuthUserContext
+): Promise<{ ok: false; error: string } | null> {
+  const entitlements = await safeGetEntitlementsForAuth(ctx);
+  if (!hasCatalogMigrationAccess(entitlements)) {
+    return {
+      ok: false,
+      error: "Catalog migration requires a verified Pro plan. Completing checkout in the browser is not enough.",
+    };
+  }
+  return null;
 }
 
 async function loadMigrationBundle(migrationId: string) {
@@ -42,6 +58,8 @@ export async function createOwnMigrationAction(input: {
 }): Promise<ActionResult> {
   const ctx = await RequireAuth({ redirectTo: "/login" });
   assertCanMutateCatalog(ctx);
+  const denied = await requireCatalogMigrationEntitlement(ctx);
+  if (denied) return denied;
   if (!input.previousDistributor?.trim()) {
     return { ok: false, error: "Previous distributor is required." };
   }
@@ -65,6 +83,8 @@ export async function importOwnMigrationItemsAction(input: {
 }): Promise<ActionResult> {
   const ctx = await RequireAuth({ redirectTo: "/login" });
   assertCanMutateCatalog(ctx);
+  const denied = await requireCatalogMigrationEntitlement(ctx);
+  if (denied) return denied;
   if (!input.items?.length) {
     return { ok: false, error: "No items to import." };
   }
@@ -109,6 +129,8 @@ export async function setMigrationStepAction(input: {
 }): Promise<ActionResult> {
   const ctx = await RequireAuth({ redirectTo: "/login" });
   assertCanMutateCatalog(ctx);
+  const denied = await requireCatalogMigrationEntitlement(ctx);
+  if (denied) return denied;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("set_own_catalog_migration_step", {
     p_migration_id: input.migrationId,
@@ -124,6 +146,8 @@ export async function setMigrationStepAction(input: {
 export async function moveInMigrationAction(migrationId: string): Promise<ActionResult> {
   const ctx = await RequireAuth({ redirectTo: "/login" });
   assertCanMutateCatalog(ctx);
+  const denied = await requireCatalogMigrationEntitlement(ctx);
+  if (denied) return denied;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("move_in_own_catalog_migration", {
     p_migration_id: migrationId,
@@ -138,7 +162,15 @@ export async function moveInMigrationAction(migrationId: string): Promise<Action
 export async function tryExternalDiscoverAction(
   source: "spotify" | "apple_music" | "other"
 ) {
-  await RequireAuth({ redirectTo: "/login" });
-  // Real adapter only — never invents catalog
+  const ctx = await RequireAuth({ redirectTo: "/login" });
+  const denied = await requireCatalogMigrationEntitlement(ctx);
+  if (denied) {
+    return {
+      available: false as const,
+      source: "unconfigured" as const,
+      reason: denied.error,
+      items: [] as const,
+    };
+  }
   return discoverExternalCatalog({ source });
 }

@@ -6,6 +6,10 @@ import { MoveInClient } from "@/components/migration/MoveInClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { defaultUnavailableCatalog } from "@/lib/migration/external-catalog";
+import { CatalogMigrationLocked } from "@/components/billing/CatalogMigrationLocked";
+import { hasCatalogMigrationAccess } from "@/lib/billing/feature-access";
+import { safeGetEntitlementsForAuth } from "@/lib/billing/queries";
+import { billingAccountTypeFromRoles } from "@/lib/billing/eligibility";
 
 export const metadata: Metadata = {
   title: "Move In Catalog",
@@ -14,6 +18,8 @@ export const metadata: Metadata = {
 
 export default async function MoveInCatalogPage() {
   const ctx = await RequireAuth({ redirectTo: "/login" });
+  const entitlements = await safeGetEntitlementsForAuth(ctx);
+  const entitled = hasCatalogMigrationAccess(entitlements);
   const supabase = await createClient();
   const { data: migrations } = await supabase
     .from("catalog_migrations")
@@ -50,13 +56,20 @@ export default async function MoveInCatalogPage() {
         </p>
       </div>
 
-      {!discovery.available ? (
+      {!entitled ? (
+        <CatalogMigrationLocked
+          accountType={
+            entitlements.accountType ??
+            billingAccountTypeFromRoles(ctx.roles, ctx.profile?.account_type)
+          }
+        />
+      ) : !discovery.available ? (
         <Alert variant="warning" title="External catalog API">
           {discovery.reason} You can still import via JSON, CSV, or manual metadata.
         </Alert>
       ) : null}
 
-      <MoveInClient initialMigration={latest} initialItems={items} />
+      {entitled ? <MoveInClient initialMigration={latest} initialItems={items} /> : null}
 
       {(migrations?.length ?? 0) > 0 ? (
         <Card>

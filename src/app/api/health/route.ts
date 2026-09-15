@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_SITE_URL, getSiteUrl, isForbiddenAuthHost } from "@/lib/site-url";
 import { getSupabaseEnv } from "@/lib/supabase/env";
-import { getServiceRoleKey } from "@/lib/supabase/admin";
+import { createServiceClient, getServiceRoleKeyStatus } from "@/lib/supabase/admin";
+import { loginOtpHealthSnapshot } from "@/lib/auth/login-otp/env";
 import { readProviderConfig } from "@/lib/provider/config";
 import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { isZohoSmtpConfigured } from "@/lib/email/zoho-smtp";
@@ -26,6 +27,8 @@ export async function GET() {
     process.env.FX_PROVIDER_NAME?.trim() && process.env.FX_PROVIDER_API_KEY?.trim()
   );
   const emailConfigured = isZohoSmtpConfigured();
+  const loginOtp = loginOtpHealthSnapshot(process.env, emailConfigured);
+  const serviceRoleStatus = getServiceRoleKeyStatus();
 
   let db: "ok" | "unreachable" | "unconfigured" = "unconfigured";
   if (env.configured) {
@@ -56,6 +59,23 @@ export async function GET() {
     site = DEFAULT_SITE_URL;
   }
 
+  let loginOtpTables: "ok" | "missing" | "skipped" | "error" = "skipped";
+  if (serviceRoleStatus === "present") {
+    try {
+      const service = createServiceClient();
+      const { error } = await service.from("login_otp_challenges").select("id").limit(1);
+      if (!error) {
+        loginOtpTables = "ok";
+      } else if (/does not exist|schema cache|relation .*login_otp/i.test(error.message)) {
+        loginOtpTables = "missing";
+      } else {
+        loginOtpTables = "error";
+      }
+    } catch {
+      loginOtpTables = "error";
+    }
+  }
+
   const body = {
     ok: true,
     status: "up",
@@ -64,7 +84,7 @@ export async function GET() {
     site,
     checks: {
       supabaseEnv: env.configured ? "configured" : "missing",
-      serviceRole: getServiceRoleKey() ? "present" : "absent",
+      serviceRole: serviceRoleStatus === "present" ? "present" : serviceRoleStatus === "invalid_anon" ? "invalid" : "absent",
       database: db,
       storageBuckets: "configured_in_migrations",
       distributionProvider: provider.connected ? "CONNECTED" : "NOT CONNECTED",
@@ -73,6 +93,13 @@ export async function GET() {
       fxProvider: fxConfigured ? "CREDENTIALS_PRESENT" : "NOT CONNECTED",
       email: emailConfigured ? "CREDENTIALS_PRESENT" : "NOT CONNECTED",
       publishingProCmo: "NOT CONNECTED",
+      loginOtp: {
+        ready: loginOtp.sendReady && loginOtpTables === "ok",
+        serviceRole: loginOtp.serviceRole,
+        smtp: loginOtp.smtp,
+        pepper: loginOtp.pepper,
+        tables: loginOtpTables,
+      },
     },
   };
 

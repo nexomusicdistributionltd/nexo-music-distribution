@@ -88,6 +88,18 @@ export async function getEntitlementsForAuth(ctx: AuthUserContext): Promise<Bill
   });
 }
 
+/** Never throw from dashboard rendering — fall back to grandfathered starter access. */
+export async function safeGetEntitlementsForAuth(ctx: AuthUserContext): Promise<BillingEntitlements> {
+  try {
+    return await getEntitlementsForAuth(ctx);
+  } catch {
+    return getBillingEntitlements({
+      accountType: billingAccountTypeFromRoles(ctx.roles, ctx.profile?.account_type),
+      subscription: null,
+    });
+  }
+}
+
 export type AdminBillingFilters = {
   status?: string | null;
   accountType?: BillingAccountType | null;

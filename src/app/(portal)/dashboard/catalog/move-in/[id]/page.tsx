@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { RequireAuth } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { MoveInClient } from "@/components/migration/MoveInClient";
+import { CatalogMigrationLocked } from "@/components/billing/CatalogMigrationLocked";
+import { hasCatalogMigrationAccess } from "@/lib/billing/feature-access";
+import { safeGetEntitlementsForAuth } from "@/lib/billing/queries";
+import { billingAccountTypeFromRoles } from "@/lib/billing/eligibility";
 
 export const metadata: Metadata = {
   title: "Move In details",
@@ -16,6 +20,8 @@ export default async function MoveInDetailPage({
 }) {
   const { id } = await params;
   const ctx = await RequireAuth({ redirectTo: "/login" });
+  const entitlements = await safeGetEntitlementsForAuth(ctx);
+  const entitled = hasCatalogMigrationAccess(entitlements);
   const supabase = await createClient();
   const { data: migration } = await supabase
     .from("catalog_migrations")
@@ -36,10 +42,19 @@ export default async function MoveInDetailPage({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="text-h2">{migration.title || "Move In Catalog"}</h1>
-      <MoveInClient
-        initialMigration={migration}
-        initialItems={(items ?? []) as Parameters<typeof MoveInClient>[0]["initialItems"]}
-      />
+      {!entitled ? (
+        <CatalogMigrationLocked
+          accountType={
+            entitlements.accountType ??
+            billingAccountTypeFromRoles(ctx.roles, ctx.profile?.account_type)
+          }
+        />
+      ) : (
+        <MoveInClient
+          initialMigration={migration}
+          initialItems={(items ?? []) as Parameters<typeof MoveInClient>[0]["initialItems"]}
+        />
+      )}
     </div>
   );
 }

@@ -25,6 +25,8 @@ import {
   listRosterArtists,
 } from "@/lib/roster/queries";
 import { createClient } from "@/lib/supabase/server";
+import { PlanFeaturesPanel } from "@/components/billing/PlanFeaturesPanel";
+import { safeGetEntitlementsForAuth } from "@/lib/billing/queries";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -35,6 +37,7 @@ export default async function DashboardPage() {
   const ctx = await RequireRole(["artist", "label"]);
   const isLabel = ctx.roles.includes("label");
   const name = ctx.profile?.display_name || ctx.profile?.full_name || "there";
+  const entitlements = await safeGetEntitlementsForAuth(ctx);
 
   let counts = {
     total: 0,
@@ -112,6 +115,8 @@ export default async function DashboardPage() {
         {loadError ? (
           <ErrorState title="Dashboard unavailable" description={loadError} retryHref="/dashboard" />
         ) : null}
+
+        <PlanFeaturesPanel entitlements={entitlements} />
 
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <CompactStat label="Roster" value={roster.length} href="/app/artists" />
@@ -200,6 +205,8 @@ export default async function DashboardPage() {
       {loadError ? (
         <ErrorState title="Dashboard unavailable" description={loadError} retryHref="/dashboard" />
       ) : null}
+
+      <PlanFeaturesPanel entitlements={entitlements} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CompactStat label="Releases" value={counts.total} href="/dashboard/releases" />
