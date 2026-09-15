@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
@@ -431,7 +432,7 @@ export function ReleaseWizard({
                   {rosterArtists.length === 0 ? (
                     <p className="text-small text-[var(--nexo-text-muted)]">
                       No roster artists yet.{" "}
-                      <a href="/app/artists/new" className="underline">Create an artist</a> first.
+                      <Link href="/app/artists/new" className="underline">Create an artist</Link> first.
                     </p>
                   ) : null}
                 </div>

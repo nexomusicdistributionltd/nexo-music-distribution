@@ -365,3 +365,11 @@ create policy "ddex_messages_staff_write" on public.ddex_messages
   for all to authenticated
   using (public.is_staff(auth.uid()))
   with check (public.is_staff(auth.uid()));
+
+drop policy if exists "artist_profiles_delete_roster" on public.artist_profiles;
+create policy "artist_profiles_delete_roster" on public.artist_profiles
+  for delete to authenticated
+  using (
+    user_id is null
+    and public.label_manages_artist(id)
+  );
