@@ -1,19 +1,30 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ProviderBanner } from "@/components/releases/ProviderBanner";
+import { CoverArt } from "@/components/workspace/CoverArt";
+import { CompactStat } from "@/components/workspace/CompactStat";
+import { PageIntro } from "@/components/workspace/PageIntro";
 import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
-import { StatCard } from "@/components/releases/StatCard";
-import { Alert } from "@/components/ui/Alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { RequireRole } from "@/lib/auth/guards";
+import { artistNameOf } from "@/lib/auth/types";
+import { formatMinorUnits } from "@/lib/finance/money";
+import { mapArtworkUrls } from "@/lib/releases/artwork";
 import {
   countUnreadNotifications,
   getReleaseCounts,
+  listActionNeededReleases,
   listNotifications,
   listRecentReleases,
 } from "@/lib/releases/queries";
 import type { ReleaseStatus } from "@/lib/releases/types";
+import {
+  countReleasesForArtists,
+  getArtistProfileForUser,
+  getLabelProfileForUser,
+  listRosterArtists,
+} from "@/lib/roster/queries";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -22,6 +33,7 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const ctx = await RequireRole(["artist", "label"]);
+  const isLabel = ctx.roles.includes("label");
   const name = ctx.profile?.display_name || ctx.profile?.full_name || "there";
 
   let counts = {
@@ -33,128 +45,337 @@ export default async function DashboardPage() {
     rejectedAction: 0,
   };
   let recent: Awaited<ReturnType<typeof listRecentReleases>> = [];
+  let actionNeeded: Awaited<ReturnType<typeof listActionNeededReleases>> = [];
   let notifications: Awaited<ReturnType<typeof listNotifications>> = [];
   let unread = 0;
   let loadError: string | null = null;
+  let earnings: Array<{ currency: string; available_minor: number; pending_minor: number }> = [];
+  let ticketCount = 0;
 
   try {
-    [counts, recent, notifications, unread] = await Promise.all([
+    const supabase = await createClient();
+    const [c, rec, act, notes, unreadCount, balances, tickets] = await Promise.all([
       getReleaseCounts(ctx.userId),
-      listRecentReleases(ctx.userId, 5),
+      listRecentReleases(ctx.userId, 6),
+      listActionNeededReleases(ctx.userId, 6),
       listNotifications(ctx.userId, 5),
       countUnreadNotifications(ctx.userId),
+      supabase.from("ledger_balances").select("currency, available_minor, pending_minor").eq("owner_user_id", ctx.userId),
+      supabase
+        .from("support_tickets")
+        .select("id", { count: "exact", head: true })
+        .eq("requester_user_id", ctx.userId)
+        .in("status", ["open", "pending", "awaiting_user"]),
     ]);
+    counts = c;
+    recent = rec;
+    actionNeeded = act;
+    notifications = notes;
+    unread = unreadCount;
+    earnings = (balances.data ?? []) as typeof earnings;
+    ticketCount = tickets.count ?? 0;
   } catch (e) {
     loadError = e instanceof Error ? e.message : "Could not load dashboard data.";
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-h2">Dashboard</h1>
-          <p className="mt-1 text-small text-[var(--nexo-text-muted)]">Welcome back, {name}.</p>
-        </div>
-        <Link
-          href="/dashboard/releases/new"
-          className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-small font-medium text-[var(--nexo-primary-fg)]"
-        >
-          Create release
-        </Link>
-      </div>
+  const artwork = await mapArtworkUrls(recent.map((r) => r.id)).catch(() => ({} as Record<string, string | null>));
 
-      <ProviderBanner connected={false} />
+  if (isLabel) {
+    const label = await getLabelProfileForUser(ctx.userId);
+    const roster = label?.id ? await listRosterArtists(label.id) : [];
+    const rosterCounts = await countReleasesForArtists(roster.map((a) => a.id));
 
-      {loadError ? (
-        <Alert variant="error" title="Dashboard data unavailable">
-          {loadError} Ensure Batch 4 migrations have been applied.
-        </Alert>
-      ) : null}
+    return (
+      <div className="space-y-8">
+        <PageIntro
+          eyebrow="Label"
+          title={label?.label_name || name}
+          description="Roster, catalog, and distribution for this label account — not an artist login."
+          actions={
+            <>
+              <Link
+                href="/app/artists/new"
+                className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] border border-[var(--nexo-outline-border)] px-4 text-small font-medium"
+              >
+                Create artist
+              </Link>
+              <Link
+                href="/dashboard/releases/new"
+                className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-small font-medium [color:var(--nexo-primary-fg)]"
+              >
+                New release
+              </Link>
+            </>
+          }
+        />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Drafts" value={counts.drafts} />
-        <StatCard label="Submitted / QC" value={counts.submittedQc} />
-        <StatCard label="Approved" value={counts.approved} hint="Not delivered" />
-        <StatCard label="Delivered / Live" value={counts.deliveredLive} hint="Requires provider" />
-        <StatCard label="Action required" value={counts.rejectedAction} />
-      </div>
+        {loadError ? (
+          <ErrorState title="Dashboard unavailable" description={loadError} retryHref="/dashboard" />
+        ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Recent releases</CardTitle>
-            <Link href="/dashboard/releases" className="text-caption underline-offset-4 hover:underline">
-              View all
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {recent.length === 0 ? (
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <CompactStat label="Roster" value={roster.length} href="/app/artists" />
+          <CompactStat label="Catalog" value={counts.total} href="/dashboard/releases" />
+          <CompactStat
+            label="Needs action"
+            value={counts.rejectedAction}
+            href="/dashboard/releases?status=changes_requested"
+            tone={counts.rejectedAction ? "warning" : "default"}
+          />
+          <CompactStat label="In QC" value={counts.submittedQc} href="/dashboard/releases?status=submitted" />
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-5">
+          <section className="space-y-3 xl:col-span-3">
+            <SectionHead title="Roster" href="/app/artists" />
+            {roster.length === 0 ? (
               <EmptyState
-                title="No releases yet"
-                description="Create your first single, EP, or album to get started."
+                title="No artists on the roster"
+                description="Create a managed artist profile. This does not convert the Label account or create a login."
                 action={
                   <Link
-                    href="/dashboard/releases/new"
-                    className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-small font-medium text-[var(--nexo-primary-fg)]"
+                    href="/app/artists/new"
+                    className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-small font-medium [color:var(--nexo-primary-fg)]"
                   >
-                    Create release
+                    Create artist
                   </Link>
                 }
               />
             ) : (
-              <ul className="divide-y divide-[var(--nexo-divider)]">
-                {recent.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <Link
-                        href={`/dashboard/releases/${r.id}`}
-                        className="truncate font-medium hover:underline"
-                      >
-                        {r.title || "Untitled draft"}
-                      </Link>
-                      <p className="text-caption text-[var(--nexo-text-muted)]">
-                        {r.primary_artist_name} · {r.release_type}
-                      </p>
-                    </div>
-                    <ReleaseStatusBadge status={r.status as ReleaseStatus} />
+              <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
+                {roster.slice(0, 8).map((a) => (
+                  <li key={a.id}>
+                    <Link
+                      href={`/app/artists/${a.id}`}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--nexo-ghost-hover)]"
+                    >
+                      <CoverArt src={a.avatar_url} title={a.artist_name || a.stage_name} size={36} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-small font-medium">
+                          {a.artist_name || a.stage_name}
+                        </span>
+                        <span className="text-caption text-[var(--nexo-text-muted)]">
+                          {rosterCounts[a.id] ?? 0} release{(rosterCounts[a.id] ?? 0) === 1 ? "" : "s"}
+                        </span>
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>
             )}
-          </CardContent>
-        </Card>
+          </section>
+          <OverviewSide
+            recent={recent}
+            artwork={artwork}
+            actionNeeded={actionNeeded}
+            notifications={notifications}
+            unread={unread}
+            earnings={earnings}
+            ticketCount={ticketCount}
+          />
+        </div>
+      </div>
+    );
+  }
 
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Notifications {unread ? `(${unread} unread)` : ""}</CardTitle>
-            <Link
-              href="/dashboard/notifications"
-              className="text-caption underline-offset-4 hover:underline"
-            >
-              View all
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {notifications.length === 0 ? (
-              <EmptyState
-                title="No notifications"
-                description="Status changes and QC updates will appear here."
-              />
-            ) : (
-              <ul className="divide-y divide-[var(--nexo-divider)]">
-                {notifications.map((n) => (
-                  <li key={n.id} className="py-3">
-                    <p className={`text-small ${n.read_at ? "text-[var(--nexo-text-muted)]" : "font-medium"}`}>
-                      {n.title}
-                    </p>
-                    <p className="text-caption text-[var(--nexo-text-muted)]">{n.body}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+  const artist = await getArtistProfileForUser(ctx.userId);
+  const identity = artist ? artistNameOf(artist) : name;
+
+  return (
+    <div className="space-y-8">
+      <PageIntro
+        eyebrow="Artist"
+        title={identity}
+        description="Your catalog, QC status, and royalties — no estimated streams or invented revenue."
+        actions={
+          <Link
+            href="/dashboard/releases/new"
+            className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-small font-medium [color:var(--nexo-primary-fg)]"
+          >
+            New release
+          </Link>
+        }
+      />
+
+      {loadError ? (
+        <ErrorState title="Dashboard unavailable" description={loadError} retryHref="/dashboard" />
+      ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <CompactStat label="Releases" value={counts.total} href="/dashboard/releases" />
+        <CompactStat label="Drafts" value={counts.drafts} href="/dashboard/releases?status=draft" />
+        <CompactStat
+          label="Needs action"
+          value={counts.rejectedAction}
+          href="/dashboard/releases?status=changes_requested"
+          tone={counts.rejectedAction ? "warning" : "default"}
+        />
+        <CompactStat label="In QC" value={counts.submittedQc} href="/dashboard/releases?status=submitted" />
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-5">
+        <section className="space-y-3 xl:col-span-3">
+          <SectionHead title="Recent releases" href="/dashboard/releases" />
+          {recent.length === 0 ? (
+            <EmptyState
+              title="No releases yet"
+              description="Create a single, EP, or album. Listener and revenue charts stay empty until real statements exist."
+              action={
+                <Link
+                  href="/dashboard/releases/new"
+                  className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-small font-medium [color:var(--nexo-primary-fg)]"
+                >
+                  New release
+                </Link>
+              }
+            />
+          ) : (
+            <ReleaseFeed items={recent} artwork={artwork} />
+          )}
+        </section>
+        <OverviewSide
+          recent={[]}
+          artwork={artwork}
+          actionNeeded={actionNeeded}
+          notifications={notifications}
+          unread={unread}
+          earnings={earnings}
+          ticketCount={ticketCount}
+          hideRecent
+        />
       </div>
     </div>
+  );
+}
+
+function SectionHead({ title, href }: { title: string; href: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <h3 className="text-h4">{title}</h3>
+      <Link href={href} className="text-caption text-[var(--nexo-text-muted)] underline-offset-4 hover:underline">
+        View all
+      </Link>
+    </div>
+  );
+}
+
+function ReleaseFeed({
+  items,
+  artwork,
+}: {
+  items: Awaited<ReturnType<typeof listRecentReleases>>;
+  artwork: Record<string, string | null>;
+}) {
+  return (
+    <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
+      {items.map((r) => (
+        <li key={r.id}>
+          <Link
+            href={`/dashboard/releases/${r.id}`}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--nexo-ghost-hover)]"
+          >
+            <CoverArt src={artwork[r.id]} title={r.title || "Untitled"} size={44} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-small font-medium">{r.title || "Untitled draft"}</span>
+              <span className="text-caption text-[var(--nexo-text-muted)]">
+                {r.primary_artist_name} · {r.release_type}
+              </span>
+            </span>
+            <ReleaseStatusBadge status={r.status as ReleaseStatus} />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function OverviewSide({
+  recent,
+  artwork,
+  actionNeeded,
+  notifications,
+  unread,
+  earnings,
+  ticketCount,
+  hideRecent,
+}: {
+  recent: Awaited<ReturnType<typeof listRecentReleases>>;
+  artwork: Record<string, string | null>;
+  actionNeeded: Awaited<ReturnType<typeof listActionNeededReleases>>;
+  notifications: Awaited<ReturnType<typeof listNotifications>>;
+  unread: number;
+  earnings: Array<{ currency: string; available_minor: number; pending_minor: number }>;
+  ticketCount: number;
+  hideRecent?: boolean;
+}) {
+  return (
+    <aside className="space-y-6 xl:col-span-2">
+      {!hideRecent && recent.length > 0 ? (
+        <section className="space-y-3">
+          <SectionHead title="Recent catalog" href="/dashboard/releases" />
+          <ReleaseFeed items={recent} artwork={artwork} />
+        </section>
+      ) : null}
+
+      <section className="space-y-3">
+        <h3 className="text-h4">Needs attention</h3>
+        {actionNeeded.length === 0 ? (
+          <p className="text-small text-[var(--nexo-text-muted)]">Nothing waiting on you.</p>
+        ) : (
+          <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
+            {actionNeeded.map((r) => (
+              <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <Link href={`/dashboard/releases/${r.id}`} className="truncate text-small font-medium hover:underline">
+                  {r.title || "Untitled"}
+                </Link>
+                <ReleaseStatusBadge status={r.status as ReleaseStatus} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <SectionHead title={unread ? `Messages (${unread} unread)` : "Notifications"} href="/dashboard/notifications" />
+        {notifications.length === 0 ? (
+          <p className="text-small text-[var(--nexo-text-muted)]">No notifications yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {notifications.map((n) => (
+              <li key={n.id} className={`text-small ${n.read_at ? "text-[var(--nexo-text-muted)]" : "font-medium"}`}>
+                {n.title}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-caption text-[var(--nexo-text-muted)]">
+          Open tickets: {ticketCount} ·{" "}
+          <Link href="/support" className="underline-offset-4 hover:underline">
+            Support
+          </Link>
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <SectionHead title="Royalties" href="/earnings" />
+        {earnings.length === 0 ? (
+          <p className="text-small text-[var(--nexo-text-muted)]">
+            No ledger balances yet. Nothing is estimated.
+          </p>
+        ) : (
+          <ul className="space-y-2 text-small">
+            {earnings.map((b) => (
+              <li key={b.currency} className="tabular-nums">
+                {formatMinorUnits(b.available_minor, b.currency)} available
+                <span className="text-[var(--nexo-text-muted)]">
+                  {" "}
+                  · {formatMinorUnits(b.pending_minor, b.currency)} pending
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </aside>
   );
 }

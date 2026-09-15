@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
-import { PageHeader } from "@/components/admin/PageHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
+import { PageIntro } from "@/components/workspace/PageIntro";
+import { ReleaseCatalogTable } from "@/components/releases/ReleaseCatalogTable";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { listAdminReleases } from "@/lib/admin/queries";
+import { mapArtworkUrls } from "@/lib/releases/artwork";
 import type { ReleaseStatus } from "@/lib/releases/types";
+import { RELEASE_STATUSES } from "@/lib/releases/types";
+import { buildQueryHref } from "@/components/workspace/QueryPagination";
 
 export const metadata: Metadata = {
   title: "Admin releases",
@@ -20,92 +24,70 @@ export default async function AdminReleasesPage({
   await RequireAdmin();
   const sp = await searchParams;
   const status = (sp.status as ReleaseStatus | "all" | undefined) ?? "all";
-  const { items, total, page, pageCount } = await listAdminReleases({
-    q: sp.q,
-    status,
-    page: Number(sp.page || 1),
-    fromDate: sp.from,
-    toDate: sp.to,
-  });
+  const page = Number(sp.page || 1);
+  let items: Awaited<ReturnType<typeof listAdminReleases>>["items"] = [];
+  let total = 0;
+  let pageCount = 1;
+  let loadError: string | null = null;
+
+  try {
+    const result = await listAdminReleases({
+      q: sp.q,
+      status,
+      page,
+      fromDate: sp.from,
+      toDate: sp.to,
+    });
+    items = result.items;
+    total = result.total;
+    pageCount = result.pageCount;
+  } catch (e) {
+    loadError = e instanceof Error ? e.message : "Could not load releases.";
+  }
+
+  const artwork = await mapArtworkUrls(items.map((r: { id: string }) => r.id)).catch(
+    () => ({} as Record<string, string | null>)
+  );
+  const query = { q: sp.q, status, from: sp.from, to: sp.to };
 
   return (
-    <div>
-      <PageHeader
-        title="Releases"
-        description={`${total} release${total === 1 ? "" : "s"} in catalog.`}
-        showSearch
-        searchQ={sp.q}
-      />
-      <form className="mb-4 flex flex-wrap gap-2 text-small" method="get">
-        {sp.q ? <input type="hidden" name="q" value={sp.q} /> : null}
-        {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
-        <label>
-          From{" "}
-          <input type="date" name="from" defaultValue={sp.from ?? ""} className="rounded border border-[var(--nexo-border)] bg-transparent px-2 py-1" />
+    <div className="space-y-6">
+      <PageIntro title="Catalog" description={`${total} release${total === 1 ? "" : "s"}`} />
+      <form className="flex flex-wrap items-end gap-2 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-3 text-small" method="get">
+        <Input name="q" placeholder="Search title or artist" defaultValue={sp.q ?? ""} className="max-w-xs" aria-label="Search releases" />
+        <Select name="status" defaultValue={status} className="max-w-[12rem]" aria-label="Status">
+          <option value="all">All statuses</option>
+          {RELEASE_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s.replace(/_/g, " ")}
+            </option>
+          ))}
+        </Select>
+        <label className="text-caption text-[var(--nexo-text-muted)]">
+          From
+          <input type="date" name="from" defaultValue={sp.from ?? ""} className="ml-2 h-10 rounded-[var(--nexo-radius)] border border-[var(--nexo-input-border)] bg-[var(--nexo-input-bg)] px-2" />
         </label>
-        <label>
-          To{" "}
-          <input type="date" name="to" defaultValue={sp.to ?? ""} className="rounded border border-[var(--nexo-border)] bg-transparent px-2 py-1" />
+        <label className="text-caption text-[var(--nexo-text-muted)]">
+          To
+          <input type="date" name="to" defaultValue={sp.to ?? ""} className="ml-2 h-10 rounded-[var(--nexo-radius)] border border-[var(--nexo-input-border)] bg-[var(--nexo-input-bg)] px-2" />
         </label>
-        <button type="submit" className="underline-offset-4 hover:underline">Filter</button>
+        <button type="submit" className="h-10 rounded-[var(--nexo-radius)] border border-[var(--nexo-outline-border)] px-4 font-medium">
+          Apply
+        </button>
       </form>
-      {items.length === 0 ? (
-        <EmptyState
-          title="No releases found"
-          description="Submitted and catalog releases will appear here."
-        />
+      {loadError ? (
+        <ErrorState title="Catalog unavailable" description={loadError} retryHref="/admin/releases" />
       ) : (
-        <div className="overflow-x-auto rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
-          <table className="min-w-full text-left text-small">
-            <thead className="bg-[var(--nexo-elevated)] text-caption uppercase text-[var(--nexo-text-muted)]">
-              <tr>
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Artist</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((r: {
-                id: string;
-                title: string;
-                primary_artist_name: string;
-                status: ReleaseStatus;
-                updated_at: string;
-              }) => (
-                <tr key={r.id} className="border-t border-[var(--nexo-border)]">
-                  <td className="px-4 py-3">
-                    <Link className="font-medium underline-offset-4 hover:underline" href={`/admin/releases/${r.id}`}>
-                      {r.title || "Untitled"}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--nexo-text-secondary)]">
-                    {r.primary_artist_name || "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ReleaseStatusBadge status={r.status} />
-                  </td>
-                  <td className="px-4 py-3 text-[var(--nexo-text-muted)]">
-                    {new Date(r.updated_at).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex items-center justify-between border-t border-[var(--nexo-border)] px-4 py-3 text-caption text-[var(--nexo-text-muted)]">
-            <span>
-              Page {page} / {pageCount}
-            </span>
-            <div className="flex gap-2">
-              {page > 1 ? (
-                <Link href={`/admin/releases?page=${page - 1}`}>Previous</Link>
-              ) : null}
-              {page < pageCount ? (
-                <Link href={`/admin/releases?page=${page + 1}`}>Next</Link>
-              ) : null}
-            </div>
-          </div>
-        </div>
+        <ReleaseCatalogTable
+          items={items}
+          artwork={artwork}
+          basePath="/admin/releases"
+          page={page}
+          pageCount={pageCount}
+          hrefForPage={(p) => buildQueryHref("/admin/releases", query, { page: p })}
+          emptyTitle="No releases found"
+          emptyDescription="Submitted and catalog releases will appear here."
+        />
       )}
     </div>
   );

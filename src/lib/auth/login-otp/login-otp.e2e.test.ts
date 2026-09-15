@@ -30,12 +30,11 @@ describe("logout + OTP e2e wiring (all roles)", () => {
     expect(helper).not.toContain("router.push");
     expect(helper).not.toContain("window.location.origin");
 
-    const topbar = read("src/components/app/AppTopbar.tsx");
-    const sidebar = read("src/components/app/AppSidebar.tsx");
-    expect(topbar).toContain("performClientLogout");
-    expect(topbar).toContain("Sign out");
-    expect(sidebar).toContain("performClientLogout");
-    expect(sidebar).toContain("Sign out");
+    const logoutBtn = read("src/components/app/LogoutButton.tsx");
+    expect(logoutBtn).toContain("performClientLogout");
+    expect(logoutBtn).toContain("Sign out");
+    expect(read("src/components/app/AppTopbar.tsx")).toContain("LogoutButton");
+    expect(read("src/components/app/AppSidebar.tsx")).toContain("LogoutButton");
 
     const portal = read("src/app/(portal)/layout.tsx");
     const admin = read("src/app/admin/layout.tsx");

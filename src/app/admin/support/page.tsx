@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { RequireAdmin } from "@/lib/auth/guards";
-import { PageHeader } from "@/components/admin/PageHeader";
+import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/server";
 import { TicketPanel } from "@/components/admin/TicketPanel";
@@ -38,8 +38,8 @@ export default async function AdminSupportPage({
 
   return (
     <div>
-      <PageHeader
-        title="Support tickets"
+      <PageIntro
+        title="Support inbox"
         description="Tickets, messages, and attachments. Internal notes stay staff-only."
       />
       {(tickets ?? []).length === 0 ? (

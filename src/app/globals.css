@@ -329,6 +329,10 @@
   .animate-rise {
     animation: none;
   }
+  .nexo-motion {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* Premium reveal / hover helpers (prefers-reduced-motion handled in Reveal) */
