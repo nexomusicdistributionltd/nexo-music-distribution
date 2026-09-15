@@ -1,8 +1,9 @@
 /**
  * Canonical Nexo subscription catalog.
- * Paddle is the authority for checkout amounts. These USD catalog values
- * document the intended Sandbox products; they are never used to format
- * prices on /pricing or to grant entitlements.
+ * Paddle is the authority for checkout amounts. These catalog values
+ * document the intended Sandbox products and approved country unit-price
+ * overrides. They are never used to grant entitlements. /pricing may show
+ * configured list prices only when PricePreview cannot run.
  */
 
 export type BillingAccountType = "artist" | "label";
@@ -51,6 +52,88 @@ export const CATALOG_USD_MINOR: Record<
 
 export const BILLING_TRIAL_DAYS = 7;
 
+export type OverrideCountryCode = "GB" | "IE" | "AU";
+export type OverrideCurrencyCode = "GBP" | "EUR" | "AUD";
+
+export type ApprovedOverrideMarket = {
+  countryCode: OverrideCountryCode;
+  currencyCode: OverrideCurrencyCode;
+};
+
+/**
+ * Approved Paddle country unit-price override markets.
+ * EUR applies to Ireland (IE) only — not the full Eurozone.
+ */
+export const APPROVED_OVERRIDE_MARKETS: readonly ApprovedOverrideMarket[] = [
+  { countryCode: "GB", currencyCode: "GBP" },
+  { countryCode: "IE", currencyCode: "EUR" },
+  { countryCode: "AU", currencyCode: "AUD" },
+] as const;
+
+export const APPROVED_OVERRIDE_CURRENCIES: readonly OverrideCurrencyCode[] = ["GBP", "EUR", "AUD"];
+
+/** Amounts are approved. Do not POST these to Paddle until the Sandbox API key is provided. */
+export const COUNTRY_PRICE_OVERRIDES_APPROVED = true;
+export const COUNTRY_PRICE_OVERRIDES_CREATED_IN_PADDLE = false;
+
+/** @deprecated Use APPROVED_OVERRIDE_CURRENCIES. */
+export const PENDING_OVERRIDE_CURRENCIES = APPROVED_OVERRIDE_CURRENCIES;
+
+/**
+ * Approved Paddle `unit_price.amount` minor units by country.
+ * These are explicit catalog amounts, not frontend FX conversions.
+ */
+export const CATALOG_COUNTRY_OVERRIDE_MINOR: Record<
+  PaidTierId,
+  Record<BillingInterval, Record<OverrideCountryCode, string>>
+> = {
+  artist_pro: {
+    month: { GB: "799", IE: "949", AU: "1499" },
+    year: { GB: "7900", IE: "9400", AU: "14900" },
+  },
+  label_starter: {
+    month: { GB: "1599", IE: "1899", AU: "2999" },
+    year: { GB: "15900", IE: "18900", AU: "29900" },
+  },
+  label_pro: {
+    month: { GB: "3999", IE: "4799", AU: "7499" },
+    year: { GB: "39900", IE: "47900", AU: "74900" },
+  },
+};
+
+export type PaddleUnitPriceOverride = {
+  countryCodes: [OverrideCountryCode];
+  unitPrice: { amount: string; currencyCode: OverrideCurrencyCode };
+};
+
+export function currencyForOverrideCountry(country: OverrideCountryCode): OverrideCurrencyCode {
+  const market = APPROVED_OVERRIDE_MARKETS.find((m) => m.countryCode === country);
+  if (!market) throw new Error(`Unknown override country ${country}`);
+  return market.currencyCode;
+}
+
+export function isOverrideCountryCode(value: string | null | undefined): value is OverrideCountryCode {
+  return value === "GB" || value === "IE" || value === "AU";
+}
+
+/**
+ * Paddle Billing price.unitPriceOverrides payload for later Sandbox catalog creation.
+ * Do not send this to the Paddle API until the Sandbox key is available.
+ */
+export function paddleUnitPriceOverridesFor(
+  tierId: PaidTierId,
+  interval: BillingInterval
+): PaddleUnitPriceOverride[] {
+  const amounts = CATALOG_COUNTRY_OVERRIDE_MINOR[tierId][interval];
+  return APPROVED_OVERRIDE_MARKETS.map((market) => ({
+    countryCodes: [market.countryCode],
+    unitPrice: {
+      amount: amounts[market.countryCode],
+      currencyCode: market.currencyCode,
+    },
+  }));
+}
+
 export const PRICE_ID_ENV: Record<PlanConfigId, string> = {
   artist_pro_monthly: "PADDLE_PRICE_ARTIST_PRO_MONTHLY",
   artist_pro_annual: "PADDLE_PRICE_ARTIST_PRO_ANNUAL",
@@ -65,13 +148,6 @@ export const PRODUCT_ID_ENV: Record<PaidTierId, string> = {
   label_starter: "PADDLE_PRODUCT_LABEL_STARTER",
   label_pro: "PADDLE_PRODUCT_LABEL_PRO",
 };
-
-/**
- * Country unit-price overrides are structured for a later catalog pass.
- * Do NOT create GBP/EUR/AUD overrides in Paddle until amounts are approved.
- */
-export const COUNTRY_PRICE_OVERRIDES_APPROVED = false;
-export const PENDING_OVERRIDE_CURRENCIES = ["GBP", "EUR", "AUD"] as const;
 
 const ARTIST_STARTER_FEATURES = [
   "Release delivery to Nexo’s distribution workflow",
@@ -132,6 +208,65 @@ export function catalogUsdDisplayMap(): Record<PaidTierId, PriceIdPair> {
       year: catalogUsdDisplay("label_pro", "year"),
     },
   };
+}
+
+function formatCatalogMinorDisplay(minorUnits: string, prefix: string): string {
+  if (!/^\d+$/.test(minorUnits)) {
+    throw new Error(`Invalid catalog minor units: ${minorUnits}`);
+  }
+  const n = Number.parseInt(minorUnits, 10);
+  const major = n / 100;
+  const body = Number.isInteger(major) ? String(major) : major.toFixed(2);
+  return `${prefix}${body}`;
+}
+
+export function formatOverrideDisplay(minorUnits: string, currency: OverrideCurrencyCode): string {
+  if (currency === "GBP") return formatCatalogMinorDisplay(minorUnits, "£");
+  if (currency === "EUR") return formatCatalogMinorDisplay(minorUnits, "€");
+  return formatCatalogMinorDisplay(minorUnits, "A$");
+}
+
+export function catalogOverrideDisplay(
+  tierId: PaidTierId,
+  interval: BillingInterval,
+  country: OverrideCountryCode
+): string {
+  const minor = CATALOG_COUNTRY_OVERRIDE_MINOR[tierId][interval][country];
+  return formatOverrideDisplay(minor, currencyForOverrideCountry(country));
+}
+
+export function catalogOverrideDisplayMap(): Record<
+  OverrideCountryCode,
+  Record<PaidTierId, PriceIdPair>
+> {
+  const paid: PaidTierId[] = ["artist_pro", "label_starter", "label_pro"];
+  const countries: OverrideCountryCode[] = ["GB", "IE", "AU"];
+  const out = {} as Record<OverrideCountryCode, Record<PaidTierId, PriceIdPair>>;
+  for (const country of countries) {
+    out[country] = {
+      artist_pro: { month: "", year: "" },
+      label_starter: { month: "", year: "" },
+      label_pro: { month: "", year: "" },
+    };
+    for (const tierId of paid) {
+      out[country][tierId] = {
+        month: catalogOverrideDisplay(tierId, "month", country),
+        year: catalogOverrideDisplay(tierId, "year", country),
+      };
+    }
+  }
+  return out;
+}
+
+export function configuredListPrice(input: {
+  tierId: PaidTierId;
+  interval: BillingInterval;
+  country: string | null;
+}): string {
+  if (isOverrideCountryCode(input.country)) {
+    return catalogOverrideDisplay(input.tierId, input.interval, input.country);
+  }
+  return catalogUsdDisplay(input.tierId, input.interval);
 }
 
 export function readPriceIdsFromEnv(

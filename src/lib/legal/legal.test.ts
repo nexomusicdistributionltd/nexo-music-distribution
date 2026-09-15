@@ -69,6 +69,9 @@ describe("public legal and pricing pages", () => {
       expect(blob).toContain(social.href.toLowerCase());
     }
     expect(blob).not.toMatch(/lorem ipsum|not published yet|\[insert|todo:|coming soon/);
+    expect(flatten(TERMS_SECTIONS)).toContain("£7.99");
+    expect(flatten(TERMS_SECTIONS)).toContain("ireland");
+    expect(flatten(TERMS_SECTIONS)).toContain("a$14.99");
   });
 
   it("pricing page shows USD catalog fallback without requiring Paddle", () => {
@@ -76,7 +79,7 @@ describe("public legal and pricing pages", () => {
     expect(pricing).toContain("Music Distribution Pricing for Artists & Labels");
     expect(pricing).toContain("$9.99");
     const table = read("src/components/billing/PricingTable.tsx");
-    expect(table).toContain("displayUsd");
+    expect(table).toContain("displayCountry");
     expect(table).toContain("formattedTotals.total");
     expect(table).not.toMatch(/Price via Paddle checkout/);
     expect(table).not.toMatch(/Paddle catalog pending/);

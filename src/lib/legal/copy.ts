@@ -44,7 +44,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
     heading: "5. Subscriptions and billing",
     paragraphs: [
       "Artist Starter is free and does not create a Paddle subscription. Artist Pro, Label Starter, and Label Pro are paid subscriptions. Published USD list prices are: Artist Pro $9.99 per month or $99 per year; Label Starter $19.99 per month or $199 per year; Label Pro $49.99 per month or $499 per year.",
-      "Paid plans include a 7-day trial on monthly and annual intervals unless checkout displays a different trial. Paddle is the merchant of record: it collects payment details, calculates applicable taxes, and issues invoices. Localized totals at checkout may differ from USD list prices because of tax and currency conversion.",
+      "Approved Paddle country unit-price overrides (not a frontend currency conversion) are: United Kingdom (GBP) Artist Pro £7.99 / £79, Label Starter £15.99 / £159, Label Pro £39.99 / £399; Ireland (EUR) Artist Pro €9.49 / €94, Label Starter €18.99 / €189, Label Pro €47.99 / €479; Australia (AUD) Artist Pro A$14.99 / A$149, Label Starter A$29.99 / A$299, Label Pro A$74.99 / A$749. Monthly then annual. Other countries use the USD catalog price plus tax calculated by Paddle.",
+      "Paid plans include a 7-day trial on monthly and annual intervals unless checkout displays a different trial. Paddle is the merchant of record: it collects payment details, calculates applicable taxes, and issues invoices. Localized totals at checkout may also include tax.",
       "Paid access is granted only after Paddle confirms the subscription (typically via a verified webhook). Completing the checkout overlay on your device is not by itself a grant of entitlements. You authorise recurring billing until you cancel.",
     ],
   },
