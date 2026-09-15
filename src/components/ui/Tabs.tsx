@@ -64,8 +64,10 @@ export function TabsTrigger({
       type="button"
       role="tab"
       aria-selected={active}
+      tabIndex={active ? 0 : -1}
       className={cn(
         "inline-flex h-8 items-center rounded-[var(--nexo-radius-sm)] px-3 text-nav transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)]",
         active
           ? "bg-[var(--nexo-surface)] text-[var(--nexo-text)] shadow-[var(--nexo-shadow-sm)]"
           : "text-[var(--nexo-text-muted)] hover:text-[var(--nexo-text)]",

@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { RequireAuth } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageIntro } from "@/components/workspace/PageIntro";
 import { CreateTicketForm, TicketReplyForm } from "@/components/admin/PortalSupportClient";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Support",
@@ -47,25 +49,33 @@ export default async function SupportPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-h2">Support</h1>
-        <p className="text-small text-[var(--nexo-text-muted)]">Tickets and private attachments.</p>
-      </div>
+      <PageIntro
+        title="Messages"
+        description="Support tickets with Nexo. No invented AI replies."
+      />
       <CreateTicketForm />
       {(tickets ?? []).length === 0 ? (
-        <EmptyState title="No tickets yet" />
+        <EmptyState title="No tickets yet" description="Open a ticket and staff will reply here." />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,18rem)_1fr]">
+          <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
             {(tickets ?? []).map((t) => (
-              <li key={t.id} className="p-3 text-small">
-                <Link href={`/support?ticket=${t.id}`} className="font-medium">{t.subject}</Link>
-                <p className="text-caption text-[var(--nexo-text-muted)]">{t.status}</p>
+              <li key={t.id}>
+                <Link
+                  href={`/support?ticket=${t.id}`}
+                  className={cn(
+                    "block px-3 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]",
+                    selectedId === t.id && "bg-[var(--nexo-elevated)]"
+                  )}
+                >
+                  <span className="font-medium">{t.subject}</span>
+                  <p className="text-caption text-[var(--nexo-text-muted)]">{t.status}</p>
+                </Link>
               </li>
             ))}
           </ul>
           {selectedId ? (
-            <div className="space-y-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
+            <div className="space-y-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4">
               <ul className="max-h-80 space-y-2 overflow-y-auto text-small">
                 {messages.map((m) => (
                   <li key={m.id} className="rounded-[var(--nexo-radius)] bg-[var(--nexo-elevated)] p-2">

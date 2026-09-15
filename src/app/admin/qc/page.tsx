@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
-import { PageHeader } from "@/components/admin/PageHeader";
+import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { QueryPagination } from "@/components/workspace/QueryPagination";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { listQcQueue } from "@/lib/admin/queries";
 import { QcQueueActions } from "@/components/admin/QcQueueActions";
 import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "QC queue",
@@ -35,45 +38,48 @@ export default async function QcQueuePage({
     userId: ctx.userId,
     page: Number(sp.page || 1),
   });
+  const pageCount = Math.max(1, Math.ceil(total / 25));
+
+  const chips: Array<[string, string, boolean]> = [
+    ["/admin/qc?status=all", "All open", !sp.status || sp.status === "all"],
+    ["/admin/qc?status=queued", "Queued", sp.status === "queued"],
+    ["/admin/qc?status=claimed", "Claimed", sp.status === "claimed"],
+    ["/admin/qc?status=in_review", "In review", sp.status === "in_review"],
+    ["/admin/qc?assigned=unassigned", "Unassigned", assigned === "unassigned"],
+    ["/admin/qc?assigned=me", "Mine", assigned === "me"],
+  ];
 
   return (
-    <div>
-      <PageHeader
-        title="QC work queue"
-        description="Claim items, set priority, and review releases. Race-safe claim via database lock."
+    <div className="space-y-6">
+      <PageIntro
+        title="QC queue"
+        description="Claim, prioritize, approve, reject, or request changes. Hidden nav is not authorization — this page still requires staff roles."
       />
-      <div className="mb-4 flex flex-wrap gap-2 text-small">
-        {[
-          ["all", "All open"],
-          ["queued", "Queued"],
-          ["claimed", "Claimed"],
-          ["in_review", "In review"],
-        ].map(([v, label]) => (
+      <div className="flex flex-wrap gap-2 text-small">
+        {chips.map(([href, label, active]) => (
           <Link
-            key={v}
-            href={`/admin/qc?status=${v}`}
-            className="rounded-full border border-[var(--nexo-border)] px-3 py-1 hover:bg-[var(--nexo-ghost-hover)]"
+            key={href}
+            href={href}
+            className={cn(
+              "rounded-full border px-3 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)]",
+              active
+                ? "border-[var(--nexo-text)] bg-[var(--nexo-elevated)]"
+                : "border-[var(--nexo-border)] hover:bg-[var(--nexo-ghost-hover)]"
+            )}
           >
             {label}
           </Link>
         ))}
-        <Link
-          href="/admin/qc?assigned=unassigned"
-          className="rounded-full border border-[var(--nexo-border)] px-3 py-1"
-        >
-          Unassigned
-        </Link>
-        <Link
-          href="/admin/qc?assigned=me"
-          className="rounded-full border border-[var(--nexo-border)] px-3 py-1"
-        >
-          Mine
-        </Link>
         {["urgent", "high", "normal", "low"].map((priority) => (
           <Link
             key={priority}
             href={`/admin/qc?priority=${priority}`}
-            className="rounded-full border border-[var(--nexo-border)] px-3 py-1 capitalize"
+            className={cn(
+              "rounded-full border px-3 py-1 capitalize",
+              sp.priority === priority
+                ? "border-[var(--nexo-text)] bg-[var(--nexo-elevated)]"
+                : "border-[var(--nexo-border)] hover:bg-[var(--nexo-ghost-hover)]"
+            )}
           >
             {priority}
           </Link>
@@ -86,47 +92,75 @@ export default async function QcQueuePage({
         />
       ) : (
         <div className="space-y-3">
-          <p className="text-caption text-[var(--nexo-text-muted)]">
-            {total} item(s) · page {page}
-          </p>
-          <QcQueueActions items={items.map((i: { id: string }) => i.id)} />
-          <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
-            {items.map((item: {
-              id: string;
-              priority: string;
-              status: string;
-              assigned_to: string | null;
-              release_id: string;
-              releases: {
-                title: string;
-                primary_artist_name: string;
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-caption text-[var(--nexo-text-muted)]">
+              {total} item{total === 1 ? "" : "s"} · page {page}
+            </p>
+            <QcQueueActions items={items.map((i: { id: string }) => i.id)} />
+          </div>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Release</TH>
+                <TH>Artist</TH>
+                <TH>Priority</TH>
+                <TH>Queue</TH>
+                <TH>Status</TH>
+                <TH>Actions</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {items.map((item: {
+                id: string;
+                priority: string;
                 status: string;
-                submitted_at: string | null;
-              } | null;
-            }) => (
-              <li key={item.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <Link
-                    href={`/admin/releases/${item.release_id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {item.releases?.title || "Untitled"}
-                  </Link>
-                  <p className="text-caption text-[var(--nexo-text-muted)]">
-                    {item.releases?.primary_artist_name || "—"} · priority {item.priority} ·{" "}
+                assigned_to: string | null;
+                release_id: string;
+                releases: {
+                  title: string;
+                  primary_artist_name: string;
+                  status: string;
+                } | null;
+              }) => (
+                <TR key={item.id}>
+                  <TD>
+                    <Link
+                      href={`/admin/releases/${item.release_id}`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {item.releases?.title || "Untitled"}
+                    </Link>
+                  </TD>
+                  <TD>{item.releases?.primary_artist_name || "—"}</TD>
+                  <TD className="capitalize">{item.priority}</TD>
+                  <TD>
                     {item.status}
                     {item.assigned_to ? " · assigned" : " · unassigned"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {item.releases?.status ? (
-                    <ReleaseStatusBadge status={item.releases.status as never} />
-                  ) : null}
-                  <QcQueueActions items={[item.id]} single />
-                </div>
-              </li>
-            ))}
-          </ul>
+                  </TD>
+                  <TD>
+                    {item.releases?.status ? (
+                      <ReleaseStatusBadge status={item.releases.status as never} />
+                    ) : null}
+                  </TD>
+                  <TD>
+                    <QcQueueActions items={[item.id]} single />
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+          <QueryPagination
+            page={page}
+            pageCount={pageCount}
+            hrefForPage={(p) => {
+              const params = new URLSearchParams();
+              if (sp.status) params.set("status", sp.status);
+              if (sp.priority) params.set("priority", sp.priority);
+              if (assigned !== "all") params.set("assigned", assigned);
+              params.set("page", String(p));
+              return `/admin/qc?${params.toString()}`;
+            }}
+          />
         </div>
       )}
     </div>

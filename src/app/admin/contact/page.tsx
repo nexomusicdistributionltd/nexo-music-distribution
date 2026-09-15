@@ -1,53 +1,73 @@
 import type { Metadata } from "next";
 import { RequireAdmin } from "@/lib/auth/guards";
-import { PageHeader } from "@/components/admin/PageHeader";
+import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/server";
 import { ContactInboxActions } from "@/components/admin/ContactInboxActions";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Contact inbox",
   robots: { index: false, follow: false },
 };
 
-export default async function ContactInboxPage() {
+export default async function ContactInboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string }>;
+}) {
   await RequireAdmin();
+  const sp = await searchParams;
   const supabase = await createClient();
   const { data } = await supabase
     .from("contact_messages")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(100);
+  const items = data ?? [];
+  const selected = items.find((m) => m.id === sp.id) ?? items[0] ?? null;
 
   return (
-    <div>
-      <PageHeader
-        title="Contact inbox"
-        description="Messages from the public contact form."
-      />
-      {(data ?? []).length === 0 ? (
+    <div className="space-y-6">
+      <PageIntro title="Inquiries" description="Public contact form. Replies use existing staff tools — no new email provider." />
+      {items.length === 0 ? (
         <EmptyState title="Inbox empty" description="Public contact submissions will appear here." />
       ) : (
-        <ul className="space-y-3">
-          {(data ?? []).map((m) => (
-            <li
-              key={m.id}
-              className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4"
-            >
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,18rem)_1fr]">
+          <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
+            {items.map((m) => (
+              <li key={m.id}>
+                <a
+                  href={`/admin/contact?id=${m.id}`}
+                  className={cn(
+                    "block px-3 py-3 hover:bg-[var(--nexo-ghost-hover)]",
+                    selected?.id === m.id && "bg-[var(--nexo-elevated)]"
+                  )}
+                >
+                  <p className="truncate text-small font-medium">{m.subject}</p>
+                  <p className="truncate text-caption text-[var(--nexo-text-muted)]">
+                    {m.name} · {m.status}
+                  </p>
+                </a>
+              </li>
+            ))}
+          </ul>
+          {selected ? (
+            <article className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium">{m.subject}</p>
+                  <h2 className="text-h4">{selected.subject}</h2>
                   <p className="text-caption text-[var(--nexo-text-muted)]">
-                    {m.name} · {m.email} · {m.status} ·{" "}
-                    {new Date(m.created_at).toLocaleString()}
+                    {selected.name} · {selected.email} · {selected.status} ·{" "}
+                    {new Date(selected.created_at).toLocaleString()}
                   </p>
-                  <p className="mt-2 whitespace-pre-wrap text-small">{m.message}</p>
                 </div>
-                <ContactInboxActions id={m.id} status={m.status} />
+                <ContactInboxActions id={selected.id} status={selected.status} />
               </div>
-            </li>
-          ))}
-        </ul>
+              <p className="mt-4 whitespace-pre-wrap text-small">{selected.message}</p>
+            </article>
+          ) : null}
+        </div>
       )}
     </div>
   );

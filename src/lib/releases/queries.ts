@@ -141,6 +141,19 @@ export async function listRecentReleases(userId: string, limit = 5) {
   return (data ?? []) as ReleaseRow[];
 }
 
+export async function listActionNeededReleases(userId: string, limit = 8) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("releases")
+    .select("*")
+    .eq("owner_user_id", userId)
+    .in("status", ["changes_requested", "rejected", "failed", "takedown_requested"])
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as ReleaseRow[];
+}
+
 export async function listNotifications(userId: string, limit = 30) {
   const supabase = await createClient();
   const { data, error } = await supabase

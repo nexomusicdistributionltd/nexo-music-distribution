@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
-import { PageHeader } from "@/components/admin/PageHeader";
+import { PageIntro } from "@/components/workspace/PageIntro";
+import { CoverArt } from "@/components/workspace/CoverArt";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
 
@@ -22,7 +24,7 @@ export default async function AdminLabelsPage({
   const supabase = await createClient();
   let query = supabase
     .from("label_profiles")
-    .select("*")
+    .select("id, label_name, business_email, country, logo_url, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
   if (q) {
@@ -32,24 +34,37 @@ export default async function AdminLabelsPage({
   if (error) throw error;
 
   return (
-    <div>
-      <PageHeader title="Labels" description="Label directory." showSearch searchQ={sp.q} />
+    <div className="space-y-6">
+      <PageIntro title="Labels" description="Label directory from real profiles." />
       {(data ?? []).length === 0 ? (
         <EmptyState title="No labels found" />
       ) : (
-        <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
-          {(data ?? []).map((row) => (
-            <li key={row.id} className="px-4 py-3">
-              <Link
-                href={`/admin/labels/${row.id}`}
-                className="font-medium underline-offset-4 hover:underline"
-              >
-                {row.label_name}
-              </Link>
-              <p className="text-caption text-[var(--nexo-text-muted)]">{row.business_email}</p>
-            </li>
-          ))}
-        </ul>
+        <Table>
+          <THead>
+            <TR>
+              <TH>Label</TH>
+              <TH>Email</TH>
+              <TH>Country</TH>
+            </TR>
+          </THead>
+          <TBody>
+            {(data ?? []).map((row) => (
+              <TR key={row.id}>
+                <TD>
+                  <Link
+                    href={`/admin/labels/${row.id}`}
+                    className="flex items-center gap-3 font-medium underline-offset-4 hover:underline"
+                  >
+                    <CoverArt src={row.logo_url} title={row.label_name} size={32} />
+                    {row.label_name}
+                  </Link>
+                </TD>
+                <TD>{row.business_email}</TD>
+                <TD>{row.country || "—"}</TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
       )}
     </div>
   );

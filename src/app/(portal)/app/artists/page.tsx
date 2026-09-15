@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Alert } from "@/components/ui/Alert";
-import { RosterList } from "@/components/roster/RosterList";
+import { CoverArt } from "@/components/workspace/CoverArt";
+import { PageIntro } from "@/components/workspace/PageIntro";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Input } from "@/components/ui/Input";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { RequireRole } from "@/lib/auth/guards";
 import {
-  countReleasesForArtist,
+  countReleasesForArtists,
   getLabelProfileIdForUser,
   listRosterArtists,
 } from "@/lib/roster/queries";
@@ -14,38 +17,101 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function LabelArtistsPage() {
+export default async function LabelArtistsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const ctx = await RequireRole("label");
+  const sp = await searchParams;
+  const q = (sp.q ?? "").trim().toLowerCase();
   const labelId = await getLabelProfileIdForUser(ctx.userId);
   const artists = labelId ? await listRosterArtists(labelId) : [];
-  const releaseCounts: Record<string, number> = {};
-  await Promise.all(
-    artists.map(async (a) => {
-      releaseCounts[a.id] = await countReleasesForArtist(a.id);
-    })
-  );
+  const filtered = q
+    ? artists.filter((a) =>
+        `${a.artist_name} ${a.stage_name} ${a.country ?? ""} ${(a.genres ?? []).join(" ")}`
+          .toLowerCase()
+          .includes(q)
+      )
+    : artists;
+  const releaseCounts = await countReleasesForArtists(filtered.map((a) => a.id));
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-h2">Artists</h1>
-          <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
-            Manage your label roster. Creating artists does not change your Label account type or
-            roles.
-          </p>
-        </div>
-        <Link
-          href="/app/artists/new"
-          className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-[length:0.875rem] font-medium [color:var(--nexo-primary-fg)] hover:bg-[var(--nexo-primary-hover)]"
-        >
-          Create artist
-        </Link>
-      </div>
-      <Alert>
-        Label roster tools live here. The public For Artists page remains at <strong>/artists</strong>.
-      </Alert>
-      <RosterList artists={artists} releaseCounts={releaseCounts} />
+      <PageIntro
+        eyebrow="Label"
+        title="Roster"
+        description="Managed artist profiles for this label. Creating an artist does not change the Label account type or create a login."
+        actions={
+          <Link
+            href="/app/artists/new"
+            className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-[length:0.875rem] font-medium [color:var(--nexo-primary-fg)] hover:bg-[var(--nexo-primary-hover)]"
+          >
+            Create artist
+          </Link>
+        }
+      />
+      <form method="get" className="max-w-sm">
+        <Input name="q" defaultValue={sp.q ?? ""} placeholder="Search roster" aria-label="Search roster" />
+      </form>
+      {filtered.length === 0 ? (
+        <EmptyState
+          title={q ? "No matching artists" : "No roster artists yet"}
+          description={
+            q
+              ? "Try a different search."
+              : "Create an artist to attach releases. This does not convert your Label account."
+          }
+          action={
+            q ? undefined : (
+              <Link
+                href="/app/artists/new"
+                className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-4 text-small font-medium [color:var(--nexo-primary-fg)]"
+              >
+                Create artist
+              </Link>
+            )
+          }
+        />
+      ) : (
+        <Table>
+          <THead>
+            <TR>
+              <TH>Artist</TH>
+              <TH>Location</TH>
+              <TH>Releases</TH>
+              <TH></TH>
+            </TR>
+          </THead>
+          <TBody>
+            {filtered.map((a) => (
+              <TR key={a.id}>
+                <TD>
+                  <Link href={`/app/artists/${a.id}`} className="flex items-center gap-3 font-medium hover:underline">
+                    <CoverArt src={a.avatar_url} title={a.artist_name || a.stage_name} size={36} />
+                    <span>
+                      {a.artist_name || a.stage_name}
+                      <span className="block text-caption font-normal text-[var(--nexo-text-muted)]">
+                        {(a.genres ?? []).slice(0, 3).join(", ") || "Managed roster artist"}
+                      </span>
+                    </span>
+                  </Link>
+                </TD>
+                <TD>{a.country || "—"}</TD>
+                <TD>{releaseCounts[a.id] ?? 0}</TD>
+                <TD className="text-right">
+                  <Link
+                    href={`/app/artists/${a.id}`}
+                    className="text-caption underline-offset-4 hover:underline"
+                  >
+                    Open
+                  </Link>
+                </TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
+      )}
     </div>
   );
 }

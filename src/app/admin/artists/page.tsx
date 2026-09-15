@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
-import { PageHeader } from "@/components/admin/PageHeader";
+import { PageIntro } from "@/components/workspace/PageIntro";
+import { CoverArt } from "@/components/workspace/CoverArt";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
 import { artistNameOf } from "@/lib/auth/types";
@@ -23,7 +25,7 @@ export default async function AdminArtistsPage({
   const supabase = await createClient();
   let query = supabase
     .from("artist_profiles")
-    .select("*")
+    .select("id, stage_name, artist_name, country, avatar_url, created_at, user_id")
     .order("created_at", { ascending: false })
     .limit(100);
   if (q) {
@@ -34,23 +36,39 @@ export default async function AdminArtistsPage({
   const items = data ?? [];
 
   return (
-    <div>
-      <PageHeader title="Artists" description="Artist directory." showSearch searchQ={sp.q} />
+    <div className="space-y-6">
+      <PageIntro title="Artists" description="Artist directory from real profiles." />
       {items.length === 0 ? (
-        <EmptyState title="No artists found" description="Artist profiles will appear after signup." />
+        <EmptyState title="No artists found" description="Artist profiles will appear after signup or roster create." />
       ) : (
-        <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
-          {items.map((row) => (
-            <li key={row.id} className="px-4 py-3">
-              <Link
-                href={`/admin/artists/${row.id}`}
-                className="font-medium underline-offset-4 hover:underline"
-              >
-                {artistNameOf(row)}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <Table>
+          <THead>
+            <TR>
+              <TH>Artist</TH>
+              <TH>Account</TH>
+              <TH>Country</TH>
+            </TR>
+          </THead>
+          <TBody>
+            {items.map((row) => (
+              <TR key={row.id}>
+                <TD>
+                  <Link
+                    href={`/admin/artists/${row.id}`}
+                    className="flex items-center gap-3 font-medium underline-offset-4 hover:underline"
+                  >
+                    <CoverArt src={row.avatar_url} title={artistNameOf(row)} size={32} />
+                    {artistNameOf(row)}
+                  </Link>
+                </TD>
+                <TD className="text-caption text-[var(--nexo-text-muted)]">
+                  {row.user_id ? "Linked user" : "Roster only"}
+                </TD>
+                <TD>{row.country || "—"}</TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
       )}
     </div>
   );

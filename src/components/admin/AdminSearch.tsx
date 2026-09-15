@@ -5,13 +5,19 @@ import * as React from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
-export function AdminSearch({ initialQ = "" }: { initialQ?: string }) {
+export function AdminSearch({
+  initialQ = "",
+  compact = false,
+}: {
+  initialQ?: string;
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [q, setQ] = React.useState(initialQ);
 
   return (
     <form
-      className="flex w-full max-w-xl gap-2"
+      className={compact ? "flex w-full gap-2" : "flex w-full max-w-xl gap-2"}
       onSubmit={(e) => {
         e.preventDefault();
         const trimmed = q.trim();
@@ -26,12 +32,15 @@ export function AdminSearch({ initialQ = "" }: { initialQ?: string }) {
       <Input
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Search releases, artists, labels, users…"
+        placeholder={compact ? "Search catalog…" : "Search releases, artists, labels, users…"}
         aria-label="Admin search"
+        className={compact ? "h-9" : undefined}
       />
-      <Button type="submit" variant="secondary">
-        Search
-      </Button>
+      {compact ? null : (
+        <Button type="submit" variant="secondary">
+          Search
+        </Button>
+      )}
     </form>
   );
 }
