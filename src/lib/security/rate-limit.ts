@@ -97,6 +97,8 @@ export const RATE_LIMITS = {
   webhook: { limit: 120, windowMs: 60_000 },
   adminMutation: { limit: 60, windowMs: 60_000 },
   authSensitive: { limit: 20, windowMs: 15 * 60_000 },
+  otpGenerate: { limit: 8, windowMs: 15 * 60_000 },
+  otpVerify: { limit: 12, windowMs: 15 * 60_000 },
 } as const;
 
 /** Test helper */

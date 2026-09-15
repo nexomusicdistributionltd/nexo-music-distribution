@@ -47,7 +47,13 @@ export async function writeAudit(
     | "status_change"
     | "signup"
     | "password_reset_request"
-    | "email_verified",
+    | "email_verified"
+    | "login_password_success"
+    | "otp_sent"
+    | "otp_resent"
+    | "otp_failed"
+    | "otp_verified"
+    | "otp_expired",
   metadata: Record<string, unknown> = {}
 ) {
   try {
@@ -58,6 +64,10 @@ export async function writeAudit(
     delete safe.token;
     delete safe.access_token;
     delete safe.refresh_token;
+    delete safe.otp;
+    delete safe.otp_code;
+    delete safe.code_hash;
+    delete safe.plaintext_otp;
     await supabase.rpc("write_audit_log", {
       p_action: action,
       p_entity_type: "user",

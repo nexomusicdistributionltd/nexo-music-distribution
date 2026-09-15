@@ -5,6 +5,8 @@ import {
   updateSession,
 } from "@/lib/supabase/middleware";
 import { getSupabaseEnv } from "@/lib/supabase/env";
+import { LOGIN_OTP_VERIFY_PATH, NEXO_OTP_CHALLENGE_COOKIE } from "@/lib/auth/login-otp/constants";
+import { isOtpPendingAllowedPath } from "@/lib/auth/login-otp/paths";
 
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -45,6 +47,17 @@ function blockedLoginUrl(request: NextRequest) {
   return url;
 }
 
+function expireNexoOtpCookie(response: NextResponse) {
+  response.cookies.set({
+    name: NEXO_OTP_CHALLENGE_COOKIE,
+    value: "",
+    maxAge: 0,
+    path: "/",
+    sameSite: "lax",
+  });
+  return response;
+}
+
 /**
  * Sign out + expire auth cookies, then send the user to /login?reason=account-blocked.
  * Must not copy a live session onto the redirect (that caused a login↔dashboard loop).
@@ -54,6 +67,11 @@ async function clearSessionAndRedirectBlocked(
   supabase: NonNullable<Awaited<ReturnType<typeof updateSession>>["supabase"]>,
   getResponse: () => NextResponse
 ) {
+  try {
+    await supabase.rpc("nexo_login_otp_invalidate_current");
+  } catch {
+    /* ignore */
+  }
   try {
     await supabase.auth.signOut({ scope: "global" });
   } catch {
@@ -73,6 +91,7 @@ async function clearSessionAndRedirectBlocked(
   // Apply signOut mutations (expired/empty auth cookies), then force-expire leftovers
   applyCookies(getResponse(), res);
   expireSupabaseAuthCookies(request, res);
+  expireNexoOtpCookie(res);
   return res;
 }
 
@@ -85,6 +104,18 @@ function redirectWithSession(
   return res;
 }
 
+async function isOtpVerified(
+  supabase: NonNullable<Awaited<ReturnType<typeof updateSession>>["supabase"]>
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc("nexo_login_otp_verified");
+    if (error) return false;
+    return data === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const { configured } = getSupabaseEnv();
@@ -92,6 +123,7 @@ export async function middleware(request: NextRequest) {
 
   const isProtected = startsWithAny(pathname, PROTECTED_PREFIXES);
   const isAuthPage = AUTH_PAGES.includes(pathname);
+  const isVerifyPage = pathname === LOGIN_OTP_VERIFY_PATH || pathname.startsWith(`${LOGIN_OTP_VERIFY_PATH}/`);
 
   if (isProtected && !configured) {
     const url = request.nextUrl.clone();
@@ -131,6 +163,18 @@ export async function middleware(request: NextRequest) {
       return redirectWithSession(url, getResponse);
     }
 
+    if (verified && !isOtpPendingAllowedPath(pathname)) {
+      const otpOk = await isOtpVerified(supabase);
+      if (!otpOk) {
+        const url = request.nextUrl.clone();
+        url.pathname = LOGIN_OTP_VERIFY_PATH;
+        url.search = "";
+        url.searchParams.set("from", pathname);
+        url.searchParams.set("reason", "otp-required");
+        return redirectWithSession(url, getResponse);
+      }
+    }
+
     // Role-based admin gate (coarse — layouts re-check)
     if (pathname === "/admin" || pathname.startsWith("/admin/")) {
       const { data: roles } = await supabase
@@ -151,7 +195,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Signed-in visitors on /nexo-admin — admin/super_admin → /admin;
+  // Signed-in visitors on /nexo-admin — admin/super_admin → /admin only after OTP;
   // support and other roles stay on the page (AccessDenied UI). Do NOT treat like AUTH_PAGES.
   if (user && supabase && pathname === "/nexo-admin") {
     const { data: profile } = await supabase
@@ -181,12 +225,40 @@ export async function middleware(request: NextRequest) {
       .eq("user_id", user.id);
     const list = (roles ?? []).map((r) => r.role as string);
     if (list.includes("admin") || list.includes("super_admin")) {
+      const otpOk = await isOtpVerified(supabase);
       const url = request.nextUrl.clone();
+      if (!otpOk) {
+        url.pathname = LOGIN_OTP_VERIFY_PATH;
+        url.search = "";
+        url.searchParams.set("from", "/admin");
+        url.searchParams.set("entry", "nexo-admin");
+        return redirectWithSession(url, getResponse);
+      }
       url.pathname = "/admin";
       url.search = "";
       return redirectWithSession(url, getResponse);
     }
 
+    return getResponse();
+  }
+
+  if (user && supabase && isVerifyPage) {
+    const otpOk = await isOtpVerified(supabase);
+    if (otpOk) {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      const list = (roles ?? []).map((r) => r.role as string);
+      const url = request.nextUrl.clone();
+      if (list.includes("admin") || list.includes("super_admin") || list.includes("support")) {
+        url.pathname = "/admin";
+      } else {
+        url.pathname = "/dashboard";
+      }
+      url.search = "";
+      return redirectWithSession(url, getResponse);
+    }
     return getResponse();
   }
 
@@ -208,14 +280,27 @@ export async function middleware(request: NextRequest) {
       return clearSessionAndRedirectBlocked(request, supabase, getResponse);
     }
 
+    if (!user.email_confirmed_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/verify-email";
+      return redirectWithSession(url, getResponse);
+    }
+
+    const otpOk = await isOtpVerified(supabase);
+    if (!otpOk) {
+      const url = request.nextUrl.clone();
+      url.pathname = LOGIN_OTP_VERIFY_PATH;
+      url.search = "";
+      return redirectWithSession(url, getResponse);
+    }
+
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id);
     const list = (roles ?? []).map((r) => r.role as string);
     const url = request.nextUrl.clone();
-    if (!user.email_confirmed_at) url.pathname = "/verify-email";
-    else if (list.includes("admin") || list.includes("super_admin")) url.pathname = "/admin";
+    if (list.includes("admin") || list.includes("super_admin")) url.pathname = "/admin";
     else if (list.includes("support")) url.pathname = "/admin";
     else url.pathname = "/dashboard";
     return redirectWithSession(url, getResponse);
@@ -235,6 +320,7 @@ export const config = {
     "/support/:path*",
     "/admin/:path*",
     "/login",
+    "/login/verify",
     "/register",
     "/forgot-password",
     "/verify-email",

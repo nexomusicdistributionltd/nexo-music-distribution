@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { PasswordField } from "@/components/auth/PasswordField";
 import { evaluateAdministratorLogin } from "@/lib/admin/permissions";
 import { friendlyAuthError } from "@/lib/auth/errors";
-import { safeRedirectPath } from "@/lib/auth/safeRedirect";
+import { loginVerifyHref } from "@/lib/auth/login-otp/paths";
 import { isBlockedStatus, type AppRole } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -43,7 +43,11 @@ export function LoginForm({
             ? "This account does not have administrator access."
             : reason === "password-updated"
               ? "Password updated. Sign in with your new password."
-              : null;
+              : reason === "otp-required"
+                ? "Enter the verification code we emailed you to continue."
+                : reason === "signed-out"
+                  ? "You have been signed out."
+                  : null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,35 +92,16 @@ export function LoginForm({
         }
       }
 
-      try {
-        await supabase.rpc("write_audit_log", {
-          p_action: "login",
-          p_entity_type: "user",
-          p_entity_id: userId,
-          p_metadata: {
-            method: "password",
-            ...(isAdministrator ? { entry: "nexo-admin" } : {}),
-          },
-        });
-      } catch {
-        /* ignore audit errors */
-      }
-
       if (!data.user?.email_confirmed_at) {
         router.replace("/verify-email");
         router.refresh();
         return;
       }
 
-      if (isAdministrator) {
-        const from = search.get("from") ?? "/admin";
-        router.replace(safeRedirectPath(from, roles, "/admin"));
-        router.refresh();
-        return;
-      }
-
-      const from = search.get("from");
-      router.replace(safeRedirectPath(from, roles));
+      const from = isAdministrator ? (search.get("from") ?? "/admin") : search.get("from");
+      router.replace(
+        loginVerifyHref(from, isAdministrator ? { entry: "nexo-admin" } : undefined)
+      );
       router.refresh();
     } catch (err) {
       setError(friendlyAuthError(err));

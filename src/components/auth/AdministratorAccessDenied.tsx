@@ -1,26 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { createClient } from "@/lib/supabase/client";
-import { getSupabaseEnv } from "@/lib/supabase/env";
+import { performClientLogout } from "@/lib/auth/logout-client";
 
 export function AdministratorAccessDenied() {
-  const router = useRouter();
   const [loading, setLoading] = React.useState(false);
 
   async function signOut() {
     setLoading(true);
     try {
-      if (getSupabaseEnv().configured) {
-        const supabase = createClient();
-        await supabase.auth.signOut();
-      }
-      router.replace("/nexo-admin");
-      router.refresh();
+      await performClientLogout();
+      window.location.replace("/nexo-admin");
     } finally {
       setLoading(false);
     }
