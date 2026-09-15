@@ -1,0 +1,19 @@
+{
+  "dark": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/5d2343c0-6c83-4277-855d-696ffca77790.png",
+  "light": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/7044173d-3860-4d77-b71a-d48022fa2d19.png",
+  "icon": "https://nexomusicdistribution.com/brand/email/nexo-icon-light-v2.png",
+  "dark_solid": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/a6949424-f7e6-48aa-b1a9-90971355449b.png",
+  "website": "https://nexomusicdistribution.com",
+  "spotify": "https://open.spotify.com/user/31upu5jwekilb74szmimjx636p7u?si=tSYEupZZSUuTdWohaBybpg&utm_source=copy-link",
+  "x": "https://x.com/nexomusicdistro",
+  "tiktok": "https://www.tiktok.com/@nexomusicdistribution",
+  "email": "contact@nexomusicdistro.space",
+  "icons": {
+    "spotify_white": "https://cdn.jsdelivr.net/gh/nexomusicdistributionltd/nexo-music-distribution@main/public/brand/email/icon-spotify-white.png",
+    "x_white": "https://cdn.jsdelivr.net/gh/nexomusicdistributionltd/nexo-music-distribution@main/public/brand/email/icon-x-white.png",
+    "tiktok_white": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/ab90abbb-2019-4161-877c-b2cbb0b92826.png",
+    "globe_white": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/a46131aa-a854-42f5-b65d-358571cea2fd.png",
+    "mail_white": "https://d2ol7oe51mr4n9.cloudfront.net/user_3J50bnYm6p1zfDNZ4mvIkqNfXgQ/0a190c12-e78c-4f1c-a230-aead6a8ced17.png"
+  },
+  "icon_light": "https://nexomusicdistribution.com/brand/email/nexo-icon-light-v2.png"
+}

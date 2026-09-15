@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { FOOTER_SOCIAL_LINKS } from "@/lib/website/social-links";
 import {
   buildNewsletterHtml,
   isEmailProviderConfigured,
@@ -122,6 +123,13 @@ describe("buildNewsletterHtml", () => {
     expect(html).toContain(">nexomusicdistribution.com</a>");
     expect(html).not.toContain("nexomusicdistro.space");
     expect(html).not.toMatch(/resend/i);
+    expect(html).toContain("https://nexomusicdistribution.com");
+    for (const item of FOOTER_SOCIAL_LINKS) {
+      expect(html).toContain(`aria-label="${item.label}"`);
+      expect(html).toContain(item.href.replace(/&/g, "&amp;"));
+    }
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).not.toMatch(/facebook\.com|instagram\.com|linkedin\.com/i);
   });
 });
 
