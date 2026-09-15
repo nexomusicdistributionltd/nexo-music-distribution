@@ -64,6 +64,7 @@ describe("Batch 5 admin route protection / roles", () => {
       "/admin/support",
       "/admin/contact",
       "/admin/notifications",
+      "/admin/emails",
       "/admin/audit",
       "/admin/reports",
       "/admin/settings",

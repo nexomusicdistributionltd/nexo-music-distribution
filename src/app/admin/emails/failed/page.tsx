@@ -1,0 +1,52 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { RequireAdminPermission } from "@/lib/auth/guards";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { createClient } from "@/lib/supabase/server";
+import { EmailEventsTable } from "@/components/admin/EmailEventsTable";
+import { Alert } from "@/components/ui/Alert";
+import { outboundToListItem, type OutboundEventRow } from "@/lib/email/outbound-meta";
+import { getEmailProviderStatus } from "@/lib/email/provider";
+
+export const metadata: Metadata = {
+  title: "Failed email",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminEmailsFailedPage() {
+  await RequireAdminPermission("admin:emails");
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("email_outbound_events")
+    .select(
+      "id, to_email, template_key, payload, status, provider, provider_message_id, error, related_entity_type, related_entity_id, created_at, updated_at"
+    )
+    .in("status", ["failed", "skipped"])
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  const events = ((data ?? []) as OutboundEventRow[]).map(outboundToListItem);
+  const provider = getEmailProviderStatus();
+
+  return (
+    <div>
+      <PageHeader
+        title="Failed / delivery issues"
+        description="Real SMTP failures and skipped (not connected) rows from email_outbound_events. Retry enqueues a new row — SENT is never rewritten into fiction."
+      />
+      <Alert variant={provider.configured ? "success" : "warning"} title="Provider" className="mb-4">
+        {provider.message}{" "}
+        <Link className="underline-offset-4 hover:underline" href="/admin/emails/activity">
+          All activity
+        </Link>
+      </Alert>
+      {error ? (
+        <p className="text-small text-red-400">Failed to load: {error.message}</p>
+      ) : (
+        <EmailEventsTable events={events} />
+      )}
+    </div>
+  );
+}

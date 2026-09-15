@@ -688,6 +688,13 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
     /* ignore */
   }
 
+  try {
+    const { drainQueuedOutbox } = await import("@/lib/email/hooks");
+    await drainQueuedOutbox(5);
+  } catch {
+    /* submit does not depend on SMTP */
+  }
+
   revalidateReleasePaths(releaseId);
   return { ok: true, data: data as ReleaseRow };
 }

@@ -85,6 +85,12 @@ export async function performQcDecisionAction(input: {
     p_internal_note: input.internalNote ?? null,
   });
   if (error) return { ok: false, error: error.message };
+  try {
+    const { drainQueuedOutbox } = await import("@/lib/email/hooks");
+    await drainQueuedOutbox(10);
+  } catch {
+    /* QC decision is independent of SMTP */
+  }
   revalidateAdmin([
     "/admin/qc",
     "/admin/releases",
@@ -124,6 +130,44 @@ export async function setAccountStatusAction(input: {
     p_restriction: input.restriction ?? null,
   });
   if (error) return { ok: false, error: error.message };
+  try {
+    const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
+    const { data: target } = await supabase
+      .from("profiles")
+      .select("id, email, display_name, full_name")
+      .eq("id", input.userId)
+      .maybeSingle();
+    const templateKey =
+      input.status === "suspended" || input.status === "deactivated"
+        ? "ACCOUNT_SUSPENDED"
+        : input.restriction && input.restriction !== "none"
+          ? "ACCOUNT_RESTRICTED"
+          : input.status === "active"
+            ? "ACCOUNT_RESTORED"
+            : null;
+    if (templateKey && target?.email) {
+      await enqueueTransactionalEmail({
+        supabase,
+        templateKey,
+        eventType: "account.status",
+        to: target.email,
+        recipientUserId: target.id,
+        relatedEntityType: "profile",
+        relatedEntityId: target.id,
+        payload: {
+          FIRST_NAME: target.display_name || target.full_name || "there",
+          ACCOUNT_STATUS: input.status,
+          RESTRICTION: input.restriction ?? "none",
+          CTA_URL: "https://nexomusicdistribution.com/dashboard",
+          CTA_LABEL: "Open workspace",
+          PREHEADER: "Account update",
+        },
+        idempotencyKey: `ACCOUNT:${templateKey}:${target.id}:${input.status}:${input.restriction ?? "none"}:${Date.now()}`,
+      });
+    }
+  } catch {
+    /* account change is independent of SMTP */
+  }
   revalidateAdmin(["/admin/users", "/admin/artists", "/admin/labels"]);
   return { ok: true, data };
 }
@@ -208,6 +252,45 @@ export async function updateTicketAction(input: {
       is_internal: input.internal === true,
     });
     if (error) return { ok: false, error: error.message };
+    if (input.internal !== true) {
+      try {
+        const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
+        const { data: ticket } = await supabase
+          .from("support_tickets")
+          .select("id, subject, requester_user_id")
+          .eq("id", input.ticketId)
+          .maybeSingle();
+        if (ticket?.requester_user_id) {
+          const { data: requester } = await supabase
+            .from("profiles")
+            .select("id, email, display_name")
+            .eq("id", ticket.requester_user_id)
+            .maybeSingle();
+          if (requester?.email) {
+            await enqueueTransactionalEmail({
+              supabase,
+              templateKey: "SUPPORT_TICKET_REPLY",
+              eventType: "support",
+              to: requester.email,
+              recipientUserId: requester.id,
+              relatedEntityType: "support_ticket",
+              relatedEntityId: ticket.id,
+              payload: {
+                FIRST_NAME: requester.display_name || "there",
+                TICKET_SUBJECT: ticket.subject ?? "Support",
+                CTA_URL: "https://nexomusicdistribution.com/support",
+                CTA_LABEL: "View reply",
+                PREHEADER: "New reply on your ticket",
+              },
+              idempotencyKey: `SUPPORT_TICKET_REPLY:${ticket.id}:${Date.now()}`,
+              createdBy: ctx.userId,
+            });
+          }
+        }
+      } catch {
+        /* reply is stored regardless */
+      }
+    }
   }
 
   revalidateAdmin(["/admin/support"]);

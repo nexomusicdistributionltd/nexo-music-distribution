@@ -4,6 +4,7 @@ import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/server";
 import { ContactInboxActions } from "@/components/admin/ContactInboxActions";
+import { EmailsSubnav } from "@/components/admin/EmailsSubnav";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -29,7 +30,8 @@ export default async function ContactInboxPage({
 
   return (
     <div className="space-y-6">
-      <PageIntro title="Inquiries" description="Public contact form. Replies use existing staff tools — no new email provider." />
+      <EmailsSubnav />
+      <PageIntro title="Website Messages" description="Public contact form. Replies use existing staff tools — no new email provider. Artist and Label cannot access this mailbox." />
       {items.length === 0 ? (
         <EmptyState title="Inbox empty" description="Public contact submissions will appear here." />
       ) : (

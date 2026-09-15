@@ -22,7 +22,8 @@ export type NavIconId =
   | "profile"
   | "support"
   | "search"
-  | "compliance";
+  | "compliance"
+  | "email";
 
 export type NavItem = {
   href: string;
@@ -119,14 +120,24 @@ const ADMIN_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/admin/support", label: "Support", icon: "support" },
-      { href: "/admin/contact", label: "Inquiries", icon: "messages" },
       { href: "/admin/notifications", label: "Notifications", icon: "notifications" },
     ],
   },
   {
-    id: "newsletter",
-    label: "Newsletter",
-    items: [{ href: "/admin/newsletter", label: "Newsletter", icon: "newsletter" }],
+    id: "communications",
+    label: "Communications",
+    collapsible: true,
+    items: [
+      { href: "/admin/emails", label: "Inbox", icon: "email" },
+      { href: "/admin/contact", label: "Website Messages", icon: "messages" },
+      { href: "/admin/emails/compose", label: "Compose Email", icon: "email" },
+      { href: "/admin/emails/templates", label: "Email Templates", icon: "email" },
+      { href: "/admin/emails/automated", label: "Automated Emails", icon: "email" },
+      { href: "/admin/emails/sent", label: "Sent", icon: "email" },
+      { href: "/admin/emails/failed", label: "Failed / Delivery Issues", icon: "email" },
+      { href: "/admin/emails/activity", label: "Email Activity", icon: "email" },
+      { href: "/admin/newsletter", label: "Newsletter", icon: "newsletter" },
+    ],
   },
   {
     id: "website",
@@ -316,6 +327,12 @@ export function isNavActive(pathname: string, href: string) {
   }
   if (href === "/dashboard/releases/new") {
     return pathname === "/dashboard/releases/new";
+  }
+  if (href === "/admin/emails") {
+    return pathname === "/admin/emails" || pathname.startsWith("/admin/emails/inbox");
+  }
+  if (href === "/admin/contact") {
+    return pathname === href || pathname.startsWith(`${href}?`);
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
