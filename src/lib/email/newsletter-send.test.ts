@@ -112,7 +112,7 @@ describe("buildNewsletterHtml", () => {
       "https://nexomusicdistribution.com/newsletter/unsubscribe?token=abc",
     );
     expect(html).toContain("#0a0a0a");
-    expect(html).toContain("NEXO Music Distribution");
+    expect(html).toContain("Nexo Music Distribution");
     expect(html).toContain("Hello &lt;Nexo&gt;");
     expect(html).not.toMatch(/resend/i);
   });

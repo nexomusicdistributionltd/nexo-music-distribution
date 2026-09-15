@@ -42,7 +42,7 @@ export default async function AdminNewsletterPage() {
       <NewsletterRealtime />
       <PageHeader
         title="Newsletter"
-        description="Subscribers and campaign composer. Sends use email_outbound_events — never fake delivered."
+        description="Subscribers and campaign composer. Sends use the same Zoho SMTP transport as the Email Center (`sendViaZohoSmtp`) and log to email_outbound_events — never fake delivered. Unsubscribe stays on every campaign."
       />
 
       <div className="mb-8 grid gap-3 sm:grid-cols-3">

@@ -1,0 +1,451 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { RequireAdminPermission } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
+import { enqueueEmailEvent } from "@/lib/email/enqueue";
+import { processEmailEvent } from "@/lib/email/outbox";
+import {
+  campaignIdempotencyKey,
+  eventTypeForTemplateCategory,
+  MANUAL_SEND_MAX_RECIPIENTS,
+  parseSelectedUserIds,
+  sendOutcomeMessage,
+  summarizeSendResults,
+} from "@/lib/email/campaign";
+import {
+  assertEnqueueableTemplateKey,
+  ensureUniqueTemplateKey,
+  isProtectedSeedCategory,
+  isValidTemplateKeyFormat,
+  slugifyTemplateKey,
+} from "@/lib/email/template-keys";
+import { composeCustomFromShell, seedMissingEmailTemplates } from "@/lib/email/stored";
+import { getEmailProviderStatus } from "@/lib/email/provider";
+import { resolveManualRecipients } from "@/lib/email/resolve-recipient";
+import type { StoredTemplateCategory } from "@/lib/email/types";
+import type { ActionResult } from "@/app/admin/actions";
+
+function revalidateEmailAdmin() {
+  revalidatePath("/admin/emails");
+  revalidatePath("/admin/emails/templates");
+  revalidatePath("/admin/emails/send");
+  revalidatePath("/admin/emails/compose");
+  revalidatePath("/admin/emails/sent");
+}
+
+export async function seedEmailTemplatesAction(): Promise<
+  ActionResult<{ inserted: number; skipped: number }>
+> {
+  const ctx = await RequireAdminPermission("admin:emails");
+  const supabase = await createClient();
+  const result = await seedMissingEmailTemplates(supabase, ctx.userId);
+  if (result.error) return { ok: false, error: result.error };
+  revalidateEmailAdmin();
+  return { ok: true, data: { inserted: result.inserted, skipped: result.skipped } };
+}
+
+export async function updateEmailTemplateAction(input: {
+  key: string;
+  name: string;
+  subject: string;
+  htmlBody: string;
+}): Promise<ActionResult<{ key: string }>> {
+  await RequireAdminPermission("admin:emails");
+  const key = assertEnqueueableTemplateKey(input.key);
+  const name = input.name.trim();
+  const subject = input.subject.trim();
+  const htmlBody = input.htmlBody.trim();
+  if (!name) return { ok: false, error: "Name is required." };
+  if (!subject) return { ok: false, error: "Subject is required." };
+  if (!htmlBody) return { ok: false, error: "HTML body is required." };
+  if (htmlBody.length > 400_000) return { ok: false, error: "HTML body is too large." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("email_templates")
+    .update({ name, subject, html_body: htmlBody })
+    .eq("key", key);
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "email_template_write",
+    p_entity_type: "email_template",
+    p_entity_id: null,
+    p_metadata: { key, op: "update" },
+  });
+
+  revalidateEmailAdmin();
+  revalidatePath(`/admin/emails/templates/${encodeURIComponent(key)}`);
+  return { ok: true, data: { key } };
+}
+
+export async function createEmailTemplateFromShellAction(input: {
+  name: string;
+  key?: string;
+  subject?: string;
+  preheader?: string;
+}): Promise<ActionResult<{ key: string }>> {
+  const ctx = await RequireAdminPermission("admin:emails");
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: "Name is required." };
+
+  const supabase = await createClient();
+  const { data: existing, error: listError } = await supabase
+    .from("email_templates")
+    .select("key");
+  if (listError) return { ok: false, error: listError.message };
+
+  const taken = (existing ?? []).map((r) => String(r.key));
+  const requested = input.key?.trim()
+    ? input.key.trim().toUpperCase()
+    : slugifyTemplateKey(name);
+  if (!isValidTemplateKeyFormat(requested)) {
+    return { ok: false, error: "Key must be uppercase letters, numbers, and underscores." };
+  }
+  let key: string;
+  try {
+    key = assertEnqueueableTemplateKey(ensureUniqueTemplateKey(requested, taken));
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Invalid key" };
+  }
+
+  const html = await composeCustomFromShell({
+    name,
+    preheader: input.preheader?.trim() || name,
+  });
+  const subject = input.subject?.trim() || name;
+
+  const { error } = await supabase.from("email_templates").insert({
+    key,
+    name,
+    category: "custom" satisfies StoredTemplateCategory,
+    subject,
+    html_body: html,
+    created_by: ctx.userId,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "email_template_write",
+    p_entity_type: "email_template",
+    p_entity_id: null,
+    p_metadata: { key, op: "create_from_shell" },
+  });
+
+  revalidateEmailAdmin();
+  return { ok: true, data: { key } };
+}
+
+export async function deleteEmailTemplateAction(
+  key: string
+): Promise<ActionResult<{ key: string }>> {
+  await RequireAdminPermission("admin:emails");
+  const templateKey = assertEnqueueableTemplateKey(key);
+  const supabase = await createClient();
+  const { data, error: loadError } = await supabase
+    .from("email_templates")
+    .select("key, category")
+    .eq("key", templateKey)
+    .maybeSingle();
+  if (loadError) return { ok: false, error: loadError.message };
+  if (!data) return { ok: false, error: "Template not found." };
+  if (isProtectedSeedCategory(String(data.category))) {
+    return { ok: false, error: "Seeded ops and newsletter templates cannot be deleted." };
+  }
+
+  const { error } = await supabase.from("email_templates").delete().eq("key", templateKey);
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "email_template_write",
+    p_entity_type: "email_template",
+    p_entity_id: null,
+    p_metadata: { key: templateKey, op: "delete" },
+  });
+
+  revalidateEmailAdmin();
+  return { ok: true, data: { key: templateKey } };
+}
+
+export async function sendEmailTemplateAction(input: {
+  templateKey: string;
+  selectAll: boolean;
+  userIds: string[];
+  confirmed: boolean;
+}): Promise<
+  ActionResult<{
+    campaignId: string;
+    enqueued: number;
+    skippedWithoutEmail: number;
+    duplicateSkipped: number;
+    statuses: Record<string, number>;
+    message: string;
+    providerConfigured: boolean;
+  }>
+> {
+  const ctx = await RequireAdminPermission("admin:emails");
+  if (!input.confirmed) {
+    return { ok: false, error: "Confirm the send before enqueueing." };
+  }
+  const templateKey = assertEnqueueableTemplateKey(input.templateKey);
+  const supabase = await createClient();
+  const { data: tmpl, error: tmplError } = await supabase
+    .from("email_templates")
+    .select("key, category, name, subject")
+    .eq("key", templateKey)
+    .maybeSingle();
+  if (tmplError) return { ok: false, error: tmplError.message };
+  if (!tmpl) {
+    return {
+      ok: false,
+      error: "Template not found in email_templates. Open Templates and seed from the catalog first.",
+    };
+  }
+
+  const selectedIds = parseSelectedUserIds(input.userIds);
+  if (!input.selectAll && selectedIds.length === 0) {
+    return { ok: false, error: "Select at least one user, or choose Select all users." };
+  }
+
+  let resolved: Awaited<ReturnType<typeof resolveManualRecipients>>;
+  try {
+    resolved = await resolveManualRecipients(supabase, {
+      selectAll: input.selectAll,
+      userIds: selectedIds,
+      limit: MANUAL_SEND_MAX_RECIPIENTS,
+    });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to resolve recipients." };
+  }
+
+  if (resolved.recipients.length === 0) {
+    return { ok: false, error: "No recipients with a profile email were found." };
+  }
+  if (resolved.recipients.length > MANUAL_SEND_MAX_RECIPIENTS) {
+    return {
+      ok: false,
+      error: `Recipient cap is ${MANUAL_SEND_MAX_RECIPIENTS}. Narrow the selection.`,
+    };
+  }
+
+  const campaignId = crypto.randomUUID();
+  const eventType = eventTypeForTemplateCategory(String(tmpl.category));
+  let enqueued = 0;
+  let duplicateSkipped = 0;
+  const eventIds: string[] = [];
+
+  for (const recipient of resolved.recipients) {
+    if (!recipient.userId) continue;
+    const enq = await enqueueEmailEvent(supabase, {
+      eventType,
+      templateKey,
+      recipientUserId: recipient.userId,
+      recipientEmail: recipient.email,
+      relatedEntityType: "email_campaign",
+      relatedEntityId: campaignId,
+      payload: {
+        FIRST_NAME: recipient.displayName ?? "",
+        CAMPAIGN_ID: campaignId,
+        TEMPLATE_NAME: tmpl.name,
+      },
+      idempotencyKey: campaignIdempotencyKey(campaignId, recipient.userId),
+      createdBy: ctx.userId,
+    });
+    if (enq.error) return { ok: false, error: enq.error };
+    if (!enq.id) {
+      duplicateSkipped += 1;
+      continue;
+    }
+    enqueued += 1;
+    eventIds.push(enq.id);
+  }
+
+  const processed: Array<{ status: string }> = [];
+  for (const id of eventIds) {
+    try {
+      const result = await processEmailEvent(supabase, id);
+      processed.push({ status: result.status });
+    } catch {
+      processed.push({ status: "queued" });
+    }
+  }
+
+  const statuses = summarizeSendResults(processed);
+  const provider = getEmailProviderStatus();
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "email_manual_send",
+    p_entity_type: "email_campaign",
+    p_entity_id: campaignId,
+    p_metadata: {
+      template_key: templateKey,
+      select_all: input.selectAll,
+      enqueued,
+      skipped_without_email: resolved.skippedWithoutEmail,
+      statuses,
+      provider_configured: provider.configured,
+    },
+  });
+
+  revalidateEmailAdmin();
+  return {
+    ok: true,
+    data: {
+      campaignId,
+      enqueued,
+      skippedWithoutEmail: resolved.skippedWithoutEmail,
+      duplicateSkipped,
+      statuses,
+      message: sendOutcomeMessage(statuses, provider.configured),
+      providerConfigured: provider.configured,
+    },
+  };
+}
+
+function revalidateInbox() {
+  revalidatePath("/admin/emails");
+  revalidatePath("/admin/emails/compose");
+  revalidatePath("/admin/emails/sent");
+}
+
+export async function syncInboxAction(): Promise<
+  ActionResult<{ upserted: number; message: string }>
+> {
+  const ctx = await RequireAdminPermission("admin:emails");
+  const supabase = await createClient();
+  const { syncZohoInbox } = await import("@/lib/email/inbox-sync");
+  const result = await syncZohoInbox(supabase, { limit: 50 });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "email_inbox_sync",
+    p_entity_type: "email_inbox",
+    p_entity_id: null,
+    p_metadata: { upserted: result.upserted, actor: ctx.userId },
+  });
+  revalidateInbox();
+  return {
+    ok: true,
+    data: {
+      upserted: result.upserted,
+      message: `Synced ${result.upserted} message(s) from Zoho IMAP. Inbox is not copied from sent mail.`,
+    },
+  };
+}
+
+export async function markInboxSeenAction(
+  id: string,
+  seen: boolean
+): Promise<ActionResult<{ id: string }>> {
+  await RequireAdminPermission("admin:emails");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("email_inbox_messages")
+    .update({ seen })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidateInbox();
+  return { ok: true, data: { id } };
+}
+
+export async function saveDraftAction(input: {
+  id?: string;
+  to: string;
+  cc: string;
+  bcc: string;
+  subject: string;
+  htmlBody: string;
+  inReplyTo?: string;
+  references?: string;
+  replyToInboxId?: string;
+}): Promise<ActionResult<{ id: string }>> {
+  const ctx = await RequireAdminPermission("admin:emails");
+  const supabase = await createClient();
+  const row = {
+    created_by: ctx.userId,
+    to_text: input.to,
+    cc_text: input.cc,
+    bcc_text: input.bcc,
+    subject: input.subject,
+    html_body: input.htmlBody,
+    in_reply_to: input.inReplyTo ?? null,
+    references_header: input.references ?? null,
+    reply_to_inbox_id: input.replyToInboxId || null,
+    updated_at: new Date().toISOString(),
+  };
+  if (input.id) {
+    const { error } = await supabase.from("email_drafts").update(row).eq("id", input.id);
+    if (error) return { ok: false, error: error.message };
+    revalidateInbox();
+    return { ok: true, data: { id: input.id } };
+  }
+  const { data, error } = await supabase.from("email_drafts").insert(row).select("id").single();
+  if (error || !data) return { ok: false, error: error?.message ?? "Could not save draft." };
+  revalidateInbox();
+  return { ok: true, data: { id: data.id } };
+}
+
+export async function sendComposedEmailAction(formData: FormData): Promise<
+  ActionResult<{ eventId: string; status: string; message: string }>
+> {
+  const ctx = await RequireAdminPermission("admin:emails");
+  const { sendComposedEmail } = await import("@/lib/email/compose-send");
+  const { assertOutboundAttachment } = await import("@/lib/email/attachments");
+  const files = formData.getAll("attachments").filter((f): f is File => f instanceof File && f.size > 0);
+  const attachments = [];
+  for (const file of files) {
+    const buf = Buffer.from(await file.arrayBuffer());
+    const check = assertOutboundAttachment({
+      filename: file.name,
+      contentType: file.type,
+      size: buf.length,
+    });
+    if (!check.ok) return { ok: false, error: check.error };
+    attachments.push({ filename: file.name, content: buf, contentType: file.type });
+  }
+
+  const supabase = await createClient();
+  const result = await sendComposedEmail(supabase, {
+    to: String(formData.get("to") ?? ""),
+    cc: String(formData.get("cc") ?? ""),
+    bcc: String(formData.get("bcc") ?? ""),
+    subject: String(formData.get("subject") ?? ""),
+    bodyHtml: String(formData.get("body_html") ?? ""),
+    bodyText: String(formData.get("body_text") ?? ""),
+    branded: formData.get("branded") !== "0",
+    inReplyTo: String(formData.get("in_reply_to") ?? "") || undefined,
+    references: String(formData.get("references") ?? "") || undefined,
+    attachments,
+    createdBy: ctx.userId,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "email_compose_send",
+    p_entity_type: "email_outbound_event",
+    p_entity_id: result.eventId,
+    p_metadata: { status: result.status, provider: "zoho-smtp" },
+  });
+
+  const draftId = String(formData.get("draft_id") ?? "");
+  if (draftId && result.status === "sent") {
+    await supabase.from("email_drafts").delete().eq("id", draftId);
+  }
+
+  revalidateInbox();
+  const message =
+    result.status === "sent"
+      ? `Sent via Zoho SMTP (${result.messageId}).`
+      : result.status === "skipped"
+        ? "Zoho SMTP is not configured — queued/skipped. Nothing was marked sent."
+        : result.status === "failed"
+          ? "Send failed. Status is failed, not sent."
+          : `Status: ${result.status}.`;
+  return {
+    ok: true,
+    data: { eventId: result.eventId, status: result.status, message },
+  };
+}
+
+

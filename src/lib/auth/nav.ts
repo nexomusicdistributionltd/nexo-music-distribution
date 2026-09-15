@@ -24,6 +24,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/compliance", label: "Compliance" },
   { href: "/admin/support", label: "Support" },
   { href: "/admin/contact", label: "Contact" },
+  { href: "/admin/emails", label: "Emails" },
   { href: "/admin/newsletter", label: "Newsletter" },
   { href: "/admin/notifications", label: "Notifications" },
   { href: "/admin/audit", label: "Audit" },
