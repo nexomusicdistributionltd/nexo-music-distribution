@@ -1,18 +1,22 @@
 import * as React from "react";
-import { FOOTER_SOCIAL_LINKS } from "@/lib/website/social-links";
+import {
+  BRAND_SOCIAL_LINKS,
+  BRAND_SOCIAL_NAV_LABEL,
+} from "@/lib/brand/social";
+import { BRAND_SOCIAL_ICON_PATHS } from "@/lib/website/social-links";
 import { cn } from "@/lib/utils";
 
 export function SocialLinks({ className }: { className?: string }) {
   return (
-    <nav aria-label="Nexo Music Distribution on social media" className={className}>
+    <nav aria-label={BRAND_SOCIAL_NAV_LABEL} className={className}>
       <ul className="flex flex-wrap items-center gap-2">
-        {FOOTER_SOCIAL_LINKS.map((item) => (
+        {BRAND_SOCIAL_LINKS.map((item) => (
           <li key={item.key}>
             <a
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={item.label}
+              aria-label={item.ariaLabel}
               className={cn(
                 "inline-flex h-10 w-10 items-center justify-center rounded-full",
                 "border border-[var(--nexo-border)] text-[var(--nexo-text-muted)]",
@@ -27,7 +31,7 @@ export function SocialLinks({ className }: { className?: string }) {
                 className="h-4 w-4 fill-current"
                 aria-hidden
               >
-                <path d={item.path} />
+                <path d={BRAND_SOCIAL_ICON_PATHS[item.key]} />
               </svg>
             </a>
           </li>

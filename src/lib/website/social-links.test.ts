@@ -2,21 +2,27 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { SocialLinks } from "@/components/layout/SocialLinks";
+import { BRAND_SOCIAL, BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
 import { FOOTER_SOCIAL_LINKS } from "@/lib/website/social-links";
+import { BRAND_SOCIAL as SITE_BRAND_SOCIAL } from "@/lib/site";
 
 const DESTINATIONS = {
-  spotify:
-    "https://open.spotify.com/user/31upu5jwekilb74szmimjx636p7u?si=tSYEupZZSUuTdWohaBybpg&utm_source=copy-link",
-  x: "https://x.com/nexomusicdistro",
-  tiktok: "https://www.tiktok.com/@nexomusicdistribution",
+  spotify: BRAND_SOCIAL.spotify.href,
+  x: BRAND_SOCIAL.x.href,
+  tiktok: BRAND_SOCIAL.tiktok.href,
 } as const;
 
 describe("official footer social links", () => {
   it("exposes exactly Spotify, X, and TikTok — no placeholder networks", () => {
     expect(FOOTER_SOCIAL_LINKS.map((l) => l.key)).toEqual(["spotify", "x", "tiktok"]);
     expect(FOOTER_SOCIAL_LINKS).toHaveLength(3);
+    expect(FOOTER_SOCIAL_LINKS.map((l) => l.href)).toEqual(
+      BRAND_SOCIAL_LINKS.map((l) => l.href),
+    );
+    expect(SITE_BRAND_SOCIAL).toBe(BRAND_SOCIAL);
     for (const item of FOOTER_SOCIAL_LINKS) {
       expect(item.href).toBe(DESTINATIONS[item.key]);
+      expect(item.label).toBe(BRAND_SOCIAL[item.key].ariaLabel);
     }
   });
 

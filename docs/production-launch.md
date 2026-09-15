@@ -115,6 +115,7 @@ Contact, support, webhooks, release submit, uploads, payout create, royalty impo
 ## Public brand URL vs Zoho From
 
 - Website, CTA, Site URL, footer copy, and email HTML body links use **https://nexomusicdistribution.com**.
+- Official social URLs + aria-labels: import `{ BRAND_SOCIAL, BRAND_SOCIAL_LINKS }` from `@/lib/brand/social` (also re-exported from `@/lib/site`). Do not hardcode a second copy in email templates.
 - SMTP From may remain `Nexo Music Distribution LTD <contact@nexomusicdistro.space>` (Zoho-verified mailbox).
 - `EMAIL_FROM` overrides the From header; `SMTP_USER` must stay the authenticated Zoho mailbox.
 - Ops: do not point From at a `.com` mailbox until that domain is verified in Zoho Mail, or delivery will break.

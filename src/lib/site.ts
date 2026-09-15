@@ -1,4 +1,10 @@
 export { getSiteUrl, absoluteUrl, DEFAULT_SITE_URL } from "@/lib/site-url";
+export {
+  BRAND_PUBLIC_URL,
+  BRAND_SOCIAL,
+  BRAND_SOCIAL_LINKS,
+  BRAND_SOCIAL_NAV_LABEL,
+} from "@/lib/brand/social";
 
 export const SITE_URL = "https://nexomusicdistribution.com";
 export const SITE_NAME = "NEXO Music Distribution";
