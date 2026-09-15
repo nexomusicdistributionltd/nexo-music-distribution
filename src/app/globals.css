@@ -330,3 +330,18 @@
     animation: none;
   }
 }
+
+/* Premium reveal / hover helpers (prefers-reduced-motion handled in Reveal) */
+.nexo-img-hover {
+  transition: transform 500ms var(--nexo-ease, ease);
+}
+.nexo-img-hover:hover {
+  transform: scale(1.03);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nexo-img-hover,
+  .nexo-img-hover:hover {
+    transition: none;
+    transform: none;
+  }
+}

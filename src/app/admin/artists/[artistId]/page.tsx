@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { AccountStatusForm } from "@/components/admin/AccountStatusForm";
+import { ArtistWebsiteEditor } from "@/components/website/ArtistWebsiteEditor";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/server";
 import { artistNameOf } from "@/lib/auth/types";
@@ -135,6 +136,7 @@ export default async function ArtistDetailPage({
           )}
         </section>
       </div>
+      <ArtistWebsiteEditor artist={artist} />
       <section>
         <h2 className="mb-2 text-h4">Operational timeline</h2>
         {(timeline ?? []).length === 0 ? (

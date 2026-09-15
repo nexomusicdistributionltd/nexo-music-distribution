@@ -18,7 +18,7 @@ export function securityHeaders(): Record<string, string> {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${site}`,
-    "frame-src 'self' https://*.supabase.co",
+    "frame-src 'self' https://*.supabase.co https://www.youtube.com https://www.youtube-nocookie.com",
     "worker-src 'self' blob:",
     "upgrade-insecure-requests",
   ].join("; ");

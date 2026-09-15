@@ -1,7 +1,11 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site-url";
 import { listPublishedPosts } from "@/lib/blog/queries";
-import { listPublicReleases } from "@/lib/website/queries";
+import {
+  listPublicArtists,
+  listPublicReleases,
+} from "@/lib/website/queries";
+import { artistCanonicalPath, releaseCanonicalPath } from "@/lib/website/slugs";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const BASE = getSiteUrl();
@@ -33,9 +37,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let dynamic: MetadataRoute.Sitemap = [];
   try {
-    const [posts, releases] = await Promise.all([
+    const [posts, releases, artists] = await Promise.all([
       listPublishedPosts(100),
       listPublicReleases(100),
+      listPublicArtists(100),
     ]);
     dynamic = [
       ...posts.map((p) => ({
@@ -45,11 +50,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       })),
       ...releases.map((r) => ({
-        url: `${BASE}/music/${r.website_slug || r.id}`,
+        url: `${BASE}${releaseCanonicalPath(r.website_slug, r.id)}`,
         lastModified: now,
         changeFrequency: "weekly" as const,
-        priority: 0.6,
+        priority: 0.7,
       })),
+      ...artists
+        .filter((a) => a.public_slug)
+        .map((a) => ({
+          url: `${BASE}${artistCanonicalPath(a.public_slug)}`,
+          lastModified: now,
+          changeFrequency: "weekly" as const,
+          priority: 0.65,
+        })),
     ];
   } catch {
     // Soft-fail if tables not migrated yet
