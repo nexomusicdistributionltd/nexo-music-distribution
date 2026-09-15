@@ -12,7 +12,7 @@ import {
 
 export function HeroImage({
   src,
-  preset = "vinyl",
+  preset = "singer",
   alt = "",
   className,
   priority = true,

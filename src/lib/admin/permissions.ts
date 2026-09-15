@@ -19,6 +19,7 @@ export type AdminPermission =
   | "admin:compliance"
   | "admin:support"
   | "admin:contact"
+  | "admin:newsletter"
   | "admin:notifications"
   | "admin:audit"
   | "admin:reports"
@@ -44,6 +45,7 @@ const STAFF_BASE: AdminPermission[] = [
   "admin:compliance",
   "admin:support",
   "admin:contact",
+  "admin:newsletter",
   "admin:notifications",
   "admin:audit",
   "admin:reports",

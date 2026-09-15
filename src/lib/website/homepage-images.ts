@@ -1,6 +1,7 @@
 /**
  * Homepage editorial image presets + CMS URL resolver.
  * Never returns placeholder.jpg or empty — always a real local asset or a valid override URL.
+ * Prefer human/music editorial presets over abstract vinyl-only defaults.
  */
 
 export const HOMEPAGE_IMAGE_PRESETS = {
@@ -9,6 +10,16 @@ export const HOMEPAGE_IMAGE_PRESETS = {
   console: "/images/console.jpg",
   score: "/images/score.jpg",
   studio: "/images/studio-lines.jpg",
+  /** Real Unsplash — singer at microphone */
+  singer: "/images/editorial/singer-microphone.jpg",
+  /** Real Unsplash — studio session / guitars */
+  studioSession: "/images/editorial/studio-session.jpg",
+  /** Real Unsplash — studio / producer atmosphere */
+  producer: "/images/editorial/producer-console.jpg",
+  /** Real Unsplash — live performance */
+  live: "/images/editorial/live-performance.jpg",
+  /** Real Unsplash — headphones / creative */
+  headphones: "/images/editorial/headphones-creative.jpg",
 } as const;
 
 export type HomepageImagePreset = keyof typeof HOMEPAGE_IMAGE_PRESETS;
@@ -27,15 +38,16 @@ export const HOMEPAGE_IMAGE_KEYS = [
 
 export type HomepageImageKey = (typeof HOMEPAGE_IMAGE_KEYS)[number];
 
+/** Prefer editorial human/music photography over abstract vinyl-only. */
 export const HOMEPAGE_IMAGE_DEFAULTS: Record<HomepageImageKey, HomepageImagePreset> = {
-  hero_image_url: "vinyl",
-  artists_image_url: "waveform",
-  labels_image_url: "studio",
-  distribution_image_url: "studio",
-  royalties_image_url: "console",
-  publishing_image_url: "score",
-  about_image_url: "studio",
-  cta_image_url: "vinyl",
+  hero_image_url: "singer",
+  artists_image_url: "live",
+  labels_image_url: "studioSession",
+  distribution_image_url: "producer",
+  royalties_image_url: "producer",
+  publishing_image_url: "headphones",
+  about_image_url: "studioSession",
+  cta_image_url: "live",
 };
 
 const PLACEHOLDER_RE = /placeholder\.(jpg|jpeg|png|webp|gif)|\/placeholder(\?|$)/i;
@@ -46,9 +58,9 @@ const PLACEHOLDER_RE = /placeholder\.(jpg|jpeg|png|webp|gif)|\/placeholder(\?|$)
  */
 export function resolveHomepageImage(
   cmsUrl: unknown,
-  fallback: HomepageImagePreset = "vinyl"
+  fallback: HomepageImagePreset = "singer"
 ): string {
-  const local = HOMEPAGE_IMAGE_PRESETS[fallback] ?? HOMEPAGE_IMAGE_PRESETS.vinyl;
+  const local = HOMEPAGE_IMAGE_PRESETS[fallback] ?? HOMEPAGE_IMAGE_PRESETS.singer;
   if (typeof cmsUrl !== "string") return local;
   const trimmed = cmsUrl.trim();
   if (!trimmed) return local;
@@ -56,7 +68,6 @@ export function resolveHomepageImage(
 
   // Local public assets
   if (trimmed.startsWith("/images/")) {
-    // Reject unknown local paths that aren't our presets / safe images folder
     if (PLACEHOLDER_RE.test(trimmed)) return local;
     return trimmed;
   }
@@ -78,6 +89,19 @@ export function isLocalHomepageImage(src: string): boolean {
 
 export function presetPath(preset: HomepageImagePreset): string {
   return HOMEPAGE_IMAGE_PRESETS[preset];
+}
+
+/** Editorial attribution path (must exist in repo). */
+export const EDITORIAL_ATTRIBUTION_PATH = "/images/editorial/ATTRIBUTION.md";
+
+export function editorialImagePaths(): string[] {
+  return [
+    HOMEPAGE_IMAGE_PRESETS.singer,
+    HOMEPAGE_IMAGE_PRESETS.studioSession,
+    HOMEPAGE_IMAGE_PRESETS.producer,
+    HOMEPAGE_IMAGE_PRESETS.live,
+    HOMEPAGE_IMAGE_PRESETS.headphones,
+  ];
 }
 
 /** Read all section image URLs from homepage settings blob with fallbacks applied. */

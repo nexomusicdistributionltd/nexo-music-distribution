@@ -50,6 +50,11 @@ export function RealtimeRefresh({
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "contact_messages" },
           () => router.refresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "newsletter_subscribers" },
+          () => router.refresh()
         );
     }
 
