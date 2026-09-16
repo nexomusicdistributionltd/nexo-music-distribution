@@ -678,6 +678,17 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
   if (error) return { ok: false, error: error.message };
 
   try {
+    const { snapshotReleaseDspTargets } = await import("@/lib/dsp/snapshot-targets");
+    await snapshotReleaseDspTargets(
+      supabase,
+      releaseId,
+      (release as { artist_profile_id?: string | null }).artist_profile_id
+    );
+  } catch {
+    /* targeting snapshot is best-effort */
+  }
+
+  try {
     await supabase.rpc("write_audit_log", {
       p_action: "release_submit",
       p_entity_type: "release",
@@ -690,7 +701,7 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
 
   try {
     const { drainQueuedOutbox } = await import("@/lib/email/hooks");
-    await drainQueuedOutbox(5);
+    void drainQueuedOutbox(5);
   } catch {
     /* submit does not depend on SMTP */
   }

@@ -3,7 +3,7 @@ import { Logo } from "@/components/brand/Logo";
 import { SocialLinks } from "@/components/layout/SocialLinks";
 import { NewsletterForm } from "@/components/newsletter/NewsletterForm";
 import { COMPANY_LEGAL, PUBLISHING_DIVISION, SITE_URL } from "@/lib/site";
-import { LEGAL_CONTACT_EMAIL } from "@/lib/legal/copy";
+import { LEGAL_CONTACT_EMAIL, LEGAL_INQUIRIES_EMAIL } from "@/lib/legal/copy";
 
 const SERVICES = [
   { href: "/distribution", label: "Distribution" },
@@ -50,6 +50,9 @@ export function Footer() {
           </p>
           <p className="mt-4 text-small text-[var(--nexo-text-muted)]">
             <a href={`mailto:${LEGAL_CONTACT_EMAIL}`}>{LEGAL_CONTACT_EMAIL}</a>
+            <br />
+            Additional inquiries:{" "}
+            <a href={`mailto:${LEGAL_INQUIRIES_EMAIL}`}>{LEGAL_INQUIRIES_EMAIL}</a>
             <br />
             <a href={SITE_URL} rel="noopener noreferrer">
               nexomusicdistribution.com

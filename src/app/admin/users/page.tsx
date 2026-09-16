@@ -5,10 +5,12 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { AccountStatusForm } from "@/components/admin/AccountStatusForm";
+import { UserRolesForm } from "@/components/admin/UserRolesForm";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
 import { hasAdminPermission } from "@/lib/admin/permissions";
 import { adminListErrorMessage } from "@/lib/db/admin-query";
+import type { AppRole } from "@/lib/auth/types";
 
 export const metadata: Metadata = {
   title: "Admin users",
@@ -36,6 +38,17 @@ export default async function AdminUsersPage({
   }
   const { data, error } = await query;
   const canManage = hasAdminPermission(ctx.roles, "admin:users");
+  const canRoles = hasAdminPermission(ctx.roles, "admin:roles");
+  const ids = (data ?? []).map((u) => u.id);
+  const { data: roleRows } = ids.length
+    ? await supabase.from("user_roles").select("user_id, role").in("user_id", ids)
+    : { data: [] as { user_id: string; role: string }[] };
+  const rolesByUser = new Map<string, string[]>();
+  for (const row of roleRows ?? []) {
+    const list = rolesByUser.get(row.user_id) ?? [];
+    list.push(row.role);
+    rolesByUser.set(row.user_id, list);
+  }
 
   return (
     <div>
@@ -56,6 +69,9 @@ export default async function AdminUsersPage({
                   <p className="font-medium">{u.display_name || u.full_name || u.email}</p>
                   <p className="text-caption text-[var(--nexo-text-muted)]">
                     {u.email} · {u.account_type} · {u.account_status}
+                    {(rolesByUser.get(u.id) ?? []).length
+                      ? ` · roles: ${(rolesByUser.get(u.id) ?? []).join(", ")}`
+                      : ""}
                   </p>
                   <Link
                     href={`/admin/search?q=${encodeURIComponent(u.email)}`}
@@ -66,6 +82,14 @@ export default async function AdminUsersPage({
                 </div>
                 {canManage ? <AccountStatusForm userId={u.id} /> : null}
               </div>
+              {canRoles ? (
+                <div className="mt-3">
+                  <UserRolesForm
+                    userId={u.id}
+                    currentRoles={(rolesByUser.get(u.id) ?? []) as AppRole[]}
+                  />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

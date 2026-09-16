@@ -94,7 +94,7 @@ export function RosterArtistForm({
         />
       </label>
       <label className="block space-y-1">
-        <span className="text-caption text-[var(--nexo-text-muted)]">Bio</span>
+        <span className="text-caption text-[var(--nexo-text-muted)]">Bio (optional)</span>
         <Textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}

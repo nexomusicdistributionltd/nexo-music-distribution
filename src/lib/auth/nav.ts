@@ -90,6 +90,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/distribution", label: "Distribution", icon: "distribution" },
       { href: "/admin/ddex", label: "DDEX", icon: "ddex" },
+      { href: "/admin/playlist-pitches", label: "Playlist pitches", icon: "distribution" },
     ],
   },
   {
@@ -185,6 +186,7 @@ function artistSections(): NavSection[] {
         { href: "/dashboard/releases", label: "Releases", icon: "catalog" },
         { href: "/dashboard/catalog", label: "Catalog", icon: "catalog" },
         { href: "/dashboard/catalog/move-in", label: "Move In", icon: "catalog" },
+        { href: "/dashboard/playlist-pitch", label: "Playlist pitching", icon: "distribution" },
       ],
     },
     {
@@ -243,6 +245,7 @@ function labelSections(): NavSection[] {
         { href: "/dashboard/releases", label: "Releases", icon: "catalog" },
         { href: "/dashboard/catalog", label: "Catalog", icon: "catalog" },
         { href: "/dashboard/catalog/move-in", label: "Move In", icon: "catalog" },
+        { href: "/dashboard/playlist-pitch", label: "Playlist pitching", icon: "distribution" },
       ],
     },
     {

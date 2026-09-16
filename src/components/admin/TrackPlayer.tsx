@@ -61,9 +61,18 @@ export function TrackPlayer({
         </pre>
       ) : null}
       {signedUrl ? (
-        <audio className="mt-2 w-full" controls preload="none" src={signedUrl}>
-          Your browser does not support audio playback.
-        </audio>
+        <>
+          <audio className="mt-2 w-full" controls preload="metadata" src={signedUrl}>
+            Your browser does not support audio playback.
+          </audio>
+          <a
+            href={signedUrl}
+            className="mt-2 inline-flex text-caption underline-offset-4 hover:underline"
+            download
+          >
+            Download / open uploaded audio
+          </a>
+        </>
       ) : (
         <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
           No playable audio available for this track.

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NEXO_EMAIL_SHELL_PATH } from "@/lib/email/brand";
-import { composeFromShell } from "@/lib/email/compose";
+import { wrapWithEmailShell, fallbackBrandedHtml } from "@/lib/email/branded-html";
 import { htmlToPlainText } from "@/lib/email/inbound-html";
 import {
   DEFAULT_EMAIL_FROM,
@@ -28,13 +28,13 @@ export function wrapBrandedHtml(opts: {
       path.join(process.cwd(), NEXO_EMAIL_SHELL_PATH),
       "utf8"
     );
-    return composeFromShell(shell, {
+    return wrapWithEmailShell(shell, {
       bodyHtml: opts.bodyHtml,
       preheader: opts.preheader ?? opts.subject,
-      title: opts.subject,
+      subject: opts.subject,
     });
   } catch {
-    return `<!DOCTYPE html><html><body style="background:#0a0a0a;color:#f5f5f5;font-family:system-ui,sans-serif;padding:24px;">${opts.bodyHtml}</body></html>`;
+    return fallbackBrandedHtml(opts);
   }
 }
 

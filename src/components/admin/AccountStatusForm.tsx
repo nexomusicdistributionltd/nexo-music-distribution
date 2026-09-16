@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
@@ -8,6 +9,7 @@ import { Alert } from "@/components/ui/Alert";
 import { setAccountStatusAction } from "@/app/admin/actions";
 
 export function AccountStatusForm({ userId }: { userId: string }) {
+  const router = useRouter();
   const [status, setStatus] = React.useState<"active" | "suspended" | "deactivated">(
     "suspended"
   );
@@ -21,6 +23,7 @@ export function AccountStatusForm({ userId }: { userId: string }) {
       className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (pending) return;
         setPending(true);
         setError(null);
         setOk(false);
@@ -29,7 +32,7 @@ export function AccountStatusForm({ userId }: { userId: string }) {
         if (!res.ok) setError(res.error);
         else {
           setOk(true);
-          window.location.reload();
+          router.refresh();
         }
       }}
     >

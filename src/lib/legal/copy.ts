@@ -1,14 +1,16 @@
 import { BRAND_PUBLIC_URL, BRAND_SOCIAL_LINKS } from "@/lib/brand/social";
+import { INQUIRIES_EMAIL, PRIMARY_CONTACT_EMAIL } from "@/lib/brand/contact";
 import { COMPANY_LEGAL, PUBLISHING_DIVISION } from "@/lib/site";
 import type { LegalSection } from "@/components/legal/LegalArticle";
 
 export const LEGAL_UPDATED = "15 September 2026";
-export const LEGAL_CONTACT_EMAIL = "contact@nexomusicdistro.space";
+export const LEGAL_CONTACT_EMAIL = PRIMARY_CONTACT_EMAIL;
+export const LEGAL_INQUIRIES_EMAIL = INQUIRIES_EMAIL;
 
 const SITE = BRAND_PUBLIC_URL;
 const SOCIAL_LIST = BRAND_SOCIAL_LINKS.map((s) => s.href).join(", ");
 
-export const LEGAL_CONTACT_LINE = `Email ${LEGAL_CONTACT_EMAIL} or use the contact form at ${SITE}/contact.`;
+export const LEGAL_CONTACT_LINE = `Email ${LEGAL_CONTACT_EMAIL} or use the contact form at ${SITE}/contact. Additional inquiries: ${LEGAL_INQUIRIES_EMAIL}.`;
 
 export const TERMS_SECTIONS: LegalSection[] = [
   {

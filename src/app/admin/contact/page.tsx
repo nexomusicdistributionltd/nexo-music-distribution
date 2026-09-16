@@ -31,7 +31,7 @@ export default async function ContactInboxPage({
   return (
     <div className="space-y-6">
       <EmailsSubnav />
-      <PageIntro title="Website Messages" description="Public contact form. Replies use existing staff tools — no new email provider. Artist and Label cannot access this mailbox." />
+      <PageIntro title="Website Messages" description="Public contact form. Reply sends branded HTML to the visitor via Zoho SMTP and marks the thread replied." />
       {items.length === 0 ? (
         <EmptyState title="Inbox empty" description="Public contact submissions will appear here." />
       ) : (
@@ -56,17 +56,21 @@ export default async function ContactInboxPage({
           </ul>
           {selected ? (
             <article className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-h4">{selected.subject}</h2>
-                  <p className="text-caption text-[var(--nexo-text-muted)]">
-                    {selected.name} · {selected.email} · {selected.status} ·{" "}
-                    {new Date(selected.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <ContactInboxActions id={selected.id} status={selected.status} />
+              <div>
+                <h2 className="text-h4">{selected.subject}</h2>
+                <p className="text-caption text-[var(--nexo-text-muted)]">
+                  {selected.name} · {selected.email} · {selected.status} ·{" "}
+                  {new Date(selected.created_at).toLocaleString()}
+                </p>
               </div>
               <p className="mt-4 whitespace-pre-wrap text-small">{selected.message}</p>
+              <div className="mt-6 border-t border-[var(--nexo-divider)] pt-4">
+                <ContactInboxActions
+                  id={selected.id}
+                  status={selected.status}
+                  senderEmail={selected.email}
+                />
+              </div>
             </article>
           ) : null}
         </div>

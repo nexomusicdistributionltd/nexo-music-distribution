@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isQcableStatus } from "@/lib/admin/qc";
 import { evaluateReleaseReadiness } from "@/lib/ddex/readiness";
 import { DdexReadinessPanel } from "@/components/ddex/DdexReadinessPanel";
+import { DspTargetingPanel } from "@/components/roster/DspTargetingPanel";
 
 export const metadata: Metadata = {
   title: "Release review",
@@ -56,6 +57,10 @@ export default async function AdminReleaseDetailPage({
   );
 
   const supabase = await createClient();
+  const { data: dspTargets } = await supabase
+    .from("release_dsp_profile_targets")
+    .select("dsp_key, url, enabled")
+    .eq("release_id", releaseId);
   const { data: reviews } = await supabase
     .from("qc_reviews")
     .select("*")
@@ -134,6 +139,13 @@ export default async function AdminReleaseDetailPage({
               ))
             )}
           </section>
+          <DspTargetingPanel
+            targets={(dspTargets ?? []).map((t) => ({
+              dsp_key: t.dsp_key,
+              url: t.url,
+              enabled: t.enabled,
+            }))}
+          />
           <section className="space-y-2">
             <h2 className="text-h4">QC reviews</h2>
             {(reviews ?? []).length === 0 ? (

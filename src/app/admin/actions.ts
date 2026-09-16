@@ -13,6 +13,7 @@ import {
 import { canTransitionPayout, type PayoutStatus } from "@/lib/finance/money";
 import type { AppRole } from "@/lib/auth/types";
 import { isAllowedAdminSettingKey } from "@/lib/admin/settings";
+import { evaluateRoleAssignment } from "@/lib/admin/roles";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -85,12 +86,9 @@ export async function performQcDecisionAction(input: {
     p_internal_note: input.internalNote ?? null,
   });
   if (error) return { ok: false, error: error.message };
-  try {
-    const { drainQueuedOutbox } = await import("@/lib/email/hooks");
-    await drainQueuedOutbox(10);
-  } catch {
-    /* QC decision is independent of SMTP */
-  }
+  void import("@/lib/email/hooks")
+    .then(({ drainQueuedOutbox }) => drainQueuedOutbox(10))
+    .catch(() => undefined);
   revalidateAdmin([
     "/admin/qc",
     "/admin/releases",
@@ -129,7 +127,6 @@ export async function setAccountStatusAction(input: {
     p_reason: input.reason.trim(),
     p_restriction: input.restriction ?? null,
   });
-  if (error) return { ok: false, error: error.message };
   try {
     const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
     const { data: target } = await supabase
@@ -176,15 +173,117 @@ export async function setUserRolesAction(input: {
   userId: string;
   roles: AppRole[];
 }): Promise<ActionResult> {
-  await RequireSuperAdmin();
+  const ctx = await RequireSuperAdmin();
   const supabase = await createClient();
+
+  const [{ data: currentRows }, { count: superCount }, { data: label }, { count: releaseCount }] =
+    await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", input.userId),
+      supabase
+        .from("user_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "super_admin"),
+      supabase.from("label_profiles").select("id").eq("user_id", input.userId).maybeSingle(),
+      supabase
+        .from("releases")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_user_id", input.userId),
+    ]);
+
+  let rosterCount = 0;
+  if (label?.id) {
+    const { count } = await supabase
+      .from("label_roster_artists")
+      .select("id", { count: "exact", head: true })
+      .eq("label_profile_id", label.id);
+    rosterCount = count ?? 0;
+  }
+
+  const gate = evaluateRoleAssignment({
+    actorId: ctx.userId,
+    targetId: input.userId,
+    currentRoles: (currentRows ?? []).map((r) => r.role as AppRole),
+    nextRoles: input.roles,
+    superAdminCount: superCount ?? 0,
+    hasLabelRoster: rosterCount > 0,
+    hasArtistOwnedReleases: (releaseCount ?? 0) > 0,
+  });
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   const { error } = await supabase.rpc("super_admin_set_roles", {
     p_target: input.userId,
-    p_roles: input.roles,
+    p_roles: gate.roles,
   });
   if (error) return { ok: false, error: error.message };
   revalidateAdmin(["/admin/users"]);
   return { ok: true, data: true };
+}
+
+export async function replyContactMessageAction(input: {
+  id: string;
+  body: string;
+}): Promise<ActionResult<{ messageId?: string; status: string }>> {
+  await RequireAdminPermission("admin:contact");
+  const reply = input.body.trim();
+  if (!reply) return { ok: false, error: "Reply body is required." };
+  const supabase = await createClient();
+  const { data: row, error: readErr } = await supabase
+    .from("contact_messages")
+    .select("id, name, email, subject, message, status")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (readErr) return { ok: false, error: readErr.message };
+  if (!row?.email) return { ok: false, error: "Contact message not found." };
+
+  const { sendComposedEmail } = await import("@/lib/email/compose-send");
+  const { contactReplyBodyHtml } = await import("@/lib/email/branded-html");
+  const { replySubject } = await import("@/lib/email/thread");
+  const bodyHtml = contactReplyBodyHtml({
+    visitorName: row.name,
+    originalSubject: row.subject,
+    originalMessage: row.message,
+    replyBody: reply,
+  });
+  const sent = await sendComposedEmail(supabase, {
+    to: row.email,
+    subject: replySubject(row.subject),
+    bodyHtml,
+    branded: true,
+  });
+  if (!sent.ok) return { ok: false, error: sent.error };
+  if (sent.status !== "sent") {
+    return {
+      ok: false,
+      error:
+        sent.status === "skipped"
+          ? "Zoho SMTP is not connected — reply was not sent."
+          : "Reply failed to send via Zoho SMTP.",
+    };
+  }
+
+  const { error: updErr } = await supabase
+    .from("contact_messages")
+    .update({
+      status: "replied",
+      replied_at: new Date().toISOString(),
+      reply_outbound_event_id: sent.eventId,
+    })
+    .eq("id", input.id);
+  if (updErr) return { ok: false, error: updErr.message };
+
+  try {
+    await supabase.rpc("write_audit_log", {
+      p_action: "contact_reply",
+      p_entity_type: "contact_message",
+      p_entity_id: input.id,
+      p_metadata: { to: row.email, outbound_event_id: sent.eventId, status: sent.status },
+    });
+  } catch {
+    /* reply already sent */
+  }
+
+  revalidateAdmin(["/admin/contact"]);
+  return { ok: true, data: { messageId: sent.messageId, status: sent.status } };
 }
 
 export async function updatePayoutStatusAction(input: {
