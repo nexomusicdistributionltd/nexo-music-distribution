@@ -44,7 +44,7 @@ export default async function AdminNewsletterPage() {
       <EmailsSubnav />
       <PageHeader
         title="Newsletter"
-        description="Subscribers and campaign composer. Sends use email_outbound_events — never fake delivered."
+        description="Subscribers and campaign composer. Sends use email_outbound_events — never fake delivered. To email a specific artist, label, or typed address, use Compose or Send template."
       />
 
       <div className="mb-8 grid gap-3 sm:grid-cols-3">

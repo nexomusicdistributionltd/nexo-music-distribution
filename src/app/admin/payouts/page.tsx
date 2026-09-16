@@ -3,6 +3,7 @@ import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Alert } from "@/components/ui/Alert";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { createClient } from "@/lib/supabase/server";
 import { formatMinorUnits } from "@/lib/finance/money";
 import { PayoutStatusControls } from "@/components/admin/PayoutStatusControls";
@@ -10,6 +11,7 @@ import { FinanceNav } from "@/components/finance/FinanceNav";
 import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { CreatePayoutForm } from "@/components/finance/CreatePayoutForm";
 import type { PayoutStatus } from "@/lib/finance/money";
+import { unwrapAdminList } from "@/lib/db/admin-query";
 
 export const metadata: Metadata = {
   title: "Payouts",
@@ -20,11 +22,9 @@ export default async function PayoutsPage() {
   await RequireAdmin();
   const supabase = await createClient();
   const payment = getPaymentConnectionState();
-  const { data } = await supabase
-    .from("payouts")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const listed = unwrapAdminList(
+    await supabase.from("payouts").select("*").order("created_at", { ascending: false }).limit(50)
+  );
 
   return (
     <div>
@@ -40,7 +40,11 @@ export default async function PayoutsPage() {
       <div className="mt-4">
         <CreatePayoutForm />
       </div>
-      {(data ?? []).length === 0 ? (
+      {listed.error ? (
+        <div className="mt-4">
+          <ErrorState title="Payouts unavailable" description={listed.error} retryHref="/admin/payouts" />
+        </div>
+      ) : listed.items.length === 0 ? (
         <div className="mt-4">
           <EmptyState
             title="No financial data available yet"
@@ -49,7 +53,7 @@ export default async function PayoutsPage() {
         </div>
       ) : (
         <ul className="mt-4 space-y-3">
-          {(data ?? []).map((p) => (
+          {listed.items.map((p) => (
             <li
               key={p.id}
               className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4"

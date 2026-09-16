@@ -48,3 +48,7 @@ export function excludeAddress(list: string[], exclude: string): string[] {
   const skip = normalizeEmailAddress(exclude);
   return list.filter((e) => e !== skip);
 }
+
+export function mergeAddressField(current: string, emails: string[]): string {
+  return uniqueAddresses(parseAddressList(current), emails).join(", ");
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   excludeAddress,
   isValidEmailAddress,
+  mergeAddressField,
   parseAddressList,
   uniqueAddresses,
 } from "./addresses";
@@ -32,5 +33,8 @@ describe("uniqueAddresses / exclude", () => {
       "to@nexo.test",
       "cc@nexo.test",
     ]);
+    expect(mergeAddressField("ada@nexo.test", ["Bob@Nexo.test", "ada@nexo.test"])).toBe(
+      "ada@nexo.test, bob@nexo.test"
+    );
   });
 });

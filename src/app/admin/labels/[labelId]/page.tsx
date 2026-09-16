@@ -27,6 +27,7 @@ export default async function LabelDetailPage({
     .maybeSingle();
   if (!label) notFound();
 
+  const ownerId = label.user_id as string | null;
   const [
     { data: profile },
     { data: releases },
@@ -36,38 +37,38 @@ export default async function LabelDetailPage({
     { data: royalties },
     { data: payouts },
   ] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", label.user_id).maybeSingle(),
+    ownerId
+      ? supabase.from("profiles").select("*").eq("id", ownerId).maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase
       .from("releases")
       .select("id, title, status")
       .eq("label_profile_id", labelId)
       .limit(20),
-    supabase
-      .from("activity_events")
-      .select("*")
-      .eq("subject_user_id", label.user_id)
-      .order("created_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("support_tickets")
-      .select("id, subject, status")
-      .eq("requester_user_id", label.user_id)
-      .limit(10),
-    supabase
-      .from("compliance_cases")
-      .select("id, title, status")
-      .eq("subject_user_id", label.user_id)
-      .limit(10),
-    supabase
-      .from("royalty_statements")
-      .select("id, period_start, period_end, status, total_minor, currency")
-      .eq("owner_user_id", label.user_id)
-      .limit(10),
-    supabase
-      .from("payouts")
-      .select("id, status, amount_minor, currency")
-      .eq("owner_user_id", label.user_id)
-      .limit(10),
+    ownerId
+      ? supabase
+          .from("activity_events")
+          .select("*")
+          .eq("subject_user_id", ownerId)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
+    ownerId
+      ? supabase.from("support_tickets").select("id, subject, status").eq("requester_user_id", ownerId).limit(10)
+      : Promise.resolve({ data: [] }),
+    ownerId
+      ? supabase.from("compliance_cases").select("id, title, status").eq("subject_user_id", ownerId).limit(10)
+      : Promise.resolve({ data: [] }),
+    ownerId
+      ? supabase
+          .from("royalty_statements")
+          .select("id, period_start, period_end, status, total_minor, currency")
+          .eq("owner_user_id", ownerId)
+          .limit(10)
+      : Promise.resolve({ data: [] }),
+    ownerId
+      ? supabase.from("payouts").select("id, status, amount_minor, currency").eq("owner_user_id", ownerId).limit(10)
+      : Promise.resolve({ data: [] }),
   ]);
 
   return (
@@ -77,7 +78,9 @@ export default async function LabelDetailPage({
         <section className="space-y-2 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
           <p className="text-small">Contact: {label.contact_name}</p>
           <p className="text-small">Account: {profile?.account_status ?? "—"}</p>
-          <AccountStatusForm userId={label.user_id} />
+          {ownerId ? <AccountStatusForm userId={ownerId} /> : (
+            <p className="text-caption text-[var(--nexo-text-muted)]">No linked login to suspend.</p>
+          )}
         </section>
         <section>
           <h2 className="mb-2 text-h4">Releases</h2>

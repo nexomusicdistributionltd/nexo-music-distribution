@@ -11,6 +11,12 @@ import {
   type BillingTransactionRow,
 } from "./types";
 import type { AppRole, AuthUserContext } from "@/lib/auth/types";
+import { adminListErrorMessage, isMissingRelationError } from "@/lib/db/admin-query";
+import {
+  attachProfilesToBillingRows,
+  type AdminBillingSubscriptionRow,
+  type BillingProfileLite,
+} from "./admin-display";
 
 export async function getOwnBillingCustomer(
   userId: string
@@ -107,27 +113,100 @@ export type AdminBillingFilters = {
   q?: string | null;
 };
 
+export type AdminBillingListResult = {
+  rows: AdminBillingSubscriptionRow[];
+  error: string | null;
+};
+
+function sanitizeBillingFilterToken(raw: string): string | null {
+  const q = raw.trim();
+  if (!q || q.length > 120) return null;
+  if (!/^[a-zA-Z0-9_@.+-]+$/.test(q)) return null;
+  return q;
+}
+
+async function profileIdsMatchingBillingSearch(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  q: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .or(`email.ilike.%${q}%,display_name.ilike.%${q}%,full_name.ilike.%${q}%`)
+    .limit(50);
+  if (error || !data) return [];
+  return data.map((row) => row.id);
+}
+
+/**
+ * Admin billing list. Missing Paddle tables / query errors return [] plus a
+ * truthful error string — never throw into the Next.js “something went wrong” page.
+ * Does not invent subscriptions.
+ */
 export async function listBillingSubscriptionsAdmin(
   filters: AdminBillingFilters
-): Promise<BillingSubscriptionRow[]> {
-  const supabase = await createClient();
-  let query = supabase
-    .from("billing_subscriptions")
-    .select("*")
-    .order("updated_at", { ascending: false })
-    .limit(200);
+): Promise<AdminBillingListResult> {
+  try {
+    const supabase = await createClient();
+    let query = supabase
+      .from("billing_subscriptions")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(200);
 
-  if (filters.status) query = query.eq("status", filters.status);
-  if (filters.accountType) query = query.eq("account_type", filters.accountType);
-  if (filters.planId) query = query.eq("plan_id", filters.planId);
-  if (filters.q?.trim()) {
-    const q = filters.q.trim();
-    query = query.or(
-      `paddle_subscription_id.eq.${q},paddle_customer_id.eq.${q},user_id.eq.${q}`
-    );
+    if (filters.status) query = query.eq("status", filters.status);
+    if (filters.accountType) query = query.eq("account_type", filters.accountType);
+    if (filters.planId) query = query.eq("plan_id", filters.planId);
+
+    const rawQ = filters.q?.trim() ?? "";
+    const q = sanitizeBillingFilterToken(rawQ);
+    if (q) {
+      const parts: string[] = [];
+      const looksUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
+      if (looksUuid) parts.push(`user_id.eq.${q}`);
+      if (!q.includes("@")) {
+        parts.push(`paddle_subscription_id.eq.${q}`, `paddle_customer_id.eq.${q}`);
+      }
+      const profileIds = await profileIdsMatchingBillingSearch(supabase, q);
+      if (profileIds.length > 0) {
+        parts.push(`user_id.in.(${profileIds.join(",")})`);
+      }
+      if (parts.length > 0) query = query.or(parts.join(","));
+      else {
+        return { rows: [], error: null };
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      return { rows: [], error: adminListErrorMessage(error) };
+    }
+
+    const rows = (data as BillingSubscriptionRow[]) ?? [];
+    if (rows.length === 0) return { rows: [], error: null };
+
+    const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
+    let profiles: BillingProfileLite[] = [];
+    if (userIds.length > 0) {
+      const { data: profileRows, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, email, display_name, full_name")
+        .in("id", userIds);
+      if (!profileError && profileRows) {
+        profiles = profileRows as BillingProfileLite[];
+      }
+    }
+
+    return { rows: attachProfilesToBillingRows(rows, profiles), error: null };
+  } catch (error) {
+    const extracted =
+      error && typeof error === "object"
+        ? (error as { message?: string; code?: string })
+        : { message: error instanceof Error ? error.message : undefined };
+    if (isMissingRelationError(extracted) || extracted.message) {
+      return { rows: [], error: adminListErrorMessage(extracted) };
+    }
+    return { rows: [], error: "Could not load billing subscriptions." };
   }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data as BillingSubscriptionRow[]) ?? [];
 }

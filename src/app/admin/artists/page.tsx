@@ -4,10 +4,12 @@ import { RequireAdmin } from "@/lib/auth/guards";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { CoverArt } from "@/components/workspace/CoverArt";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
 import { artistNameOf } from "@/lib/auth/types";
+import { adminListErrorMessage } from "@/lib/db/admin-query";
 
 export const metadata: Metadata = {
   title: "Admin artists",
@@ -32,13 +34,14 @@ export default async function AdminArtistsPage({
     query = query.or(`stage_name.ilike.%${q}%,artist_name.ilike.%${q}%`);
   }
   const { data, error } = await query;
-  if (error) throw error;
   const items = data ?? [];
 
   return (
     <div className="space-y-6">
       <PageIntro title="Artists" description="Artist directory from real profiles." />
-      {items.length === 0 ? (
+      {error ? (
+        <ErrorState title="Artists unavailable" description={adminListErrorMessage(error)} retryHref="/admin/artists" />
+      ) : items.length === 0 ? (
         <EmptyState title="No artists found" description="Artist profiles will appear after signup or roster create." />
       ) : (
         <Table>

@@ -8,6 +8,7 @@ const ITEMS = [
   { href: "/admin/emails", label: "Inbox", match: "inbox" as const },
   { href: "/admin/contact", label: "Website Messages", match: "exact" as const },
   { href: "/admin/emails/compose", label: "Compose", match: "prefix" as const },
+  { href: "/admin/emails/send", label: "Send", match: "prefix" as const },
   { href: "/admin/emails/templates", label: "Templates", match: "prefix" as const },
   { href: "/admin/emails/automated", label: "Automated", match: "prefix" as const },
   { href: "/admin/emails/sent", label: "Sent", match: "exact" as const },

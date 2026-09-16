@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { createClient } from "@/lib/supabase/server";
 import { formatMinorUnits } from "@/lib/finance/money";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import { PublishStatementForm } from "@/components/finance/PublishStatementForm";
+import { unwrapAdminList } from "@/lib/db/admin-query";
 
 export const metadata: Metadata = {
   title: "Statements",
@@ -15,11 +17,9 @@ export const metadata: Metadata = {
 export default async function StatementsPage() {
   await RequireAdmin();
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("royalty_statements")
-    .select("*")
-    .order("period_end", { ascending: false })
-    .limit(50);
+  const listed = unwrapAdminList(
+    await supabase.from("royalty_statements").select("*").order("period_end", { ascending: false }).limit(50)
+  );
 
   return (
     <div>
@@ -29,7 +29,11 @@ export default async function StatementsPage() {
       />
       <FinanceNav />
       <PublishStatementForm />
-      {(data ?? []).length === 0 ? (
+      {listed.error ? (
+        <div className="mt-4">
+          <ErrorState title="Statements unavailable" description={listed.error} retryHref="/admin/statements" />
+        </div>
+      ) : listed.items.length === 0 ? (
         <div className="mt-4">
           <EmptyState
             title="No statements"
@@ -38,7 +42,7 @@ export default async function StatementsPage() {
         </div>
       ) : (
         <ul className="mt-4 space-y-3">
-          {(data ?? []).map((s) => (
+          {listed.items.map((s) => (
             <li
               key={s.id}
               className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4 text-small"

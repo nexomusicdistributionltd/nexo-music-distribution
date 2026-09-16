@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
 import { saveDraftAction, sendComposedEmailAction } from "@/app/admin/emails/actions";
+import { AdminRecipientPicker } from "@/components/admin/AdminRecipientPicker";
+import { mergeAddressField } from "@/lib/email/addresses";
+import type { DirectoryRecipient } from "@/lib/email/directory";
 
 export function EmailComposeForm({
   defaultTo = "",
@@ -19,6 +22,7 @@ export function EmailComposeForm({
   draftId = "",
   providerConfigured,
   providerMessage,
+  directory = [],
 }: {
   defaultTo?: string;
   defaultCc?: string;
@@ -30,6 +34,7 @@ export function EmailComposeForm({
   draftId?: string;
   providerConfigured: boolean;
   providerMessage: string;
+  directory?: DirectoryRecipient[];
 }) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
@@ -87,9 +92,29 @@ export function EmailComposeForm({
       <input type="hidden" name="references" value={references} />
       <input type="hidden" name="draft_id" value={draftId} />
       <input type="hidden" name="branded" value="1" />
+      <AdminRecipientPicker
+        directory={directory}
+        selectedKeys={[]}
+        onSelectedKeysChange={() => undefined}
+        customEmails={[]}
+        onCustomEmailsChange={() => undefined}
+        mode="append"
+        onAppendEmails={(emails, target) => {
+          if (target === "cc") setCc((current) => mergeAddressField(current, emails));
+          else if (target === "bcc") setBcc((current) => mergeAddressField(current, emails));
+          else setTo((current) => mergeAddressField(current, emails));
+        }}
+        disabled={pending}
+      />
       <label className="block space-y-1 text-small">
         <span className="text-[var(--nexo-text-muted)]">To</span>
-        <Input name="to" value={to} onChange={(e) => setTo(e.target.value)} required placeholder="name@example.com" />
+        <Input
+          name="to"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          required
+          placeholder="name@example.com, another@example.com"
+        />
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1 text-small">
