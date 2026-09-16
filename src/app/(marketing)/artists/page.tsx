@@ -20,7 +20,7 @@ export default function Page() {
     <>
       <PageHero
         eyebrow="For Artists"
-        title="Your catalog. Your career."
+        title="Your music. Your rights."
         description="NEXO helps independent artists distribute releases, understand royalties, and access publishing support through Nexo Publishing Group — without inventing streams, testimonials, or celebrity associations."
         crumbs={[{ label: "Home", href: "/" }, { label: "For Artists" }]}
       >

@@ -1,77 +1,31 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Eyebrow } from "@/components/marketing/Section";
-import { EditorialImage } from "@/components/website/EditorialImage";
+import { CircularCta } from "@/components/public/CircularCta";
+import { DisplayHeading } from "@/components/public/DisplayHeading";
 
 export function FinalCta({
-  title = "Ready to move your catalog forward?",
+  title = "Ready to be heard?",
   description = "Talk with Nexo about distribution, publishing, and royalty workflows built for independent artists and labels.",
-  imageSrc,
-  aboutImageSrc,
 }: {
   title?: string;
   description?: string;
-  /** Optional CTA editorial image (resolved URL). */
   imageSrc?: string;
-  /** Optional about strip image shown above CTA actions on large screens. */
   aboutImageSrc?: string;
 }) {
-  const showImages = Boolean(imageSrc || aboutImageSrc);
-
   return (
-    <section className="border-t border-[var(--nexo-border)] bg-[var(--nexo-elevated)] overflow-x-hidden">
+    <section className="relative overflow-hidden border-t border-[var(--nexo-border)]">
       <div
-        className={
-          showImages
-            ? "mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8"
-            : "mx-auto flex max-w-7xl flex-col items-start gap-6 px-4 py-16 sm:px-6 sm:py-20 lg:flex-row lg:items-center lg:justify-between lg:px-8"
-        }
-      >
-        <div className="max-w-2xl">
-          <Eyebrow>Next step</Eyebrow>
-          <h2 className="mt-3 text-h2 text-[var(--nexo-text)]">{title}</h2>
-          <p className="mt-3 text-body text-[var(--nexo-text-muted)]">{description}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/get-started">
-              <Button size="lg" className="gap-2 rounded-full px-6">
-                Get Started
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/contact">
-              <Button size="lg" variant="outline" className="rounded-full px-6">
-                Contact
-              </Button>
-            </Link>
-          </div>
+        className="pointer-events-none absolute inset-0"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 80% at 88% 40%, color-mix(in srgb, var(--nexo-text) 16%, transparent), transparent 60%)",
+        }}
+      />
+      <div className="pub-container pub-section relative flex flex-col gap-10 lg:min-h-[28rem] lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-4xl">
+          <DisplayHeading as="h2">{title}</DisplayHeading>
+          <p className="pub-body mt-8 max-w-md">{description}</p>
         </div>
-        {showImages ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {aboutImageSrc ? (
-              <EditorialImage
-                src={aboutImageSrc}
-                fallbackPreset="studioSession"
-                alt="Recording studio session atmosphere"
-                motion="mask-left"
-                aspectClassName="aspect-[4/3]"
-                hoverZoom
-              />
-            ) : null}
-            {imageSrc ? (
-              <EditorialImage
-                src={imageSrc}
-                fallbackPreset="live"
-                alt="Live performance and catalog energy"
-                motion="clip-diagonal"
-                aspectClassName="aspect-[4/3]"
-                hoverZoom
-              />
-            ) : null}
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-3 lg:hidden" />
-        )}
+        <CircularCta href="/get-started">Get started →</CircularCta>
       </div>
     </section>
   );

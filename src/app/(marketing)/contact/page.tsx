@@ -5,6 +5,7 @@ import { Section, Eyebrow } from "@/components/marketing/Section";
 import { ContactForm } from "@/components/marketing/ContactForm";
 import { Button } from "@/components/ui/Button";
 import { SITE_URL, COMPANY_LEGAL } from "@/lib/site";
+import { LEGAL_CONTACT_EMAIL } from "@/lib/legal/copy";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -19,7 +20,7 @@ export default function Page() {
       <PageHero
         eyebrow="Contact"
         title="Talk with Nexo"
-        description="Ask about distribution, Nexo Publishing Group, pricing, or label operations. The form UI is complete; delivery requires backend configuration."
+        description="Ask about distribution, Nexo Publishing Group, pricing, or label operations. Messages go through the contact form."
         crumbs={[{ label: "Home", href: "/" }, { label: "Contact" }]}
       />
 
@@ -39,14 +40,27 @@ export default function Page() {
               </a>
             </p>
             <p className="mt-4 text-small text-[var(--nexo-text-muted)]">
-              A public support email will be listed here when published. Until then, use Get
-              Started to register interest, or configure form delivery in a later batch.
+              Email{" "}
+              <a
+                href={`mailto:${LEGAL_CONTACT_EMAIL}`}
+                className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+              >
+                {LEGAL_CONTACT_EMAIL}
+              </a>
+              {" "}or use the form. Additional inquiries:{" "}
+              <a
+                href="mailto:nexomusicdistribution@gmail.com"
+                className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+              >
+                nexomusicdistribution@gmail.com
+              </a>
+              .
             </p>
             <Link href="/get-started" className="mt-6 inline-flex">
-              <Button className="rounded-full">Get Started</Button>
+              <Button>Get Started</Button>
             </Link>
           </div>
-          <div className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 sm:p-8">
+          <div className="border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 sm:p-8">
             <h2 className="text-h3">Message form</h2>
             <div className="mt-6">
               <ContactForm />

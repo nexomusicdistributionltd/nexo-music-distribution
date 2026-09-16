@@ -57,7 +57,7 @@ export default async function PricingPage({
     <>
       <PageHero
         eyebrow="Pricing"
-        title="Plans for artists and labels"
+        title="Plans for artists and labels."
         description={`${COMPANY_LEGAL} publishes USD list prices for Artist Starter (free), Artist Pro, Label Starter, and Label Pro. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout.`}
         crumbs={[{ label: "Home", href: "/" }, { label: "Pricing" }]}
       />

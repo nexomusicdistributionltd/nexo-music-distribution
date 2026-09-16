@@ -21,7 +21,7 @@ export default function Page() {
     <>
       <PageHero
         eyebrow="Distribution"
-        title="Get your music on 450+ platforms"
+        title="Get your music everywhere."
         description="NEXO delivers releases for independent artists and labels — with quality control, catalog visibility, and royalty pathways designed for professional catalogs."
         crumbs={[{ label: "Home", href: "/" }, { label: "Distribution" }]}
       >

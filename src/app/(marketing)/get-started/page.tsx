@@ -19,7 +19,7 @@ export default function Page() {
     <>
       <PageHero
         eyebrow="Get Started"
-        title="Begin with Nexo"
+        title="Begin with Nexo."
         description="Create an artist or label account to access the portal. Distribution APIs and payments are not connected yet — registration and authentication are real."
         crumbs={[{ label: "Home", href: "/" }, { label: "Get Started" }]}
       />

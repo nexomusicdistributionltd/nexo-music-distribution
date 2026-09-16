@@ -21,9 +21,7 @@ type RevealProps = {
 };
 
 /**
- * Scroll-in reveal. Respects prefers-reduced-motion (shows immediately).
- * Uses IntersectionObserver — no layout thrash / no horizontal overflow.
- * Professional ease only — no bounce.
+ * Scroll-in reveal for public pages. Respects prefers-reduced-motion.
  */
 export function Reveal({
   children,
@@ -58,7 +56,7 @@ export function Reveal({
           io.disconnect();
         }
       },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 }
+      { rootMargin: "0px 0px -12% 0px", threshold: 0.12 }
     );
     io.observe(el);
     return () => io.disconnect();
@@ -67,20 +65,20 @@ export function Reveal({
   const hidden = (() => {
     switch (variant) {
       case "scale-in":
-        return "opacity-0 scale-[0.98]";
+        return "opacity-0 scale-[0.97]";
       case "fade":
         return "opacity-0";
       case "fade-left":
-        return "opacity-0 -translate-x-3";
+        return "opacity-0 -translate-x-8";
       case "fade-right":
-        return "opacity-0 translate-x-3";
+        return "opacity-0 translate-x-8";
       case "fade-down":
-        return "opacity-0 -translate-y-3";
+        return "opacity-0 -translate-y-8";
       case "mask":
-        return "opacity-0 [clip-path:inset(8%_0_0_0)] translate-y-2";
+        return "opacity-0 [clip-path:inset(12%_0_0_0)] translate-y-6";
       case "fade-up":
       default:
-        return "opacity-0 translate-y-3";
+        return "opacity-0 translate-y-10";
     }
   })();
 
@@ -95,7 +93,7 @@ export function Reveal({
       ref={ref}
       className={cn(
         "transform-gpu will-change-transform",
-        !reduce && "transition-[opacity,transform,clip-path] duration-700 ease-out",
+        !reduce && "transition-[opacity,transform,clip-path] duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
         visible ? shown : hidden,
         className
       )}
@@ -109,7 +107,7 @@ export function Reveal({
 export function Stagger({
   children,
   className,
-  stepMs = 70,
+  stepMs = 110,
   variant = "fade-up",
 }: {
   children: React.ReactNode;

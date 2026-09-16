@@ -19,7 +19,7 @@ export default function Page() {
     <>
       <PageHero
         eyebrow="About"
-        title={COMPANY_LEGAL}
+        title="Infrastructure for independent music."
         description="Digital music distribution, publishing, and royalty management for independent artists and labels. Publishing division: Nexo Publishing Group."
         crumbs={[{ label: "Home", href: "/" }, { label: "About" }]}
         aside={<HeroImage preset="console" alt="" />}
@@ -28,7 +28,7 @@ export default function Page() {
       <Section>
         <div className="grid gap-10 lg:grid-cols-2">
           <div>
-            <Eyebrow>Mission</Eyebrow>
+            <Eyebrow>{COMPANY_LEGAL}</Eyebrow>
             <h2 className="mt-3 text-h2">Infrastructure for independent music</h2>
             <p className="mt-4 text-body text-[var(--nexo-text-muted)]">
               NEXO exists to help artists and labels move music into the world with

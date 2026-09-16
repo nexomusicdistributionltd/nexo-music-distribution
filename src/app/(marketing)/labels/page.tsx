@@ -20,7 +20,7 @@ export default function Page() {
     <>
       <PageHero
         eyebrow="For Labels"
-        title="Operate a roster with clarity"
+        title="Operate a roster."
         description="Independent labels need repeatable delivery, consistent QC, and royalty reporting that scales across artists. NEXO is structured for that operational reality."
         crumbs={[{ label: "Home", href: "/" }, { label: "For Labels" }]}
       >
