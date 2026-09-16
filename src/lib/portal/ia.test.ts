@@ -5,6 +5,7 @@ import {
   FORBIDDEN_PORTAL_COPY,
   accountOverlayItems,
   generatedPortalHrefs,
+  findPortalItem,
   portalSectionsForKind,
 } from "@/lib/portal/ia";
 import { allKnowledgeArticles } from "@/lib/portal/knowledge";
@@ -96,6 +97,9 @@ describe("portal IA", () => {
     expect(hrefs).toContain("/catalog/ringtone");
     expect(hrefs).toContain("/analytics/streams");
     expect(hrefs).toContain("/account/payment-tax");
+    for (const href of hrefs) {
+      expect(findPortalItem(href)?.href).toBe(href);
+    }
   });
 });
 

@@ -62,7 +62,7 @@ export default async function PortalLayout({
           labelName={labelName}
         />
         <RealtimeRefresh userId={ctx.userId} />
-        <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</main>
+        <main className="flex-1 px-4 py-5 sm:px-6 lg:ml-[18.5rem] lg:px-8">{children}</main>
       </div>
     );
   }

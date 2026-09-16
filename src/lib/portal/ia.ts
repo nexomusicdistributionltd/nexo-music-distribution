@@ -606,6 +606,10 @@ export function findPortalItem(href: string): PortalNavItem | undefined {
   return [...artist, ...label].flatMap((s) => s.items).concat(account).find((i) => i.href === href);
 }
 
+export function portalPageTitle(href: string): string {
+  return findPortalItem(href)?.label ?? "Workspace";
+}
+
 export function generatedPortalHrefs(): string[] {
   const hrefs = new Set<string>();
   for (const it of allPortalPageDefs()) {

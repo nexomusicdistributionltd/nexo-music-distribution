@@ -20,7 +20,7 @@ import { ArtistBioForm } from "@/components/roster/ArtistBioForm";
 import { findPortalItem, type PortalNavItem } from "@/lib/portal/ia";
 import { knowledgeArticle, allKnowledgeArticles } from "@/lib/portal/knowledge";
 import { loadAnalyticsSnapshot } from "@/lib/portal/analytics";
-import { SERVICE_KIND_LABEL } from "@/lib/portal/service-kinds";
+import { SERVICE_KIND_LABEL, isAnalyticsKey } from "@/lib/portal/service-kinds";
 import { formatMinorUnits } from "@/lib/finance/money";
 import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { getArtistProfileForUser, getLabelProfileForUser, listArtistDspLinks, listRosterArtists } from "@/lib/roster/queries";
@@ -50,7 +50,8 @@ export async function PortalFeaturePage({ href }: { href: string }) {
     return <KnowledgeView def={def} />;
   }
   if (def.pageKind === "analytics") {
-    const snap = await loadAnalyticsSnapshot(ctx.userId, def.analyticsKey as NonNullable<typeof def.analyticsKey>);
+    if (!def.analyticsKey || !isAnalyticsKey(def.analyticsKey)) notFound();
+    const snap = await loadAnalyticsSnapshot(ctx.userId, def.analyticsKey);
     return (
       <div className="space-y-6">
         <PageIntro eyebrow="Analytics" title={def.label} description={def.description} />

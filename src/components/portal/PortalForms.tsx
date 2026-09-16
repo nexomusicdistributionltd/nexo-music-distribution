@@ -18,6 +18,7 @@ import {
   requestEnrollmentAction,
   saveTaxDetailsAction,
 } from "@/app/(portal)/portal-actions";
+import type { SplitShareInput } from "@/lib/finance/splits";
 
 function usePendingAction() {
   const router = useRouter();
@@ -137,21 +138,19 @@ export function SplitRuleForm() {
         const bpsA = Math.trunc(Number(fd.get("share_a_bps")));
         const bpsB = Math.trunc(Number(fd.get("share_b_bps")));
         void s.run(async () => {
+          const shares: SplitShareInput[] = [];
+          const partyA = String(fd.get("party_a") || "").trim();
+          const partyB = String(fd.get("party_b") || "").trim();
+          if (partyA && bpsA > 0) {
+            shares.push({ partyName: partyA, partyRole: "artist", shareBps: bpsA });
+          }
+          if (partyB && bpsB > 0) {
+            shares.push({ partyName: partyB, partyRole: "other", shareBps: bpsB });
+          }
           const r = await createSplitRuleAction({
             name: String(fd.get("name") || ""),
             effectiveFrom: String(fd.get("effective_from") || ""),
-            shares: [
-              {
-                partyName: String(fd.get("party_a") || ""),
-                partyRole: "artist",
-                shareBps: bpsA,
-              },
-              {
-                partyName: String(fd.get("party_b") || ""),
-                partyRole: "other",
-                shareBps: bpsB,
-              },
-            ].filter((x) => x.partyName.trim() && x.shareBps > 0),
+            shares,
           });
           return r.ok ? { ok: true } : r;
         }, form);

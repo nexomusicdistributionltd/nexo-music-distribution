@@ -20,8 +20,8 @@ describe("Batch 4 roles / authz", () => {
   it("nav includes Batch 4 destinations for artists", () => {
     const hrefs = navForRoles(["artist"]).map((n) => n.href);
     expect(hrefs).toContain("/dashboard/releases");
-    expect(hrefs).toContain("/dashboard/catalog");
-    expect(hrefs).toContain("/dashboard/notifications");
-    expect(hrefs).toContain("/dashboard/settings");
+    expect(hrefs).toContain("/dashboard/releases/new");
+    expect(hrefs).toContain("/dashboard/catalog/move-in");
+    expect(hrefs).toContain("/support");
   });
 });

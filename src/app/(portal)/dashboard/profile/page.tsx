@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ProfileForm } from "@/components/auth/ProfileForm";
 import { Alert } from "@/components/ui/Alert";
 import { DspProfileLinksEditor } from "@/components/roster/DspProfileLinksEditor";
@@ -35,9 +36,9 @@ export default async function DashboardProfilePage() {
       {ctx.roles.includes("label") && !artist ? (
         <Alert>
           DSP profile links (Spotify, Apple Music, Audiomack, and others) live on each roster artist.{" "}
-          <a href="/app/artists" className="underline-offset-4 hover:underline">
+          <Link href="/app/artists" className="underline-offset-4 hover:underline">
             Open roster
-          </a>
+          </Link>
         </Alert>
       ) : null}
       {artist ? (

@@ -59,10 +59,18 @@ export function PortalChrome({
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-[var(--nexo-border)] bg-[var(--nexo-bg)]/90 px-4 backdrop-blur-sm lg:px-6">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[18.5rem] flex-col bg-black text-white lg:flex">
+        <div className="flex h-14 items-center border-b border-white/10 px-4">
+          <Logo height={22} href="/dashboard" variant="on-dark" />
+        </div>
+        <div className="flex-1 overflow-y-auto pb-8">
+          <PortalAccordionNav sections={sections} />
+        </div>
+      </aside>
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-[var(--nexo-border)] bg-[var(--nexo-bg)]/90 px-4 backdrop-blur-sm lg:ml-[18.5rem] lg:px-6">
         <button
           type="button"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--nexo-radius-sm)] hover:bg-[var(--nexo-ghost-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--nexo-radius-sm)] hover:bg-[var(--nexo-ghost-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)] lg:hidden"
           aria-label={navOpen ? "Close menu" : "Open menu"}
           aria-expanded={navOpen}
           onClick={() => {
@@ -72,7 +80,9 @@ export function PortalChrome({
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Logo height={22} href="/dashboard" />
+        <div className="lg:hidden">
+          <Logo height={22} href="/dashboard" />
+        </div>
         <div className="min-w-0 flex-1">
           <p className="hidden text-[0.65rem] font-medium uppercase tracking-[0.14em] text-[var(--nexo-text-muted)] sm:block">
             {workspaceKind === "label" ? "Label" : "Artist"}

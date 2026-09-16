@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { RequireVerifiedEmail } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Alert } from "@/components/ui/Alert";
 import { formatMinorUnits } from "@/lib/finance/money";
 import { EarningsNav } from "@/components/finance/EarningsNav";
 import { PayoutRequestForm } from "@/components/portal/PortalForms";
