@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RosterArtistForm } from "@/components/roster/RosterArtistForm";
+import { DspProfileLinksEditor } from "@/components/roster/DspProfileLinksEditor";
 import { RequireRole } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import {
   getLabelProfileIdForUser,
   getRosterArtist,
+  listArtistDspLinks,
 } from "@/lib/roster/queries";
 
 export const metadata: Metadata = {
@@ -35,6 +37,7 @@ export default async function EditRosterArtistPage({
 
   const artist = await getRosterArtist(artistId);
   if (!artist) notFound();
+  const dspLinks = await listArtistDspLinks(artistId);
 
   const { data: releases } = await supabase
     .from("releases")
@@ -53,6 +56,7 @@ export default async function EditRosterArtistPage({
         </p>
       </div>
       <RosterArtistForm mode="edit" initial={artist} />
+      <DspProfileLinksEditor artistProfileId={artist.id} initial={dspLinks} />
       <section className="space-y-3">
         <h2 className="text-h4">Releases</h2>
         {(releases ?? []).length === 0 ? (

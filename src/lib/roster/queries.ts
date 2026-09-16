@@ -91,3 +91,14 @@ export async function countReleasesForArtists(
   }
   return counts;
 }
+
+export async function listArtistDspLinks(artistProfileId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("artist_dsp_links")
+    .select(
+      "dsp_key, url, enabled, preview_name, preview_image_url, preview_canonical_url"
+    )
+    .eq("artist_profile_id", artistProfileId);
+  return (data ?? []) as import("@/lib/dsp/profile-links").ArtistDspLink[];
+}

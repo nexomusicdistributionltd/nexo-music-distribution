@@ -13,6 +13,8 @@ import {
 } from "@/lib/roster/queries";
 import { DdexOwnerStatus } from "@/components/ddex/DdexOwnerStatus";
 import { listOwnerDdexStatus } from "@/lib/ddex/persistence";
+import { DspTargetingPanel } from "@/components/roster/DspTargetingPanel";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Release",
@@ -85,6 +87,12 @@ export default async function ReleaseDetailPage({
     ownerStatus = [];
   }
 
+  const supabase = await createClient();
+  const { data: dspTargets } = await supabase
+    .from("release_dsp_profile_targets")
+    .select("dsp_key, url, enabled")
+    .eq("release_id", id);
+
   return (
     <ReleaseDetailView
       variant="portal"
@@ -95,6 +103,15 @@ export default async function ReleaseDetailPage({
       history={history}
       artworkUrl={artworkUrl}
       ddexPanel={<DdexOwnerStatus rows={ownerStatus} />}
+      extra={
+        <DspTargetingPanel
+          targets={(dspTargets ?? []).map((t) => ({
+            dsp_key: t.dsp_key,
+            url: t.url,
+            enabled: t.enabled,
+          }))}
+        />
+      }
     />
   );
 }

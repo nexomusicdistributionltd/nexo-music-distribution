@@ -9,7 +9,16 @@ import { Alert } from "@/components/ui/Alert";
 import { saveDraftAction, sendComposedEmailAction } from "@/app/admin/emails/actions";
 import { AdminRecipientPicker } from "@/components/admin/AdminRecipientPicker";
 import { mergeAddressField } from "@/lib/email/addresses";
+import { brandedHtmlFromShellOrFallback } from "@/lib/email/branded-html";
+import { bodyToPreviewHtml } from "@/lib/email/newsletter-html";
 import type { DirectoryRecipient } from "@/lib/email/directory";
+
+export type ComposeTemplateSuggestion = {
+  key: string;
+  name: string;
+  subject: string;
+  html_body: string;
+};
 
 export function EmailComposeForm({
   defaultTo = "",
@@ -23,6 +32,8 @@ export function EmailComposeForm({
   providerConfigured,
   providerMessage,
   directory = [],
+  templates = [],
+  shellHtml = "",
 }: {
   defaultTo?: string;
   defaultCc?: string;
@@ -35,6 +46,8 @@ export function EmailComposeForm({
   providerConfigured: boolean;
   providerMessage: string;
   directory?: DirectoryRecipient[];
+  templates?: ComposeTemplateSuggestion[];
+  shellHtml?: string;
 }) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
@@ -47,8 +60,24 @@ export function EmailComposeForm({
   const [subject, setSubject] = React.useState(defaultSubject);
   const [body, setBody] = React.useState(defaultHtml);
 
+  const previewHtml = React.useMemo(
+    () =>
+      brandedHtmlFromShellOrFallback(shellHtml, {
+        subject: subject || "(Subject)",
+        bodyHtml: bodyToPreviewHtml(body),
+      }),
+    [shellHtml, subject, body]
+  );
+
+  function applyTemplate(t: ComposeTemplateSuggestion) {
+    setSubject(t.subject);
+    setBody(t.html_body);
+    setPreview(true);
+  }
+
   async function onSend(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (pending) return;
     setPending(true);
     setError(null);
     setMessage(null);
@@ -130,6 +159,23 @@ export function EmailComposeForm({
         <span className="text-[var(--nexo-text-muted)]">Subject</span>
         <Input name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} required />
       </label>
+      {templates.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-caption text-[var(--nexo-text-muted)]">Template suggestions</p>
+          <div className="flex flex-wrap gap-2">
+            {templates.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className="rounded-full border border-[var(--nexo-border)] px-3 py-1 text-caption hover:bg-[var(--nexo-ghost-hover)]"
+                onClick={() => applyTemplate(t)}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <label className="block space-y-1 text-small">
         <span className="text-[var(--nexo-text-muted)]">Body (HTML or plain text)</span>
         <Textarea
@@ -162,12 +208,11 @@ export function EmailComposeForm({
         </Button>
       </div>
       {preview ? (
-        <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[#050505] p-4">
-          <p className="text-label text-white">{subject || "(Subject)"}</p>
-          <div
-            className="mt-3 text-small text-[#e5e5e5]"
-            dangerouslySetInnerHTML={{ __html: body.includes("<") ? body : `<p>${body}</p>` }}
-          />
+        <div className="overflow-hidden rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[#050505]">
+          <p className="border-b border-[var(--nexo-border)] px-3 py-2 text-caption text-[var(--nexo-text-muted)]">
+            Branded HTML preview
+          </p>
+          <iframe title="Email branded preview" className="h-[28rem] w-full bg-[#050505]" sandbox="" srcDoc={previewHtml} />
         </div>
       ) : null}
       {message ? <Alert title="Result">{message}</Alert> : null}

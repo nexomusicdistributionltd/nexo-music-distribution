@@ -54,10 +54,11 @@ export default async function DashboardPage() {
   let loadError: string | null = null;
   let earnings: Array<{ currency: string; available_minor: number; pending_minor: number }> = [];
   let ticketCount = 0;
+  let trackCount = 0;
 
   try {
     const supabase = await createClient();
-    const [c, rec, act, notes, unreadCount, balances, tickets] = await Promise.all([
+    const [c, rec, act, notes, unreadCount, balances, tickets, tracksHead] = await Promise.all([
       getReleaseCounts(ctx.userId),
       listRecentReleases(ctx.userId, 6),
       listActionNeededReleases(ctx.userId, 6),
@@ -69,6 +70,10 @@ export default async function DashboardPage() {
         .select("id", { count: "exact", head: true })
         .eq("requester_user_id", ctx.userId)
         .in("status", ["open", "pending", "awaiting_user"]),
+      supabase
+        .from("release_tracks")
+        .select("id, releases!inner(owner_user_id)", { count: "exact", head: true })
+        .eq("releases.owner_user_id", ctx.userId),
     ]);
     counts = c;
     recent = rec;
@@ -77,6 +82,7 @@ export default async function DashboardPage() {
     unread = unreadCount;
     earnings = (balances.data ?? []) as typeof earnings;
     ticketCount = tickets.count ?? 0;
+    trackCount = tracksHead.error ? 0 : tracksHead.count ?? 0;
   } catch (e) {
     loadError = e instanceof Error ? e.message : "Could not load dashboard data.";
   }
@@ -118,17 +124,30 @@ export default async function DashboardPage() {
 
         <PlanFeaturesPanel entitlements={entitlements} />
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <CompactStat label="Roster" value={roster.length} href="/app/artists" />
-          <CompactStat label="Catalog" value={counts.total} href="/dashboard/releases" />
+          <CompactStat label="Releases" value={counts.total} href="/dashboard/releases" />
+          <CompactStat label="Tracks" value={trackCount} href="/dashboard/releases" />
+          <CompactStat
+            label="Live / delivered"
+            value={counts.deliveredLive}
+            href="/dashboard/releases?status=live"
+            hint="Confirmed delivery only"
+          />
+          <CompactStat
+            label="Streams"
+            value="—"
+            hint="Placeholder until statement ingest"
+          />
           <CompactStat
             label="Needs action"
             value={counts.rejectedAction}
             href="/dashboard/releases?status=changes_requested"
             tone={counts.rejectedAction ? "warning" : "default"}
           />
-          <CompactStat label="In QC" value={counts.submittedQc} href="/dashboard/releases?status=submitted" />
         </section>
+
+        <DistributionPipeline counts={counts} />
 
         <div className="grid gap-6 xl:grid-cols-5">
           <section className="space-y-3 xl:col-span-3">
@@ -208,17 +227,30 @@ export default async function DashboardPage() {
 
       <PlanFeaturesPanel entitlements={entitlements} />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <CompactStat label="Releases" value={counts.total} href="/dashboard/releases" />
+        <CompactStat label="Tracks" value={trackCount} href="/dashboard/releases" />
         <CompactStat label="Drafts" value={counts.drafts} href="/dashboard/releases?status=draft" />
+        <CompactStat
+          label="Live / delivered"
+          value={counts.deliveredLive}
+          href="/dashboard/releases?status=live"
+          hint="Confirmed delivery only"
+        />
+        <CompactStat
+          label="Streams"
+          value="—"
+          hint="Placeholder until statement ingest"
+        />
         <CompactStat
           label="Needs action"
           value={counts.rejectedAction}
           href="/dashboard/releases?status=changes_requested"
           tone={counts.rejectedAction ? "warning" : "default"}
         />
-        <CompactStat label="In QC" value={counts.submittedQc} href="/dashboard/releases?status=submitted" />
       </section>
+
+      <DistributionPipeline counts={counts} />
 
       <div className="grid gap-6 xl:grid-cols-5">
         <section className="space-y-3 xl:col-span-3">
@@ -252,6 +284,41 @@ export default async function DashboardPage() {
         />
       </div>
     </div>
+  );
+}
+
+function DistributionPipeline({
+  counts,
+}: {
+  counts: {
+    drafts: number;
+    submittedQc: number;
+    approved: number;
+    deliveredLive: number;
+  };
+}) {
+  const steps = [
+    { label: "Drafts", value: counts.drafts, href: "/dashboard/releases?status=draft" },
+    { label: "In QC", value: counts.submittedQc, href: "/dashboard/releases?status=submitted" },
+    { label: "Approved", value: counts.approved, href: "/dashboard/releases?status=approved" },
+    { label: "Live", value: counts.deliveredLive, href: "/dashboard/releases?status=live" },
+  ];
+  return (
+    <section className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3">
+      <p className="text-caption uppercase tracking-wide text-[var(--nexo-text-muted)]">
+        Distribution status
+      </p>
+      <ol className="mt-3 grid gap-3 sm:grid-cols-4">
+        {steps.map((s) => (
+          <li key={s.label}>
+            <Link href={s.href} className="block hover:opacity-80">
+              <span className="text-caption text-[var(--nexo-text-muted)]">{s.label}</span>
+              <span className="mt-0.5 block text-xl font-semibold tabular-nums">{s.value}</span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

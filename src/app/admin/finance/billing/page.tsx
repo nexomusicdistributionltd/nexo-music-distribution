@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { FinanceNav } from "@/components/finance/FinanceNav";
+import { AdminPlanCatalogPanel } from "@/components/admin/AdminPlanCatalogPanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { listBillingSubscriptionsAdmin } from "@/lib/billing/queries";
@@ -40,6 +41,7 @@ export default async function AdminBillingPage({
         description="Paddle Billing subscriptions mirrored from verified webhooks. No client-writable entitlements."
       />
       <FinanceNav />
+      <AdminPlanCatalogPanel />
 
       <form className="mb-6 flex flex-wrap gap-2 text-small" method="get">
         <select

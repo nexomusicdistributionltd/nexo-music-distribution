@@ -5,7 +5,7 @@ import { Section, Eyebrow } from "@/components/marketing/Section";
 import { ContactForm } from "@/components/marketing/ContactForm";
 import { Button } from "@/components/ui/Button";
 import { SITE_URL, COMPANY_LEGAL } from "@/lib/site";
-import { LEGAL_CONTACT_EMAIL } from "@/lib/legal/copy";
+import { LEGAL_CONTACT_EMAIL, LEGAL_INQUIRIES_EMAIL } from "@/lib/legal/copy";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -46,13 +46,13 @@ export default function Page() {
                 className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
               >
                 {LEGAL_CONTACT_EMAIL}
-              </a>
-              {" "}or use the form. Additional inquiries:{" "}
+              </a>{" "}
+              or use the form. Additional inquiries:{" "}
               <a
-                href="mailto:nexomusicdistribution@gmail.com"
+                href={`mailto:${LEGAL_INQUIRIES_EMAIL}`}
                 className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
               >
-                nexomusicdistribution@gmail.com
+                {LEGAL_INQUIRIES_EMAIL}
               </a>
               .
             </p>

@@ -43,6 +43,16 @@ export function RealtimeRefresh({
         {
           event: "*",
           schema: "public",
+          table: "playlist_pitch_requests",
+          ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
+        },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "billing_subscriptions",
           ...(staff ? {} : { filter: `user_id=eq.${userId}` }),
         },
@@ -58,7 +68,7 @@ export function RealtimeRefresh({
         )
         .on(
           "postgres_changes",
-          { event: "INSERT", schema: "public", table: "contact_messages" },
+          { event: "*", schema: "public", table: "contact_messages" },
           () => router.refresh()
         )
         .on(

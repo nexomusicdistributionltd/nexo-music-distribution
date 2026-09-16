@@ -23,7 +23,8 @@ describe("premium dashboard nav", () => {
     expect(artist).not.toContain("/admin/ddex");
     expect(artist).not.toContain("/analytics");
 
-    expect(label).toContain("/billing");
+    expect(artist).toContain("/dashboard/playlist-pitch");
+    expect(label).toContain("/dashboard/playlist-pitch");
     expect(label).toContain("/app/artists");
     expect(label).toContain("/dashboard/releases/new");
     expect(label).toContain("/dashboard/profile");
@@ -45,6 +46,7 @@ describe("premium dashboard nav", () => {
       "/admin/artists",
       "/admin/labels",
       "/admin/ddex",
+      "/admin/playlist-pitches",
       "/admin/distribution",
       "/admin/contact",
       "/admin/newsletter",
@@ -99,6 +101,7 @@ describe("dashboard copy is truthful", () => {
     const src = readFileSync(join(__dirname, "../../app/(portal)/dashboard/page.tsx"), "utf8");
     expect(src).not.toMatch(/fake (stream|kpi|revenue)/i);
     expect(src).toContain("No ledger balances yet");
+    expect(src).toContain("Placeholder until statement ingest");
     expect(src).toContain("Create artist");
     expect(src).toContain("New release");
   });

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getEmailProviderStatus } from "@/lib/email/provider";
 import { replySubject } from "@/lib/email/thread";
 import { listAdminEmailDirectory } from "@/lib/email/admin-recipients";
+import { loadDarkShellHtml } from "@/lib/email/stored";
 
 export const metadata: Metadata = {
   title: "Compose email",
@@ -27,13 +28,19 @@ export default async function AdminEmailComposePage({
   };
   const provider = getEmailProviderStatus();
   const supabase = await createClient();
-  const [{ data: drafts }, directory] = await Promise.all([
+  const [{ data: drafts }, directory, { data: templates }, shellHtml] = await Promise.all([
     supabase
       .from("email_drafts")
       .select("id, subject, updated_at")
       .order("updated_at", { ascending: false })
       .limit(8),
     listAdminEmailDirectory(supabase),
+    supabase
+      .from("email_templates")
+      .select("key, name, subject, html_body")
+      .order("name", { ascending: true })
+      .limit(40),
+    loadDarkShellHtml().catch(() => ""),
   ]);
 
   const replyTo = str("to") || str("replyTo");
@@ -55,6 +62,13 @@ export default async function AdminEmailComposePage({
         providerConfigured={provider.configured}
         providerMessage={provider.message}
         directory={directory.recipients}
+        templates={(templates ?? []).map((t) => ({
+          key: t.key,
+          name: t.name,
+          subject: t.subject,
+          html_body: t.html_body,
+        }))}
+        shellHtml={shellHtml}
       />
       {(drafts ?? []).length > 0 ? (
         <section className="mt-8">
