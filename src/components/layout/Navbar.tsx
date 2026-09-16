@@ -175,7 +175,7 @@ export function Navbar() {
         </div>
       </div>
 
-      <div className={cn("pub-nav-spacer", overHero && "h-0")} aria-hidden />
+      <div className={cn("pub-nav-spacer", overHero && "pub-nav-spacer--hero")} aria-hidden />
     </>
   );
 }

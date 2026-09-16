@@ -163,6 +163,7 @@
 .nexo-public .pub-nav--hero .pub-nav-login,
 .nexo-public .pub-nav--hero .pub-more-btn {
   color: var(--pub-on-media-muted);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
 }
 
 .nexo-public .pub-nav--hero .pub-nav-link:hover,
@@ -220,7 +221,7 @@
   height: 5.25rem;
 }
 
-.nexo-public .pub-nav--hero + .pub-nav-spacer {
+.nexo-public .pub-nav-spacer--hero {
   height: 0;
 }
 
