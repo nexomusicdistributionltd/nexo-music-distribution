@@ -3,10 +3,12 @@ import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { AccountStatusForm } from "@/components/admin/AccountStatusForm";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
 import { hasAdminPermission } from "@/lib/admin/permissions";
+import { adminListErrorMessage } from "@/lib/db/admin-query";
 
 export const metadata: Metadata = {
   title: "Admin users",
@@ -33,13 +35,14 @@ export default async function AdminUsersPage({
     );
   }
   const { data, error } = await query;
-  if (error) throw error;
   const canManage = hasAdminPermission(ctx.roles, "admin:users");
 
   return (
     <div>
       <PageHeader title="Users" description="All profiles. Role changes require super_admin." showSearch searchQ={sp.q} />
-      {(data ?? []).length === 0 ? (
+      {error ? (
+        <ErrorState title="Users unavailable" description={adminListErrorMessage(error)} retryHref="/admin/users" />
+      ) : (data ?? []).length === 0 ? (
         <EmptyState title="No users found" />
       ) : (
         <ul className="space-y-4">

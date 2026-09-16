@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery, type AdminSearchEntity } from "./search";
 import type { ReleaseStatus } from "@/lib/releases/types";
+import { adminListErrorMessage } from "@/lib/db/admin-query";
 
 export async function getAdminOperationalCounts() {
   const supabase = await createClient();
@@ -87,9 +88,16 @@ export async function listAdminReleases(filters: {
   if (q) {
     query = query.or(`title.ilike.%${q}%,primary_artist_name.ilike.%${q}%`);
   }
-
   const { data, error, count } = await query;
-  if (error) throw error;
+  if (error) {
+    return {
+      items: [],
+      total: 0,
+      page,
+      pageSize,
+      pageCount: 1,
+    };
+  }
   return {
     items: data ?? [],
     total: count ?? 0,
@@ -134,7 +142,9 @@ export async function listQcQueue(filters: {
   }
 
   const { data, error, count } = await query;
-  if (error) throw error;
+  if (error) {
+    return { items: [], total: 0, page, pageSize, error: adminListErrorMessage(error) };
+  }
   return { items: data ?? [], total: count ?? 0, page, pageSize };
 }
 

@@ -29,6 +29,7 @@ export default async function ArtistDetailPage({
     .maybeSingle();
   if (!artist) notFound();
 
+  const ownerId = artist.user_id as string | null;
   const [
     { data: profile },
     { data: releases },
@@ -38,40 +39,52 @@ export default async function ArtistDetailPage({
     { data: royalties },
     { data: payouts },
   ] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", artist.user_id).maybeSingle(),
-      supabase
-        .from("releases")
-        .select("id, title, status, updated_at")
-        .eq("artist_profile_id", artistId)
-        .order("updated_at", { ascending: false })
-        .limit(20),
-      supabase
-        .from("activity_events")
-        .select("*")
-        .eq("subject_user_id", artist.user_id)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase
-        .from("support_tickets")
-        .select("id, subject, status, updated_at")
-        .eq("requester_user_id", artist.user_id)
-        .limit(10),
-      supabase
-        .from("compliance_cases")
-        .select("id, title, status, created_at")
-        .eq("subject_user_id", artist.user_id)
-        .limit(10),
-      supabase
-        .from("royalty_statements")
-        .select("id, period_start, period_end, status, total_minor, currency")
-        .eq("owner_user_id", artist.user_id)
-        .limit(10),
-      supabase
-        .from("payouts")
-        .select("id, status, amount_minor, currency, created_at")
-        .eq("owner_user_id", artist.user_id)
-        .limit(10),
-    ]);
+    ownerId
+      ? supabase.from("profiles").select("*").eq("id", ownerId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("releases")
+      .select("id, title, status, updated_at")
+      .eq("artist_profile_id", artistId)
+      .order("updated_at", { ascending: false })
+      .limit(20),
+    ownerId
+      ? supabase
+          .from("activity_events")
+          .select("*")
+          .eq("subject_user_id", ownerId)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
+    ownerId
+      ? supabase
+          .from("support_tickets")
+          .select("id, subject, status, updated_at")
+          .eq("requester_user_id", ownerId)
+          .limit(10)
+      : Promise.resolve({ data: [] }),
+    ownerId
+      ? supabase
+          .from("compliance_cases")
+          .select("id, title, status, created_at")
+          .eq("subject_user_id", ownerId)
+          .limit(10)
+      : Promise.resolve({ data: [] }),
+    ownerId
+      ? supabase
+          .from("royalty_statements")
+          .select("id, period_start, period_end, status, total_minor, currency")
+          .eq("owner_user_id", ownerId)
+          .limit(10)
+      : Promise.resolve({ data: [] }),
+    ownerId
+      ? supabase
+          .from("payouts")
+          .select("id, status, amount_minor, currency, created_at")
+          .eq("owner_user_id", ownerId)
+          .limit(10)
+      : Promise.resolve({ data: [] }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -84,7 +97,13 @@ export default async function ArtistDetailPage({
           <h2 className="text-h4">Profile</h2>
           <p className="text-small">Status: {profile?.account_status ?? "—"}</p>
           <p className="text-small">{artist.bio || "No bio."}</p>
-          <AccountStatusForm userId={artist.user_id} />
+          {ownerId ? (
+            <AccountStatusForm userId={ownerId} />
+          ) : (
+            <p className="text-caption text-[var(--nexo-text-muted)]">
+              Roster-only artist — no linked login to suspend.
+            </p>
+          )}
         </section>
         <section className="space-y-2">
           <h2 className="text-h4">Releases</h2>

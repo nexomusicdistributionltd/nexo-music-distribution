@@ -2,17 +2,13 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Alert } from "@/components/ui/Alert";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
+import { AdminRecipientPicker } from "@/components/admin/AdminRecipientPicker";
 import { sendEmailTemplateAction } from "@/app/admin/emails/actions";
-
-export type SendableUser = {
-  id: string;
-  email: string;
-  label: string;
-};
+import { parseDirectoryKeys, type AdminSelectAllKind } from "@/lib/email/campaign";
+import type { DirectoryRecipient } from "@/lib/email/directory";
 
 export type SendableTemplate = {
   key: string;
@@ -23,15 +19,13 @@ export type SendableTemplate = {
 
 export function EmailSendComposer({
   templates,
-  users,
-  userCount,
+  directory,
   defaultTemplateKey,
   providerMessage,
   providerConfigured,
 }: {
   templates: SendableTemplate[];
-  users: SendableUser[];
-  userCount: number;
+  directory: DirectoryRecipient[];
   defaultTemplateKey?: string;
   providerMessage: string;
   providerConfigured: boolean;
@@ -41,49 +35,19 @@ export function EmailSendComposer({
       ? defaultTemplateKey
       : templates[0]?.key ?? ""
   );
-  const [q, setQ] = React.useState("");
-  const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [selectAll, setSelectAll] = React.useState(false);
+  const [selectedKeys, setSelectedKeys] = React.useState<string[]>([]);
+  const [customEmails, setCustomEmails] = React.useState<string[]>([]);
+  const [selectAllKind, setSelectAllKind] = React.useState<AdminSelectAllKind | null>(null);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<string | null>(null);
 
-  const filtered = React.useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return users;
-    return users.filter(
-      (u) =>
-        u.email.toLowerCase().includes(needle) ||
-        u.label.toLowerCase().includes(needle)
-    );
-  }, [q, users]);
-
-  const recipientCount = selectAll ? userCount : selected.size;
-
-  function toggle(id: string) {
-    setSelectAll(false);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleVisible() {
-    setSelectAll(false);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      const allVisibleSelected = filtered.every((u) => next.has(u.id));
-      if (allVisibleSelected) {
-        for (const u of filtered) next.delete(u.id);
-      } else {
-        for (const u of filtered) next.add(u.id);
-      }
-      return next;
-    });
-  }
+  const directoryCount = directory.filter((row) => row.email).length;
+  const recipientCount = selectAllKind
+    ? directory.filter((row) => (selectAllKind === "all" ? true : row.kind === selectAllKind) && row.email)
+        .length
+    : selectedKeys.length + customEmails.length;
 
   return (
     <div className="space-y-5">
@@ -111,56 +75,16 @@ export function EmailSendComposer({
         </label>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <label className="inline-flex items-center gap-2 text-small">
-          <input
-            type="checkbox"
-            checked={selectAll}
-            onChange={(e) => {
-              setSelectAll(e.target.checked);
-              if (e.target.checked) setSelected(new Set());
-            }}
-          />
-          Select all users ({userCount} profiles with email)
-        </label>
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Filter loaded users"
-          className="sm:max-w-xs"
-          disabled={selectAll}
-        />
-      </div>
-
-      <div className="overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
-        <div className="flex items-center justify-between border-b border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-3 py-2">
-          <p className="text-caption text-[var(--nexo-text-muted)]">
-            Recipients resolve from profiles in the database — browser-typed emails are ignored.
-          </p>
-          <Button type="button" variant="ghost" size="sm" onClick={toggleVisible} disabled={selectAll}>
-            Toggle visible
-          </Button>
-        </div>
-        <ul className="max-h-80 divide-y divide-[var(--nexo-border)] overflow-y-auto">
-          {filtered.map((u) => (
-            <li key={u.id} className="flex items-center gap-3 px-3 py-2 text-small">
-              <input
-                type="checkbox"
-                checked={selectAll || selected.has(u.id)}
-                disabled={selectAll}
-                onChange={() => toggle(u.id)}
-                aria-label={u.email}
-              />
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{u.label}</span>
-                <span className="block truncate text-caption text-[var(--nexo-text-muted)]">
-                  {u.email}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <AdminRecipientPicker
+        directory={directory}
+        selectedKeys={selectedKeys}
+        onSelectedKeysChange={setSelectedKeys}
+        customEmails={customEmails}
+        onCustomEmailsChange={setCustomEmails}
+        selectAllKind={selectAllKind}
+        onSelectAllKindChange={setSelectAllKind}
+        disabled={pending}
+      />
 
       {error ? (
         <Alert variant="warning" title="Send not completed">
@@ -178,7 +102,8 @@ export function EmailSendComposer({
         disabled={pending || !templateKey || recipientCount === 0}
         onClick={() => setConfirmOpen(true)}
       >
-        Review and enqueue ({recipientCount})
+        Review and enqueue ({recipientCount}
+        {selectAllKind ? "+" : ""})
       </Button>
 
       <ConfirmationDialog
@@ -186,9 +111,9 @@ export function EmailSendComposer({
         onClose={() => setConfirmOpen(false)}
         title="Enqueue branded email?"
         description={
-          selectAll
-            ? `This will enqueue “${templateKey}” to all ${userCount} profile emails from the database. Status stays queued or skipped until a real provider accepts the send.`
-            : `This will enqueue “${templateKey}” to ${selected.size} selected user(s). Addresses come from profiles, not from the form. Status stays queued or skipped until a real provider accepts the send.`
+          selectAllKind
+            ? `This will enqueue “${templateKey}” to ${selectAllKind === "all" ? "all loaded artists, labels, and users" : `all ${selectAllKind}s`} with emails (${directoryCount} currently loaded), plus any extra typed addresses. Status stays queued or skipped until Zoho SMTP accepts the send.`
+            : `This will enqueue “${templateKey}” to ${selectedKeys.length} selected artist/label/user row(s) and ${customEmails.length} typed address(es). Directory emails resolve from the database; typed addresses are used as entered. Status stays queued or skipped until a real provider accepts the send.`
         }
         confirmLabel={pending ? "Enqueueing…" : "Confirm enqueue"}
         confirmDisabled={pending}
@@ -196,10 +121,15 @@ export function EmailSendComposer({
           setPending(true);
           setError(null);
           setResult(null);
+          const parsed = parseDirectoryKeys(selectedKeys);
           void sendEmailTemplateAction({
             templateKey,
-            selectAll,
-            userIds: [...selected],
+            selectAll: selectAllKind === "user",
+            selectAllKind,
+            userIds: parsed.userIds,
+            artistIds: parsed.artistIds,
+            labelIds: parsed.labelIds,
+            customEmails,
             confirmed: true,
           }).then((res) => {
             setPending(false);

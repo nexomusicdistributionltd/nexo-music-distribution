@@ -3,7 +3,9 @@ import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { listBillingSubscriptionsAdmin } from "@/lib/billing/queries";
+import { billingUserCell } from "@/lib/billing/admin-display";
 import { getBillingEntitlements } from "@/lib/billing/entitlements";
 import { subscriptionRowToSnapshot } from "@/lib/billing/types";
 import type { BillingAccountType } from "@/lib/billing/plans";
@@ -24,7 +26,7 @@ export default async function AdminBillingPage({
     sp.accountType === "artist" || sp.accountType === "label"
       ? (sp.accountType as BillingAccountType)
       : null;
-  const rows = await listBillingSubscriptionsAdmin({
+  const { rows, error } = await listBillingSubscriptionsAdmin({
     status: sp.status || null,
     accountType,
     planId: sp.plan || null,
@@ -77,7 +79,7 @@ export default async function AdminBillingPage({
         <input
           name="q"
           defaultValue={sp.q ?? ""}
-          placeholder="Paddle sub / customer / user id"
+          placeholder="Email, name, Paddle sub / customer, user id"
           className="min-w-[16rem] flex-1 rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] px-3 py-2"
         />
         <button type="submit" className="rounded-full border border-[var(--nexo-border)] px-4 py-2">
@@ -85,12 +87,20 @@ export default async function AdminBillingPage({
         </button>
       </form>
 
-      {rows.length === 0 ? (
+      {error ? (
+        <ErrorState
+          title="Billing list unavailable"
+          description={error}
+          retryHref="/admin/finance/billing"
+        />
+      ) : null}
+
+      {!error && rows.length === 0 ? (
         <EmptyState
           title="No billing subscriptions"
-          description="Rows appear after verified Paddle webhooks. Sandbox catalog creation is still pending an API key."
+          description="Rows appear after verified Paddle webhooks. An empty list after migrations is expected until a real checkout completes — subscriptions are not invented."
         />
-      ) : (
+      ) : rows.length > 0 ? (
         <div className="overflow-x-auto rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
           <table className="min-w-full text-left text-small">
             <thead className="border-b border-[var(--nexo-border)] text-caption uppercase tracking-[0.08em] text-[var(--nexo-text-muted)]">
@@ -111,10 +121,16 @@ export default async function AdminBillingPage({
                   accountType: row.account_type,
                   subscription: subscriptionRowToSnapshot(row),
                 });
+                const user = billingUserCell(row);
                 return (
                 <tr key={row.id} className="border-b border-[var(--nexo-divider)]">
                   <td className="px-3 py-2">
-                    <span className="font-mono text-caption">{row.user_id.slice(0, 8)}</span>
+                    <span className="block font-medium">{user.title}</span>
+                    {user.subtitle ? (
+                      <span className="block font-mono text-caption text-[var(--nexo-text-muted)]">
+                        {user.subtitle}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2">{row.account_type}</td>
                   <td className="px-3 py-2">{row.plan_id ?? "—"}</td>
@@ -138,7 +154,8 @@ export default async function AdminBillingPage({
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
+
     </div>
   );
 }

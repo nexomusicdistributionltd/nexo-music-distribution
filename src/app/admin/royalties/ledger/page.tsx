@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { createClient } from "@/lib/supabase/server";
 import { formatMinorUnits, toTransactionKind } from "@/lib/finance/money";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import type { MoneyEntryKind } from "@/lib/finance/money";
+import { unwrapAdminList } from "@/lib/db/admin-query";
 
 export const metadata: Metadata = {
   title: "Royalty ledger",
@@ -23,7 +25,7 @@ export default async function RoyaltyLedgerPage({
   const pageSize = 50;
   const from = (page - 1) * pageSize;
   const supabase = await createClient();
-  const { data, count } = await supabase
+  const res = await supabase
     .from("ledger_entries")
     .select(
       "id, kind, amount_minor, currency, description, balance_bucket, source_provider, dsp_code, territory, isrc, upc, period_start, period_end, created_at",
@@ -31,6 +33,8 @@ export default async function RoyaltyLedgerPage({
     )
     .order("created_at", { ascending: false })
     .range(from, from + pageSize - 1);
+  const listed = unwrapAdminList(res);
+  const count = res.error ? 0 : (res.count ?? listed.items.length);
 
   return (
     <div>
@@ -39,7 +43,9 @@ export default async function RoyaltyLedgerPage({
         description="Immutable append-only entries. Pagination for large lists."
       />
       <FinanceNav />
-      {(data ?? []).length === 0 ? (
+      {listed.error ? (
+        <ErrorState title="Ledger unavailable" description={listed.error} retryHref="/admin/royalties/ledger" />
+      ) : listed.items.length === 0 ? (
         <EmptyState
           title="No ledger entries"
           description="NO DATA until royalty imports or adjustments are posted."
@@ -47,10 +53,10 @@ export default async function RoyaltyLedgerPage({
       ) : (
         <>
           <p className="mb-2 text-caption text-[var(--nexo-text-muted)]">
-            Showing {from + 1}–{from + (data?.length ?? 0)} of {count ?? 0}
+            Showing {from + 1}–{from + listed.items.length} of {count}
           </p>
           <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
-            {(data ?? []).map((e) => (
+            {listed.items.map((e) => (
               <li key={e.id} className="px-4 py-3 text-small">
                 <div className="flex justify-between gap-3">
                   <span>

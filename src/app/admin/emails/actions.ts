@@ -22,9 +22,10 @@ import {
 } from "@/lib/email/template-keys";
 import { composeCustomFromShell, seedMissingEmailTemplates } from "@/lib/email/stored";
 import { getEmailProviderStatus } from "@/lib/email/provider";
-import { resolveManualRecipients } from "@/lib/email/resolve-recipient";
+import { resolveAdminCampaignRecipients } from "@/lib/email/admin-recipients";
 import type { StoredTemplateCategory } from "@/lib/email/types";
 import type { ActionResult } from "@/app/admin/actions";
+import type { AdminSelectAllKind } from "@/lib/email/campaign";
 
 function revalidateEmailAdmin() {
   revalidatePath("/admin/emails");
@@ -174,7 +175,11 @@ export async function deleteEmailTemplateAction(
 export async function sendEmailTemplateAction(input: {
   templateKey: string;
   selectAll: boolean;
+  selectAllKind?: AdminSelectAllKind | null;
   userIds: string[];
+  artistIds?: string[];
+  labelIds?: string[];
+  customEmails?: string[];
   confirmed: boolean;
 }): Promise<
   ActionResult<{
@@ -207,15 +212,22 @@ export async function sendEmailTemplateAction(input: {
   }
 
   const selectedIds = parseSelectedUserIds(input.userIds);
-  if (!input.selectAll && selectedIds.length === 0) {
-    return { ok: false, error: "Select at least one user, or choose Select all users." };
+  const artistIds = parseSelectedUserIds(input.artistIds ?? []);
+  const labelIds = parseSelectedUserIds(input.labelIds ?? []);
+  const customEmails = input.customEmails ?? [];
+  const selectAllKind = input.selectAllKind ?? (input.selectAll ? "user" : null);
+  if (!selectAllKind && selectedIds.length === 0 && artistIds.length === 0 && labelIds.length === 0 && customEmails.length === 0) {
+    return { ok: false, error: "Select at least one artist, label, user, or typed email address." };
   }
 
-  let resolved: Awaited<ReturnType<typeof resolveManualRecipients>>;
+  let resolved: Awaited<ReturnType<typeof resolveAdminCampaignRecipients>>;
   try {
-    resolved = await resolveManualRecipients(supabase, {
-      selectAll: input.selectAll,
+    resolved = await resolveAdminCampaignRecipients(supabase, {
+      selectAllKind,
       userIds: selectedIds,
+      artistIds,
+      labelIds,
+      customEmails,
       limit: MANUAL_SEND_MAX_RECIPIENTS,
     });
   } catch (e) {
@@ -223,7 +235,7 @@ export async function sendEmailTemplateAction(input: {
   }
 
   if (resolved.recipients.length === 0) {
-    return { ok: false, error: "No recipients with a profile email were found." };
+    return { ok: false, error: "No recipients with an email address were found." };
   }
   if (resolved.recipients.length > MANUAL_SEND_MAX_RECIPIENTS) {
     return {
@@ -239,7 +251,6 @@ export async function sendEmailTemplateAction(input: {
   const eventIds: string[] = [];
 
   for (const recipient of resolved.recipients) {
-    if (!recipient.userId) continue;
     const enq = await enqueueEmailEvent(supabase, {
       eventType,
       templateKey,
@@ -251,8 +262,9 @@ export async function sendEmailTemplateAction(input: {
         FIRST_NAME: recipient.displayName ?? "",
         CAMPAIGN_ID: campaignId,
         TEMPLATE_NAME: tmpl.name,
+        RECIPIENT_SOURCE: recipient.source,
       },
-      idempotencyKey: campaignIdempotencyKey(campaignId, recipient.userId),
+      idempotencyKey: campaignIdempotencyKey(campaignId, recipient.userId ?? recipient.email),
       createdBy: ctx.userId,
     });
     if (enq.error) return { ok: false, error: enq.error };
@@ -284,6 +296,8 @@ export async function sendEmailTemplateAction(input: {
     p_metadata: {
       template_key: templateKey,
       select_all: input.selectAll,
+      select_all_kind: selectAllKind,
+      custom_email_count: customEmails.length,
       enqueued,
       skipped_without_email: resolved.skippedWithoutEmail,
       statuses,

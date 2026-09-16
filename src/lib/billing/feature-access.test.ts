@@ -128,6 +128,13 @@ describe("entitlement UI wiring", () => {
     const admin = readFileSync(join(process.cwd(), "src/app/admin/finance/billing/page.tsx"), "utf8");
     expect(admin).toContain("getBillingEntitlements");
     expect(admin).toContain("paidAccess");
+    expect(admin).toContain("billingUserCell");
+    expect(admin).not.toContain("throw error");
+
+    const adminList = readFileSync(join(process.cwd(), "src/lib/billing/queries.ts"), "utf8");
+    expect(adminList).toContain("listBillingSubscriptionsAdmin");
+    expect(adminList).toContain("rows: []");
+    expect(adminList).toContain("isMissingRelationError");
 
     const realtime = readFileSync(
       join(process.cwd(), "src/components/notifications/RealtimeRefresh.tsx"),

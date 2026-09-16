@@ -4,9 +4,11 @@ import { RequireAdmin } from "@/lib/auth/guards";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { CoverArt } from "@/components/workspace/CoverArt";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
+import { adminListErrorMessage } from "@/lib/db/admin-query";
 
 export const metadata: Metadata = {
   title: "Admin labels",
@@ -31,12 +33,13 @@ export default async function AdminLabelsPage({
     query = query.or(`label_name.ilike.%${q}%,business_email.ilike.%${q}%`);
   }
   const { data, error } = await query;
-  if (error) throw error;
 
   return (
     <div className="space-y-6">
       <PageIntro title="Labels" description="Label directory from real profiles." />
-      {(data ?? []).length === 0 ? (
+      {error ? (
+        <ErrorState title="Labels unavailable" description={adminListErrorMessage(error)} retryHref="/admin/labels" />
+      ) : (data ?? []).length === 0 ? (
         <EmptyState title="No labels found" />
       ) : (
         <Table>

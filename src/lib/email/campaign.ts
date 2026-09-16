@@ -3,10 +3,13 @@ import type { EmailEventType, StoredTemplateCategory } from "./types";
 
 export function campaignIdempotencyKey(
   campaignId: string,
-  recipientUserId: string
+  recipientKey: string
 ): string {
-  return `MANUAL_SEND:${campaignId}:${recipientUserId}`;
+  const key = recipientKey.trim().toLowerCase().slice(0, 200) || "unknown";
+  return `MANUAL_SEND:${campaignId}:${key}`;
 }
+
+export type AdminSelectAllKind = "all" | "user" | "artist" | "label";
 
 export function eventTypeForTemplateCategory(
   category: StoredTemplateCategory | string
@@ -26,6 +29,27 @@ export function parseSelectedUserIds(raw: unknown): string[] {
     }
   }
   return [...ids];
+}
+
+export function parseDirectoryKeys(keys: unknown): {
+  userIds: string[];
+  artistIds: string[];
+  labelIds: string[];
+} {
+  const userIds: string[] = [];
+  const artistIds: string[] = [];
+  const labelIds: string[] = [];
+  if (!Array.isArray(keys)) return { userIds, artistIds, labelIds };
+  for (const raw of keys) {
+    if (typeof raw !== "string") continue;
+    const [kind, id] = raw.split(":");
+    const ids = parseSelectedUserIds([id]);
+    if (ids.length === 0) continue;
+    if (kind === "user") userIds.push(ids[0]);
+    else if (kind === "artist") artistIds.push(ids[0]);
+    else if (kind === "label") labelIds.push(ids[0]);
+  }
+  return { userIds, artistIds, labelIds };
 }
 
 export const MANUAL_SEND_MAX_RECIPIENTS = 2000;

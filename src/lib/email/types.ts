@@ -106,7 +106,15 @@ export interface ResolvedRecipient {
   userId: string | null;
   email: string;
   /** How the address was resolved — never trust client-supplied email for owner mail. */
-  source: "release_owner_profile" | "profile" | "auth_users" | "contact_submission" | "explicit_server";
+  source:
+    | "release_owner_profile"
+    | "profile"
+    | "auth_users"
+    | "contact_submission"
+    | "explicit_server"
+    | "artist_profile"
+    | "label_profile"
+    | "admin_explicit";
   displayName?: string | null;
 }
 

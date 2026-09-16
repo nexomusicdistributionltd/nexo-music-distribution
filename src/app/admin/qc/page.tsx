@@ -3,9 +3,11 @@ import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { QueryPagination } from "@/components/workspace/QueryPagination";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { listQcQueue } from "@/lib/admin/queries";
+import { adminListErrorMessage } from "@/lib/db/admin-query";
 import { QcQueueActions } from "@/components/admin/QcQueueActions";
 import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
 import { cn } from "@/lib/utils";
@@ -31,7 +33,7 @@ export default async function QcQueuePage({
     sp.assigned === "me" || sp.assigned === "unassigned" || sp.assigned === "all"
       ? sp.assigned
       : "all";
-  const { items, total, page } = await listQcQueue({
+  const { items, total, page, error: loadError } = await listQcQueue({
     status: sp.status,
     priority: sp.priority,
     assigned,
@@ -85,7 +87,13 @@ export default async function QcQueuePage({
           </Link>
         ))}
       </div>
-      {items.length === 0 ? (
+      {loadError ? (
+        <ErrorState
+          title="QC queue unavailable"
+          description={adminListErrorMessage({ message: loadError })}
+          retryHref="/admin/qc"
+        />
+      ) : items.length === 0 ? (
         <EmptyState
           title="QC queue empty"
           description="When releases are submitted, they appear here for review."

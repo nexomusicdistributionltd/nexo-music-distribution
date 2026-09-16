@@ -5,6 +5,7 @@ import { EmailComposeForm } from "@/components/admin/EmailComposeForm";
 import { createClient } from "@/lib/supabase/server";
 import { getEmailProviderStatus } from "@/lib/email/provider";
 import { replySubject } from "@/lib/email/thread";
+import { listAdminEmailDirectory } from "@/lib/email/admin-recipients";
 
 export const metadata: Metadata = {
   title: "Compose email",
@@ -26,11 +27,14 @@ export default async function AdminEmailComposePage({
   };
   const provider = getEmailProviderStatus();
   const supabase = await createClient();
-  const { data: drafts } = await supabase
-    .from("email_drafts")
-    .select("id, subject, updated_at")
-    .order("updated_at", { ascending: false })
-    .limit(8);
+  const [{ data: drafts }, directory] = await Promise.all([
+    supabase
+      .from("email_drafts")
+      .select("id, subject, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(8),
+    listAdminEmailDirectory(supabase),
+  ]);
 
   const replyTo = str("to") || str("replyTo");
   const subjectRaw = str("subject");
@@ -40,7 +44,7 @@ export default async function AdminEmailComposePage({
     <div>
       <PageHeader
         title={isReply ? "Reply" : "Compose"}
-        description="Send any address via Zoho Mail SMTP (same transport as newsletter). To / CC / BCC from the form. SENT only after Zoho returns a message id."
+        description="Send any artist, label, user, or typed address via Zoho Mail SMTP. To / CC / BCC from the form are used on send. SENT only after Zoho returns a message id."
       />
       <EmailComposeForm
         defaultTo={replyTo}
@@ -50,6 +54,7 @@ export default async function AdminEmailComposePage({
         references={str("references")}
         providerConfigured={provider.configured}
         providerMessage={provider.message}
+        directory={directory.recipients}
       />
       {(drafts ?? []).length > 0 ? (
         <section className="mt-8">
