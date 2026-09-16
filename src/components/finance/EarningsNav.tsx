@@ -5,6 +5,7 @@ const LINKS = [
   { href: "/earnings/statements", label: "Statements" },
   { href: "/earnings/transactions", label: "Transactions" },
   { href: "/earnings/payouts", label: "Payouts" },
+  { href: "/earnings/tracks", label: "Tracks" },
   { href: "/earnings/splits", label: "Splits" },
   { href: "/app/publishing", label: "Publishing" },
 ];

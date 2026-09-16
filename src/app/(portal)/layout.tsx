@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { AppTopbar } from "@/components/app/AppTopbar";
+import { PortalChrome } from "@/components/portal/PortalChrome";
 import { RealtimeRefresh } from "@/components/notifications/RealtimeRefresh";
 import { RequireAuth } from "@/lib/auth/guards";
 import {
   navSectionsForRoles,
   workspaceKindForRoles,
 } from "@/lib/auth/nav";
+import { accountOverlayItems } from "@/lib/portal/ia";
 import { countUnreadNotifications } from "@/lib/releases/queries";
 import { getLabelProfileForUser } from "@/lib/roster/queries";
 import { isBlockedStatus } from "@/lib/auth/types";
@@ -37,12 +39,33 @@ export default async function PortalLayout({
   const unread = await countUnreadNotifications(ctx.userId).catch(() => 0);
 
   let headerName = displayName;
+  let labelName: string | null = null;
   if (workspaceKind === "label") {
     const label = await getLabelProfileForUser(ctx.userId);
-    if (label?.label_name) headerName = label.label_name;
+    if (label?.label_name) {
+      headerName = label.label_name;
+      labelName = label.label_name;
+    }
   }
 
   const isPortalWorkspace = workspaceKind === "artist" || workspaceKind === "label";
+
+  if (isPortalWorkspace) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[var(--nexo-bg)]">
+        <PortalChrome
+          sections={sections}
+          accountItems={accountOverlayItems(workspaceKind)}
+          displayName={headerName}
+          workspaceKind={workspaceKind}
+          unreadNotifications={unread}
+          labelName={labelName}
+        />
+        <RealtimeRefresh userId={ctx.userId} />
+        <main className="flex-1 px-4 py-5 sm:px-6 lg:ml-[18.5rem] lg:px-8">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[var(--nexo-bg)]">
@@ -60,13 +83,6 @@ export default async function PortalLayout({
           displayName={headerName}
           workspaceKind={workspaceKind}
           unreadNotifications={unread}
-          notificationsHref={isPortalWorkspace ? "/dashboard/notifications" : undefined}
-          messagesHref={isPortalWorkspace ? "/support" : undefined}
-          quickAction={
-            isPortalWorkspace
-              ? { href: "/dashboard/releases/new", label: "New release" }
-              : null
-          }
         />
         <RealtimeRefresh userId={ctx.userId} />
         <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</main>

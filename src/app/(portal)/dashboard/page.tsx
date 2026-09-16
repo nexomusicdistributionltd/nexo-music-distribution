@@ -124,6 +124,21 @@ export default async function DashboardPage() {
 
         <PlanFeaturesPanel entitlements={entitlements} />
 
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Link className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]" href="/dashboard/playlist-pitch">
+            Playlist pitching
+          </Link>
+          <Link className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]" href="/dashboard/videos">
+            Upload Music Video
+          </Link>
+          <Link className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]" href="/analytics/streams">
+            Streams (statement-backed)
+          </Link>
+          <Link className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]" href="/app/artists">
+            DSP profile links on roster
+          </Link>
+        </section>
+
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <CompactStat label="Roster" value={roster.length} href="/app/artists" />
           <CompactStat label="Releases" value={counts.total} href="/dashboard/releases" />
@@ -226,6 +241,21 @@ export default async function DashboardPage() {
       ) : null}
 
       <PlanFeaturesPanel entitlements={entitlements} />
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Link className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]" href="/dashboard/playlist-pitch">
+          Playlist pitching
+        </Link>
+        <Link className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]" href="/dashboard/videos">
+          Upload Music Video
+        </Link>
+        <Link className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]" href="/analytics/streams">
+          Streams (statement-backed)
+        </Link>
+        <Link className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] px-4 py-3 text-small hover:bg-[var(--nexo-ghost-hover)]" href="/dashboard/profile">
+          DSP profile links
+        </Link>
+      </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <CompactStat label="Releases" value={counts.total} href="/dashboard/releases" />

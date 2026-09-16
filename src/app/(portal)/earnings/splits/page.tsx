@@ -3,6 +3,7 @@ import { RequireVerifiedEmail } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EarningsNav } from "@/components/finance/EarningsNav";
+import { SplitRuleForm } from "@/components/portal/PortalForms";
 
 export const metadata: Metadata = {
   title: "Splits",
@@ -22,6 +23,7 @@ export default async function EarningsSplitsPage() {
     <div className="space-y-4">
       <h1 className="text-h2">Split rules</h1>
       <EarningsNav />
+      <SplitRuleForm />
       {(data ?? []).length === 0 ? (
         <EmptyState
           title="No split rules"

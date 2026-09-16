@@ -57,6 +57,36 @@ export function RealtimeRefresh({
           ...(staff ? {} : { filter: `user_id=eq.${userId}` }),
         },
         () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "portal_service_requests",
+          ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
+        },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "music_video_submissions",
+          ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
+        },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "payout_requests",
+          ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
+        },
+        () => router.refresh()
       );
 
     if (staff) {

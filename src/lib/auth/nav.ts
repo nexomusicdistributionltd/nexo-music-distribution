@@ -1,5 +1,6 @@
 import type { AppRole } from "@/lib/auth/types";
 import { hasAdminPermission } from "@/lib/admin/permissions";
+import { portalSectionsForKind } from "@/lib/portal/ia";
 
 export type NavIconId =
   | "overview"
@@ -29,6 +30,8 @@ export type NavItem = {
   href: string;
   label: string;
   icon?: NavIconId;
+  external?: boolean;
+  badge?: "NEW";
 };
 
 export type NavSection = {
@@ -36,6 +39,7 @@ export type NavSection = {
   label: string;
   collapsible?: boolean;
   items: NavItem[];
+  groups?: NavItem[][];
 };
 
 export type WorkspaceKind = "admin" | "label" | "artist";
@@ -52,7 +56,8 @@ export function flattenNav(sections: NavSection[]): NavItem[] {
   const seen = new Set<string>();
   const items: NavItem[] = [];
   for (const section of sections) {
-    for (const item of section.items) {
+    const list = section.groups?.flat() ?? section.items;
+    for (const item of list) {
       if (seen.has(item.href)) continue;
       seen.add(item.href);
       items.push(item);
@@ -91,6 +96,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/distribution", label: "Distribution", icon: "distribution" },
       { href: "/admin/ddex", label: "DDEX", icon: "ddex" },
       { href: "/admin/playlist-pitches", label: "Playlist pitches", icon: "distribution" },
+      { href: "/admin/portal-requests", label: "Portal requests", icon: "messages" },
     ],
   },
   {
@@ -172,116 +178,11 @@ const ADMIN_SECTIONS: NavSection[] = [
 ];
 
 function artistSections(): NavSection[] {
-  return [
-    {
-      id: "overview",
-      label: "Workspace",
-      items: [{ href: "/dashboard", label: "Overview", icon: "overview" }],
-    },
-    {
-      id: "catalog",
-      label: "Catalog",
-      collapsible: true,
-      items: [
-        { href: "/dashboard/releases", label: "Releases", icon: "catalog" },
-        { href: "/dashboard/catalog", label: "Catalog", icon: "catalog" },
-        { href: "/dashboard/catalog/move-in", label: "Move In", icon: "catalog" },
-        { href: "/dashboard/playlist-pitch", label: "Playlist pitching", icon: "distribution" },
-      ],
-    },
-    {
-      id: "distribution",
-      label: "Distribution",
-      items: [{ href: "/dashboard/releases/new", label: "New release", icon: "release" }],
-    },
-    {
-      id: "finance",
-      label: "Finance",
-      collapsible: true,
-      items: [
-        { href: "/earnings", label: "Royalties", icon: "finance" },
-        { href: "/billing", label: "Plan & billing", icon: "finance" },
-        { href: "/app/publishing", label: "Publishing", icon: "publishing" },
-      ],
-    },
-    {
-      id: "messages",
-      label: "Inbox",
-      collapsible: true,
-      items: [
-        { href: "/support", label: "Messages", icon: "messages" },
-        { href: "/dashboard/notifications", label: "Notifications", icon: "notifications" },
-      ],
-    },
-    {
-      id: "account",
-      label: "Account",
-      collapsible: true,
-      items: [
-        { href: "/dashboard/profile", label: "Profile", icon: "profile" },
-        { href: "/dashboard/settings", label: "Settings", icon: "settings" },
-      ],
-    },
-  ];
+  return portalSectionsForKind("artist");
 }
 
 function labelSections(): NavSection[] {
-  return [
-    {
-      id: "overview",
-      label: "Workspace",
-      items: [{ href: "/dashboard", label: "Overview", icon: "overview" }],
-    },
-    {
-      id: "roster",
-      label: "Roster",
-      items: [{ href: "/app/artists", label: "Roster", icon: "roster" }],
-    },
-    {
-      id: "catalog",
-      label: "Catalog",
-      collapsible: true,
-      items: [
-        { href: "/dashboard/releases", label: "Releases", icon: "catalog" },
-        { href: "/dashboard/catalog", label: "Catalog", icon: "catalog" },
-        { href: "/dashboard/catalog/move-in", label: "Move In", icon: "catalog" },
-        { href: "/dashboard/playlist-pitch", label: "Playlist pitching", icon: "distribution" },
-      ],
-    },
-    {
-      id: "distribution",
-      label: "Distribution",
-      items: [{ href: "/dashboard/releases/new", label: "New release", icon: "release" }],
-    },
-    {
-      id: "finance",
-      label: "Finance",
-      collapsible: true,
-      items: [
-        { href: "/earnings", label: "Royalties", icon: "finance" },
-        { href: "/billing", label: "Plan & billing", icon: "finance" },
-        { href: "/app/publishing", label: "Publishing", icon: "publishing" },
-      ],
-    },
-    {
-      id: "messages",
-      label: "Inbox",
-      collapsible: true,
-      items: [
-        { href: "/support", label: "Messages", icon: "messages" },
-        { href: "/dashboard/notifications", label: "Notifications", icon: "notifications" },
-      ],
-    },
-    {
-      id: "account",
-      label: "Label",
-      collapsible: true,
-      items: [
-        { href: "/dashboard/profile", label: "Label profile", icon: "profile" },
-        { href: "/dashboard/settings", label: "Settings", icon: "settings" },
-      ],
-    },
-  ];
+  return portalSectionsForKind("label");
 }
 
 export function navSectionsForRoles(roles: AppRole[]): NavSection[] {
@@ -307,6 +208,7 @@ export function navForRoles(roles: AppRole[]): NavItem[] {
 }
 
 export function titleForPath(pathname: string, sections: NavSection[]): string {
+  if (pathname === "/dashboard") return "Overview";
   const items = flattenNav(sections);
   const exact = items.find((item) => item.href === pathname);
   if (exact) return exact.label;
@@ -327,12 +229,25 @@ export function isNavActive(pathname: string, href: string) {
   if (href === "/dashboard/catalog") {
     return pathname === "/dashboard/catalog";
   }
+  if (href === "/dashboard/catalog/move-in") {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
   if (href === "/dashboard/releases") {
     if (pathname === "/dashboard/releases/new") return false;
     return pathname === "/dashboard/releases" || pathname.startsWith("/dashboard/releases/");
   }
   if (href === "/dashboard/releases/new") {
     return pathname === "/dashboard/releases/new";
+  }
+  if (href === "/app/artists") {
+    if (pathname === "/app/artists/new") return false;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+  if (href === "/earnings") {
+    return pathname === "/earnings";
+  }
+  if (href === "/analytics") {
+    return pathname === "/analytics";
   }
   if (href === "/admin/finance") {
     return pathname === "/admin/finance";
