@@ -23,6 +23,16 @@ export function isPortalServiceKind(value: string): value is PortalServiceKind {
   return (PORTAL_SERVICE_KINDS as readonly string[]).includes(value);
 }
 
+/** Optional services shown on Enrollments. Unenrolled until a real row exists. */
+export const ENROLLABLE_SERVICES = [
+  { key: "playlist_pitching", label: "Playlist pitching" },
+  { key: "nexo_labs", label: "Nexo Labs" },
+  { key: "luminate", label: "Luminate registration" },
+  { key: "sync", label: "Sync representation" },
+  { key: "physical", label: "Physical distribution" },
+  { key: "ad_box", label: "Nexo Ad Box" },
+] as const;
+
 export const SERVICE_KIND_LABEL: Record<PortalServiceKind, string> = {
   ringtone: "Create Ringtone",
   mastering: "Master Your Track",

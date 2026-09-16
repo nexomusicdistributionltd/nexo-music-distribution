@@ -100,12 +100,16 @@ describe("DDEX operator statuses", () => {
 
 describe("dashboard copy is truthful", () => {
   it("artist/label overview does not invent streams or revenue", () => {
-    const src = readFileSync(join(__dirname, "../../app/(portal)/dashboard/page.tsx"), "utf8");
+    const page = readFileSync(join(__dirname, "../../app/(portal)/dashboard/page.tsx"), "utf8");
+    const ui = readFileSync(join(__dirname, "../../components/portal/PortalOverview.tsx"), "utf8");
+    const helpers = readFileSync(join(__dirname, "../portal/overview.ts"), "utf8");
+    const src = `${page}\n${ui}\n${helpers}`;
     expect(src).not.toMatch(/fake (stream|kpi|revenue)/i);
-    expect(src).toContain("No ledger balances yet");
-    expect(src).toContain("Placeholder until statement ingest");
-    expect(src).toContain("Create artist");
-    expect(src).toContain("New release");
+    expect(src).toContain("Welcome,");
+    expect(src).toContain("Create release");
+    expect(src).toContain("NOT CONNECTED");
+    expect(src).toContain("Outstanding $0.00 is not estimated earnings");
+    expect(src).not.toMatch(/Streams\s+\d+/);
   });
 
   it("admin overview is attention-first without fabricated DSP connections", () => {

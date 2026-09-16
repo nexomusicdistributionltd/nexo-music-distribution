@@ -20,7 +20,7 @@ import { ArtistBioForm } from "@/components/roster/ArtistBioForm";
 import { findPortalItem, type PortalNavItem } from "@/lib/portal/ia";
 import { knowledgeArticle, allKnowledgeArticles } from "@/lib/portal/knowledge";
 import { loadAnalyticsSnapshot } from "@/lib/portal/analytics";
-import { SERVICE_KIND_LABEL, isAnalyticsKey } from "@/lib/portal/service-kinds";
+import { ENROLLABLE_SERVICES, SERVICE_KIND_LABEL, isAnalyticsKey } from "@/lib/portal/service-kinds";
 import { formatMinorUnits } from "@/lib/finance/money";
 import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { getArtistProfileForUser, getLabelProfileForUser, listArtistDspLinks, listRosterArtists } from "@/lib/roster/queries";
@@ -420,15 +420,6 @@ async function MembersView({ userId, isLabel }: { userId: string; isLabel: boole
   );
 }
 
-const ENROLLABLE = [
-  { key: "playlist_pitching", label: "Playlist pitching" },
-  { key: "nexo_labs", label: "Nexo Labs" },
-  { key: "luminate", label: "Luminate registration" },
-  { key: "sync", label: "Sync representation" },
-  { key: "physical", label: "Physical distribution" },
-  { key: "ad_box", label: "Nexo Ad Box" },
-];
-
 async function EnrollmentsView({ userId }: { userId: string }) {
   const supabase = await createClient();
   const { data } = await supabase
@@ -443,7 +434,7 @@ async function EnrollmentsView({ userId }: { userId: string }) {
         description="Optional Nexo services. Unenrolled until you request and staff confirms. No third-party CONNECTED badges."
       />
       <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
-        {ENROLLABLE.map((s) => (
+        {ENROLLABLE_SERVICES.map((s) => (
           <li key={s.key} className="flex items-center justify-between gap-3 px-4 py-3">
             <span>
               <span className="block text-small font-medium">{s.label}</span>
