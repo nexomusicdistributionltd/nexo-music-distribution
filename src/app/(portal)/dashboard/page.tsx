@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { PlanFeaturesPanel } from "@/components/billing/PlanFeaturesPanel";
 import { PortalOverview } from "@/components/portal/PortalOverview";
 import { RequireRole } from "@/lib/auth/guards";
 import { artistNameOf } from "@/lib/auth/types";
+import { safeGetEntitlementsForAuth } from "@/lib/billing/queries";
 import { loadAnalyticsSnapshot } from "@/lib/portal/analytics";
 import {
   buildBalanceOverview,
@@ -31,6 +33,7 @@ export default async function DashboardPage() {
   const ctx = await RequireRole(["artist", "label"]);
   const isLabel = ctx.roles.includes("label");
   const fallbackName = ctx.profile?.display_name || ctx.profile?.full_name || "there";
+  const entitlements = await safeGetEntitlementsForAuth(ctx);
 
   let welcomeName = fallbackName;
   let recent: Awaited<ReturnType<typeof listRecentReleases>> = [];
@@ -121,22 +124,27 @@ export default async function DashboardPage() {
   const balance = buildBalanceOverview({ statement, ledger });
 
   return (
-    <PortalOverview
-      welcomeName={welcomeName}
-      thumbs={recent.map((r) => ({
-        id: r.id,
-        title: r.title || "Untitled draft",
-        src: artwork[r.id] ?? null,
-      }))}
-      unreadNotifications={unread}
-      unenrolledCount={unenrolledServiceCount(ENROLLABLE_SERVICES.length, enrolledKeys)}
-      enrollableCount={ENROLLABLE_SERVICES.length}
-      streamRows={streamRows}
-      streamStatus={headline.status}
-      streamNote={headline.chartNote}
-      balance={balance}
-      actionNeeded={actionNeeded.map((r) => ({ id: r.id, title: r.title || "Untitled" }))}
-      loadError={loadError}
-    />
+    <>
+      <PortalOverview
+        welcomeName={welcomeName}
+        thumbs={recent.map((r) => ({
+          id: r.id,
+          title: r.title || "Untitled draft",
+          src: artwork[r.id] ?? null,
+        }))}
+        unreadNotifications={unread}
+        unenrolledCount={unenrolledServiceCount(ENROLLABLE_SERVICES.length, enrolledKeys)}
+        enrollableCount={ENROLLABLE_SERVICES.length}
+        streamRows={streamRows}
+        streamStatus={headline.status}
+        streamNote={headline.chartNote}
+        balance={balance}
+        actionNeeded={actionNeeded.map((r) => ({ id: r.id, title: r.title || "Untitled" }))}
+        loadError={loadError}
+      />
+      <div className="mt-4 pb-8">
+        <PlanFeaturesPanel entitlements={entitlements} />
+      </div>
+    </>
   );
 }
