@@ -24,6 +24,7 @@ describe("campaign send helpers", () => {
   it("parses directory keys for mixed artist/label/user selections", () => {
     const uid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
     const aid = "11111111-1111-4111-8111-111111111111";
+    expect(parseSelectedUserIds([uid, "not-an-email-trust", "user@nexo.test"])).toEqual([uid]);
     expect(parseDirectoryKeys([`user:${uid}`, `artist:${aid}`, "user:nope"])).toEqual({
       userIds: [uid],
       artistIds: [aid],
