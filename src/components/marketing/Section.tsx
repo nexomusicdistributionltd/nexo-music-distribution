@@ -15,14 +15,9 @@ export function Section({
   return (
     <section
       id={id}
-      className={cn(
-        surface && "border-y border-[var(--nexo-border)] bg-[var(--nexo-surface)]",
-        className
-      )}
+      className={cn(surface && "bg-[var(--nexo-surface)]", className)}
     >
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-        {children}
-      </div>
+      <div className="pub-container pub-section">{children}</div>
     </section>
   );
 }
@@ -34,14 +29,5 @@ export function Eyebrow({
   children: ReactNode;
   className?: string;
 }) {
-  return (
-    <p
-      className={cn(
-        "text-caption font-medium uppercase tracking-[0.16em] text-[var(--nexo-text-muted)]",
-        className
-      )}
-    >
-      {children}
-    </p>
-  );
+  return <p className={cn("pub-kicker", className)}>{children}</p>;
 }

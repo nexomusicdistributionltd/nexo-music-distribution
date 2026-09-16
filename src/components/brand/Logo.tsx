@@ -12,6 +12,8 @@ type LogoProps = {
   priority?: boolean;
   /** Height in px; width scales from intrinsic ratio */
   height?: number;
+  /** Force mark for a known background. Default follows theme (dashboards unchanged). */
+  variant?: "auto" | "on-dark" | "on-light";
 };
 
 export function Logo({
@@ -19,15 +21,17 @@ export function Logo({
   href = "/",
   priority = false,
   height = 36,
+  variant = "auto",
 }: LogoProps) {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => setMounted(true), []);
 
-  // Avoid hydration mismatch: default to dark logo until mounted
-  const isDark = !mounted || resolvedTheme === "dark";
-  const src = isDark
+  const themeDark = !mounted || resolvedTheme === "dark";
+  const onDark =
+    variant === "on-dark" ? true : variant === "on-light" ? false : themeDark;
+  const src = onDark
     ? "/brand/nexo-logo-dark.png"
     : "/brand/nexo-logo-light.png";
 

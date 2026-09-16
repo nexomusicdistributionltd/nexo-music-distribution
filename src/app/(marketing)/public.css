@@ -1,0 +1,712 @@
+/* ============================================================
+   NEXO public / marketing shell — SCOPED to .nexo-public only.
+   Dashboards (portal + admin) must not import this file.
+   Color roles map SwarVision layout onto existing --nexo-* tokens.
+   Accent/highlight/button-fill = --nexo-primary / --nexo-primary-fg
+   (never SwarVision lime).
+   ============================================================ */
+
+.nexo-public {
+  --pub-display: var(--font-public-display), Impact, "Arial Black", sans-serif;
+  --pub-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --pub-max: 92rem;
+  --pub-pad: clamp(1.25rem, 4.2vw, 5.5rem);
+  --pub-section: clamp(4.5rem, 10vw, 9.5rem);
+  --pub-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --pub-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --pub-on-media: #fafafa;
+  --pub-on-media-muted: rgba(250, 250, 250, 0.7);
+  font-family: var(--pub-sans);
+  background: var(--nexo-bg);
+  color: var(--nexo-text);
+  overflow-x: hidden;
+}
+
+.nexo-public .pub-shell-main {
+  flex: 1;
+}
+
+/* Typography — SwarVision scale, Nexo colors */
+.nexo-public .pub-display {
+  font-family: var(--pub-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.84;
+  color: var(--nexo-text);
+}
+
+.nexo-public .pub-display-hero {
+  font-size: clamp(3.15rem, 12.4vw, 11.5rem);
+}
+
+.nexo-public .pub-display-xl {
+  font-size: clamp(2.6rem, 8.4vw, 7.25rem);
+}
+
+.nexo-public .pub-display-lg {
+  font-size: clamp(2.1rem, 6.2vw, 5.25rem);
+}
+
+.nexo-public .pub-display-md {
+  font-size: clamp(1.65rem, 3.6vw, 3rem);
+}
+
+.nexo-public .pub-kicker {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--nexo-text-muted);
+}
+
+.nexo-public .text-display,
+.nexo-public .text-h1,
+.nexo-public .text-h2 {
+  font-family: var(--pub-display);
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.92;
+}
+
+.nexo-public nav[aria-label="Breadcrumb"] {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nexo-public .pub-body {
+  font-size: clamp(0.95rem, 1.15vw, 1.125rem);
+  line-height: 1.55;
+  color: var(--nexo-text-secondary);
+}
+
+.nexo-public .pub-muted {
+  color: var(--nexo-text-muted);
+}
+
+.nexo-public .pub-accent {
+  color: var(--nexo-primary);
+}
+
+.nexo-public .pub-container {
+  width: 100%;
+  max-width: var(--pub-max);
+  margin-inline: auto;
+  padding-inline: var(--pub-pad);
+}
+
+.nexo-public .pub-section {
+  padding-block: var(--pub-section);
+}
+
+/* Scroll progress — maps lime top rule to Nexo primary */
+.nexo-public .pub-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  z-index: 80;
+  background: var(--nexo-primary);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  pointer-events: none;
+}
+
+/* Nav */
+.nexo-public .pub-nav {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 60;
+  height: 5.25rem;
+  transition: background-color 0.45s var(--pub-ease-out), border-color 0.45s var(--pub-ease-out),
+    backdrop-filter 0.45s var(--pub-ease-out);
+}
+
+.nexo-public .pub-nav-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  max-width: var(--pub-max);
+  margin-inline: auto;
+  padding-inline: var(--pub-pad);
+  gap: 1rem;
+}
+
+.nexo-public .pub-nav-link {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nexo-nav-link);
+  padding: 0.4rem 0.55rem;
+  transition: color 0.25s ease, opacity 0.25s ease;
+}
+
+.nexo-public .pub-nav-link:hover,
+.nexo-public .pub-nav-link[aria-current="page"] {
+  color: var(--nexo-nav-link-active);
+}
+
+.nexo-public .pub-nav--scrolled {
+  background: color-mix(in srgb, var(--nexo-bg) 88%, transparent);
+  border-bottom: 1px solid var(--nexo-nav-border);
+  backdrop-filter: blur(18px);
+}
+
+.nexo-public .pub-nav--hero {
+  background: transparent;
+  border-bottom: 1px solid transparent;
+}
+
+.nexo-public .pub-nav--hero .pub-nav-link,
+.nexo-public .pub-nav--hero .pub-nav-login,
+.nexo-public .pub-nav--hero .pub-more-btn {
+  color: var(--pub-on-media-muted);
+}
+
+.nexo-public .pub-nav--hero .pub-nav-link:hover,
+.nexo-public .pub-nav--hero .pub-nav-link[aria-current="page"],
+.nexo-public .pub-nav--hero .pub-nav-login:hover,
+.nexo-public .pub-nav--hero .pub-more-btn:hover {
+  color: var(--pub-on-media);
+}
+
+.nexo-public .pub-nav-login {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nexo-nav-link);
+  transition: color 0.25s ease;
+}
+
+.nexo-public .pub-nav-login:hover {
+  color: var(--nexo-nav-link-active);
+}
+
+.nexo-public .pub-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.35rem;
+  padding: 0 1.05rem;
+  border-radius: 2px;
+  background: var(--nexo-primary);
+  color: var(--nexo-primary-fg);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: background-color 0.28s ease, color 0.28s ease, transform 0.28s var(--pub-ease);
+}
+
+.nexo-public .pub-apply:hover {
+  background: var(--nexo-primary-hover);
+  transform: translateY(-1px);
+}
+
+.nexo-public .pub-nav--hero .pub-apply {
+  background: var(--pub-on-media);
+  color: #0a0a0a;
+}
+
+.nexo-public .pub-nav--hero .pub-apply:hover {
+  background: var(--nexo-primary);
+  color: var(--nexo-primary-fg);
+}
+
+.nexo-public .pub-nav-spacer {
+  height: 5.25rem;
+}
+
+.nexo-public .pub-nav--hero + .pub-nav-spacer {
+  height: 0;
+}
+
+/* Circular CTA */
+.nexo-public .pub-orb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(7.25rem, 10vw, 9.25rem);
+  height: clamp(7.25rem, 10vw, 9.25rem);
+  border-radius: 999px;
+  background: var(--nexo-primary);
+  color: var(--nexo-primary-fg);
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  transition: transform 0.35s var(--pub-ease), background-color 0.3s ease;
+}
+
+.nexo-public .pub-orb:hover {
+  transform: scale(1.06);
+  background: var(--nexo-primary-hover);
+}
+
+.nexo-public .pub-orb:focus-visible {
+  outline: 2px solid var(--nexo-ring);
+  outline-offset: 4px;
+}
+
+/* Marquee */
+.nexo-public .pub-marquee {
+  overflow: hidden;
+  background: var(--nexo-primary);
+  color: var(--nexo-primary-fg);
+  padding-block: 1.1rem;
+}
+
+.nexo-public .pub-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 0;
+  animation: pub-marquee 38s linear infinite;
+}
+
+.nexo-public .pub-marquee-item {
+  font-family: var(--pub-display);
+  font-size: clamp(1.65rem, 4.6vw, 3.35rem);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding-inline: 0.35rem;
+  line-height: 1;
+}
+
+.nexo-public .pub-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes pub-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Mobile menu — accent overlay (lime role → Nexo primary) */
+.nexo-public .pub-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: var(--nexo-primary);
+  color: var(--nexo-primary-fg);
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem var(--pub-pad) 2rem;
+  transform: translateY(-4%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--pub-ease-out), transform 0.4s var(--pub-ease-out);
+}
+
+.nexo-public .pub-menu[data-open="true"] {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.nexo-public .pub-menu-link {
+  font-family: var(--pub-display);
+  font-size: clamp(2.4rem, 11vw, 4.2rem);
+  line-height: 0.92;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  color: inherit;
+}
+
+.nexo-public .pub-menu-link:hover {
+  opacity: 0.7;
+}
+
+.nexo-public .pub-hero {
+  position: relative;
+  min-height: 100svh;
+  color: var(--pub-on-media);
+  overflow: hidden;
+  background: #050505;
+}
+
+.nexo-public .pub-hero-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+
+.nexo-public .pub-hero-slide[data-active="true"] {
+  opacity: 1;
+}
+
+.nexo-public .pub-hero-slide img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.nexo-public .pub-hero-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 5, 5, 0.78) 0%, rgba(5, 5, 5, 0.35) 48%, rgba(5, 5, 5, 0.45) 100%),
+    linear-gradient(180deg, rgba(5, 5, 5, 0.35) 0%, transparent 28%, rgba(5, 5, 5, 0.72) 100%);
+}
+
+.nexo-public .pub-hero-copy {
+  position: relative;
+  z-index: 2;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 7.5rem var(--pub-pad) 2.6rem;
+}
+
+.nexo-public .pub-hero .pub-display {
+  color: var(--pub-on-media);
+}
+
+.nexo-public .pub-scroll-cue {
+  position: absolute;
+  right: clamp(0.75rem, 2vw, 1.75rem);
+  top: 50%;
+  z-index: 3;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg) translateY(50%);
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--pub-on-media-muted);
+}
+
+.nexo-public .pub-scroll-cue::after {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 3.5rem;
+  margin-inline: auto;
+  margin-top: 0.75rem;
+  background: var(--pub-on-media-muted);
+}
+
+/* Drag cards */
+.nexo-public .pub-drag {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  cursor: grab;
+  padding-bottom: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.nexo-public .pub-drag::-webkit-scrollbar {
+  display: none;
+}
+
+.nexo-public .pub-drag.is-dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
+}
+
+.nexo-public .pub-drag-card {
+  position: relative;
+  flex: 0 0 min(78vw, 22.5rem);
+  height: min(72vw, 30rem);
+  scroll-snap-align: start;
+  overflow: hidden;
+  background: var(--nexo-elevated);
+}
+
+.nexo-public .pub-drag-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s var(--pub-ease-out);
+}
+
+.nexo-public .pub-drag-card:hover img {
+  transform: scale(1.05);
+}
+
+.nexo-public .pub-drag-card .pub-drag-meta {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 1.25rem 1.15rem 1.1rem;
+  background: linear-gradient(transparent, rgba(5, 5, 5, 0.82));
+  color: var(--pub-on-media);
+}
+
+/* Service rows */
+.nexo-public .pub-service {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1.25rem 1.75rem;
+  align-items: center;
+  padding: 1.35rem 1.5rem;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--nexo-elevated) 55%, transparent);
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease;
+}
+
+.nexo-public .pub-service:hover,
+.nexo-public .pub-service[data-active="true"] {
+  background: var(--nexo-primary);
+  color: var(--nexo-primary-fg);
+  border-color: var(--nexo-primary);
+}
+
+.nexo-public .pub-service:hover .pub-body,
+.nexo-public .pub-service[data-active="true"] .pub-body,
+.nexo-public .pub-service:hover .pub-kicker,
+.nexo-public .pub-service[data-active="true"] .pub-kicker {
+  color: inherit;
+  opacity: 0.78;
+}
+
+.nexo-public .pub-service-title {
+  font-family: var(--pub-display);
+  font-size: clamp(1.35rem, 2.8vw, 2.55rem);
+  line-height: 0.92;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+/* Step cards */
+.nexo-public .pub-step {
+  min-height: 22rem;
+  padding: 1.5rem 1.4rem 1.6rem;
+  background: var(--nexo-elevated);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.nexo-public .pub-step--accent {
+  background: var(--nexo-primary);
+  color: var(--nexo-primary-fg);
+}
+
+.nexo-public .pub-step--accent .pub-kicker,
+.nexo-public .pub-step--accent .pub-body {
+  color: inherit;
+  opacity: 0.78;
+}
+
+.nexo-public .pub-step-title {
+  font-family: var(--pub-display);
+  font-size: clamp(1.7rem, 3vw, 2.6rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+/* FAQ */
+.nexo-public .pub-faq-item {
+  background: color-mix(in srgb, var(--nexo-elevated) 80%, transparent);
+  border: 1px solid var(--nexo-border);
+}
+
+.nexo-public .pub-faq-item + .pub-faq-item {
+  margin-top: 0.55rem;
+}
+
+.nexo-public .pub-faq-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-align: left;
+  padding: 1.15rem 1.2rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--nexo-text);
+}
+
+.nexo-public .pub-faq-icon {
+  flex-shrink: 0;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--nexo-elevated);
+  color: var(--nexo-text);
+  font-size: 1.05rem;
+  line-height: 1;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.nexo-public .pub-faq-item[data-open="true"] .pub-faq-icon {
+  background: var(--nexo-primary);
+  color: var(--nexo-primary-fg);
+}
+
+.nexo-public .pub-faq-panel {
+  padding: 0 1.2rem 1.15rem;
+  color: var(--nexo-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+/* Plan rows */
+.nexo-public .pub-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.2fr) auto;
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1.5rem 1.4rem;
+  background: color-mix(in srgb, var(--nexo-elevated) 70%, transparent);
+}
+
+.nexo-public .pub-plan-name {
+  font-family: var(--pub-display);
+  font-size: clamp(2.1rem, 5vw, 4.2rem);
+  line-height: 0.86;
+  text-transform: uppercase;
+}
+
+.nexo-public .pub-plan-rate {
+  font-family: var(--pub-display);
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.9;
+  color: var(--nexo-primary);
+  text-align: right;
+}
+
+/* Footer */
+.nexo-public .pub-footer {
+  background: var(--nexo-surface);
+  border-top: 1px solid var(--nexo-border);
+  padding: 4.5rem var(--pub-pad) 1.5rem;
+}
+
+.nexo-public .pub-footer-brand {
+  font-family: var(--pub-display);
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 0.88;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+.nexo-public .pub-footer a {
+  color: var(--nexo-text-muted);
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.nexo-public .pub-footer a:hover {
+  color: var(--nexo-text);
+}
+
+.nexo-public .pub-footer h3 {
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--nexo-text-muted);
+  font-weight: 500;
+  margin-bottom: 0.85rem;
+}
+
+/* Page hero (inner pages) */
+.nexo-public .pub-page-hero {
+  padding: 5.5rem var(--pub-pad) 3.5rem;
+  border-bottom: 1px solid var(--nexo-border);
+}
+
+.nexo-public .pub-crumb {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nexo-text-muted);
+}
+
+/* Buttons inside public that still use ui/Button */
+.nexo-public button[class*="rounded-full"],
+.nexo-public a button[class*="rounded-full"] {
+  border-radius: 2px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.nexo-public .pub-stat-num {
+  font-family: var(--pub-display);
+  font-size: clamp(2.4rem, 5vw, 4.1rem);
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+}
+
+.nexo-public .pub-platform-col {
+  padding: 1.5rem 1.25rem 1.75rem;
+  background: color-mix(in srgb, var(--nexo-elevated) 80%, transparent);
+  min-height: 14rem;
+}
+
+.nexo-public .pub-platform-name {
+  font-size: clamp(1.15rem, 2vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.nexo-public .pub-platform-name.is-dim {
+  color: var(--nexo-text-muted);
+  font-weight: 500;
+}
+
+/* Portal preview frame */
+.nexo-public .pub-portal {
+  border: 1px solid var(--nexo-border);
+  background: var(--nexo-card);
+  overflow: hidden;
+}
+
+.nexo-public .pub-page-hero [class*="rounded-"] {
+  border-radius: 0;
+}
+
+.nexo-public #featured-releases a,
+.nexo-public #featured-artists a {
+  border-radius: 0;
+}
+
+.nexo-public img.nexo-img-hover:hover {
+  transform: scale(1.05);
+}
+
+@media (max-width: 1023px) {
+  .nexo-public .pub-plan {
+    grid-template-columns: 1fr;
+  }
+  .nexo-public .pub-plan-rate {
+    text-align: left;
+  }
+  .nexo-public .pub-service {
+    grid-template-columns: auto 1fr;
+  }
+  .nexo-public .pub-scroll-cue {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nexo-public .pub-marquee-track,
+  .nexo-public .pub-orb,
+  .nexo-public .pub-apply,
+  .nexo-public .pub-drag-card img,
+  .nexo-public .pub-hero-slide,
+  .nexo-public .pub-menu,
+  .nexo-public .pub-progress {
+    animation: none !important;
+    transition: none !important;
+  }
+  .nexo-public .pub-orb:hover,
+  .nexo-public .pub-apply:hover,
+  .nexo-public .pub-drag-card:hover img {
+    transform: none;
+  }
+}

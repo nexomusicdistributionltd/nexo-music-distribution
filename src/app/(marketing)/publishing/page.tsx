@@ -105,7 +105,7 @@ export default function Page() {
     <>
       <PageHero
         eyebrow={PUBLISHING_DIVISION}
-        title="More than distribution"
+        title="Your music. Our publishing."
         description="Nexo Publishing Group sits alongside distribution — helping artists and labels organize rights, pursue sync, administer royalties, and keep publishing statements clear. We do not invent PRO affiliations or DSP partnership claims."
         crumbs={[{ label: "Home", href: "/" }, { label: "Publishing" }]}
         aside={<PublishingHeroAside />}

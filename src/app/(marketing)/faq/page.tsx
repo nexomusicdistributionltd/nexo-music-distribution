@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/marketing/PageHero";
 import { FinalCta } from "@/components/marketing/FinalCta";
-import { Section } from "@/components/marketing/Section";
 import { FaqAccordion } from "@/components/marketing/FaqAccordion";
 import { SITE_URL } from "@/lib/site";
 
@@ -51,7 +50,7 @@ const FAQS = [
   {
     question: "How do I get started?",
     answer:
-      "Use Get Started to register interest, or Contact for commercial questions. Artist portal login and upload tools are not part of this public website batch.",
+      "Use Get Started or Register to create an artist or label account. Contact for commercial questions.",
   },
 ];
 
@@ -59,14 +58,14 @@ export default function Page() {
   return (
     <>
       <PageHero
-        eyebrow="FAQ"
-        title="Answers without the spin"
+        eyebrow="Frequently asked questions"
+        title="Questions? Answered."
         description="Straightforward responses about distribution, publishing, royalties, and how this public site presents information."
         crumbs={[{ label: "Home", href: "/" }, { label: "FAQ" }]}
       />
-      <Section>
+      <section className="pub-container pb-[var(--pub-section)]">
         <FaqAccordion items={FAQS} />
-      </Section>
+      </section>
       <FinalCta />
     </>
   );

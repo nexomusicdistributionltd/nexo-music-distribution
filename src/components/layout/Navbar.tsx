@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
-import { Menu, ArrowRight, X } from "lucide-react";
+import { ArrowRight, Menu, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { LanguageSelector } from "@/components/layout/LanguageSelector";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { NAV_LINKS } from "@/lib/site";
+import { PUBLIC_NAV_MORE, PUBLIC_NAV_PRIMARY } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -19,11 +17,14 @@ function isActive(pathname: string, href: string) {
 
 export function Navbar() {
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const overHero = pathname === "/" && !scrolled && !open;
 
   React.useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -31,6 +32,7 @@ export function Navbar() {
 
   React.useEffect(() => {
     setOpen(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   React.useEffect(() => {
@@ -45,173 +47,135 @@ export function Navbar() {
     };
   }, [open]);
 
+  const menuLinks = [...PUBLIC_NAV_PRIMARY, ...PUBLIC_NAV_MORE];
+
   return (
     <>
       <header
-        className={cn(
-          "fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-[var(--nexo-duration-slow)]",
-          scrolled || open
-            ? "border-b border-[var(--nexo-nav-border)] bg-[var(--nexo-nav-bg)] backdrop-blur-xl"
-            : "border-b border-transparent bg-transparent"
-        )}
+        className={cn("pub-nav", overHero ? "pub-nav--hero" : "pub-nav--scrolled")}
       >
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
-          <Logo height={32} priority />
+        <div className="pub-nav-inner">
+          <Logo
+            height={30}
+            priority
+            variant={overHero ? "on-dark" : "auto"}
+          />
 
           <nav
-            className="ml-2 hidden items-center gap-0.5 xl:flex"
+            className="absolute left-1/2 hidden -translate-x-1/2 items-center xl:flex"
             aria-label="Primary"
           >
-            {NAV_LINKS.map((link) => {
+            {PUBLIC_NAV_PRIMARY.map((link) => {
               const active = isActive(pathname, link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={cn(
-                    "relative rounded-[var(--nexo-radius-sm)] px-2.5 py-1.5 text-nav transition-colors",
-                    active
-                      ? "text-[var(--nexo-nav-link-active)]"
-                      : "text-[var(--nexo-nav-link)] hover:text-[var(--nexo-nav-link-hover)]"
-                  )}
+                  className="pub-nav-link"
                   aria-current={active ? "page" : undefined}
                 >
-                  <span className="inline-flex items-center gap-1.5">
-                    {link.label}
-                    {"badge" in link && link.badge ? (
-                      <Badge className="px-1.5 py-0 text-[0.65rem] leading-4">
-                        {link.badge}
-                      </Badge>
-                    ) : null}
-                  </span>
-                  <span
-                    className={cn(
-                      "absolute inset-x-2.5 -bottom-0.5 h-px bg-[var(--nexo-nav-link-active)] transition-opacity",
-                      active ? "opacity-100" : "opacity-0"
-                    )}
-                    aria-hidden
-                  />
+                  {link.label}
                 </Link>
               );
             })}
+            <div className="relative">
+              <button
+                type="button"
+                className="pub-nav-link pub-more-btn"
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((v) => !v)}
+              >
+                More
+              </button>
+              {moreOpen ? (
+                <div className="absolute left-1/2 top-full z-20 mt-2 min-w-[11rem] -translate-x-1/2 border border-[var(--nexo-border)] bg-[var(--nexo-bg)] py-2 shadow-[var(--nexo-shadow)]">
+                  {PUBLIC_NAV_MORE.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="block px-4 py-2 text-[0.72rem] uppercase tracking-[0.14em] text-[var(--nexo-text-secondary)] hover:text-[var(--nexo-text)]"
+                      onClick={() => setMoreOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </nav>
 
-          <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            <LanguageSelector className="hidden sm:inline-flex" />
-            <ThemeToggle />
-            <Link href="/login" className="hidden sm:inline-flex">
-              <Button variant="outline" size="sm" className="rounded-full px-4">
-                Log In
-              </Button>
+          <div className="ml-auto flex items-center gap-3 sm:gap-4">
+            <ThemeToggle className={overHero ? "text-[var(--pub-on-media)] hover:bg-white/10" : undefined} />
+            <Link href="/login" className="pub-nav-login hidden sm:inline">
+              Client login
             </Link>
-            <Link href="/register" className="hidden sm:inline-flex">
-              <Button size="sm" className="gap-1.5 rounded-full px-4">
-                Get Started
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
+            <Link href="/register" className="pub-apply hidden sm:inline-flex">
+              Apply now
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
             <button
               type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--nexo-radius-sm)] text-[var(--nexo-nav-link)] hover:bg-[var(--nexo-ghost-hover)] xl:hidden"
+              className={cn(
+                "inline-flex h-10 w-10 items-center justify-center xl:hidden",
+                overHero ? "text-[var(--pub-on-media)]" : "text-[var(--nexo-text)]"
+              )}
               aria-label={open ? "Close menu" : "Open menu"}
               aria-expanded={open}
               aria-controls="mobile-nav"
               onClick={() => setOpen((v) => !v)}
             >
-              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile full panel */}
       <div
         id="mobile-nav"
-        className={cn(
-          "fixed inset-0 z-40 xl:hidden",
-          open ? "pointer-events-auto" : "pointer-events-none"
-        )}
+        className="pub-menu xl:hidden"
+        data-open={open}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mobile navigation"
         aria-hidden={!open}
       >
-        <button
-          type="button"
-          aria-label="Close menu backdrop"
-          className={cn(
-            "absolute inset-0 bg-[var(--nexo-overlay)] transition-opacity duration-[var(--nexo-duration-slow)]",
-            open ? "opacity-100" : "opacity-0"
-          )}
-          onClick={() => setOpen(false)}
-        />
-        <div
-          className={cn(
-            "absolute inset-x-0 top-16 bottom-0 flex flex-col border-t border-[var(--nexo-border)] bg-[var(--nexo-bg)] transition-transform duration-[var(--nexo-duration-slow)] ease-[var(--nexo-ease)]",
-            open ? "translate-y-0" : "-translate-y-2 opacity-0"
-          )}
-          style={{ opacity: open ? 1 : 0 }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Mobile navigation"
-        >
-          <nav className="flex-1 overflow-y-auto px-4 py-6 sm:px-6" aria-label="Mobile">
-            <ul className="space-y-1">
-              {NAV_LINKS.map((link) => {
-                const active = isActive(pathname, link.href);
-                return (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "flex items-center justify-between rounded-[var(--nexo-radius)] px-3 py-3 text-body transition-colors hover:bg-[var(--nexo-ghost-hover)]",
-                        active
-                          ? "font-medium text-[var(--nexo-text)]"
-                          : "text-[var(--nexo-text-secondary)]"
-                      )}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        {link.label}
-                        {"badge" in link && link.badge ? (
-                          <Badge>{link.badge}</Badge>
-                        ) : null}
-                      </span>
-                      {active ? (
-                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--nexo-text)]" aria-hidden />
-                      ) : null}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-          <div className="space-y-3 border-t border-[var(--nexo-divider)] px-4 py-5 sm:px-6">
-            <LanguageSelector />
-            <div className="grid grid-cols-2 gap-2">
-              <Link href="/login" onClick={() => setOpen(false)}>
-                <Button variant="outline" className="w-full rounded-full">
-                  Log In
-                </Button>
-              </Link>
-              <Link href="/register" onClick={() => setOpen(false)}>
-                <Button className="w-full gap-1.5 rounded-full">
-                  Get Started
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              </Link>
-            </div>
+        <div className="flex items-center justify-between">
+          <Logo height={28} href="/" variant={resolvedTheme === "dark" ? "on-light" : "on-dark"} />
+          <button
+            type="button"
+            className="grid h-10 w-10 place-items-center border border-current"
+            aria-label="Close menu"
+            onClick={() => setOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <nav className="mt-10 flex flex-1 flex-col gap-1 overflow-y-auto" aria-label="Mobile">
+          {menuLinks.map((link) => (
             <Link
-              href="/contact"
+              key={link.href}
+              href={link.href}
+              className="pub-menu-link"
               onClick={() => setOpen(false)}
-              className="block text-center text-small text-[var(--nexo-text-muted)] hover:text-[var(--nexo-text)]"
             >
-              Contact
+              {link.label}
             </Link>
-          </div>
+          ))}
+          <Link href="/register" className="pub-menu-link" onClick={() => setOpen(false)}>
+            Apply
+          </Link>
+        </nav>
+        <div className="flex flex-wrap gap-6 pt-6 text-[0.72rem] uppercase tracking-[0.14em]">
+          <Link href="/login" onClick={() => setOpen(false)}>
+            Client login →
+          </Link>
+          <Link href="/contact" onClick={() => setOpen(false)}>
+            Support →
+          </Link>
         </div>
       </div>
 
-      {/* Spacer for fixed header */}
-      <div className="h-16" aria-hidden />
+      <div className={cn("pub-nav-spacer", overHero && "h-0")} aria-hidden />
     </>
   );
 }

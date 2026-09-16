@@ -24,6 +24,24 @@ export const NAV_LINKS = [
   { href: "/about", label: "About" },
 ] as const;
 
+/** Compact primary nav — SwarVision composition, Nexo destinations. */
+export const PUBLIC_NAV_PRIMARY = [
+  { href: "/artists", label: "Artists" },
+  { href: "/labels", label: "Labels" },
+  { href: "/distribution", label: "Platform" },
+  { href: "/services", label: "Services" },
+  { href: "/pricing", label: "Plans" },
+] as const;
+
+export const PUBLIC_NAV_MORE = [
+  { href: "/publishing", label: "Publishing" },
+  { href: "/music", label: "Music" },
+  { href: "/blog", label: "Blog" },
+  { href: "/about", label: "About" },
+  { href: "/faq", label: "FAQ" },
+  { href: "/contact", label: "Contact" },
+] as const;
+
 export const CONFIRMED_STATS = [
   { value: "30+", label: "Artists" },
   { value: "50+", label: "Releases" },

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Reveal } from "@/components/motion/Reveal";
+import { DisplayHeading } from "@/components/public/DisplayHeading";
 import { Section, Eyebrow } from "@/components/marketing/Section";
 import type { PublicArtistCard, PublicReleaseCard } from "@/lib/website/queries";
 import { artistCanonicalPath, releaseCanonicalPath } from "@/lib/website/slugs";
@@ -25,7 +26,9 @@ export function HomeFeaturedCatalog({
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-2xl">
               <Eyebrow>Discover</Eyebrow>
-              <h2 className="mt-3 text-h2 text-[var(--nexo-text)]">Featured releases</h2>
+              <DisplayHeading as="h2" size="md" className="mt-3">
+                Featured releases
+              </DisplayHeading>
               <p className="mt-3 text-body text-[var(--nexo-text-muted)]">
                 Real catalog entries published by Nexo — no invented trending charts.
               </p>
@@ -71,7 +74,9 @@ export function HomeFeaturedCatalog({
         <Section id="featured-artists" surface>
           <div className="max-w-2xl">
             <Eyebrow>Artists</Eyebrow>
-            <h2 className="mt-3 text-h2">Featured artists</h2>
+            <DisplayHeading as="h2" size="md" className="mt-3">
+              Featured artists
+            </DisplayHeading>
             <p className="mt-3 text-body text-[var(--nexo-text-muted)]">
               Profiles published to the Nexo website — bios and discography when available.
             </p>
