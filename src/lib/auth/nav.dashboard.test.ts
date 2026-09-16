@@ -14,27 +14,28 @@ describe("premium dashboard nav", () => {
     const label = navForRoles(["label"]).map((n) => n.href);
 
     expect(artist).toContain("/dashboard/releases");
-    expect(artist).toContain("/dashboard/catalog");
+    expect(artist).toContain("/dashboard/artists");
     expect(artist).toContain("/earnings");
-    expect(artist).toContain("/billing");
-    expect(artist).toContain("/app/publishing");
     expect(artist).toContain("/support");
+    expect(artist).toContain("/analytics/streams");
     expect(artist).not.toContain("/app/artists");
+    expect(artist).not.toContain("/app/artists/new");
     expect(artist).not.toContain("/admin/ddex");
-    expect(artist).not.toContain("/analytics");
 
     expect(artist).toContain("/dashboard/playlist-pitch");
     expect(label).toContain("/dashboard/playlist-pitch");
     expect(label).toContain("/app/artists");
+    expect(label).toContain("/app/artists/new");
     expect(label).toContain("/dashboard/releases/new");
-    expect(label).toContain("/dashboard/profile");
     expect(label).not.toContain("/admin/ddex");
-    expect(label).not.toContain("/analytics");
+    expect(label).toContain("/analytics/spotify-engagement");
   });
 
-  it("does not show coming-soon analytics in portal nav", () => {
+  it("shows truthful analytics destinations instead of coming-soon", () => {
     for (const role of ["artist", "label"] as const) {
-      expect(navForRoles([role]).some((n) => n.label.toLowerCase() === "analytics")).toBe(false);
+      const items = navForRoles([role]);
+      expect(items.some((n) => n.href === "/analytics/streams")).toBe(true);
+      expect(items.some((n) => n.label === "Spotify Engagement" && n.badge === "NEW")).toBe(true);
     }
   });
 
@@ -47,6 +48,7 @@ describe("premium dashboard nav", () => {
       "/admin/labels",
       "/admin/ddex",
       "/admin/playlist-pitches",
+      "/admin/portal-requests",
       "/admin/distribution",
       "/admin/contact",
       "/admin/newsletter",

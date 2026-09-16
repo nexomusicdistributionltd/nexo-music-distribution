@@ -32,6 +32,14 @@ export default async function DashboardProfilePage() {
         </p>
       </div>
       <ProfileForm profile={ctx.profile} roles={ctx.roles} email={ctx.email} />
+      {ctx.roles.includes("label") && !artist ? (
+        <Alert>
+          DSP profile links (Spotify, Apple Music, Audiomack, and others) live on each roster artist.{" "}
+          <a href="/app/artists" className="underline-offset-4 hover:underline">
+            Open roster
+          </a>
+        </Alert>
+      ) : null}
       {artist ? (
         <>
           <ArtistBioForm artistProfileId={artist.id} initialBio={artist.bio} />

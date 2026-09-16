@@ -93,6 +93,7 @@ export const RATE_LIMITS = {
   releaseSubmit: { limit: 20, windowMs: 60 * 60_000 },
   assetUpload: { limit: 60, windowMs: 60 * 60_000 },
   payoutCreate: { limit: 10, windowMs: 60 * 60_000 },
+  portalRequest: { limit: 30, windowMs: 60 * 60_000 },
   royaltyImport: { limit: 30, windowMs: 60 * 60_000 },
   webhook: { limit: 120, windowMs: 60_000 },
   adminMutation: { limit: 60, windowMs: 60_000 },
