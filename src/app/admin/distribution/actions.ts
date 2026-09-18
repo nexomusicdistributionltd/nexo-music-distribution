@@ -12,7 +12,7 @@ import {
   reinstateReleaseAction,
   retryFailedJob,
 } from "@/lib/distribution/actions";
-import { defaultUnavailableCatalog, discoverExternalCatalog } from "@/lib/migration/external-catalog";
+import { discoverTooLostCatalog } from "@/lib/migration/external-catalog";
 import {
   ensureRuntimeProviderWebhookSecret,
   loadRuntimeProviderWebhookSecret,
@@ -99,28 +99,134 @@ export async function createMigrationAction(input: {
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:distribution");
   const supabase = await createClient();
+  const sourceName = input.sourceName ?? "toolost";
+  const availability =
+    sourceName === "toolost"
+      ? await discoverTooLostCatalog({ source: "other", page: 1, limit: 1 })
+      : null;
+
   const { data, error } = await supabase.rpc("create_catalog_migration", {
     p_owner_user_id: input.ownerUserId,
     p_artist_profile_id: input.artistProfileId ?? null,
     p_label_profile_id: null,
-    p_source_name: input.sourceName ?? "unconfigured",
+    p_source_name: sourceName,
     p_title: input.title ?? null,
     p_notes: null,
   });
   if (error) return { ok: false, error: error.message };
+
+  if (availability?.available && data?.id) {
+    const { error: updateError } = await supabase
+      .from("catalog_migrations")
+      .update({
+        source_connected: true,
+        status: "draft",
+        external_catalog_unavailable_reason: null,
+        import_method: "external_api",
+        workflow_step: "search",
+        last_job_status: "source_ready",
+        last_job_message: "Live TooLost catalog source connected.",
+        last_job_at: new Date().toISOString(),
+      })
+      .eq("id", data.id);
+    if (updateError) return { ok: false, error: updateError.message };
+    data.source_connected = true;
+    data.status = "draft";
+    data.external_catalog_unavailable_reason = null;
+  }
+
   revalidateDist();
   return { ok: true, data };
 }
 
-export async function discoverCatalogAction(source: "spotify" | "apple_music" | "other") {
+export async function discoverCatalogAction(
+  source: "spotify" | "apple_music" | "other",
+  migrationId?: string
+) {
   await RequireAdminPermission("admin:distribution");
-  const result = await discoverExternalCatalog({ source });
-  return result;
+  const result = await discoverTooLostCatalog({ source, page: 1, limit: 100 });
+  if (!result.available || !migrationId || result.items.length === 0) {
+    return { ...result, importedIntoMigration: 0 };
+  }
+
+  const supabase = await createClient();
+  const { data: existing, error: existingError } = await supabase
+    .from("catalog_migration_items")
+    .select("external_release_id")
+    .eq("migration_id", migrationId);
+  if (existingError) {
+    return {
+      available: false as const,
+      source,
+      reason: existingError.message,
+      items: [] as const,
+      importedIntoMigration: 0,
+    };
+  }
+
+  const existingIds = new Set(
+    (existing ?? [])
+      .map((row) => String(row.external_release_id ?? "").trim())
+      .filter(Boolean)
+  );
+  const freshItems = result.items.filter(
+    (item) => !existingIds.has(item.externalReleaseId)
+  );
+
+  if (freshItems.length > 0) {
+    const payload = freshItems.map((item) => {
+      const rawTracks =
+        item.raw && Array.isArray(item.raw.tracks) ? item.raw.tracks : undefined;
+      return {
+        title: item.title || null,
+        artist_name: item.artistName || null,
+        upc: item.upc ?? null,
+        isrcs: item.isrcs ?? [],
+        tracks: rawTracks,
+        track_count: item.trackCount ?? null,
+        external_release_id: item.externalReleaseId,
+        selected: true,
+      };
+    });
+
+    const { error: importError } = await supabase.rpc(
+      "import_own_catalog_migration_items",
+      {
+        p_migration_id: migrationId,
+        p_items: payload,
+      }
+    );
+    if (importError) {
+      return {
+        available: false as const,
+        source,
+        reason: importError.message,
+        items: [] as const,
+        importedIntoMigration: 0,
+      };
+    }
+  }
+
+  await supabase
+    .from("catalog_migrations")
+    .update({
+      source_name: "toolost",
+      source_connected: true,
+      external_catalog_unavailable_reason: null,
+      import_method: "external_api",
+    })
+    .eq("id", migrationId);
+
+  revalidateDist();
+  return {
+    ...result,
+    importedIntoMigration: freshItems.length,
+  };
 }
 
 export async function getDefaultCatalogAvailabilityAction() {
   await RequireAdminPermission("admin:distribution");
-  return defaultUnavailableCatalog();
+  return discoverTooLostCatalog({ source: "other", page: 1, limit: 1 });
 }
 
 export async function upsertMappingAction(input: {
