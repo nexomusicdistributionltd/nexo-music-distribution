@@ -55,11 +55,21 @@ function annotate(rows: Row[], extra: Row): Row[] {
   return rows.map((row) => ({ ...row, ...extra }));
 }
 
-async function settleRows(tasks: Array<Promise<unknown>>): Promise<Row[]> {
-  const settled = await Promise.allSettled(tasks);
-  return settled.flatMap((result) =>
-    result.status === "fulfilled" ? providerRows(result.value) : []
-  );
+async function settleRows(
+  taskFactories: Array<() => Promise<unknown>>,
+  concurrency = 5
+): Promise<Row[]> {
+  const out: Row[] = [];
+  for (let start = 0; start < taskFactories.length; start += concurrency) {
+    const batch = taskFactories.slice(start, start + concurrency);
+    const settled = await Promise.allSettled(batch.map((run) => run()));
+    out.push(
+      ...settled.flatMap((result) =>
+        result.status === "fulfilled" ? providerRows(result.value) : []
+      )
+    );
+  }
+  return out;
 }
 
 async function paginated(
@@ -143,11 +153,13 @@ export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<
   const scope = await ownedDistributionScope(userId);
   if (!scope.providerIds.size && kind !== "streamRates") return [];
 
-  const providerIds = [...scope.providerIds].slice(0, 100);
+  // The public API has burst limits. Cap one interactive view to 50 release-scoped calls
+  // and process them in small batches; additional releases remain available on release/track lists.
+  const providerIds = [...scope.providerIds].slice(0, 50);
 
   if (kind === "overview" || kind === "monthlyOverview") {
     const rows = await settleRows(
-      providerIds.map(async (providerReleaseId) => {
+      providerIds.map((providerReleaseId) => async () => {
         const raw = await distributionReference.salesReleaseOverview(providerReleaseId, {
           page: 1,
           perPage: 100,
@@ -160,7 +172,7 @@ export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<
 
   if (kind === "channels") {
     return settleRows(
-      providerIds.map(async (providerReleaseId) => {
+      providerIds.map((providerReleaseId) => async () => {
         const raw = await distributionReference.salesReleaseChannels(providerReleaseId, {
           page: 1,
           perPage: 100,
@@ -172,7 +184,7 @@ export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<
 
   if (kind === "territories") {
     return settleRows(
-      providerIds.map(async (providerReleaseId) => {
+      providerIds.map((providerReleaseId) => async () => {
         const raw = await distributionReference.salesReleaseTerritories(providerReleaseId, {
           page: 1,
           perPage: 100,
