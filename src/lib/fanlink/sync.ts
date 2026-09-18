@@ -21,7 +21,7 @@ export async function refreshFanlinkForRelease(releaseId:string){
    slug:`${artistSlug}/${songSlug}`,artist_slug:artistSlug,song_slug:songSlug,
    title:resolved.title||release.title,artist_name:resolved.artist||release.primary_artist_name,
    isrc:resolved.isrc||track.isrc,artwork_url:resolved.artwork,platform_links:resolved.links,
-   resolution_status:Object.keys(resolved.links).length?"resolved":"partial",resolved_at:now,last_refresh_at:now
+   resolution_status:Object.keys(resolved.links).length?"resolved":"partial",resolved_at:now,last_refresh_at:now,is_published:release.status==="live"
  },{onConflict:"release_id"}).select("id,artist_slug,song_slug").single();
  if(saveError) throw new Error(saveError.message);
  return data;
