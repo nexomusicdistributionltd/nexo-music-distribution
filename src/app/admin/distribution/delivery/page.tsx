@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default async function DeliveryPage() {
   await RequireAdmin();
-  const provider = getProviderConnectionState();
+  const provider = await getProviderConnectionState();
   const supabase = await createClient();
   const { data } = await supabase
     .from("releases")
