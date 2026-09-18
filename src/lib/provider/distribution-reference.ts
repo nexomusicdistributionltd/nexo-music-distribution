@@ -110,7 +110,7 @@ async function apiUncached(path: string): Promise<unknown> {
   if (response.status === 401 || response.status === 403) {
     try {
       const refreshed = await forceRefreshDistributionAccessToken();
-      if (refreshed && refreshed !== token) {
+      if (refreshed) {
         token = refreshed;
         response = await requestWithToken(token);
       }
