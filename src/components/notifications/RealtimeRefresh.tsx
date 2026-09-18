@@ -107,6 +107,24 @@ export function RealtimeRefresh({
         {
           event: "*",
           schema: "public",
+          table: "marketing_service_controls",
+        },
+        () => scheduleRefresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "marketing_content_pages",
+        },
+        () => scheduleRefresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "music_video_submissions",
           ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
         },
