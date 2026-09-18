@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { RequireVerifiedPortal, assertCanMutateCatalog } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { publicErrorMessage } from "@/lib/http/safe-error";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 import {
@@ -311,15 +312,37 @@ export async function createPayoutRequestAction(input: {
   if (!parsed.ok) return parsed;
 
   const supabase = await createClient();
+  const { data: payoutMethod, error: methodError } = await supabase
+    .from("payout_methods")
+    .select("id, method_type, display_name")
+    .eq("user_id", ctx.userId)
+    .eq("is_preferred", true)
+    .eq("status", "active")
+    .maybeSingle();
+  if (methodError || !payoutMethod) {
+    return { ok: false, error: "Add and select a preferred payout method before requesting payment." };
+  }
+
   const idempotencyKey = `portal:${ctx.userId}:${parsed.currency}:${parsed.amountMinor}:${Date.now()}`;
+  const methodLabel = `${payoutMethod.method_type}:${payoutMethod.display_name}${input.method_note?.trim() ? ` · ${input.method_note.trim()}` : ""}`;
   const { data, error } = await supabase.rpc("create_payout_request", {
     p_owner_user_id: ctx.userId,
     p_amount_minor: parsed.amountMinor,
     p_currency: parsed.currency,
-    p_method: input.method_note?.trim() || null,
+    p_method: methodLabel,
     p_idempotency_key: idempotencyKey,
   });
   if (error) return { ok: false, error: publicErrorMessage(error.message) };
+
+  if (data?.id) {
+    const service = createServiceClient();
+    await service
+      .from("payouts")
+      .update({ payout_method_id: payoutMethod.id })
+      .eq("id", data.id)
+      .eq("owner_user_id", ctx.userId);
+  }
+
   revalidatePath("/earnings/payouts");
   revalidatePath("/earnings");
   return { ok: true, data: { id: data.id } };
