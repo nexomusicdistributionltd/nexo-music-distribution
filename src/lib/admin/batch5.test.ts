@@ -24,7 +24,7 @@ import {
 } from "@/lib/admin/search";
 import { homePathForRoles } from "@/lib/auth/types";
 import { isAllowedAdminSettingKey } from "@/lib/admin/settings";
-import { navForRoles } from "@/lib/auth/nav";
+import { navForRoles, navSectionsForRoles } from "@/lib/auth/nav";
 import { hasPermission } from "@/architecture/auth/rbac";
 import { canTransition } from "@/lib/releases/status";
 
@@ -39,9 +39,11 @@ describe("Batch 5 admin route protection / roles", () => {
     expect(homePathForRoles(["support"])).toBe("/admin");
   });
 
-  it("permission helpers are least-privilege and granular", () => {
-    expect(hasAdminPermission(["support"], "admin:support")).toBe(true);
-    expect(hasAdminPermission(["support"], "admin:qc")).toBe(true);
+  it("uses support as a portal gate and teams for functional permissions", () => {
+    expect(hasAdminPermission(["support"], "admin:access")).toBe(true);
+    expect(hasAdminPermission(["support"], "admin:dashboard")).toBe(true);
+    expect(hasAdminPermission(["support"], "admin:support")).toBe(false);
+    expect(hasAdminPermission(["support"], "admin:qc")).toBe(false);
     expect(hasAdminPermission(["support"], "admin:finance")).toBe(false);
     expect(hasAdminPermission(["support"], "admin:distribution")).toBe(false);
     expect(hasAdminPermission(["support"], "admin:ddex")).toBe(false);
@@ -55,7 +57,7 @@ describe("Batch 5 admin route protection / roles", () => {
 
   it("maps sensitive admin routes to server permissions", () => {
     expect(adminPermissionForPath("/admin/distribution/queue")).toBe("admin:distribution");
-    expect(adminPermissionForPath("/admin/finance/billing")).toBe("admin:finance");
+    expect(adminPermissionForPath("/admin/finance/billing")).toBe("admin:billing_tools");
     expect(adminPermissionForPath("/admin/users")).toBe("admin:users");
     expect(adminPermissionForPath("/admin/roles")).toBe("admin:staff_invite");
     expect(adminPermissionForPath("/admin/support/tickets")).toBe("admin:support");
@@ -89,14 +91,29 @@ describe("Batch 5 admin route protection / roles", () => {
       expect(hrefs).toContain(h);
     }
     const supportHrefs = navForRoles(["support"]).map((n) => n.href);
-    expect(supportHrefs).toContain("/admin/support");
-    expect(supportHrefs).toContain("/admin/qc");
-    expect(supportHrefs).not.toContain("/admin/settings");
-    expect(supportHrefs).not.toContain("/admin/users");
-    expect(supportHrefs).not.toContain("/admin/roles");
-    expect(supportHrefs).not.toContain("/admin/finance");
+    expect(supportHrefs).toContain("/admin");
+    expect(supportHrefs).not.toContain("/admin/support");
+    expect(supportHrefs).not.toContain("/admin/qc");
     expect(supportHrefs).not.toContain("/admin/distribution");
-    expect(supportHrefs).not.toContain("/admin/ddex");
+
+    const distributionTeam = new Set([
+      "admin:access",
+      "admin:dashboard",
+      "admin:directory",
+      "admin:releases",
+      "admin:artists",
+      "admin:labels",
+      "admin:distribution",
+      "admin:analytics",
+      "admin:search",
+    ] as const);
+    const distributionHrefs = navSectionsForRoles(["support"], distributionTeam)
+      .flatMap((section) => section.items)
+      .map((item) => item.href);
+    expect(distributionHrefs).toContain("/admin/distribution");
+    expect(distributionHrefs).toContain("/admin/releases");
+    expect(distributionHrefs).not.toContain("/admin/finance");
+    expect(distributionHrefs).not.toContain("/admin/settings");
   });
 });
 
