@@ -52,7 +52,7 @@ export async function submitQueuedRelease(
   }
 
   const provider = getProvider();
-  const state = getProviderConnectionState();
+  const state = await getProviderConnectionState();
 
   if (!state.connected || !provider.connected) {
     const { data, error } = await service.rpc("complete_submit_queued_release", {
@@ -133,7 +133,7 @@ export async function submitQueuedRelease(
 
 export async function syncReleaseStatus(jobId: string): Promise<DistActionResult> {
   const supabase = await createClient();
-  const state = getProviderConnectionState();
+  const state = await getProviderConnectionState();
 
   if (!state.connected) {
     const { data, error } = await supabase.rpc("record_provider_sync_run", {
@@ -215,7 +215,7 @@ export async function requestTakedownAction(
   if (error) return { ok: false, error: error.message };
 
   // Provider call only if connected + has provider id — never fake success
-  const state = getProviderConnectionState();
+  const state = await getProviderConnectionState();
   if (state.connected && data?.provider_release_id) {
     try {
       await getProvider().requestTakedown(data.provider_release_id, reason);
@@ -245,7 +245,7 @@ export async function reinstateReleaseAction(
   });
   if (error) return { ok: false, error: error.message };
 
-  const state = getProviderConnectionState();
+  const state = await getProviderConnectionState();
   if (state.connected && data?.provider_release_id) {
     try {
       await getProvider().reinstateRelease(data.provider_release_id, reason);
