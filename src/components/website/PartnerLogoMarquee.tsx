@@ -34,7 +34,7 @@ export function PartnerLogoMarquee({
             className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[var(--nexo-surface)] to-transparent sm:w-16"
             aria-hidden
           />
-          <div className="nexo-marquee-track-rtl" aria-hidden>
+          <div className="nexo-partner-marquee-track" aria-hidden>
             {row.map((p, i) => (
               <PartnerChip key={`${p.id}-${i}`} partner={p} />
             ))}
