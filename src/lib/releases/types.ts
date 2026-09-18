@@ -1,4 +1,4 @@
-export type ReleaseType = "single" | "ep" | "album";
+export type ReleaseType = "single" | "ep" | "album" | "compilation";
 
 export type ReleaseStatus =
   | "draft"
@@ -88,8 +88,14 @@ export interface ReleaseTrackRow {
   title: string;
   version: string | null;
   isrc: string | null;
+  iswc: string | null;
+  liner_note: string | null;
+  tiktok_start_time: string | null;
   duration_ms: number | null;
   explicit: boolean;
+  clean_version: boolean;
+  instrumental: boolean;
+  ai_assisted: boolean;
   language: string | null;
   lyrics: string | null;
   created_at: string;
