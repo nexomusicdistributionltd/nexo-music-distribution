@@ -2,7 +2,10 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 
-import { loadDistributionAccessToken } from "./oauth/store";
+import {
+  forceRefreshDistributionAccessToken,
+  loadDistributionAccessToken,
+} from "./oauth/store";
 import { readDistributionOAuthConfig } from "./oauth/config";
 import { ProviderUnavailableError } from "./errors";
 
@@ -17,6 +20,39 @@ export type ProviderSalesPageQuery = {
   page?: number;
   perPage?: number;
 };
+
+export class DistributionReferenceHttpError extends ProviderUnavailableError {
+  constructor(
+    public readonly status: number,
+    public readonly path: string,
+    public readonly requiredScope: string | null,
+    message: string
+  ) {
+    super(message);
+    this.name = "DistributionReferenceHttpError";
+  }
+}
+
+export function isDistributionAuthorizationError(
+  error: unknown,
+  requiredScope?: string
+): error is DistributionReferenceHttpError {
+  return (
+    error instanceof DistributionReferenceHttpError &&
+    (error.status === 401 || error.status === 403) &&
+    (!requiredScope || error.requiredScope === requiredScope)
+  );
+}
+
+function requiredScopeForPath(path: string): string | null {
+  if (path.startsWith("/sales")) return "read:sales";
+  if (path.startsWith("/analytics")) return "read:analytics";
+  if (path.startsWith("/releases")) return "read:releases";
+  if (path.startsWith("/lookup")) return "read:catalog";
+  if (path.startsWith("/preferences")) return "read:preferences";
+  if (path === "/me" || path.startsWith("/me?")) return "read:profile";
+  return null;
+}
 
 function clampPage(value: number | undefined): number | undefined {
   if (value == null || !Number.isFinite(value)) return undefined;
@@ -51,23 +87,40 @@ function withQuery(path: string, qs: URLSearchParams): string {
 }
 
 async function apiUncached(path: string): Promise<unknown> {
-  const token = await loadDistributionAccessToken();
+  let token = await loadDistributionAccessToken();
   if (!token) {
     throw new ProviderUnavailableError("Distribution Engine authorization is unavailable.");
   }
 
   const cfg = readDistributionOAuthConfig();
-  const response = await fetch(`${cfg.apiBaseUrl.replace(/\/$/, "")}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  });
+  const endpoint = `${cfg.apiBaseUrl.replace(/\/$/, "")}${path}`;
+  const requestWithToken = (accessToken: string) =>
+    fetch(endpoint, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+  let response = await requestWithToken(token);
+
+  // A stored access token can be stale even when its expiry metadata is missing or
+  // inaccurate. Refresh once on auth rejection before treating the scope as denied.
+  if (response.status === 401 || response.status === 403) {
+    try {
+      const refreshed = await forceRefreshDistributionAccessToken();
+      if (refreshed && refreshed !== token) {
+        token = refreshed;
+        response = await requestWithToken(token);
+      }
+    } catch {
+      // Keep the original protected-endpoint result as the authoritative failure.
+    }
+  }
 
   if (!response.ok) {
-    // Do not surface upstream provider branding or raw error prose into artist/label portals.
-    // HTTP status plus rate/quota metadata is sufficient for safe operator troubleshooting.
+    // Do not surface upstream provider response bodies into artist/label portals.
     try {
       await response.json();
     } catch {
@@ -76,14 +129,21 @@ async function apiUncached(path: string): Promise<unknown> {
 
     const retryAfter = response.headers.get("retry-after");
     const quotaRemaining = response.headers.get("x-api-quota-remaining");
+    const requiredScope = requiredScopeForPath(path);
     const detail = [
+      response.status === 403 && requiredScope
+        ? `required scope ${requiredScope} was denied`
+        : "",
       response.status === 429 && retryAfter ? `retry after ${retryAfter}s` : "",
       quotaRemaining === "0" ? "API quota remaining: 0" : "",
     ]
       .filter(Boolean)
       .join(" · ");
 
-    throw new ProviderUnavailableError(
+    throw new DistributionReferenceHttpError(
+      response.status,
+      path,
+      requiredScope,
       `Distribution Engine request failed (HTTP ${response.status})${detail ? `: ${detail}` : "."}`
     );
   }
