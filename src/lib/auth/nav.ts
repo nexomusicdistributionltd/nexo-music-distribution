@@ -159,6 +159,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/blog", label: "Blog", icon: "website" },
       { href: "/admin/pages", label: "Pages", icon: "website" },
       { href: "/admin/videos", label: "Videos", icon: "website" },
+      { href: "/admin/website/footer", label: "Footer", icon: "website" },
     ],
   },
   {
@@ -194,7 +195,11 @@ export function navSectionsForRoles(roles: AppRole[]): NavSection[] {
     return ADMIN_SECTIONS.map((section) => ({
       ...section,
       items: section.items.filter((item) => {
-        if (item.href === "/admin/settings") {
+        if (
+          item.href === "/admin/settings" ||
+          item.href === "/admin/portal-features" ||
+          item.href === "/admin/website/footer"
+        ) {
           return hasAdminPermission(roles, "admin:settings");
         }
         return true;
