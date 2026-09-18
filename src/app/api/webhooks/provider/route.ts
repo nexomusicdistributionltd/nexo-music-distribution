@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { getServiceRoleKey } from "@/lib/supabase/admin";
 import { getConfiguredProviderName } from "@/lib/provider/config";
+import { loadRuntimeProviderWebhookSecret } from "@/lib/provider/webhook-secret";
 import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
 import {
   verifyProviderWebhookSignature,
@@ -101,9 +102,11 @@ export async function POST(req: Request) {
     req.headers.get("x-signature") ||
     req.headers.get("x-hub-signature-256");
 
+  const runtimeSecret = await loadRuntimeProviderWebhookSecret();
   const verification = verifyProviderWebhookSignature({
     rawBody,
     signatureHeader: signature,
+    secretOverride: runtimeSecret?.secret ?? null,
   });
 
   let payload: Record<string, unknown>;
