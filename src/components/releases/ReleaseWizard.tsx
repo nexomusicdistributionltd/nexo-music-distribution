@@ -25,8 +25,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   COMPOSITION_CREDIT_ROLES,
   CONTRIBUTOR_ROLE_OPTIONS,
-  PERFORMER_CREDIT_ROLES,
-  PRODUCTION_CREDIT_ROLES,
 } from "@/lib/releases/contributor-roles";
 import type {
   ContributorRole,
@@ -365,15 +363,10 @@ export function ReleaseWizard({
       ),
     [contributors]
   );
-  const performerCreditsReady = [...contributorRoleSet].some((role) =>
-    PERFORMER_CREDIT_ROLES.has(role)
-  );
   const compositionCreditsReady = [...contributorRoleSet].some((role) =>
     COMPOSITION_CREDIT_ROLES.has(role)
   );
-  const productionCreditsReady = [...contributorRoleSet].some((role) =>
-    PRODUCTION_CREDIT_ROLES.has(role)
-  );
+  const contributorCount = contributors.filter((contributor) => contributor.name.trim()).length;
 
   React.useEffect(() => {
     let active = true;
@@ -1471,26 +1464,31 @@ export function ReleaseWizard({
           {step === 3 ? (
             <div className="space-y-3">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                Add complete credits for performers, composition/lyrics, and production/engineering.
-                Apple requires accurate credits across these categories; one person may hold multiple roles.
-                Share % remains optional ownership metadata.
+                Add accurate track credits. Available categories include primary/featured artist,
+                lead vocals, background vocals, choir/chorus, guitar, bass, drums, keyboard/piano,
+                percussion, instrumentalist/background musician, songwriter, composer, lyricist,
+                arranger, producer, recording/mixing/mastering engineers, graphic designer,
+                publisher, A&amp;R, artist manager and more.
               </p>
               <div className="grid gap-2 sm:grid-cols-3">
-                {[
-                  ["Performer", performerCreditsReady],
-                  ["Composition & lyrics", compositionCreditsReady],
-                  ["Production & engineering", productionCreditsReady],
-                ].map(([label, ready]) => (
-                  <div
-                    key={String(label)}
-                    className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3"
-                  >
-                    <p className="text-small font-medium">{String(label)}</p>
-                    <p className="text-caption text-[var(--nexo-text-muted)]">
-                      {ready ? "Credit added" : "Required before submission"}
-                    </p>
-                  </div>
-                ))}
+                <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3">
+                  <p className="text-small font-medium">Primary artist</p>
+                  <p className="text-caption text-[var(--nexo-text-muted)]">
+                    {info.primary_artist_name.trim() ? "Set for this release" : "Required"}
+                  </p>
+                </div>
+                <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3">
+                  <p className="text-small font-medium">Songwriter / composer</p>
+                  <p className="text-caption text-[var(--nexo-text-muted)]">
+                    {compositionCreditsReady ? "Credit added" : "Add one for each music track"}
+                  </p>
+                </div>
+                <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3">
+                  <p className="text-small font-medium">Credits added</p>
+                  <p className="text-caption text-[var(--nexo-text-muted)]">
+                    {contributorCount} contributor{contributorCount === 1 ? "" : "s"}
+                  </p>
+                </div>
               </div>
               {contributors.map((c, idx) => (
                 <div key={idx} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
