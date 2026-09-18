@@ -303,7 +303,7 @@ export function IdentityVerificationWizard({
             </div>
             {countryCode && countryCode !== "NG" ? (
               <p className="text-caption text-[var(--nexo-text-muted)]">
-                NIN is available only for Nigeria. Use your national ID card, driver's license, or passport.
+                NIN is available only for Nigeria. Use your national ID card, driver&apos;s license, or passport.
               </p>
             ) : null}
           </div>
