@@ -85,6 +85,9 @@ export default async function AdminUsersPage({
                 </div>
                 {canManage ? <AccountStatusForm userId={u.id} /> : null}
               </div>
+              {canRoles && (rolesByUser.get(u.id) ?? []).some((r) => r === "artist" || r === "label") ? (
+                <div className="mt-3"><AccountPlanControl userId={u.id} accountType={(rolesByUser.get(u.id) ?? []).includes("label") ? "label" : "artist"} /></div>
+              ) : null}
               {canRoles ? (
                 <div className="mt-3">
                   <UserRolesForm
