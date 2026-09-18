@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
   createReleaseDraft,
+  getDistributionMetadataLookups,
   prepareAssetUpload,
   registerUploadedAsset,
   replaceContributors,
@@ -145,6 +146,20 @@ export function ReleaseWizard({
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState<string | null>(null);
+  const [providerGenres, setProviderGenres] = React.useState<Array<{ value: string; label: string }>>([]);
+  const [providerLanguages, setProviderLanguages] = React.useState<Array<{ value: string; label: string }>>([]);
+
+  React.useEffect(() => {
+    let active = true;
+    void getDistributionMetadataLookups().then((result) => {
+      if (!active || !result.ok) return;
+      setProviderGenres(result.data.genres);
+      setProviderLanguages(result.data.languages);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function ensureDraft(): Promise<string> {
     if (releaseId) return releaseId;
@@ -501,7 +516,16 @@ export function ReleaseWizard({
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Genre</span>
-                <Input value={info.genre} onChange={(e) => setInfo({ ...info, genre: e.target.value })} />
+                <Input
+                  list="nexo-provider-genres"
+                  value={info.genre}
+                  onChange={(e) => setInfo({ ...info, genre: e.target.value })}
+                />
+                <datalist id="nexo-provider-genres">
+                  {providerGenres.map((genre) => (
+                    <option key={genre.value} value={genre.value}>{genre.label}</option>
+                  ))}
+                </datalist>
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Subgenre</span>
@@ -509,7 +533,16 @@ export function ReleaseWizard({
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Language</span>
-                <Input value={info.language} onChange={(e) => setInfo({ ...info, language: e.target.value })} />
+                <Input
+                  list="nexo-provider-languages"
+                  value={info.language}
+                  onChange={(e) => setInfo({ ...info, language: e.target.value })}
+                />
+                <datalist id="nexo-provider-languages">
+                  {providerLanguages.map((language) => (
+                    <option key={language.value} value={language.value}>{language.label}</option>
+                  ))}
+                </datalist>
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Release date</span>
