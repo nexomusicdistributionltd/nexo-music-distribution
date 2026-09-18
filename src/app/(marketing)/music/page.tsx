@@ -3,7 +3,6 @@ import Link from "next/link";
 import { PageHero } from "@/components/marketing/PageHero";
 import { HeroImage } from "@/components/website/HeroImage";
 import { Reveal } from "@/components/motion/Reveal";
-import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
 import { listPublicArtists, listPublicReleases } from "@/lib/website/queries";
 import { publicStatusLabel } from "@/lib/website/eligibility";
 import { releaseCanonicalPath, artistCanonicalPath } from "@/lib/website/slugs";
@@ -24,7 +23,6 @@ export default async function MusicPage() {
 
   return (
     <>
-      <PublicCatalogRealtime />
       <PageHero
         eyebrow="Catalog"
         title="Music"
