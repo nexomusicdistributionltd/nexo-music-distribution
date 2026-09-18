@@ -587,10 +587,11 @@ export async function registerUploadedAsset(input: {
 
   const fileCheck =
     input.kind === "audio"
-      ? assertAudioFile({ type: input.mimeType, size: input.sizeBytes })
-      : assertArtworkFile({ type: input.mimeType, size: input.sizeBytes });
+      ? assertAudioFile({ type: input.mimeType, size: input.sizeBytes, name: input.filename })
+      : assertArtworkFile({ type: input.mimeType, size: input.sizeBytes, name: input.filename });
   if (fileCheck) return { ok: false, error: fileCheck };
 
+  const normalizedMimeType = input.kind === "audio" ? "audio/flac" : input.mimeType;
   const bucket = input.kind === "audio" ? AUDIO_BUCKET : ARTWORK_BUCKET;
   const pathErr = assertOwnedAssetPath(input.storagePath, ctx.userId, input.releaseId);
   if (pathErr) return { ok: false, error: pathErr };
@@ -639,7 +640,7 @@ export async function registerUploadedAsset(input: {
       const ab = await blob.arrayBuffer();
       const buf = Buffer.from(ab);
       if (input.kind === "audio") {
-        const meta = await extractAudioTechMeta(buf, input.mimeType);
+        const meta = await extractAudioTechMeta(buf, normalizedMimeType);
         codec = meta.codec;
         container = meta.container;
         sample_rate_hz = meta.sample_rate_hz;
@@ -660,20 +661,43 @@ export async function registerUploadedAsset(input: {
     // leave nulls — readiness will surface missing tech meta
   }
 
+  if (input.kind === "audio") {
+    const audioIssue =
+      duration_ms == null ||
+      sample_rate_hz == null ||
+      bit_depth == null ||
+      channels == null
+        ? "Nexo could not verify the FLAC technical metadata. Re-export the master and upload it again."
+        : duration_ms < 5000
+          ? "TooLost requires audio tracks to be at least 5 seconds long."
+          : bit_depth < 16
+            ? "Audio must be at least 16-bit."
+            : sample_rate_hz < 44100
+              ? "Audio sample rate must be at least 44.1 kHz."
+              : channels !== 2
+                ? "Audio must be stereo."
+                : null;
+    if (audioIssue) {
+      await supabase.storage.from(bucket).remove([input.storagePath]);
+      return { ok: false, error: audioIssue };
+    }
+  }
+
   if (input.kind === "artwork") {
     const acceptedArtworkSize =
       width != null &&
       height != null &&
       width === height &&
-      [1400, 3000, 4000].includes(width);
+      width >= 3000 &&
+      width <= 5000;
     if (!acceptedArtworkSize) {
       await supabase.storage.from(bucket).remove([input.storagePath]);
       return {
         ok: false,
         error:
           width != null && height != null
-            ? `Artwork is ${width}×${height}px. Use exactly 1400×1400, 3000×3000, or 4000×4000px.`
-            : "Artwork dimensions could not be verified. Upload a valid JPEG, PNG, or WebP image.",
+            ? `Artwork is ${width}×${height}px. TooLost requires square artwork between 3000×3000 and 5000×5000px.`
+            : "Artwork dimensions could not be verified. Upload a valid JPG, PNG, or TIFF image.",
       };
     }
   }
@@ -687,7 +711,7 @@ export async function registerUploadedAsset(input: {
       storage_bucket: bucket,
       storage_path: input.storagePath,
       filename: input.filename,
-      mime_type: input.mimeType,
+      mime_type: normalizedMimeType,
       size_bytes: input.sizeBytes,
       width,
       height,
