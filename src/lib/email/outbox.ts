@@ -79,9 +79,12 @@ function normalizedTemplateVars(
   }
 
   const reason = firstText(vars.REASON) ?? "";
-  if (row.template_key === "RELEASE_CHANGES_REQUIRED" && /\bflac\b/i.test(reason)) {
+  if (row.template_key === "RELEASE_CHANGES_REQUIRED") {
     vars.CORRECTION_TITLE =
-      firstText(vars.CORRECTION_TITLE) ?? "Audio File Requires Attention";
+      firstText(vars.CORRECTION_TITLE) ?? "Changes required";
+  }
+  if (row.template_key === "RELEASE_CHANGES_REQUIRED" && /\bflac\b/i.test(reason)) {
+    vars.CORRECTION_TITLE = "Audio File Requires Attention";
     vars.REQUIRED_FORMAT =
       firstText(vars.REQUIRED_FORMAT) ?? "FLAC (lossless audio)";
     vars.ACTION_REQUIRED =
