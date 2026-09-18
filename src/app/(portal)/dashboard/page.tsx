@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PlanFeaturesPanel } from "@/components/billing/PlanFeaturesPanel";
 import { PortalOverview } from "@/components/portal/PortalOverview";
+import { PortalAnalyticsRealtime } from "@/components/portal/PortalAnalyticsRealtime";
 import { LabelOverviewPanel } from "@/components/portal/LabelOverviewPanel";
 import { RequireRole } from "@/lib/auth/guards";
 import { artistNameOf } from "@/lib/auth/types";
@@ -171,6 +172,8 @@ export default async function DashboardPage() {
 
   return (
     <>
+      <PortalAnalyticsRealtime />
+      <>
       <PortalOverview
         welcomeName={welcomeName}
         thumbs={recent.map((r) => ({
