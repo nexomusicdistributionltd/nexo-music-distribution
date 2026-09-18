@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { RequireAdministrator } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { IdentityVerificationStatus } from "@/lib/identity/types";
+import { queueIdentityAccountEmail } from "@/lib/email/identity-agreement";
 
 type ReviewStatus = Extract<
   IdentityVerificationStatus,
@@ -116,7 +117,27 @@ export async function reviewIdentityVerificationAction(input: {
             : "Your identity verification is under review.",
     entity_type: "identity_verification",
     entity_id: input.verificationId,
+    action_path: input.status === "verified" ? "/distribution-agreement" : "/verify-identity",
   });
+
+  const templateKey =
+    input.status === "verified"
+      ? "IDENTITY_VERIFIED"
+      : input.status === "declined"
+        ? "IDENTITY_DECLINED"
+        : input.status === "additional_info_required"
+          ? "IDENTITY_ADDITIONAL_INFO_REQUIRED"
+          : null;
+  if (templateKey) {
+    await queueIdentityAccountEmail({
+      supabase: service,
+      userId: verification.user_id,
+      verificationId: input.verificationId,
+      templateKey,
+      reason,
+      legalName: verification.legal_name,
+    });
+  }
 
   revalidatePath("/admin/verifications");
   revalidatePath(`/admin/verifications/${input.verificationId}`);
