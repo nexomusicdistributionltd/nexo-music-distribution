@@ -155,6 +155,27 @@ export async function upsertWebsiteVideoAction(input: {
     p_delete: input.delete ?? false,
   });
   if (error) return { ok: false, error: error.message };
+
+  // The legacy RPC intentionally treats NULL associations as "keep existing".
+  // Apply explicit nullable edits here so admins can actually clear fields.
+  if (input.id) {
+    const explicit: Record<string, unknown> = {};
+    if (input.thumbnailUrl !== undefined) {
+      explicit.thumbnail_url = input.thumbnailUrl?.trim() || null;
+    }
+    if (input.artistId !== undefined) explicit.artist_id = input.artistId || null;
+    if (input.releaseId !== undefined) explicit.release_id = input.releaseId || null;
+    if (input.trackId !== undefined) explicit.track_id = input.trackId || null;
+    if (Object.keys(explicit).length) {
+      explicit.updated_at = new Date().toISOString();
+      const { error: explicitError } = await supabase
+        .from("website_videos")
+        .update(explicit)
+        .eq("id", input.id);
+      if (explicitError) return { ok: false, error: explicitError.message };
+    }
+  }
+
   revalidatePath("/admin/videos");
   revalidatePath("/admin/website");
   revalidatePath("/");
