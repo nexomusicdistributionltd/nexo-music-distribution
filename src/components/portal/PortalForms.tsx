@@ -19,6 +19,7 @@ import {
   saveTaxDetailsAction,
 } from "@/app/(portal)/portal-actions";
 import type { SplitShareInput } from "@/lib/finance/splits";
+import { formatMinorUnits, parseMajorUnitsToMinor, currencyFractionDigits } from "@/lib/finance/money";
 
 function usePendingAction() {
   const router = useRouter();
@@ -238,7 +239,7 @@ export function RecoupmentForm() {
         void s.run(async () => {
           const r = await createRecoupmentAction({
             title: String(fd.get("title") || ""),
-            amountMinor: Math.round(Number(fd.get("amount_display")) * 100),
+            amountMinor: parseMajorUnitsToMinor(String(fd.get("amount_display") || ""), String(fd.get("currency") || "USD")) ?? 0,
             currency: String(fd.get("currency") || "USD"),
             notes: String(fd.get("notes") || ""),
           });
@@ -250,7 +251,7 @@ export function RecoupmentForm() {
       {s.error ? <Alert variant="warning">{s.error}</Alert> : null}
       {s.ok ? <Alert variant="success">Saved.</Alert> : null}
       <Input name="title" required placeholder="Advance / cost name" />
-      <Input name="amount_minor" type="number" required placeholder="Amount in minor units (e.g. 10000 = $100.00)" />
+      <Input name="amount_display" type="number" required min="0.01" step="0.01" placeholder="Amount" />
       <Input name="currency" defaultValue="USD" maxLength={3} />
       <Textarea name="notes" placeholder="Notes" />
       <Button type="submit" disabled={s.pending}>
@@ -370,7 +371,7 @@ export function PayoutRequestForm({
         const form = e.currentTarget;
         void s.run(async () => {
           const r = await createPayoutRequestAction({
-            amountMinor: Number(fd.get("amount_minor")),
+            amountMinor: parseMajorUnitsToMinor(String(fd.get("amount_display") || ""), currency) ?? 0,
             currency,
             method_note: String(fd.get("method_note") || ""),
           });
@@ -382,9 +383,8 @@ export function PayoutRequestForm({
       <Alert variant="warning">{paymentMessage}</Alert>
       {s.error ? <Alert variant="error">{s.error}</Alert> : null}
       {s.ok ? <Alert variant="success">Request submitted for staff review.</Alert> : null}
-      <p className="text-caption text-[var(--nexo-text-muted)]">Available balance: {(availableMinor / 100).toLocaleString(undefined, { style: "currency", currency })}</p>
-      <label className="block space-y-1"><span className="text-caption text-[var(--nexo-text-muted)]">Payout amount ({currency})</span><Input name="amount_display" type="number" required min={0.01} max={availableMinor / 100} step="0.01" placeholder="0.00" /></label>
-      <input type="hidden" name="amount_minor" value="" />
+      <p className="text-caption text-[var(--nexo-text-muted)]">Available balance: {formatMinorUnits(availableMinor, currency)}</p>
+      <label className="block space-y-1"><span className="text-caption text-[var(--nexo-text-muted)]">Payout amount ({currency})</span><Input name="amount_display" type="number" required min={currencyFractionDigits(currency) === 0 ? 1 : 1 / 10 ** currencyFractionDigits(currency)} max={availableMinor / 10 ** currencyFractionDigits(currency)} step={currencyFractionDigits(currency) === 0 ? 1 : 1 / 10 ** currencyFractionDigits(currency)} placeholder={currencyFractionDigits(currency) === 0 ? "0" : "0.00"} /></label>
       <Input name="method_note" placeholder="Method note (optional)" />
       <Button type="submit" disabled={s.pending || availableMinor <= 0}>
         {s.pending ? "Submitting…" : "Request payment"}
