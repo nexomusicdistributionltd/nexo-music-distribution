@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ANALYTICS_DSP_MATCH, type AnalyticsKey } from "@/lib/portal/service-kinds";
-import { ownedAnalytics, ownedSales } from "@/lib/provider/owned-data";
+import { ownedAnalytics } from "@/lib/provider/owned-data";
 
 export type AnalyticsSnapshot = {
   key: AnalyticsKey;
@@ -71,19 +71,20 @@ export async function loadAnalyticsSnapshot(
   // Prefer live Distribution Engine analytics for releases owned by this account.
   // Fall back to Nexo ledger rows when the upstream has no rows yet.
   try {
-    const providerRows = key === "streams"
-      ? await ownedAnalytics(ownerUserId)
-      : await ownedSales(ownerUserId, "overview");
-    if (providerRows.length > 0) {
-      const typedRows = providerRows as Record<string, unknown>[];
+    const allProviderRows = await ownedAnalytics(ownerUserId);
+    const typedRows = (allProviderRows as Record<string, unknown>[]).filter((row) => {
+      if (key === "streams") return true;
+      return matchesKey(platformCode(row), key);
+    });
+    if (typedRows.length > 0) {
       const codes = [...new Set(typedRows.map(platformCode).filter(Boolean))];
-      const streamCounts = key === "streams" ? realStreamCounts(typedRows) : {};
+      const streamCounts = realStreamCounts(typedRows);
       const trendPercentByDsp = realTrendPercent(typedRows);
       return {
         key,
         connected: true,
         statusLabel: "LIVE",
-        rowCount: providerRows.length,
+        rowCount: typedRows.length,
         amountMinor: null,
         currency: null,
         dspCodes: codes,
