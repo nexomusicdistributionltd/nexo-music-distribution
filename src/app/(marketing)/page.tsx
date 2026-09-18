@@ -3,11 +3,13 @@ import Link from "next/link";
 import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
 import { HomeFeaturedCatalog } from "@/components/website/HomeFeaturedCatalog";
 import { PartnerLogoMarquee } from "@/components/website/PartnerLogoMarquee";
+import { VideoCard } from "@/components/website/VideoCard";
 import { listActivePartners } from "@/lib/website/partners";
 import {
   getWebsiteSetting,
   listFeaturedPublicArtists,
   listFeaturedPublicReleases,
+  listPublishedVideos,
 } from "@/lib/website/queries";
 import { resolveHomepageImageMap } from "@/lib/website/homepage-images";
 import { HeroStage } from "@/components/public/HeroStage";
@@ -108,11 +110,12 @@ const SERVICES = [
 ];
 
 export default async function HomePage() {
-  const [partners, featuredReleases, featuredArtists, homepageSetting] = await Promise.all([
+  const [partners, featuredReleases, featuredArtists, homepageSetting, publishedVideos] = await Promise.all([
     listActivePartners(),
     listFeaturedPublicReleases(8),
     listFeaturedPublicArtists(8),
     getWebsiteSetting("homepage"),
+    listPublishedVideos({ limit: 6 }),
   ]);
   const home = (homepageSetting?.value ?? {}) as Record<string, unknown>;
   const heroEyebrow = String(
@@ -247,6 +250,30 @@ export default async function HomePage() {
         showReleases={showFeaturedReleases}
         showArtists={showFeaturedArtists}
       />
+
+      {publishedVideos.length > 0 ? (
+        <section className="pub-section pub-container">
+          <div className="mb-8 grid gap-4 lg:grid-cols-[0.7fr_1.3fr] lg:items-end">
+            <div>
+              <NumberedLabel index="07">Nexo Video</NumberedLabel>
+              <p className="pub-body mt-4 max-w-sm">
+                Published video selections managed directly from the Nexo administration workspace.
+              </p>
+            </div>
+            <DisplayHeading size="lg">Watch the latest.</DisplayHeading>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {publishedVideos.map((video) => (
+              <VideoCard
+                key={video.id}
+                title={video.title}
+                url={video.url}
+                thumbnailUrl={video.thumbnail_url}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="pub-section pub-container">
         <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-start">

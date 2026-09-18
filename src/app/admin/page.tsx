@@ -44,8 +44,8 @@ export default async function AdminDashboardPage() {
       liveCount("distribution_agreement_executions"),
       liveCount("payout_requests", (q) => q.in("status", ["requested", "approved", "processing"])),
       liveCount("notification_broadcasts"),
-      liveCount("website_partners", (q) => q.eq("published", true)),
-      liveCount("blog_posts", (q) => q.eq("published", true)),
+      liveCount("website_partners", (q) => q.eq("is_active", true)),
+      liveCount("blog_posts", (q) => q.eq("status", "published")),
     ]),
   ]);
   const ddex = ddexConfigPublicStatus();

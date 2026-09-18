@@ -128,6 +128,10 @@ export async function upsertWebsiteVideoAction(input: {
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/videos");
   revalidatePath("/admin/website");
+  revalidatePath("/");
+  revalidatePath("/music");
+  revalidatePath("/artist", "layout");
+  revalidatePath("/release", "layout");
   return { ok: true, data };
 }
 
