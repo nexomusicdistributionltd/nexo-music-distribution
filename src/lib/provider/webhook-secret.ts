@@ -19,14 +19,20 @@ type StoredSecret = {
 export async function hasRuntimeProviderWebhookSecret(): Promise<boolean> {
   if (getProviderWebhookSecret()) return true;
 
-  const db = createServiceClient();
-  const { data, error } = await db
-    .from("distribution_provider_secrets")
-    .select("secret_ciphertext")
-    .eq("secret_key", WEBHOOK_SECRET_KEY)
-    .maybeSingle<StoredSecret>();
+  try {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("distribution_provider_secrets")
+      .select("secret_ciphertext")
+      .eq("secret_key", WEBHOOK_SECRET_KEY)
+      .maybeSingle<StoredSecret>();
 
-  return !error && Boolean(data?.secret_ciphertext);
+    return !error && Boolean(data?.secret_ciphertext);
+  } catch {
+    // Missing service-role runtime configuration must report "not configured"
+    // rather than crashing admin/provider status checks or tests.
+    return false;
+  }
 }
 
 export async function loadRuntimeProviderWebhookSecret(): Promise<{
@@ -36,19 +42,23 @@ export async function loadRuntimeProviderWebhookSecret(): Promise<{
   const envSecret = getProviderWebhookSecret();
   if (envSecret) return { secret: envSecret, source: "environment" };
 
-  const db = createServiceClient();
-  const { data, error } = await db
-    .from("distribution_provider_secrets")
-    .select("secret_ciphertext")
-    .eq("secret_key", WEBHOOK_SECRET_KEY)
-    .maybeSingle<StoredSecret>();
+  try {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("distribution_provider_secrets")
+      .select("secret_ciphertext")
+      .eq("secret_key", WEBHOOK_SECRET_KEY)
+      .maybeSingle<StoredSecret>();
 
-  if (error || !data?.secret_ciphertext) return null;
+    if (error || !data?.secret_ciphertext) return null;
 
-  return {
-    secret: decryptDistributionSecret(data.secret_ciphertext),
-    source: "database",
-  };
+    return {
+      secret: decryptDistributionSecret(data.secret_ciphertext),
+      source: "database",
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function ensureRuntimeProviderWebhookSecret(
