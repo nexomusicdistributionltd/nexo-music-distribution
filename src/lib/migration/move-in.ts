@@ -13,12 +13,7 @@ export type MoveInImportMethod =
   | "artist_csv"
   | "manual";
 
-export type ArtistProvidedCatalogItem = {
-  title?: string | null;
-  artist_name?: string | null;
-  upc?: string | null;
-  isrcs?: string[] | null;
-  track_count?: number | null;
+export type ArtistProvidedCatalogTrack = {\n  title?: string | null;\n  isrc?: string | null;\n  track_number?: number | null;\n};\n\nexport type ArtistProvidedCatalogItem = {\n  title?: string | null;\n  artist_name?: string | null;\n  upc?: string | null;\n  isrcs?: string[] | null;\n  tracks?: ArtistProvidedCatalogTrack[] | null;\n  track_count?: number | null;
   previous_distributor?: string | null;
   external_release_id?: string | null;
   [key: string]: unknown;
@@ -70,7 +65,7 @@ export function detectMetadataGaps(item: ArtistProvidedCatalogItem): MetadataGap
   if (!upcRaw.trim()) gaps.push("missing_upc");
   else if (!isValidUpc(upcRaw)) gaps.push("invalid_upc");
 
-  const isrcs = (item.isrcs ?? []).map((x) => String(x ?? "")).filter(Boolean);
+  const trackIsrcs = (item.tracks ?? []).map((t) => String(t?.isrc ?? "")).filter(Boolean);\n  const isrcs = [...(item.isrcs ?? []).map((x) => String(x ?? "")).filter(Boolean), ...trackIsrcs];
   if (isrcs.length === 0) gaps.push("missing_isrc");
   else if (isrcs.some((i) => !isValidIsrc(i))) gaps.push("invalid_isrc");
 
@@ -125,7 +120,7 @@ export function parseCatalogJson(text: string): ArtistProvidedCatalogItem[] {
   throw new Error("JSON must be an array of releases or { items: [] }.");
 }
 
-/** Minimal CSV: title,artist_name,upc,isrcs (isrcs pipe-separated) */
+/** CSV: title,artist_name,upc,isrcs,track_titles. isrcs/track_titles are pipe- or semicolon-separated. */
 export function parseCatalogCsv(text: string): ArtistProvidedCatalogItem[] {
   const lines = text
     .split(/\r?\n/)
@@ -142,19 +137,12 @@ export function parseCatalogCsv(text: string): ArtistProvidedCatalogItem[] {
   const titleI = start === 1 ? idx("title", 0) : 0;
   const artistI = start === 1 ? idx("artist_name", 1) : 1;
   const upcI = start === 1 ? idx("upc", 2) : 2;
-  const isrcI = start === 1 ? idx("isrcs", 3) : 3;
+  const isrcI = start === 1 ? idx("isrcs", 3) : 3;\n  const trackTitlesI = start === 1 ? idx("track_titles", 4) : 4;
 
   return rows.map((line) => {
     const cols = line.split(",").map((c) => c.trim());
     const isrcRaw = cols[isrcI] ?? "";
-    return {
-      title: cols[titleI] || null,
-      artist_name: cols[artistI] || null,
-      upc: cols[upcI] || null,
-      isrcs: isrcRaw
-        ? isrcRaw.split(/[|;]/).map((s) => s.trim()).filter(Boolean)
-        : [],
-    };
+    const isrcs = isrcRaw ? isrcRaw.split(/[|;]/).map((s) => s.trim()).filter(Boolean) : [];\n    const trackTitlesRaw = cols[trackTitlesI] ?? "";\n    const trackTitles = trackTitlesRaw ? trackTitlesRaw.split(/[|;]/).map((x) => x.trim()).filter(Boolean) : [];\n    const tracks = trackTitles.length\n      ? trackTitles.map((trackTitle, i) => ({ title: trackTitle, isrc: isrcs[i] ?? null, track_number: i + 1 }))\n      : undefined;\n    return {\n      title: cols[titleI] || null,\n      artist_name: cols[artistI] || null,\n      upc: cols[upcI] || null,\n      isrcs,\n      tracks,\n      track_count: tracks?.length ?? (isrcs.length || null),\n    };
   });
 }
 
