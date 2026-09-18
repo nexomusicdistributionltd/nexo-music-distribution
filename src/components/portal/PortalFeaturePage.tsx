@@ -56,10 +56,10 @@ export async function PortalFeaturePage({ href }: { href: string }) {
   if (def.pageKind === "analytics") {
     if (!def.analyticsKey || !isAnalyticsKey(def.analyticsKey)) notFound();
     const entitlements = await getEntitlementsForAuth(ctx);
-    if (!isFeatureUnlocked(entitlements, "advanced_analytics")) {
+    if (def.requiresAdvancedAnalytics && !isFeatureUnlocked(entitlements, "advanced_analytics")) {
       return (
         <div className="space-y-6">
-          <PageIntro eyebrow="Analytics" title={def.label} description={def.description} />
+          <PageIntro eyebrow={href.startsWith("/sales") ? "Sales" : href.startsWith("/reports") ? "Reports" : "Analytics"} title={def.label} description={def.description} />
           <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6">
             <h2 className="text-h4">Advanced analytics requires an eligible plan</h2>
             <p className="mt-2 text-small text-[var(--nexo-text-muted)]">
