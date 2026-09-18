@@ -169,18 +169,22 @@ function releaseParticipants(input: ProviderReleasePayload) {
     input.participants?.length
       ? input.participants
       : [
-          compactObject({
+          {
             name: input.primaryArtistName,
             role: ["primary"],
-            artistId: input.primaryArtistProviderId ?? undefined,
-          }),
+            ...(input.primaryArtistProviderId
+              ? { artistId: input.primaryArtistProviderId }
+              : {}),
+          },
         ];
 
   return participants
     .map((participant) => ({
       ...participant,
       name: normalizeProviderText(participant.name) ?? "",
-      role: participant.role.map((role) => normalizeProviderText(role)?.toLowerCase()).filter(Boolean),
+      role: participant.role
+        .map((role) => normalizeProviderText(role)?.toLowerCase())
+        .filter((role): role is string => Boolean(role)),
     }))
     .filter((participant) => participant.name && participant.role.length > 0);
 }
