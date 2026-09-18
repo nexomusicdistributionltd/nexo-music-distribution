@@ -66,19 +66,19 @@ const ARTICLES: KnowledgeArticle[] = [
     sections: [
       {
         heading: "1. Add payees",
-        body: "Create the people or companies who should receive a share. This does not create logins.",
+        body: "Add each person or company with the email that should receive their share. Admin review links matching Nexo accounts automatically; external payees can still accrue a protected held balance until they are linked.",
       },
       {
         heading: "2. Create a split",
-        body: "Name the rule, set an effective date, and add shares in basis points (10,000 = 100%).",
+        body: "Create the rule from approved payees and make the percentages total exactly 100%. The rule remains inactive until admin approval, so an unreviewed split cannot change royalty posting.",
       },
       {
         heading: "3. Assign to tracks",
-        body: "Attach the rule to tracks you own. Assignments do not change already-posted ledger lines.",
+        body: "Attach an approved rule to a track you own and submit it for review. After approval, future posted royalty rows for that track are allocated through SplitShare; already-posted ledger lines stay immutable.",
       },
       {
         heading: "4. Recoupments",
-        body: "Record recoupable advances or costs you actually agreed. Nexo will not invent recoupment balances.",
+        body: "Submit a real agreed advance or recoupable cost against a payee, optionally scoped to one track. Once approved, recovery is deducted from that payee’s future SplitShare allocations and the recovered balance updates from real posted royalty rows.",
       },
     ],
   },
