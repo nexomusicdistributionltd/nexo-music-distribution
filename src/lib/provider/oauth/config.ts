@@ -25,7 +25,7 @@ export function readDistributionOAuthConfig(): DistributionOAuthConfig {
     tokenUrl: required("DISTRIBUTION_TOKEN_URL"),
     clientId: required("DISTRIBUTION_CLIENT_ID"),
     clientSecret: required("DISTRIBUTION_CLIENT_SECRET"),
-    redirectUri: required("DISTRIBUTION_REDIRECT_URI"),
+    // The provider callback is an application invariant. Do not let stale host config\n    // silently send reconnects back through the Supabase auth callback.\n    redirectUri: `https://nexomusicdistribution.com${DISTRIBUTION_OAUTH_CALLBACK_PATH}`,
     scope: (process.env.DISTRIBUTION_OAUTH_SCOPE ?? "").trim() || null,
   };
 }
