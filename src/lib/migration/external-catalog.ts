@@ -225,7 +225,7 @@ export async function discoverTooLostCatalog(options?: {
   const limit = Math.min(100, Math.max(1, Math.trunc(options?.limit ?? 25)));
 
   try {
-    const raw = await distributionReference.releases({ page, perPage: limit });
+    const raw = await distributionReference.releasesLive({ page, perPage: limit });
     const providerCatalog = providerRows(raw);
     const hasPlatformMetadata = providerCatalog.some(
       (row) => providerPlatforms(row).length > 0
