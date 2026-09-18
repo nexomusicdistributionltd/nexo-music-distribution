@@ -114,6 +114,16 @@ export default async function ArtistDetailPage({ params }: Props) {
             ) : null}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <ShareLinkButton url={`${SITE_URL}${path}`} />
+              {a.entzopedia_url && isSafeHttpUrl(a.entzopedia_url) ? (
+                <a
+                  href={a.entzopedia_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--nexo-border)] px-3 py-2 text-small font-medium text-[var(--nexo-text)] hover:bg-[var(--nexo-ghost-hover)]"
+                >
+                  Full profile on Entzopedia <ExternalLink className="h-3 w-3" aria-hidden />
+                </a>
+              ) : null}
               {socialEntries.map(([key, url]) => (
                 <a
                   key={key}
