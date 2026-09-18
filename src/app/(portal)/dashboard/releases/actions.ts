@@ -7,6 +7,7 @@ import {
   assertCanSubmitRelease,
 } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { getProviderConnectionState } from "@/lib/provider";
 import {
   canDuplicate,
   canRequestTakedown,
