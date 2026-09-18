@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function SubmissionsPage() {
   await RequireAdmin();
-  const provider = getProviderConnectionState();
+  const provider = await getProviderConnectionState();
   const rows = await listProviderSubmissions(50);
 
   return (
