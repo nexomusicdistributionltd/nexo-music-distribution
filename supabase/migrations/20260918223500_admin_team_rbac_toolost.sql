@@ -74,7 +74,6 @@ values
   ('support','admin:labels'),
   ('support','admin:support'),
   ('support','admin:contact'),
-  ('support','admin:notifications'),
   ('support','admin:search'),
   ('quality_control','admin:access'),
   ('quality_control','admin:dashboard'),
@@ -163,7 +162,6 @@ values
   ('marketing','admin:marketing'),
   ('marketing','admin:analytics'),
   ('marketing','admin:notifications'),
-  ('marketing','admin:website'),
   ('auditor','admin:access'),
   ('auditor','admin:dashboard'),
   ('auditor','admin:audit'),
@@ -221,6 +219,7 @@ as $$
   select case
     when uid is null or p_permission is null then false
     when p_permission='admin:roles' then public.has_role(uid,'super_admin')
+    when p_permission='admin:payouts:mark_paid' then false
     when public.has_role(uid,'super_admin') or public.has_role(uid,'admin') then true
     when not public.has_role(uid,'support') then false
     else exists (
