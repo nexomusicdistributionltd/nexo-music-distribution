@@ -16,7 +16,8 @@ export type DistributionOAuthToken = {
  * No token is ever returned to browser code or logged here.
  */
 export async function exchangeDistributionAuthorizationCode(
-  code: string
+  code: string,
+  redirectUriOverride?: string
 ): Promise<DistributionOAuthToken> {
   const cfg = readDistributionOAuthConfig();
   const body = new URLSearchParams({
