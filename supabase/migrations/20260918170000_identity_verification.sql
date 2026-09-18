@@ -273,7 +273,7 @@ end $$;
 
 -- Disable the earlier verification RPC surface so the final server-action workflow
 -- is the only mutation path available to artist/label browser sessions.
-do $
+do $$
 begin
   if to_regprocedure('public.submit_identity_verification(uuid)') is not null then
     execute 'revoke all on function public.submit_identity_verification(uuid) from public, anon, authenticated';
@@ -281,7 +281,7 @@ begin
   if to_regprocedure('public.review_identity_verification(uuid,public.identity_verification_status,text)') is not null then
     execute 'revoke all on function public.review_identity_verification(uuid,public.identity_verification_status,text) from public, anon, authenticated';
   end if;
-end $;
+end $$;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
