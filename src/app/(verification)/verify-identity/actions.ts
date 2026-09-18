@@ -56,6 +56,9 @@ export async function beginIdentityVerificationAction(input: {
   if (!DOCUMENT_TYPES.has(input.documentType)) {
     return { ok: false, error: "Select a valid identity document." };
   }
+  if (input.documentType === "nin" && countryCode !== "NG") {
+    return { ok: false, error: "NIN is available only for Nigeria. Select another government ID for this country." };
+  }
 
   const service = createServiceClient();
   const { data: existing, error: existingError } = await service
