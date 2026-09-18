@@ -28,6 +28,11 @@ export function PublicCatalogRealtime({ enabled = true }: { enabled?: boolean })
       )
       .on(
         "postgres_changes",
+        { event: "*", schema: "public", table: "website_partners" },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
         { event: "*", schema: "public", table: "website_videos" },
         () => router.refresh()
       )
