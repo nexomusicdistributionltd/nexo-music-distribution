@@ -616,7 +616,14 @@ export async function prepareAssetUpload(input: {
   return { ok: true, data: { bucket, path, id } };
 }
 
-export async function submitRelease(releaseId: string): Promise<ActionResult<ReleaseRow>> {
+export async function submitRelease(
+  releaseId: string,
+  confirmations: {
+    acceptTerms: boolean;
+    confirmRights: boolean;
+    confirmYoutubeRights: boolean;
+  }
+): Promise<ActionResult<ReleaseRow>> {
   const ctx = await requireArtistOrLabel();
   const rl = checkRateLimit({
     key: `release:submit:${ctx.userId}`,
@@ -629,6 +636,18 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
   }
+  if (
+    confirmations.acceptTerms !== true ||
+    confirmations.confirmRights !== true ||
+    confirmations.confirmYoutubeRights !== true
+  ) {
+    return {
+      ok: false,
+      error:
+        "You must confirm the Nexo Terms, distribution rights, and YouTube/UGC rights before submitting this release.",
+    };
+  }
+
   const supabase = await createClient();
 
   const { data: release } = await supabase
@@ -671,7 +690,17 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
 
   const { data, error } = await supabase.rpc("submit_release_to_qc", {
     p_release_id: releaseId,
-    p_validation_snapshot: { issues: [], trackCount: tracks?.length ?? 0 },
+    p_validation_snapshot: {
+      issues: [],
+      trackCount: tracks?.length ?? 0,
+      confirmations: {
+        terms_accepted: true,
+        rights_confirmed: true,
+        youtube_rights_confirmed: true,
+        confirmed_at: new Date().toISOString(),
+        confirmer_user_id: ctx.userId,
+      },
+    },
     p_notes: null,
   });
 
@@ -693,7 +722,11 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
       p_action: "release_submit",
       p_entity_type: "release",
       p_entity_id: releaseId,
-      p_metadata: {},
+      p_metadata: {
+        rights_confirmed: true,
+        terms_accepted: true,
+        youtube_rights_confirmed: true,
+      },
     });
   } catch {
     /* ignore */
