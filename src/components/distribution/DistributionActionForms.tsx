@@ -94,7 +94,7 @@ export function SyncJobButton({
             const r = await syncJobAction(jobId);
             setMsg(
               r.ok
-                ? "Sync completed."
+                ? "TooLost delivery status refreshed."
                 : r.code === "PROVIDER_NOT_CONNECTED"
                   ? "Distribution Engine authorization required."
                   : r.error
@@ -102,7 +102,7 @@ export function SyncJobButton({
           })
         }
       >
-        {providerConnected ? "Sync status" : "Authorization required"}
+        {providerConnected ? "Refresh TooLost" : "Authorization required"}
       </Button>
       <Result msg={msg} />
     </div>
