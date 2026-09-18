@@ -29,7 +29,7 @@ export default async function EarningsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-h2">Earnings</h1>
+      <section className="rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 sm:p-8"><p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--nexo-text-muted)]">Royalties & finance</p><h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">Earnings</h1><p className="mt-2 text-small text-[var(--nexo-text-secondary)]">Track posted royalties, available balances, pending earnings and completed payouts.</p></section>
       <EarningsNav />
       <Alert>
         Balances are derived from the royalty ledger (available / pending / paid). They are not
@@ -51,7 +51,7 @@ export default async function EarningsPage() {
           {(balances ?? []).map((b) => (
             <li
               key={b.currency}
-              className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4"
+              className="rounded-[1.25rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5 shadow-[var(--nexo-shadow-sm)]"
             >
               <p className="font-medium">{b.currency}</p>
               <p className="mt-2 tabular-nums text-small">
