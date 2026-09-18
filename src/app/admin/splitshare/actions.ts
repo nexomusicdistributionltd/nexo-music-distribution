@@ -39,6 +39,24 @@ export async function reviewSplitShareItemAction(input: {
     if (readError) return { ok: false, error: publicErrorMessage(readError.message) };
     if (!payee) return { ok: false, error: "Payee not found." };
 
+    if (input.decision === "reject") {
+      const { data: activeShare, error: activeShareError } = await supabase
+        .from("royalty_split_shares")
+        .select("rule_id, royalty_split_rules!inner(id, is_active, review_status)")
+        .eq("payee_id", input.id)
+        .eq("royalty_split_rules.is_active", true)
+        .eq("royalty_split_rules.review_status", "approved")
+        .limit(1)
+        .maybeSingle();
+      if (activeShareError) return { ok: false, error: publicErrorMessage(activeShareError.message) };
+      if (activeShare) {
+        return {
+          ok: false,
+          error: "This payee is used by an approved active split. Reject or deactivate that split before rejecting the payee.",
+        };
+      }
+    }
+
     let linkedUserId: string | null = null;
     if (input.decision === "approve" && payee.email) {
       const { data: profile } = await supabase
