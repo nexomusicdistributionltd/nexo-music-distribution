@@ -270,6 +270,27 @@ export async function signDistributionAgreementAction(input: {
     entity_id: agreementId,
   });
 
+  try {
+    const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
+    await enqueueTransactionalEmail({
+      supabase: service,
+      templateKey: "AGREEMENT_SIGNED",
+      eventType: "agreement",
+      to: email,
+      recipientUserId: ctx.userId,
+      relatedEntityType: "distribution_agreement",
+      relatedEntityId: agreementId,
+      idempotencyKey: `AGREEMENT_SIGNED:${agreementId}`,
+      payload: {
+        FIRST_NAME: String(verification.legal_name).split(/\\s+/)[0] || String(verification.legal_name),
+        AGREEMENT_ID: agreementId,
+        CTA_URL: `https://nexomusicdistribution.com/api/agreements/${agreementId}/download`,
+      },
+    });
+  } catch {
+    // Agreement execution must remain authoritative if email is temporarily unavailable.
+  }
+
   revalidatePath("/distribution-agreement");
   revalidatePath("/dashboard");
   return { ok: true, data: { id: agreementId } };
