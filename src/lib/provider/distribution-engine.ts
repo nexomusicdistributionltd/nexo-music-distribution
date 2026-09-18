@@ -318,6 +318,14 @@ async function prepareProviderRelease(
     applePreorderDate: input.applePreorder ? nonEmpty(input.applePreorderDate) : undefined,
     licenseType: nonEmpty(input.licenseType),
     licenseInfo: nonEmpty(input.licenseInfo),
+    review: nonEmpty(input.reviewNote)
+      ? {
+          note: nonEmpty(input.reviewNote),
+          fileName: null,
+          fileUrl: null,
+          fileType: null,
+        }
+      : undefined,
     upc: nonEmpty(input.upc),
     cYear: input.copyrightYear ?? undefined,
     cLine: nonEmpty(input.copyrightLine),
@@ -494,6 +502,14 @@ export class DistributionEngineProvider implements DistributionProvider {
       applePreorderDate: input.applePreorder ? nonEmpty(input.applePreorderDate) : undefined,
       licenseType: nonEmpty(input.licenseType),
       licenseInfo: nonEmpty(input.licenseInfo),
+      review: nonEmpty(input.reviewNote)
+        ? {
+            note: nonEmpty(input.reviewNote),
+            fileName: null,
+            fileUrl: null,
+            fileType: null,
+          }
+        : undefined,
       upc: nonEmpty(input.upc),
       cYear: input.copyrightYear ?? undefined,
       cLine: nonEmpty(input.copyrightLine),
