@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { RequireRole, assertCanMutateCatalog } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { RosterArtistInput } from "@/lib/roster/types";
+import { DSP_PROFILE_SPECS, validateDspProfileUrl, type DspProfileKey } from "@/lib/dsp/profile-links";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -18,7 +19,8 @@ export type ActionResult<T = unknown> =
  * - Does NOT mutate profiles.account_type (Label stays Label)
  */
 export async function createRosterArtist(
-  input: RosterArtistInput
+  input: RosterArtistInput,
+  dspLinks: Array<{ dspKey: DspProfileKey; url: string; enabled: boolean }> = []
 ): Promise<ActionResult<{ id: string }>> {
   const ctx = await RequireRole("label");
   try {
@@ -51,6 +53,23 @@ export async function createRosterArtist(
     return { ok: false, error: error?.message ?? "Could not create roster artist." };
   }
   const artist = { id: String(artistId) };
+
+  // Save DSP targeting metadata in the same create flow so labels do not need a second deployment or edit pass.
+  for (const spec of DSP_PROFILE_SPECS) {
+    const row = dspLinks.find((l) => l.dspKey === spec.key);
+    const check = validateDspProfileUrl(spec.key, row?.url ?? "");
+    if (!check.ok) return { ok: false, error: check.error };
+    const { error: dspError } = await supabase.from("artist_dsp_links").upsert({
+      artist_profile_id: artist.id,
+      dsp_key: spec.key,
+      url: check.url,
+      enabled: Boolean(row?.enabled && check.url),
+      verification_status: "unverified",
+      verified_at: null,
+      fetched_at: null,
+    }, { onConflict: "artist_profile_id,dsp_key" });
+    if (dspError) return { ok: false, error: dspError.message };
+  }
 
   try {
     await supabase.rpc("write_audit_log", {
