@@ -49,11 +49,27 @@ export default async function EditRosterArtistPage({
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-h2">{artist.artist_name || artist.stage_name}</h1>
-        <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
-          Managed roster artist · no login user linked
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-h2">{artist.artist_name || artist.stage_name}</h1>
+          <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
+            Managed roster artist · no login user linked
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/app/artists"
+            className="inline-flex h-10 items-center rounded-full border border-[var(--nexo-border)] px-4 text-small font-medium hover:bg-[var(--nexo-ghost-hover)]"
+          >
+            Back to roster
+          </Link>
+          <Link
+            href={`/dashboard/releases/new?artist=${encodeURIComponent(artist.id)}`}
+            className="inline-flex h-10 items-center rounded-full bg-[var(--nexo-text)] px-4 text-small font-semibold [color:var(--nexo-text-inverse)]"
+          >
+            Create release
+          </Link>
+        </div>
       </div>
       <RosterArtistForm mode="edit" initial={artist} />
       <DspProfileLinksEditor artistProfileId={artist.id} initial={dspLinks} />
@@ -62,7 +78,10 @@ export default async function EditRosterArtistPage({
         {(releases ?? []).length === 0 ? (
           <p className="text-small text-[var(--nexo-text-muted)]">
             No releases linked yet.{" "}
-            <Link href="/dashboard/releases/new" className="underline">
+            <Link
+              href={`/dashboard/releases/new?artist=${encodeURIComponent(artist.id)}`}
+              className="underline"
+            >
               Create a release
             </Link>{" "}
             and select this artist.
