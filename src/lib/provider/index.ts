@@ -7,6 +7,7 @@ import { isDistributionOAuthConfigured } from "./oauth/config";
 import { hasDistributionCredential } from "./oauth/store";
 import { getStoredDistributionIdentityHealth } from "./oauth/client";
 import type { DistributionProvider } from "./types";
+import { getProviderWebhookRuntimeSettings } from "./webhook-settings";
 
 export * from "./types";
 export { NotConnectedProvider, isProviderConnected } from "./not-connected";
@@ -51,6 +52,7 @@ export async function getProviderConnectionState(): Promise<{
   webhookConfigured: boolean;
 }> {
   const cfg = readProviderConfig();
+  const webhook = await getProviderWebhookRuntimeSettings().catch(() => ({ configured: false }));
 
   if (isDistributionOAuthConfigured()) {
     const authorized = await hasDistributionCredential();
@@ -59,7 +61,7 @@ export async function getProviderConnectionState(): Promise<{
         connected: false,
         providerName: "distribution_engine",
         message: "Distribution Engine is configured and ready for secure authorization.",
-        webhookConfigured: cfg.webhookSecretPresent,
+        webhookConfigured: cfg.webhookSecretPresent || Boolean(webhook.configured),
       };
     }
     const health = await getStoredDistributionIdentityHealth();
@@ -67,7 +69,7 @@ export async function getProviderConnectionState(): Promise<{
       connected: health.ok,
       providerName: "distribution_engine",
       message: health.message,
-      webhookConfigured: cfg.webhookSecretPresent,
+      webhookConfigured: cfg.webhookSecretPresent || Boolean(webhook.configured),
     };
   }
 
@@ -75,7 +77,7 @@ export async function getProviderConnectionState(): Promise<{
     connected: false,
     providerName: null,
     message: "Distribution Engine is not configured.",
-    webhookConfigured: cfg.webhookSecretPresent,
+    webhookConfigured: cfg.webhookSecretPresent || Boolean(webhook.configured),
   };
 }
 
