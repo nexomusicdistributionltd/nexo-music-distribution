@@ -60,3 +60,31 @@ export async function exchangeDistributionAuthorizationCode(
   }
   return data;
 }
+
+export async function refreshDistributionAccessToken(
+  refreshToken: string
+): Promise<DistributionOAuthToken> {
+  const cfg = readDistributionOAuthConfig();
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: cfg.clientId,
+    client_secret: cfg.clientSecret,
+  });
+  const response = await fetch(cfg.tokenUrl, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Distribution token refresh failed (HTTP ${response.status}).`);
+  const data = (await response.json()) as DistributionOAuthToken;
+  if (!data.access_token || typeof data.access_token !== "string") {
+    throw new Error("Distribution token refresh did not return an access token.");
+  }
+  if (!data.refresh_token) data.refresh_token = refreshToken;
+  return data;
+}
