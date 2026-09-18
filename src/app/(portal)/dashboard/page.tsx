@@ -173,7 +173,6 @@ export default async function DashboardPage() {
   return (
     <>
       <PortalAnalyticsRealtime />
-      <>
       <PortalOverview
         welcomeName={welcomeName}
         thumbs={recent.map((r) => ({
