@@ -220,6 +220,8 @@ export const distributionReference = {
 
   releases: (query?: ProviderPageQuery) =>
     api(withQuery("/releases", releaseQuery(query))),
+  releasesLive: (query?: ProviderPageQuery) =>
+    apiLive(withQuery("/releases", releaseQuery(query))),
   release: (releaseId: string | number) => api(`/releases/${id(releaseId)}`),
   releaseTracks: (releaseId: string | number) =>
     api(`/releases/${id(releaseId)}/tracks`),
