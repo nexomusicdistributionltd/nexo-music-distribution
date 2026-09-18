@@ -175,6 +175,29 @@ export async function setAccountStatusAction(input: {
   return { ok: true, data };
 }
 
+export async function setAccountPlanOverrideAction(input: {
+  userId: string;
+  accountType: "artist" | "label";
+  planId: "artist_starter" | "artist_pro" | "label_starter" | "label_pro";
+  status: "active" | "trialing" | "expired" | "paused" | "canceled";
+  endsAt?: string | null;
+  reason?: string;
+}): Promise<ActionResult> {
+  const ctx = await RequireSuperAdmin();
+  const valid = input.accountType === "artist"
+    ? ["artist_starter","artist_pro"].includes(input.planId)
+    : ["label_starter","label_pro"].includes(input.planId);
+  if (!valid) return { ok:false, error:"Plan does not match account type." };
+  const db=createServiceClient();
+  const {error}=await db.from("billing_entitlement_overrides").upsert({
+    user_id:input.userId,account_type:input.accountType,plan_id:input.planId,status:input.status,
+    ends_at:input.endsAt||null,reason:input.reason?.trim()||null,updated_by:ctx.userId,created_by:ctx.userId,updated_at:new Date().toISOString()
+  },{onConflict:"user_id"});
+  if(error)return {ok:false,error:error.message};
+  revalidateAdmin(["/admin/users","/admin/finance/billing","/dashboard","/billing"]);
+  return {ok:true,data:true};
+}
+
 export async function inviteStaffUserAction(input: {
   email: string;
   roles: AppRole[];
