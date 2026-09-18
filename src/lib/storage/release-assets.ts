@@ -72,7 +72,7 @@ export function assertAudioFile(file: { type: string; size: number; name?: strin
     AUDIO_MIME_TYPES.includes(mime as (typeof AUDIO_MIME_TYPES)[number]) ||
     (extensionFallbackAllowed && filename.endsWith(".flac"));
   if (!isFlac) {
-    return "TooLost API delivery requires a lossless FLAC master. Upload a .flac file.";
+    return "Nexo delivery requires a lossless FLAC master. Upload a .flac file.";
   }
   if (file.size > MAX_AUDIO_BYTES) return "Audio file exceeds 500MB limit.";
   if (file.size <= 0) return "Audio file is empty.";
@@ -95,7 +95,7 @@ export function assertArtworkFile(file: { type: string; size: number; name?: str
   ) {
     return "Artwork must be JPG, PNG, or TIFF.";
   }
-  if (file.size > MAX_ARTWORK_BYTES) return "Artwork exceeds TooLost's 36MB limit.";
+  if (file.size > MAX_ARTWORK_BYTES) return "Artwork exceeds Nexo's 36 MB delivery limit.";
   if (file.size <= 0) return "Artwork file is empty.";
   return null;
 }

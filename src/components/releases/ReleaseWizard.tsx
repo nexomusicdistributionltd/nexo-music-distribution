@@ -524,7 +524,7 @@ export function ReleaseWizard({
         const accepted = width === height && width >= 3000 && width <= 5000;
         if (!accepted) {
           setError(
-            `Artwork is ${width}×${height}px. TooLost requires square artwork between 3000×3000 and 5000×5000px.`
+            `Artwork is ${width}×${height}px. Nexo requires square artwork between 3000×3000 and 5000×5000px.`
           );
           return;
         }
@@ -752,7 +752,7 @@ export function ReleaseWizard({
               {providerPreferenceArtists.length > 0 ? (
                 <label className="block space-y-1 sm:col-span-2">
                   <span className="text-caption text-[var(--nexo-text-muted)]">
-                    Distribution artist preference
+                    Artist delivery profile
                   </span>
                   <Select
                     value={providerMeta.providerArtistId}
@@ -771,15 +771,15 @@ export function ReleaseWizard({
                     ))}
                   </Select>
                   <p className="text-caption text-[var(--nexo-text-muted)]">
-                    Uses the artist profile already available in the connected distribution account.
+                    Uses the artist profile already linked to your Nexo distribution account.
                   </p>
                 </label>
               ) : null}
               <div className="sm:col-span-2 flex flex-wrap items-center gap-3 rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-small font-medium">TooLost Preferences</p>
+                  <p className="text-small font-medium">Release defaults</p>
                   <p className="text-caption text-[var(--nexo-text-muted)]">
-                    Apply saved genre, language, label/copyright lines, stores, territories,
+                    Apply saved genre, language, label/copyright lines, delivery platforms, territories,
                     release time and eligible additional-delivery defaults.
                   </p>
                 </div>
@@ -797,21 +797,34 @@ export function ReleaseWizard({
                 </Button>
               </div>
               <label className="block space-y-1">
-                <span className="text-caption text-[var(--nexo-text-muted)]">Genre</span>
-                <Input
-                  list="nexo-provider-genres"
+                <span className="text-caption text-[var(--nexo-text-muted)]">Primary genre</span>
+                <Select
                   value={info.genre}
                   onChange={(e) => setInfo({ ...info, genre: e.target.value })}
-                />
-                <datalist id="nexo-provider-genres">
+                >
+                  <option value="">Select primary genre…</option>
+                  {info.genre && !providerGenres.some((genre) => genre.value === info.genre) ? (
+                    <option value={info.genre}>{info.genre}</option>
+                  ) : null}
                   {providerGenres.map((genre) => (
                     <option key={genre.value} value={genre.value}>{genre.label}</option>
                   ))}
-                </datalist>
+                </Select>
               </label>
               <label className="block space-y-1">
-                <span className="text-caption text-[var(--nexo-text-muted)]">Subgenre</span>
-                <Input value={info.subgenre} onChange={(e) => setInfo({ ...info, subgenre: e.target.value })} />
+                <span className="text-caption text-[var(--nexo-text-muted)]">Secondary genre</span>
+                <Select
+                  value={info.subgenre}
+                  onChange={(e) => setInfo({ ...info, subgenre: e.target.value })}
+                >
+                  <option value="">Select secondary genre…</option>
+                  {info.subgenre && !providerGenres.some((genre) => genre.value === info.subgenre) ? (
+                    <option value={info.subgenre}>{info.subgenre}</option>
+                  ) : null}
+                  {providerGenres.map((genre) => (
+                    <option key={genre.value} value={genre.value}>{genre.label}</option>
+                  ))}
+                </Select>
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Language</span>
@@ -1189,7 +1202,7 @@ export function ReleaseWizard({
           {step === 4 ? (
             <div className="space-y-3">
               <div className="space-y-1 text-small text-[var(--nexo-text-muted)]">
-                <p>Cover artwork must match TooLost&apos;s current delivery requirements:</p>
+                <p>Cover artwork must meet Nexo delivery requirements:</p>
                 <p className="font-medium text-[var(--nexo-text)]">Square · 3000–5000 px · JPG, PNG, or TIFF · max 36 MB</p>
                 <p>Use RGB artwork. Nexo verifies file type, size, and dimensions before the release can pass QC.</p>
               </div>
@@ -1234,7 +1247,7 @@ export function ReleaseWizard({
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-caption text-[var(--nexo-text-muted)]">UPC (optional — provider can assign one if omitted)</span>
+                <span className="text-caption text-[var(--nexo-text-muted)]">UPC (optional — Nexo can assign one if omitted)</span>
                 <Input
                   value={rights.upc}
                   onChange={(e) => setRights({ ...rights, upc: e.target.value })}
@@ -1305,7 +1318,7 @@ export function ReleaseWizard({
           {step === 6 ? (
             <div className="space-y-5">
               <Alert title="Distribution">
-                Nexo manages delivery after your release passes quality control. Platform, country, genre and language choices below are loaded from the connected provider when available.
+                Nexo manages delivery after your release passes quality control. Platform, country, genre and language choices below use Nexo&apos;s live distribution configuration.
               </Alert>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1380,9 +1393,34 @@ export function ReleaseWizard({
                   Additional deliveries
                 </legend>
                 <p className="text-caption text-[var(--nexo-text-muted)]">
-                  These options map to the connected distributor&apos;s additional-delivery settings.
+                  Choose any optional additional-delivery services you want Nexo to request.
                   Enable only services for which you control the required rights.
                 </p>
+                <label className="flex items-center gap-2 text-small font-medium">
+                  <input
+                    type="checkbox"
+                    checked={Object.values(providerMeta.additional).every(Boolean)}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setProviderMeta((current) => ({
+                        ...current,
+                        additional: {
+                          youtube: enabled,
+                          facebook: enabled,
+                          soundcloud: enabled,
+                          soundExchange: enabled,
+                          beatPort: enabled,
+                          junoDownloads: enabled,
+                          trackLibs: enabled,
+                          hook: enabled,
+                          lyricfind: enabled,
+                          even: enabled,
+                        },
+                      }));
+                    }}
+                  />
+                  <span>Select all additional deliveries</span>
+                </label>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {[
                     ["youtube", "YouTube Content ID"],
@@ -1447,8 +1485,27 @@ export function ReleaseWizard({
                     Delivery platforms
                   </legend>
                   <p className="text-caption text-[var(--nexo-text-muted)]">
-                    Leave all unchecked to use the default destination set returned by the provider.
+                    Choose individual destinations or select every currently available Nexo delivery platform.
                   </p>
+                  <label className="flex items-center gap-2 text-small font-medium">
+                    <input
+                      type="checkbox"
+                      checked={
+                        providerPlatforms.length > 0 &&
+                        providerPlatforms.every((platform) =>
+                          selectedPlatforms.includes(platform.value)
+                        )
+                      }
+                      onChange={(e) =>
+                        setSelectedPlatforms(
+                          e.target.checked
+                            ? providerPlatforms.map((platform) => platform.value)
+                            : []
+                        )
+                      }
+                    />
+                    <span>Select all delivery platforms</span>
+                  </label>
                   <div className="grid max-h-64 gap-2 overflow-y-auto rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-3 sm:grid-cols-2 lg:grid-cols-3">
                     {providerPlatforms.map((platform) => (
                       <label key={platform.value} className="flex items-center gap-2 text-small">
@@ -1496,7 +1553,7 @@ export function ReleaseWizard({
                 <strong>UPC:</strong> {rights.upc || "Not provided"}
               </p>
               <p>
-                <strong>Platforms selected:</strong> {selectedPlatforms.length || "Provider default"}
+                <strong>Platforms selected:</strong> {selectedPlatforms.length || "Nexo default"}
               </p>
               <p>
                 <strong>Additional deliveries:</strong>{" "}

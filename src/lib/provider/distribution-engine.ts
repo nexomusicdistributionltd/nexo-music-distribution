@@ -197,7 +197,7 @@ async function loadAudioBytes(track: ProviderReleasePayload["tracks"][number]): 
 
   if (track.audioMimeType !== PROVIDER_AUDIO_MIME) {
     throw new ProviderDeliveryValidationError(
-      `Track ${track.trackNumber} must use lossless FLAC audio for Distribution Engine delivery. Re-upload this track as FLAC before retrying.`
+      `Track ${track.trackNumber} must use lossless FLAC audio for Nexo delivery. Re-upload this track as FLAC before retrying.`
     );
   }
 
@@ -444,7 +444,7 @@ function validateSubmission(input: ProviderReleasePayload): void {
     }
     if (track.audioMimeType !== PROVIDER_AUDIO_MIME) {
       throw new ProviderDeliveryValidationError(
-        `Track ${track.trackNumber} must use lossless FLAC audio for Distribution Engine delivery. Re-upload this track as FLAC before retrying.`
+        `Track ${track.trackNumber} must use lossless FLAC audio for Nexo delivery. Re-upload this track as FLAC before retrying.`
       );
     }
   }
