@@ -34,7 +34,7 @@ describe("validateReleaseForSubmit", () => {
       upc: null,
       territories: ["WW"],
     },
-    tracks: [{ id: "t1", track_number: 1, title: "Song", isrc: null }],
+    tracks: [{ id: "t1", track_number: 1, title: "Song", isrc: null, duration_ms: 180000 }],
     assets: [
       { kind: "artwork" as const, track_id: null, mime_type: "image/jpeg" },
       { kind: "audio" as const, track_id: "t1", mime_type: "audio/flac" },
@@ -67,12 +67,50 @@ describe("validateReleaseForSubmit", () => {
   });
 
   it("enforces track counts by type", () => {
-    expect(expectedTrackCount("album")).toEqual({ min: 7, max: 100 });
+    expect(expectedTrackCount("album")).toEqual({ min: 1, max: 100 });
     const issues = validateReleaseForSubmit({
       ...base,
       release: { ...base.release, release_type: "album" },
     });
     expect(issues.some((i) => i.field === "tracks")).toBe(true);
+  });
+
+  it("uses TooLost duration rules for EP and album classification", () => {
+    const longEp = validateReleaseForSubmit({
+      ...base,
+      release: { ...base.release, release_type: "ep" },
+      tracks: [
+        {
+          ...base.tracks[0],
+          duration_ms: 11 * 60 * 1000,
+        },
+      ],
+    });
+    expect(longEp.some((i) => i.field === "tracks")).toBe(false);
+
+    const shortAlbum = validateReleaseForSubmit({
+      ...base,
+      release: { ...base.release, release_type: "album" },
+      tracks: [
+        {
+          ...base.tracks[0],
+          duration_ms: 5 * 60 * 1000,
+        },
+      ],
+    });
+    expect(shortAlbum.some((i) => i.field === "tracks")).toBe(true);
+
+    const longAlbum = validateReleaseForSubmit({
+      ...base,
+      release: { ...base.release, release_type: "album" },
+      tracks: [
+        {
+          ...base.tracks[0],
+          duration_ms: 31 * 60 * 1000,
+        },
+      ],
+    });
+    expect(longAlbum.some((i) => i.field === "tracks")).toBe(false);
   });
 
   it("requires audio linked to each track when track_id is set", () => {
