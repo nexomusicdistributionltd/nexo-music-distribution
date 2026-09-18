@@ -6,10 +6,10 @@ import { drainQueuedOutbox } from "@/lib/email/hooks";
 import { getSiteUrl } from "@/lib/site-url";
 
 type IdentityMailKind =
-  | "IDENTITY_SUBMITTED"
-  | "IDENTITY_VERIFIED"
-  | "IDENTITY_DECLINED"
-  | "IDENTITY_ADDITIONAL_INFO_REQUIRED";
+  | "IDENTITY_VERIFICATION_SUBMITTED"
+  | "IDENTITY_VERIFICATION_APPROVED"
+  | "IDENTITY_VERIFICATION_DECLINED"
+  | "IDENTITY_VERIFICATION_INFO_REQUIRED";
 
 export async function queueIdentityAccountEmail(input: {
   supabase: SupabaseClient;
@@ -29,7 +29,7 @@ export async function queueIdentityAccountEmail(input: {
   const name = String(input.legalName || profile?.full_name || profile?.display_name || "there").trim();
   const firstName = name.split(/\s+/)[0] || "there";
   await enqueueEmailEvent(input.supabase, {
-    eventType: "identity",
+    eventType: "identity.verification",
     templateKey: input.templateKey,
     recipientUserId: input.userId,
     recipientEmail: email,
@@ -38,7 +38,7 @@ export async function queueIdentityAccountEmail(input: {
     payload: {
       FIRST_NAME: firstName,
       REASON: input.reason ?? "",
-      CTA_URL: `${getSiteUrl()}${input.templateKey === "IDENTITY_VERIFIED" ? "/distribution-agreement" : "/verify-identity"}`,
+      CTA_URL: `${getSiteUrl()}${input.templateKey === "IDENTITY_VERIFICATION_APPROVED" ? "/distribution-agreement" : "/verify-identity"}`,
     },
     idempotencyKey: `${input.templateKey}:${input.verificationId}:${input.reason ?? ""}`,
   });
