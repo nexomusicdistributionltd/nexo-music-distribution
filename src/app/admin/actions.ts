@@ -444,7 +444,8 @@ export async function clearAccountPlanOverrideAction(input: {
 
 export async function inviteStaffUserAction(input: {
   email: string;
-  roles: AppRole[];
+  baseRole?: Extract<AppRole, "support" | "admin" | "super_admin">;
+  teamRoles?: string[];
 }): Promise<ActionResult<{ userId: string }>> {
   const ctx = await RequireAdminPermission("admin:staff_invite");
   const email = input.email.trim().toLowerCase();
@@ -452,32 +453,65 @@ export async function inviteStaffUserAction(input: {
     return { ok: false, error: "Enter a valid email address." };
   }
 
-  const roles = normalizeRoleList(input.roles);
-  const allowedStaffRoles = new Set<AppRole>(["support", "admin", "super_admin"]);
-  if (roles.length !== 1 || !allowedStaffRoles.has(roles[0])) {
+  const baseRole = input.baseRole ?? "support";
+  if (
+    baseRole !== "support" &&
+    baseRole !== "admin" &&
+    baseRole !== "super_admin"
+  ) {
+    return { ok: false, error: "Invalid staff account level." };
+  }
+
+  // Admins may build and manage functional staff teams. Only an existing
+  // Super Admin can create another Administrator or Super Admin account.
+  if (baseRole !== "support" && !ctx.roles.includes("super_admin")) {
     return {
       ok: false,
-      error: "Choose exactly one staff access level: support, admin, or super admin.",
+      error: "Only a Super Admin can grant Administrator or Super Admin access.",
     };
   }
 
-  const role = roles[0];
-  if (role === "super_admin" && !ctx.roles.includes("super_admin")) {
+  const teamRoles = [
+    ...new Set(
+      (input.teamRoles ?? [])
+        .map((role) => role.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
+
+  if (baseRole === "support" && teamRoles.length === 0) {
     return {
       ok: false,
-      error: "Only a Super Admin can invite another Super Admin.",
+      error: "Choose at least one functional team role for this staff member.",
     };
   }
 
   try {
     const service = createServiceClient();
+
+    if (baseRole === "support") {
+      const { data: allowedTeams, error: teamError } = await service
+        .from("staff_roles")
+        .select("role_key")
+        .eq("is_active", true)
+        .in("role_key", teamRoles);
+      if (teamError) return { ok: false, error: teamError.message };
+      if ((allowedTeams ?? []).length !== teamRoles.length) {
+        return {
+          ok: false,
+          error: "One or more selected team roles are invalid or inactive.",
+        };
+      }
+    }
+
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://nexomusicdistribution.com"}/login`;
     const { data, error } = await service.auth.admin.inviteUserByEmail(email, {
       redirectTo,
       data: {
         invited_by: ctx.userId,
         nexo_staff_invite: true,
-        nexo_staff_role: role,
+        nexo_staff_role: baseRole,
+        nexo_staff_teams: baseRole === "support" ? teamRoles : [],
       },
     });
     if (error) return { ok: false, error: error.message };
@@ -490,19 +524,17 @@ export async function inviteStaffUserAction(input: {
       try {
         await service.auth.admin.deleteUser(invitedUserId);
       } catch {
-        // Best effort cleanup. Never promote a partially configured account.
+        // Best effort cleanup. Never leave a partially privileged account.
       }
       return { ok: false, error: message };
     };
 
     const { error: roleError } = await service.from("user_roles").upsert(
-      [{ user_id: invitedUserId, role }],
+      [{ user_id: invitedUserId, role: baseRole }],
       { onConflict: "user_id,role" }
     );
     if (roleError) return failSetup(roleError.message);
 
-    // Staff invitations can create a default public_user row through the auth
-    // trigger. Remove only that harmless default after the staff role exists.
     const { error: defaultRoleError } = await service
       .from("user_roles")
       .delete()
@@ -512,24 +544,36 @@ export async function inviteStaffUserAction(input: {
 
     const { error: profileError } = await service
       .from("profiles")
-      .update({ account_status: "active", account_type: role })
+      .update({ account_status: "active", account_type: baseRole })
       .eq("id", invitedUserId);
     if (profileError) return failSetup(profileError.message);
 
-    try {
-      await service.rpc("write_audit_log", {
-        p_action: "staff_invite",
-        p_entity_type: "profile",
-        p_entity_id: invitedUserId,
-        p_metadata: {
-          actor: ctx.userId,
-          role,
-          invited_by_role: ctx.roles,
-        },
-      });
-    } catch {
-      // Invitation remains authoritative if audit persistence is temporarily unavailable.
+    if (baseRole === "support" && teamRoles.length > 0) {
+      const { error: assignmentError } = await service
+        .from("staff_role_assignments")
+        .insert(
+          teamRoles.map((roleKey) => ({
+            user_id: invitedUserId,
+            role_key: roleKey,
+            assigned_by: ctx.userId,
+          }))
+        );
+      if (assignmentError) return failSetup(assignmentError.message);
     }
+
+    // Service-role audit write is intentional: role_change is reserved for
+    // privileged role operations and the actor is captured explicitly.
+    await service.from("audit_logs").insert({
+      actor_user_id: ctx.userId,
+      action: "role_change",
+      entity_type: "staff_invite",
+      entity_id: invitedUserId,
+      metadata: {
+        email,
+        base_role: baseRole,
+        team_roles: baseRole === "support" ? teamRoles : [],
+      },
+    });
 
     revalidateAdmin(["/admin/users", "/admin/roles", "/admin/audit"]);
     return { ok: true, data: { userId: invitedUserId } };
@@ -539,6 +583,38 @@ export async function inviteStaffUserAction(input: {
       error: e instanceof Error ? e.message : "Could not send invitation.",
     };
   }
+}
+
+export async function setStaffTeamRolesAction(input: {
+  userId: string;
+  teamRoles: string[];
+}): Promise<ActionResult<{ assigned: number }>> {
+  await RequireAdminPermission("admin:staff_invite");
+  const userId = input.userId.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+    return { ok: false, error: "Valid staff user ID required." };
+  }
+
+  const teamRoles = [
+    ...new Set(
+      input.teamRoles
+        .map((role) => role.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_staff_team_roles", {
+    p_target: userId,
+    p_role_keys: teamRoles,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidateAdmin(["/admin/roles", "/admin/users", "/admin/audit"]);
+  return {
+    ok: true,
+    data: { assigned: typeof data === "number" ? data : teamRoles.length },
+  };
 }
 
 export async function setUserRolesAction(input: {
