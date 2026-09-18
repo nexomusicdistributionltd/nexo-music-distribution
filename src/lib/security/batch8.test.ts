@@ -47,15 +47,15 @@ describe("Batch 8 hostile self-check", () => {
   });
 
   it("signed URL bucket allowlist rejects unknown buckets and traversal", () => {
-    expect(isAllowedSignedAssetTarget("release-audio", "u/r/file.wav")).toBe(true);
-    expect(isAllowedSignedAssetTarget("evil-bucket", "u/r/file.wav")).toBe(false);
+    expect(isAllowedSignedAssetTarget("release-audio", "u/r/file.flac")).toBe(true);
+    expect(isAllowedSignedAssetTarget("evil-bucket", "u/r/file.flac")).toBe(false);
     expect(isAllowedSignedAssetTarget("release-audio", "../etc/passwd")).toBe(false);
   });
 
   it("upload validation enforces mime and size", () => {
-    expect(assertAudioFile({ type: "audio/wav", size: 100 })).toBeNull();
+    expect(assertAudioFile({ type: "audio/flac", size: 100 })).toBeNull();
     expect(assertAudioFile({ type: "text/html", size: 100 })).toMatch(/Unsupported/);
-    expect(assertAudioFile({ type: "audio/wav", size: MAX_AUDIO_BYTES + 1 })).toMatch(/exceeds/);
+    expect(assertAudioFile({ type: "audio/flac", size: MAX_AUDIO_BYTES + 1 })).toMatch(/exceeds/);
     expect(assertArtworkFile({ type: "image/png", size: 100 })).toBeNull();
     expect(assertArtworkFile({ type: "image/png", size: MAX_ARTWORK_BYTES + 1 })).toMatch(
       /exceeds/
