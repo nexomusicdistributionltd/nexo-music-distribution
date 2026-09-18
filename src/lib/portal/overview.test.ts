@@ -12,9 +12,9 @@ import {
 } from "@/lib/portal/overview";
 
 describe("portal overview streams", () => {
-  it("lists DSPs as EMPTY without inventing play counts", () => {
+  it("lists all core DSPs as connected without inventing play counts", () => {
     const rows = streamOverviewRows([]);
-    expect(rows.every((r) => r.status === "EMPTY")).toBe(true);
+    expect(rows.every((r) => r.status === "CONNECTED")).toBe(true);
     expect(rows.every((r) => r.statementRows === 0)).toBe(true);
     expect(rows.map((r) => r.label)).toContain("Spotify");
     expect(rows.map((r) => r.label)).toContain("Apple Music");
@@ -26,14 +26,14 @@ describe("portal overview streams", () => {
     const spotify = rows.find((r) => r.id === "spotify")!;
     expect(spotify.status).toBe("LIVE");
     expect(spotify.statementRows).toBe(2);
-    expect(rows.find((r) => r.id === "apple_music")?.status).toBe("EMPTY");
+    expect(rows.find((r) => r.id === "apple_music")?.status).toBe("CONNECTED");
     expect(rows.some((r) => r.id === "unknown_dsp" && r.status === "LIVE")).toBe(true);
   });
 
   it("shows only verified provider trend percentages", () => {
     const rows = streamOverviewRows(
       ["spotify", "apple_music"],
-      "EMPTY",
+      "CONNECTED",
       { spotify: 1250 },
       { spotify: 8.25, apple_music: -2.5 }
     );
@@ -43,21 +43,21 @@ describe("portal overview streams", () => {
 
     const ambiguous = streamOverviewRows(
       ["apple_music", "apple"],
-      "EMPTY",
+      "CONNECTED",
       {},
       { apple_music: 3, apple: 4 }
     );
     expect(ambiguous.find((r) => r.id === "apple_music")?.trendPercent).toBeNull();
   });
 
-  it("uses NOT CONNECTED copy when nothing is ingested", () => {
+  it("uses unavailable/connected copy without fake values", () => {
     const empty = streamOverviewHeadline({ connected: false, rowCount: 0 });
-    expect(empty.status).toBe("NOT CONNECTED");
-    expect(empty.chartNote).toMatch(/NOT CONNECTED/);
+    expect(empty.status).toBe("UNAVAILABLE");
+    expect(empty.chartNote).toMatch(/temporarily unavailable/i);
     expect(empty.chartNote).not.toMatch(/\b\d{2,}\b/);
     const live = streamOverviewHeadline({ connected: true, rowCount: 3 });
     expect(live.status).toBe("LIVE");
-    expect(live.chartNote).toMatch(/not invent/i);
+    expect(live.chartNote).toMatch(/reported stream\/play metrics/i);
   });
 });
 
@@ -103,7 +103,7 @@ describe("portal overview enrollments and routes", () => {
   it("counts unenrolled services from real rows only", () => {
     expect(unenrolledServiceCount(ENROLLABLE_SERVICES.length, [])).toBe(ENROLLABLE_SERVICES.length);
     expect(unenrolledServiceCount(6, ["ad_box", "sync"])).toBe(4);
-    expect(streamOverviewRows([], "NOT CONNECTED").every((r) => r.status === "NOT CONNECTED")).toBe(true);
+    expect(streamOverviewRows([], "UNAVAILABLE").every((r) => r.status === "UNAVAILABLE")).toBe(true);
   });
 
   it("wires home CTAs to existing IA routes", () => {

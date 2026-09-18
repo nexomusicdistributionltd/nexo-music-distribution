@@ -1,12 +1,21 @@
 import "server-only";
+
 import { createClient } from "@/lib/supabase/server";
 import { ANALYTICS_DSP_MATCH, type AnalyticsKey } from "@/lib/portal/service-kinds";
-import { ownedAnalytics } from "@/lib/provider/owned-data";
+import { ownedAnalytics, ownedSales } from "@/lib/provider/owned-data";
+import {
+  aggregateExplicitStreams,
+  aggregateReportedTrends,
+  analyticsDspCodes,
+  analyticsPlatformCode,
+  derivePreviousPeriodTrends,
+  mergeMetricSources,
+} from "@/lib/portal/analytics-normalize";
 
 export type AnalyticsSnapshot = {
   key: AnalyticsKey;
   connected: boolean;
-  statusLabel: "LIVE" | "EMPTY" | "AVAILABLE";
+  statusLabel: "LIVE" | "CONNECTED" | "AVAILABLE";
   rowCount: number;
   amountMinor: number | null;
   currency: string | null;
@@ -16,85 +25,155 @@ export type AnalyticsSnapshot = {
   note: string;
 };
 
-function numericValue(row: Record<string, unknown>, keys: string[]): number | null {
-  for (const key of keys) {
-    const raw = row[key];
-    const value = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
-    if (Number.isFinite(value)) return value;
-  }
-  return null;
-}
-
-function platformCode(row: Record<string, unknown>): string {
-  return String(row.platform ?? row.channel ?? row.dsp ?? row.store ?? "").trim().toLowerCase();
-}
-
-function realStreamCounts(rows: Record<string, unknown>[]): Record<string, number> {
-  const totals: Record<string, number> = {};
-  for (const row of rows) {
-    const platform = platformCode(row);
-    const count = numericValue(row, ["streams", "stream_count", "streamCount", "plays", "play_count", "count"]);
-    if (!platform || count == null || count < 0) continue;
-    totals[platform] = (totals[platform] ?? 0) + count;
-  }
-  return totals;
-}
-
-function realTrendPercent(rows: Record<string, unknown>[]): Record<string, number> {
-  const trends: Record<string, number> = {};
-  for (const row of rows) {
-    const platform = platformCode(row);
-    const trend = numericValue(row, [
-      "trend_percent",
-      "trendPercent",
-      "change_percent",
-      "changePercent",
-      "percent_change",
-      "percentChange",
-    ]);
-    if (!platform || trend == null) continue;
-    trends[platform] = trend;
-  }
-  return trends;
-}
-
 function matchesKey(dsp: string | null, key: AnalyticsKey): boolean {
   if (!dsp) return false;
   const needle = dsp.toLowerCase();
   return ANALYTICS_DSP_MATCH[key].some((code) => needle === code || needle.includes(code));
 }
 
+function uniqueRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const key = JSON.stringify(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function liveStreamSnapshot(ownerUserId: string): Promise<AnalyticsSnapshot | null> {
+  const [analyticsResult, channelResult, overviewResult] = await Promise.allSettled([
+    ownedAnalytics(ownerUserId),
+    ownedSales(ownerUserId, "channels"),
+    ownedSales(ownerUserId, "overview"),
+  ]);
+
+  const analyticsRows =
+    analyticsResult.status === "fulfilled"
+      ? (analyticsResult.value as Record<string, unknown>[])
+      : [];
+  const channelRows =
+    channelResult.status === "fulfilled"
+      ? (channelResult.value as Record<string, unknown>[])
+      : [];
+  const overviewRows =
+    overviewResult.status === "fulfilled"
+      ? (overviewResult.value as Record<string, unknown>[])
+      : [];
+
+  const providerSucceeded =
+    analyticsResult.status === "fulfilled" ||
+    channelRows.length > 0 ||
+    overviewRows.length > 0;
+
+  const rows = uniqueRows([...analyticsRows, ...channelRows, ...overviewRows]);
+
+  if (rows.length === 0) {
+    if (!providerSucceeded) return null;
+    return {
+      key: "streams",
+      connected: true,
+      statusLabel: "CONNECTED",
+      rowCount: 0,
+      amountMinor: null,
+      currency: null,
+      dspCodes: [],
+      streamCounts: {},
+      trendPercentByDsp: {},
+      note:
+        "Distribution analytics are connected. DSP stream reports will appear here as soon as the provider returns reporting rows for this catalog.",
+    };
+  }
+
+  // TooLost analytics resources can overlap. Pick one source per DSP in a
+  // deterministic priority order instead of summing the same activity twice.
+  const analyticsBySource = (source: string) =>
+    analyticsRows.filter((row) => String(row.analytics_source ?? "") === source);
+  const trackDetailRows = analyticsBySource("analytics_track_detail");
+  const platformDataRows = analyticsBySource("analytics_platform_data");
+  const trackRows = analyticsBySource("analytics_tracks");
+  const analyticsOverviewRows = analyticsBySource("analytics_overview");
+
+  const metricSources = [
+    platformDataRows,
+    trackRows,
+    analyticsOverviewRows,
+    trackDetailRows,
+    channelRows,
+    overviewRows,
+  ];
+
+  const streamCounts = mergeMetricSources(
+    ...metricSources.map((sourceRows) => aggregateExplicitStreams(sourceRows))
+  );
+
+  const trendPercentByDsp = mergeMetricSources(
+    ...metricSources.map((sourceRows) => aggregateReportedTrends(sourceRows)),
+    ...metricSources.map((sourceRows) => derivePreviousPeriodTrends(sourceRows))
+  );
+
+  const dspCodes = [
+    ...new Set([
+      ...analyticsDspCodes(analyticsRows),
+      ...analyticsDspCodes(channelRows),
+      ...analyticsDspCodes(overviewRows),
+    ]),
+  ];
+
+  return {
+    key: "streams",
+    connected: true,
+    statusLabel: "LIVE",
+    rowCount: rows.length,
+    amountMinor: null,
+    currency: null,
+    dspCodes,
+    streamCounts,
+    trendPercentByDsp,
+    note:
+      "Live distribution reporting is scoped to this account's releases and tracks. Stream totals are shown only for explicit stream/play metrics; trends are provider-reported or derived from consecutive dated stream reports.",
+  };
+}
+
 export async function loadAnalyticsSnapshot(
   ownerUserId: string,
   key: AnalyticsKey
 ): Promise<AnalyticsSnapshot> {
-  // Prefer live Distribution Engine analytics for releases owned by this account.
-  // Fall back to Nexo ledger rows when the upstream has no rows yet.
-  try {
-    const allProviderRows = await ownedAnalytics(ownerUserId);
-    const typedRows = (allProviderRows as Record<string, unknown>[]).filter((row) => {
-      if (key === "streams") return true;
-      return matchesKey(platformCode(row), key);
-    });
-    if (typedRows.length > 0) {
-      const codes = [...new Set(typedRows.map(platformCode).filter(Boolean))];
-      const streamCounts = realStreamCounts(typedRows);
-      const trendPercentByDsp = realTrendPercent(typedRows);
-      return {
-        key,
-        connected: true,
-        statusLabel: "LIVE",
-        rowCount: typedRows.length,
-        amountMinor: null,
-        currency: null,
-        dspCodes: codes,
-        streamCounts,
-        trendPercentByDsp,
-        note: "Live Distribution Engine analytics are connected for releases owned by this account. Stream totals are shown only when the provider returns numeric stream data.",
-      };
+  if (key === "streams") {
+    const live = await liveStreamSnapshot(ownerUserId);
+    if (live) return live;
+  } else {
+    try {
+      const allProviderRows = await ownedAnalytics(ownerUserId);
+      const typedRows = (allProviderRows as Record<string, unknown>[]).filter((row) =>
+        matchesKey(analyticsPlatformCode(row), key)
+      );
+
+      if (typedRows.length > 0) {
+        const codes = analyticsDspCodes(typedRows);
+        const streamCounts = aggregateExplicitStreams(typedRows);
+        const trendPercentByDsp = mergeMetricSources(
+          aggregateReportedTrends(typedRows),
+          derivePreviousPeriodTrends(typedRows)
+        );
+
+        return {
+          key,
+          connected: true,
+          statusLabel: "LIVE",
+          rowCount: typedRows.length,
+          amountMinor: null,
+          currency: null,
+          dspCodes: codes,
+          streamCounts,
+          trendPercentByDsp,
+          note:
+            "Live distribution analytics are connected for releases and tracks owned by this account. No values are estimated.",
+        };
+      }
+    } catch {
+      // Continue to the authoritative Nexo ledger fallback below.
     }
-  } catch {
-    // Continue to the authoritative Nexo ledger fallback below.
   }
 
   const supabase = await createClient();
@@ -115,20 +194,28 @@ export async function loadAnalyticsSnapshot(
       dspCodes: [],
       streamCounts: {},
       trendPercentByDsp: {},
-      note: "Analytics are available through Nexo. No verified rows can be displayed for this source right now.",
+      note: "Analytics are temporarily unavailable. No unverified values are shown.",
     };
   }
 
-  const rows = (data ?? []).filter((r) => matchesKey(r.dsp_code as string | null, key));
-  const codes = [...new Set(rows.map((r) => String(r.dsp_code)).filter(Boolean))];
-  const amountMinor = rows.reduce((sum, r) => sum + Number(r.amount_minor || 0), 0);
+  const rows = (data ?? []).filter((row) =>
+    matchesKey(String(row.dsp_code ?? "").toLowerCase(), key)
+  );
+  const codes = [
+    ...new Set(
+      rows
+        .map((row) => analyticsPlatformCode({ platform: row.dsp_code }))
+        .filter(Boolean)
+    ),
+  ];
+  const amountMinor = rows.reduce((sum, row) => sum + Number(row.amount_minor || 0), 0);
   const currency = rows[0]?.currency ? String(rows[0].currency) : null;
 
   if (rows.length === 0) {
     return {
       key,
       connected: true,
-      statusLabel: "EMPTY",
+      statusLabel: "CONNECTED",
       rowCount: 0,
       amountMinor: 0,
       currency: null,
@@ -137,10 +224,10 @@ export async function loadAnalyticsSnapshot(
       trendPercentByDsp: {},
       note:
         key === "spotify_discovery"
-          ? "Spotify Discovery Mode is available through Nexo. No verified enrollment or activity rows are available for this account yet."
+          ? "Spotify Discovery Mode reporting is available. No verified enrollment or activity rows are available for this account yet."
           : key === "streamsafe"
-            ? "StreamSafe is available through Nexo. No verified suspicious-stream flags are available for this account."
-            : "No verified analytics rows are available for this source yet.",
+            ? "StreamSafe reporting is available. No verified suspicious-stream flags are available for this account."
+            : "Reporting is connected, but no verified analytics rows are available for this account yet.",
     };
   }
 
@@ -154,6 +241,7 @@ export async function loadAnalyticsSnapshot(
     dspCodes: codes,
     streamCounts: {},
     trendPercentByDsp: {},
-    note: "Figures come from posted ledger rows only. Ledger money rows are never converted into invented stream counts.",
+    note:
+      "Figures come from posted ledger rows only. Financial rows are never converted into invented stream counts.",
   };
 }

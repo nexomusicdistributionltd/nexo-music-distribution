@@ -53,6 +53,18 @@ export function PortalOverview({
   actionNeeded: { id: string; title: string }[];
   loadError: string | null;
 }) {
+  const chartRows = streamRows
+    .filter((row) => row.streamCount != null && row.streamCount >= 0)
+    .sort((a, b) => (b.streamCount ?? 0) - (a.streamCount ?? 0))
+    .slice(0, 8);
+  const maxStreamCount = chartRows.reduce(
+    (max, row) => Math.max(max, row.streamCount ?? 0),
+    0
+  );
+  const reportingPlatforms = streamRows.filter(
+    (row) => row.streamCount != null || row.statementRows > 0
+  ).length;
+
   return (
     <div className="relative space-y-4 pb-16">
       <section className="overflow-hidden rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] shadow-[var(--nexo-shadow-sm)]">
@@ -170,57 +182,149 @@ export function PortalOverview({
         </QuickCard>
       </div>
 
-      <section className="overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] shadow-[var(--nexo-shadow-sm)]">
-        <div className="grid gap-0 lg:grid-cols-[16rem_1fr]">
-          <ul className="divide-y divide-[var(--nexo-divider)] border-b border-[var(--nexo-divider)] lg:border-b-0 lg:border-r">
-            {streamRows.map((row) => (
-              <li key={row.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="flex min-w-0 items-center gap-2.5 text-small font-medium">
-                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--nexo-border)] bg-[var(--nexo-bg)]">
-                    <DspIcon name={row.id} className="h-4 w-4" />
-                  </span>
-                  <span className="truncate">{row.label}</span>
-                </span>
-                <span className="text-right">
-                  <span className="block text-[0.65rem] uppercase tracking-wide text-[var(--nexo-text-muted)]">
-                    Streams
-                  </span>
-                  <span className="text-small tabular-nums text-[var(--nexo-text-secondary)]">
-                    {row.streamCount != null ? new Intl.NumberFormat("en-US").format(row.streamCount) : row.status}
-                  </span>
-                  {row.trendPercent != null ? (
-                    <span
-                      className={cn(
-                        "block text-[0.65rem] font-medium tabular-nums",
-                        row.trendPercent > 0
-                          ? "text-[var(--nexo-success)]"
-                          : row.trendPercent < 0
-                            ? "text-[var(--nexo-error)]"
-                            : "text-[var(--nexo-text-muted)]"
-                      )}
-                      title="Trend reported by the connected distribution analytics source"
-                    >
-                      {row.trendPercent > 0 ? "+" : ""}
-                      {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(row.trendPercent)}%
-                    </span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="flex min-h-[16rem] flex-col items-center justify-center bg-[var(--nexo-chart-surface)] px-6 py-10 text-center">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--nexo-text-muted)]">
-              {streamStatus}
+      <section className="overflow-hidden rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] shadow-[var(--nexo-shadow-sm)]">
+        <div className="flex flex-col gap-2 border-b border-[var(--nexo-divider)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--nexo-text-muted)]">
+              DSP analytics
             </p>
-            <p className="mt-3 max-w-md text-small text-[var(--nexo-text-secondary)]">{streamNote}</p>
-            <div
-              className="mt-6 h-24 w-full max-w-lg rounded-md border border-dashed border-[var(--nexo-chart-grid)]"
+            <h3 className="mt-1 text-h4">Streaming performance</h3>
+          </div>
+          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--nexo-border)] bg-[var(--nexo-bg)] px-3 py-1.5 text-caption font-medium">
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                streamStatus === "LIVE"
+                  ? "bg-[var(--nexo-success)]"
+                  : streamStatus === "UNAVAILABLE"
+                    ? "bg-[var(--nexo-error)]"
+                    : "bg-[var(--nexo-text-muted)]"
+              )}
               aria-hidden
             />
+            {streamStatus === "LIVE" ? "Live reporting" : streamStatus === "CONNECTED" ? "Connected" : "Unavailable"}
+          </span>
+        </div>
+
+        <div className="grid gap-0 lg:grid-cols-[18rem_1fr]">
+          <ul className="divide-y divide-[var(--nexo-divider)] border-b border-[var(--nexo-divider)] lg:border-b-0 lg:border-r">
+            {streamRows.map((row) => {
+              const metric =
+                row.streamCount != null
+                  ? new Intl.NumberFormat("en-US").format(row.streamCount)
+                  : row.status === "UNAVAILABLE"
+                    ? "Unavailable"
+                    : row.statementRows > 0
+                      ? "Reporting"
+                      : "Awaiting report";
+              return (
+                <li key={row.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
+                  <span className="flex min-w-0 items-center gap-3 text-small font-medium">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--nexo-border)] bg-[var(--nexo-bg)]">
+                      <DspIcon name={row.id} className="h-[1.125rem] w-[1.125rem]" />
+                    </span>
+                    <span className="truncate">{row.label}</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-[var(--nexo-text-muted)]">
+                      Streams
+                    </span>
+                    <span className="block text-small font-medium tabular-nums text-[var(--nexo-text-secondary)]">
+                      {metric}
+                    </span>
+                    {row.trendPercent != null ? (
+                      <span
+                        className={cn(
+                          "block text-[0.65rem] font-semibold tabular-nums",
+                          row.trendPercent > 0
+                            ? "text-[var(--nexo-success)]"
+                            : row.trendPercent < 0
+                              ? "text-[var(--nexo-error)]"
+                              : "text-[var(--nexo-text-muted)]"
+                        )}
+                        title="Change from the provider's reported trend or consecutive dated reporting periods"
+                      >
+                        {row.trendPercent > 0 ? "+" : ""}
+                        {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(row.trendPercent)}%
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="min-h-[22rem] bg-[var(--nexo-chart-surface)] p-5 sm:p-6">
+            {chartRows.length > 0 && maxStreamCount > 0 ? (
+              <div className="space-y-5">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-caption font-medium text-[var(--nexo-text-secondary)]">
+                      Reported stream mix
+                    </p>
+                    <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                      Relative performance from explicit stream/play metrics returned for this catalog.
+                    </p>
+                  </div>
+                  <p className="text-caption tabular-nums text-[var(--nexo-text-muted)]">
+                    {reportingPlatforms} platform{reportingPlatforms === 1 ? "" : "s"} reporting
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  {chartRows.map((row) => {
+                    const value = row.streamCount ?? 0;
+                    const width = maxStreamCount > 0 ? Math.max(2, (value / maxStreamCount) * 100) : 0;
+                    return (
+                      <div key={`mix-${row.id}`} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3 text-caption">
+                          <span className="flex min-w-0 items-center gap-2 font-medium">
+                            <DspIcon name={row.id} className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{row.label}</span>
+                          </span>
+                          <span className="tabular-nums text-[var(--nexo-text-secondary)]">
+                            {new Intl.NumberFormat("en-US").format(value)}
+                          </span>
+                        </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-[var(--nexo-chart-grid)]">
+                          <div
+                            className="h-full rounded-full bg-[var(--nexo-text)] transition-[width]"
+                            style={{ width: `${width}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="border-t border-[var(--nexo-divider)] pt-4 text-caption leading-5 text-[var(--nexo-text-muted)]">
+                  {streamNote}
+                </p>
+              </div>
+            ) : (
+              <div className="flex min-h-[19rem] items-center justify-center">
+                <div className="max-w-md text-center">
+                  <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--nexo-border)] bg-[var(--nexo-bg)]">
+                    <BarChart3 className="h-5 w-5" aria-hidden />
+                  </span>
+                  <h4 className="mt-4 text-h4">
+                    {streamStatus === "UNAVAILABLE" ? "Analytics temporarily unavailable" : "Analytics connection ready"}
+                  </h4>
+                  <p className="mt-2 text-small leading-6 text-[var(--nexo-text-secondary)]">
+                    {streamNote}
+                  </p>
+                  <p className="mt-3 text-caption text-[var(--nexo-text-muted)]">
+                    No zeros are generated when a DSP has not supplied a stream metric.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex justify-center border-t border-[var(--nexo-divider)] px-4 py-4">
-          <Pill href={OVERVIEW_HREFS.streams}>View streams data</Pill>
+
+        <div className="flex items-center justify-between gap-3 border-t border-[var(--nexo-divider)] px-4 py-4">
+          <p className="hidden text-caption text-[var(--nexo-text-muted)] sm:block">
+            Audiomack · Spotify · Apple Music · YouTube · Amazon · Deezer · TIDAL · Pandora
+          </p>
+          <Pill href={OVERVIEW_HREFS.streams}>Open analytics</Pill>
         </div>
       </section>
 

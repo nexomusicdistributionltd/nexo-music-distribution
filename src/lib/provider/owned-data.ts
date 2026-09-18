@@ -222,15 +222,47 @@ export async function ownedAnalytics(userId: string): Promise<Row[]> {
   const scope = await ownedDistributionScope(userId);
   if (!scope.isrcs.size && !scope.providerIds.size) return [];
 
-  const settled = await Promise.allSettled([
-    distributionReference.analyticsOverview(),
-    distributionReference.analyticsTracks(),
-    distributionReference.analyticsPlatformData(),
+  // Global analytics resources can contain distributor-wide rows, so those rows
+  // are filtered back to identifiers owned by this account. Each endpoint is
+  // source-tagged so downstream normalization can select one metric source per
+  // DSP instead of double-counting overlapping analytics resources.
+  const globalSources = [
+    { source: "analytics_overview", load: () => distributionReference.analyticsOverview() },
+    { source: "analytics_tracks", load: () => distributionReference.analyticsTracks() },
+    { source: "analytics_platform_data", load: () => distributionReference.analyticsPlatformData() },
+  ] as const;
+
+  const [globalSettled, trackRows] = await Promise.all([
+    Promise.allSettled(globalSources.map((entry) => entry.load())),
+    settleRows(
+      [...scope.isrcs].slice(0, 50).map((isrc) => async () => {
+        const raw = await distributionReference.analyticsTrack(isrc);
+        return annotate(providerRows(raw), {
+          isrc,
+          analytics_source: "analytics_track_detail",
+        });
+      }),
+      4
+    ),
   ]);
 
-  const seen = new Set<string>();
-  const rows = settled
-    .flatMap((result) => (result.status === "fulfilled" ? providerRows(result.value) : []))
+  const globalSucceeded = globalSettled.some((result) => result.status === "fulfilled");
+  if (!globalSucceeded && trackRows.length === 0) {
+    const firstFailure = globalSettled.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    if (firstFailure?.reason instanceof Error) throw firstFailure.reason;
+    throw new Error("Distribution analytics provider is unavailable.");
+  }
+
+  const globalRows = globalSettled
+    .flatMap((result, index) =>
+      result.status === "fulfilled"
+        ? annotate(providerRows(result.value), {
+            analytics_source: globalSources[index]?.source ?? "analytics",
+          })
+        : []
+    )
     .filter((row) => {
       const releaseId = releaseIdFromRow(row);
       const isrc = isrcFromRow(row);
@@ -238,13 +270,13 @@ export async function ownedAnalytics(userId: string): Promise<Row[]> {
         (Boolean(releaseId) && scope.providerIds.has(releaseId)) ||
         (Boolean(isrc) && scope.isrcs.has(isrc))
       );
-    })
-    .filter((row) => {
-      const key = JSON.stringify(row);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
     });
 
-  return rows;
+  const seen = new Set<string>();
+  return [...trackRows, ...globalRows].filter((row) => {
+    const key = JSON.stringify(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }

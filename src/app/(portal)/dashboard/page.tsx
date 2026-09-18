@@ -163,7 +163,7 @@ export default async function DashboardPage() {
   });
   const streamRows = streamOverviewRows(
     streamSnap?.dspCodes ?? [],
-    headline.status === "LIVE" ? "EMPTY" : headline.status,
+    headline.status === "LIVE" ? "CONNECTED" : headline.status,
     streamSnap?.streamCounts ?? {},
     streamSnap?.trendPercentByDsp ?? {}
   );

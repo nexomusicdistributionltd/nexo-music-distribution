@@ -1,6 +1,6 @@
 /** Home/overview helpers. Stream counts are never invented. */
 
-export type StreamOverviewStatus = "LIVE" | "EMPTY" | "NOT CONNECTED";
+export type StreamOverviewStatus = "LIVE" | "CONNECTED" | "UNAVAILABLE";
 
 export const STREAM_OVERVIEW_DSPS = [
   { id: "audiomack", label: "Audiomack", match: ["audiomack"] },
@@ -39,7 +39,7 @@ export function countByMatchedDsp(dspCodes: string[]): Record<string, number> {
 
 export function streamOverviewRows(
   liveDspCodes: string[],
-  idleStatus: StreamOverviewStatus = "EMPTY",
+  idleStatus: StreamOverviewStatus = "CONNECTED",
   liveStreamCounts: Record<string, number> = {},
   liveTrendPercentByDsp: Record<string, number> = {}
 ): StreamOverviewRow[] {
@@ -101,19 +101,20 @@ export function streamOverviewHeadline(opts: {
     return {
       status: "LIVE",
       chartNote:
-        "Posted statement rows exist. Daily stream charts are not available — Nexo does not invent DSP play counts.",
+        "Distribution analytics are synced for this catalog. Stream totals come only from reported stream/play metrics, and trends use reported or consecutive dated analytics.",
     };
   }
   if (!opts.connected) {
     return {
-      status: "NOT CONNECTED",
+      status: "UNAVAILABLE",
       chartNote:
-        "NOT CONNECTED — no ingested stream statements. Commercial DSP APIs are not linked. Counts are not estimated.",
+        "Distribution analytics are temporarily unavailable. No stream counts or trends are estimated.",
     };
   }
   return {
-    status: "EMPTY",
-    chartNote: "EMPTY — no ingested stream statements yet. Counts are not estimated.",
+    status: "CONNECTED",
+    chartNote:
+      "Distribution analytics are connected. DSP reporting will populate as soon as the provider returns activity for this catalog.",
   };
 }
 
