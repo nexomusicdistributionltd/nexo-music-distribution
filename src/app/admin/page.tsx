@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { CompactStat, AttentionList } from "@/components/workspace/CompactStat";
@@ -8,6 +9,50 @@ import { getAdminAttention } from "@/lib/admin/attention";
 import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import { getProviderConnectionState } from "@/lib/provider";
 import { ddexConfigPublicStatus } from "@/lib/ddex/config";
+
+
+const ADMIN_CONTROL_AREAS = [
+  {
+    title: "Catalog & QC",
+    description: "Releases, metadata, artwork, contributors, identifiers and quality-control decisions.",
+    href: "/admin/releases",
+  },
+  {
+    title: "Distribution Engine",
+    description: "Provider authorization, submissions, delivery jobs, mappings, webhooks and retries.",
+    href: "/admin/distribution",
+  },
+  {
+    title: "Artists, labels & verification",
+    description: "Accounts, identity verification, roster records and mandatory distribution agreements.",
+    href: "/admin/verifications",
+  },
+  {
+    title: "Royalties & payouts",
+    description: "Ledger-backed royalties, statements, payout methods, requests and finance operations.",
+    href: "/admin/finance",
+  },
+  {
+    title: "Analytics",
+    description: "Provider and ledger-backed performance data without generated stream or revenue figures.",
+    href: "/admin/analytics",
+  },
+  {
+    title: "Communications",
+    description: "Inbox, branded automated email, broadcast notifications, newsletters and delivery activity.",
+    href: "/admin/emails",
+  },
+  {
+    title: "Website CMS",
+    description: "Homepage settings, featured catalog, partners, blog, footer pages and Nexo video surfaces.",
+    href: "/admin/website",
+  },
+  {
+    title: "Compliance & audit",
+    description: "Operational audit trail, compliance controls, reports and administrative search.",
+    href: "/admin/audit",
+  },
+] as const;
 
 export const metadata: Metadata = {
   title: "Admin operations",
@@ -48,6 +93,42 @@ export default async function AdminDashboardPage() {
         {ddex.recipientConfigured ? "configured" : "not configured"}
         {ddex.recipientName ? ` (${ddex.recipientName})` : ""}. DPID values stay server-side.
       </p>
+
+      <section>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--nexo-text-muted)]">
+              Control center
+            </p>
+            <h2 className="mt-1 text-h3">Nexo operations</h2>
+          </div>
+          <Link
+            href="/admin/settings"
+            className="text-small text-[var(--nexo-text-secondary)] underline-offset-4 hover:underline"
+          >
+            Administration settings
+          </Link>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {ADMIN_CONTROL_AREAS.map((area) => (
+            <Link
+              key={area.href}
+              href={area.href}
+              className="group flex min-h-40 flex-col justify-between rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5 shadow-[var(--nexo-shadow-sm)] transition hover:-translate-y-0.5 hover:border-[var(--nexo-border-strong)]"
+            >
+              <div>
+                <h3 className="text-h4">{area.title}</h3>
+                <p className="mt-2 text-small leading-6 text-[var(--nexo-text-muted)]">
+                  {area.description}
+                </p>
+              </div>
+              <span className="mt-5 inline-flex items-center gap-1 text-caption font-medium">
+                Open <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {!hasWork ? (
         <EmptyState
