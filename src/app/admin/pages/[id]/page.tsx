@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { getPageAdmin } from "@/lib/cms/pages";
+import { hydrateFooterPageForAdmin } from "@/lib/cms/footer-pages";
 import { CmsPageEditor } from "@/components/cms/CmsPageEditor";
 
 export const metadata: Metadata = {
@@ -17,8 +18,9 @@ export default async function EditCmsPage({
 }) {
   await RequireAdmin();
   const { id } = await params;
-  const page = await getPageAdmin(id);
-  if (!page) notFound();
+  const rawPage = await getPageAdmin(id);
+  if (!rawPage) notFound();
+  const page = hydrateFooterPageForAdmin(rawPage);
 
   return (
     <div>

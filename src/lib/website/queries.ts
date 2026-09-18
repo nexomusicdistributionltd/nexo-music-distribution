@@ -50,6 +50,29 @@ export async function listFeaturedPublicReleases(limit = 8): Promise<PublicRelea
   return (featured.length ? featured : all).slice(0, limit);
 }
 
+export async function listRecentDistributedReleases(
+  limit = 8
+): Promise<PublicReleaseCard[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("releases")
+    .select(RELEASE_CARD_SELECT)
+    .eq("website_published", true)
+    .in("status", ["delivered", "live"])
+    .order("release_date", { ascending: false, nullsFirst: false })
+    .order("website_sort_order", { ascending: true })
+    .limit(Math.min(48, limit));
+
+  if (error) {
+    console.error("listRecentDistributedReleases", error.message);
+    return [];
+  }
+
+  return ((data ?? []) as Array<PublicReleaseCard & { website_published: boolean }>)
+    .filter((release) => isPublicMusicEligible(release))
+    .slice(0, limit);
+}
+
 export async function getPublicReleaseBySlug(slug: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

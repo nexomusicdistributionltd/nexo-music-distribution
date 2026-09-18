@@ -13,6 +13,8 @@ import { getOptionalAuth } from "@/lib/auth/guards";
 import { COMPANY_LEGAL, SITE_URL } from "@/lib/site";
 import { BRAND_PUBLIC_URL } from "@/lib/brand/social";
 import { isPaidTierId } from "@/lib/billing/plans";
+import { SafeHtml } from "@/components/cms/SafeHtml";
+import { getPublishedPageBySlug } from "@/lib/cms/pages";
 
 export const metadata: Metadata = {
   title: "Music Distribution Pricing for Artists & Labels",
@@ -35,8 +37,11 @@ export default async function PricingPage({
   searchParams: Promise<{ plan?: string; interval?: string; checkout?: string; type?: string }>;
 }) {
   const sp = await searchParams;
+  const [cmsPage, headerList] = await Promise.all([
+    getPublishedPageBySlug("pricing"),
+    headers(),
+  ]);
   const catalog = publicBillingCatalog();
-  const headerList = await headers();
   const country = countryFromTrustedHeaders(headerList);
   const token = getPaddleClientToken();
   const ctx = await getOptionalAuth();
@@ -57,10 +62,22 @@ export default async function PricingPage({
     <>
       <PageHero
         eyebrow="Pricing"
-        title="Plans for artists and labels."
-        description={`${COMPANY_LEGAL} publishes USD list prices for Artist Starter (free), Artist Pro, Label Starter, and Label Pro. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout.`}
+        title={cmsPage?.title || "Plans for artists and labels."}
+        description={
+          cmsPage?.seo_description ||
+          `${COMPANY_LEGAL} publishes USD list prices for Artist Starter (free), Artist Pro, Label Starter, and Label Pro. Paid plans include a 7-day trial. Tax is calculated by Paddle at checkout.`
+        }
         crumbs={[{ label: "Home", href: "/" }, { label: "Pricing" }]}
       />
+
+      {cmsPage?.body_html?.trim() ? (
+        <Section>
+          <SafeHtml
+            html={cmsPage.body_html}
+            className="prose prose-neutral dark:prose-invert max-w-none"
+          />
+        </Section>
+      ) : null}
 
       <Section>
         <PricingTable

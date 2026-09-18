@@ -27,10 +27,10 @@ export function HomeFeaturedCatalog({
             <div className="max-w-2xl">
               <Eyebrow>Discover</Eyebrow>
               <DisplayHeading as="h2" size="md" className="mt-3">
-                Featured releases
+                Recent distributed music
               </DisplayHeading>
               <p className="mt-3 text-body text-[var(--nexo-text-muted)]">
-                Real catalog entries published by Nexo — no invented trending charts.
+                Recently delivered or live releases distributed through Nexo.
               </p>
             </div>
             <Link
