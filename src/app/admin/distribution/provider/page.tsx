@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { RequireAdmin } from "@/lib/auth/guards";
+import { RequireAdministrator } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import { DistributionNav } from "@/components/distribution/DistributionNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { getProviderConnectionState, readProviderConfig } from "@/lib/provider";
+import { getProviderConnectionState } from "@/lib/provider";
 import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
 
 export const metadata: Metadata = {
@@ -13,9 +13,8 @@ export const metadata: Metadata = {
 };
 
 export default async function ProviderStatusPage() {
-  await RequireAdmin();
+  await RequireAdministrator();
   const state = getProviderConnectionState();
-  const cfg = readProviderConfig();
   const oauthConfigured = isDistributionOAuthConfigured();
 
   return (
@@ -29,10 +28,6 @@ export default async function ProviderStatusPage() {
         </CardHeader>
         <CardContent className="space-y-2 text-small">
           <p>Status: <strong>{state.connected ? "Connected" : "Not connected / Unavailable"}</strong></p>
-          <p>Configured name: {cfg.name}</p>
-          <p>API key present: {cfg.apiKeyPresent ? "yes" : "no"}</p>
-          <p>API base URL set: {cfg.apiBaseUrl ? "yes" : "no"}</p>
-          <p>Webhook secret present: {cfg.webhookSecretPresent ? "yes" : "no"}</p>
           <p>OAuth configuration: {oauthConfigured ? "ready" : "incomplete"}</p>
           <p className="text-[var(--nexo-text-muted)]">{state.message}</p>
           {oauthConfigured ? (
@@ -45,8 +40,7 @@ export default async function ProviderStatusPage() {
           ) : null}
           {!state.connected ? (
             <p className="text-[var(--nexo-text-muted)]">
-              Set PROVIDER_NAME + PROVIDER_API_KEY (server-only) and register a real adapter.
-              Until then every submit/sync/delivery action returns Provider Not Connected.
+              Complete the secure Distribution Engine connection before using submit, sync, or delivery actions.
             </p>
           ) : null}
         </CardContent>
