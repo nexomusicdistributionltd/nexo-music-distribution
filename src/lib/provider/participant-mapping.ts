@@ -76,5 +76,9 @@ export function groupProviderContributors(
     if (!current.role.includes(providerRole)) current.role.push(providerRole);
     if (!current.artistId && row.artistId) current.artistId = row.artistId;
   }
-  return [...grouped.values()];
+  return [...grouped.values()].sort((left, right) => {
+    const leftPrimary = left.role.includes("primary") ? 0 : 1;
+    const rightPrimary = right.role.includes("primary") ? 0 : 1;
+    return leftPrimary - rightPrimary;
+  });
 }
