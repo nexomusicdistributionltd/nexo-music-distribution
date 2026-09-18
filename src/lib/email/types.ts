@@ -32,6 +32,11 @@ export const APPROVED_TEMPLATE_KEYS = [
   "CONTACT_ACKNOWLEDGEMENT",
   "NEWSLETTER",
   "NEW_MUSIC_FRIDAY",
+  "IDENTITY_SUBMITTED",
+  "IDENTITY_VERIFIED",
+  "IDENTITY_DECLINED",
+  "IDENTITY_ADDITIONAL_INFO_REQUIRED",
+  "AGREEMENT_SIGNED",
 ] as const;
 
 export type TemplateKey = (typeof APPROVED_TEMPLATE_KEYS)[number];
@@ -51,6 +56,8 @@ export type EmailEventType =
   | "manual.compose"
   | "manual.reply"
   | "newsletter"
+  | "identity"
+  | "agreement"
   | "manual.send";
 
 export type StoredTemplateCategory = "ops" | "newsletter" | "custom";
