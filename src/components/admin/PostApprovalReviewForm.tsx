@@ -29,17 +29,17 @@ export function PostApprovalReviewForm({ releaseId }: { releaseId: string }) {
   return (
     <section className="space-y-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
       <div>
-        <h2 className="text-h4">Return approved release for correction</h2>
+        <h2 className="text-h4">Return release for correction</h2>
         <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-          Use this before TooLost delivery is queued. The release becomes editable again in the
-          artist or label dashboard, your reason is shown to the account owner, and they can correct
-          the release and resubmit it to QC.
+          Use this while the release is approved or still waiting in Nexo's delivery queue. Nexo
+          cancels any safe queued job, makes the release editable again in the artist or label
+          dashboard, shows your reason to the account owner, and lets them resubmit it to QC.
         </p>
       </div>
 
       <Alert variant="warning" title="Pre-delivery correction">
-        This does not send a rejection to TooLost. If the release already exists at TooLost or has
-        entered delivery, use the provider edit/takedown workflow instead.
+        This is a pre-delivery correction action. Once TooLost submission has started or a TooLost
+        release ID exists, this action is blocked and the provider edit/takedown workflow must be used.
       </Alert>
 
       <label className="block space-y-1.5">
