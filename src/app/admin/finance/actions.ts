@@ -19,6 +19,7 @@ function revalidateFinance() {
   for (const p of [
     "/admin/finance",
     "/admin/royalties",
+    "/admin/splitshare",
     "/admin/royalties/imports",
     "/admin/royalties/ledger",
     "/admin/statements",
@@ -290,7 +291,7 @@ export async function createSplitRuleAction(input: {
   releaseId?: string;
   trackId?: string;
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:royalties");
+  const ctx = await RequireAdminPermission("admin:royalties");
   const check = validateSplitShares(input.shares);
   if (!check.ok) return { ok: false, error: check.reason ?? "Invalid shares" };
   const supabase = await createClient();
@@ -304,6 +305,11 @@ export async function createSplitRuleAction(input: {
       scope_track_id: input.trackId ?? null,
       effective_from: input.effectiveFrom,
       effective_to: input.effectiveTo ?? null,
+      review_status: "approved",
+      is_active: true,
+      reviewed_by: ctx.userId,
+      reviewed_at: new Date().toISOString(),
+      created_by: ctx.userId,
     })
     .select("*")
     .single();
@@ -315,6 +321,7 @@ export async function createSplitRuleAction(input: {
       party_role: s.partyRole,
       share_bps: s.shareBps,
       party_user_id: s.partyUserId ?? null,
+      payee_id: s.payeeId ?? null,
     }))
   );
   if (shareErr) return { ok: false, error: shareErr.message };

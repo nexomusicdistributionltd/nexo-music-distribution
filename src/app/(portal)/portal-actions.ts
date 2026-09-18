@@ -114,6 +114,8 @@ export async function createPayeeAction(input: {
   role_label?: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  const rl = checkRateLimit({ key: `splitshare:payee:${ctx.userId}`, ...RATE_LIMITS.portalRequest });
+  if (!rl.ok) return { ok: false, error: "Too many payee requests. Try again later." };
   const parsed = validatePayeeInput(input);
   if (!parsed.ok) return parsed;
   const supabase = await createClient();
@@ -124,11 +126,21 @@ export async function createPayeeAction(input: {
       name: parsed.name,
       email: parsed.email,
       role_label: parsed.role_label,
+      status: "submitted",
+      admin_note: null,
+      reviewed_by: null,
+      reviewed_at: null,
     })
     .select("id")
     .single();
-  if (error) return { ok: false, error: publicErrorMessage(error.message) };
+  if (error) {
+    if (/duplicate|unique/i.test(error.message)) {
+      return { ok: false, error: "This payee email already exists on your account." };
+    }
+    return { ok: false, error: publicErrorMessage(error.message) };
+  }
   revalidatePath("/splitshare/payees");
+  revalidatePath("/admin/splitshare");
   return { ok: true, data: { id: data.id } };
 }
 
@@ -138,33 +150,24 @@ export async function createSplitRuleAction(input: {
   effectiveFrom?: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  const rl = checkRateLimit({ key: `splitshare:rule:${ctx.userId}`, ...RATE_LIMITS.portalRequest });
+  if (!rl.ok) return { ok: false, error: "Too many split requests. Try again later." };
   const parsed = validateSplitCreateInput(input);
   if (!parsed.ok) return parsed;
   const supabase = await createClient();
-  const { data: rule, error } = await supabase
-    .from("royalty_split_rules")
-    .insert({
-      owner_user_id: ctx.userId,
-      name: parsed.name,
-      scope_type: "account",
-      effective_from: parsed.effectiveFrom,
-      is_active: true,
-    })
-    .select("id")
-    .single();
+  const { data, error } = await supabase.rpc("submit_splitshare_rule", {
+    p_name: parsed.name,
+    p_effective_from: parsed.effectiveFrom,
+    p_shares: parsed.shares.map((share) => ({
+      payee_id: share.payeeId,
+      share_bps: share.shareBps,
+    })),
+  });
   if (error) return { ok: false, error: publicErrorMessage(error.message) };
-  const { error: shareError } = await supabase.from("royalty_split_shares").insert(
-    parsed.shares.map((s) => ({
-      rule_id: rule.id,
-      party_name: s.partyName.trim(),
-      party_role: s.partyRole,
-      share_bps: s.shareBps,
-      party_user_id: s.partyUserId ?? null,
-    }))
-  );
-  if (shareError) return { ok: false, error: publicErrorMessage(shareError.message) };
   revalidatePath("/earnings/splits");
-  return { ok: true, data: { id: rule.id } };
+  revalidatePath("/splitshare/assignments");
+  revalidatePath("/admin/splitshare");
+  return { ok: true, data: { id: String(data) } };
 }
 
 export async function assignSplitToTrackAction(input: {
@@ -172,6 +175,8 @@ export async function assignSplitToTrackAction(input: {
   split_rule_id: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  const rl = checkRateLimit({ key: `splitshare:assignment:${ctx.userId}`, ...RATE_LIMITS.portalRequest });
+  if (!rl.ok) return { ok: false, error: "Too many assignment requests. Try again later." };
   if (!input.track_id || !input.split_rule_id) return { ok: false, error: "Track and split are required." };
   const supabase = await createClient();
   const { data: track } = await supabase
@@ -183,11 +188,13 @@ export async function assignSplitToTrackAction(input: {
   if (!track) return { ok: false, error: "Track not found." };
   const { data: rule } = await supabase
     .from("royalty_split_rules")
-    .select("id")
+    .select("id, review_status")
     .eq("id", input.split_rule_id)
     .eq("owner_user_id", ctx.userId)
+    .eq("review_status", "approved")
+    .eq("is_active", true)
     .maybeSingle();
-  if (!rule) return { ok: false, error: "Split rule not found." };
+  if (!rule) return { ok: false, error: "Select an approved active split rule." };
   const { data, error } = await supabase
     .from("split_track_assignments")
     .upsert(
@@ -195,6 +202,11 @@ export async function assignSplitToTrackAction(input: {
         owner_user_id: ctx.userId,
         track_id: input.track_id,
         split_rule_id: input.split_rule_id,
+        status: "submitted",
+        admin_note: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        updated_at: new Date().toISOString(),
       },
       { onConflict: "track_id" }
     )
@@ -202,6 +214,7 @@ export async function assignSplitToTrackAction(input: {
     .single();
   if (error) return { ok: false, error: publicErrorMessage(error.message) };
   revalidatePath("/splitshare/assignments");
+  revalidatePath("/admin/splitshare");
   return { ok: true, data: { id: data.id } };
 }
 
@@ -210,11 +223,37 @@ export async function createRecoupmentAction(input: {
   amountMinor: number;
   currency?: string;
   notes?: string;
+  payee_id: string;
+  track_id?: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  const rl = checkRateLimit({ key: `splitshare:recoupment:${ctx.userId}`, ...RATE_LIMITS.portalRequest });
+  if (!rl.ok) return { ok: false, error: "Too many recoupment requests. Try again later." };
   const parsed = validateRecoupmentInput(input);
   if (!parsed.ok) return parsed;
+  if (!/^[0-9a-f-]{36}$/i.test(input.payee_id)) return { ok: false, error: "Select an approved payee." };
   const supabase = await createClient();
+  const { data: payee } = await supabase
+    .from("portal_payees")
+    .select("id")
+    .eq("id", input.payee_id)
+    .eq("owner_user_id", ctx.userId)
+    .eq("status", "approved")
+    .maybeSingle();
+  if (!payee) return { ok: false, error: "Select an approved payee." };
+
+  let trackId: string | null = null;
+  if (input.track_id) {
+    const { data: track } = await supabase
+      .from("release_tracks")
+      .select("id, releases!inner(owner_user_id)")
+      .eq("id", input.track_id)
+      .eq("releases.owner_user_id", ctx.userId)
+      .maybeSingle();
+    if (!track) return { ok: false, error: "Track not found." };
+    trackId = track.id;
+  }
+
   const { data, error } = await supabase
     .from("portal_recoupments")
     .insert({
@@ -223,12 +262,19 @@ export async function createRecoupmentAction(input: {
       amount_minor: parsed.amountMinor,
       currency: parsed.currency,
       notes: input.notes?.trim() || null,
-      status: "open",
+      payee_id: input.payee_id,
+      track_id: trackId,
+      recovered_minor: 0,
+      status: "submitted",
+      admin_note: null,
+      reviewed_by: null,
+      reviewed_at: null,
     })
     .select("id")
     .single();
   if (error) return { ok: false, error: publicErrorMessage(error.message) };
   revalidatePath("/splitshare/recoupments");
+  revalidatePath("/admin/splitshare");
   return { ok: true, data: { id: data.id } };
 }
 

@@ -14,6 +14,7 @@ export type SplitShareInput = {
   partyRole: SplitPartyRole;
   shareBps: number;
   partyUserId?: string | null;
+  payeeId?: string | null;
 };
 
 export function validateSplitShares(shares: SplitShareInput[]): {
