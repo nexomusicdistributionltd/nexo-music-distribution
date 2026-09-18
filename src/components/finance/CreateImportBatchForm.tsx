@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { upsertRoyaltyImportBatchAction } from "@/app/admin/finance/actions";
 
 export function CreateImportBatchForm() {
+  const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
@@ -26,7 +28,7 @@ export function CreateImportBatchForm() {
         });
         setPending(false);
         if (!r.ok) setError(r.error);
-        else window.location.reload();
+        else router.refresh();
       }}
     >
       <Input name="sourceProvider" placeholder="source_provider" required />
