@@ -34,7 +34,7 @@ describe("provider config", () => {
     __resetProviderCacheForTests();
   }
 
-  it("reports not connected when env unset", () => {
+  it("reports not connected when env unset", async () => {
     setEnv({
       PROVIDER_NAME: undefined,
       PROVIDER_API_KEY: undefined,
@@ -47,7 +47,7 @@ describe("provider config", () => {
     expect(cfg.name).toBe("not_connected");
     const p = getProvider();
     expect(p.connected).toBe(false);
-    expect(getProviderConnectionState().connected).toBe(false);
+    expect((await getProviderConnectionState()).connected).toBe(false);
   });
 
   it("does not claim connected without both name and api key", () => {
@@ -55,12 +55,12 @@ describe("provider config", () => {
     expect(isDistributionProviderConfigured()).toBe(false);
   });
 
-  it("still returns NotConnected adapter until real adapter registered", () => {
+  it("still returns NotConnected adapter until real adapter registered", async () => {
     setEnv({ PROVIDER_NAME: "fuga", PROVIDER_API_KEY: "secret-test" });
     expect(isDistributionProviderConfigured()).toBe(true);
     const p = getProvider();
     // No live adapter registered — factory refuses fake success
     expect(p.connected).toBe(false);
-    expect(getProviderConnectionState().connected).toBe(false);
+    expect((await getProviderConnectionState()).connected).toBe(false);
   });
 });
