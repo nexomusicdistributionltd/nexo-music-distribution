@@ -72,6 +72,7 @@ export function ReleaseWizard({
   accountRole = "artist",
   rosterArtists = [],
   initialArtistProfileId = "",
+  defaultLabelName = "",
 }: {
   initial?: ReleaseRow | null;
   tracks?: ReleaseTrackRow[];
@@ -81,6 +82,7 @@ export function ReleaseWizard({
   accountRole?: "artist" | "label";
   rosterArtists?: RosterOption[];
   initialArtistProfileId?: string;
+  defaultLabelName?: string;
 }) {
   const router = useRouter();
   const initialDistribution =
@@ -109,7 +111,7 @@ export function ReleaseWizard({
     language: initial?.language ?? "en",
     release_date: initial?.release_date ?? "",
     original_release_date: initial?.original_release_date ?? "",
-    label_name: initial?.label_name ?? "",
+    label_name: initial?.label_name ?? (accountRole === "label" ? defaultLabelName : ""),
     description: initial?.description ?? "",
     explicit: initial?.explicit ?? false,
   });
@@ -181,7 +183,11 @@ export function ReleaseWizard({
           isni: (c as ReleaseContributorRow).isni ?? "",
         }))
       : [{
-          name: initial?.primary_artist_name ?? "",
+          name:
+            initial?.primary_artist_name ??
+            (accountRole === "label"
+              ? seededRosterArtist?.artist_name || seededRosterArtist?.stage_name || ""
+              : ""),
           role: "primary_artist",
           share_percent: "",
           track_id: "",
@@ -529,10 +535,18 @@ export function ReleaseWizard({
                         setRosterArtistId(id);
                         const a = rosterArtists.find((r) => r.id === id);
                         if (a) {
+                          const artistName = a.artist_name || a.stage_name;
                           setInfo((prev) => ({
                             ...prev,
-                            primary_artist_name: a.artist_name || a.stage_name,
+                            primary_artist_name: artistName,
                           }));
+                          setContributors((prev) =>
+                            prev.map((contributor, index) =>
+                              index === 0 && contributor.role === "primary_artist"
+                                ? { ...contributor, name: artistName }
+                                : contributor
+                            )
+                          );
                         }
                       }}
                       disabled={Boolean(releaseId)}
