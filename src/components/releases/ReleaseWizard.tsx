@@ -452,7 +452,6 @@ export function ReleaseWizard({
       xhr.open("POST", endpoint, true);
       xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
       xhr.setRequestHeader("apikey", anonKey);
-      xhr.setRequestHeader("x-upsert", "true");
       xhr.setRequestHeader("Content-Type", options.contentType);
       xhr.upload.onprogress = (event) => {
         if (!event.lengthComputable) return;
