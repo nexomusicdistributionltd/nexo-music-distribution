@@ -168,6 +168,24 @@ export function MoveInClient({
           <h2 className="text-h4">Search / Import</h2>
           <div className="flex flex-wrap gap-2">
             <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending || items.length === 0}
+              onClick={() => setItems((prev) => prev.map((item) => ({ ...item, selected: true })))}
+            >
+              Select all
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending || items.length === 0}
+              onClick={() => setItems((prev) => prev.map((item) => ({ ...item, selected: false })))}
+            >
+              Clear selection
+            </Button>
+            <Button
               size="sm"
               variant="secondary"
               disabled={pending}
@@ -254,8 +272,8 @@ export function MoveInClient({
               rows={8}
               placeholder={
                 importFormat === "json"
-                  ? '[{"title":"Song","artist_name":"Artist","upc":"…","isrcs":["…"]}]'
-                  : "title,artist_name,upc,isrcs"
+                  ? '[{"title":"Album","artist_name":"Artist","upc":"…","tracks":[{"track_number":1,"title":"Track 1","isrc":"…"}]}]'
+                  : "title,artist_name,upc,isrcs,track_titles"
               }
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
@@ -367,11 +385,15 @@ export function MoveInClient({
               disabled={pending || selectedIds.length === 0}
               onClick={() =>
                 start(async () => {
-                  await setMigrationStepAction({
+                  const stepResult = await setMigrationStepAction({
                     migrationId: migration.id,
                     step: "move_in",
                     selectedItemIds: selectedIds,
                   });
+                  if (!stepResult.ok) {
+                    applyResult(stepResult);
+                    return;
+                  }
                   const r = await moveInMigrationAction(migration.id);
                   applyResult(r);
                 })
