@@ -31,7 +31,7 @@ export function PostApprovalReviewForm({ releaseId }: { releaseId: string }) {
       <div>
         <h2 className="text-h4">Return release for correction</h2>
         <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-          Use this while the release is approved or still waiting in Nexo's delivery queue. Nexo
+          Use this while the release is approved or still waiting in Nexo’s delivery queue. Nexo
           cancels any safe queued job, makes the release editable again in the artist or label
           dashboard, shows your reason to the account owner, and lets them resubmit it to QC.
         </p>
