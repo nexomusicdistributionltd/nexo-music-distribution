@@ -28,7 +28,7 @@ export async function saveDistributionToken(token: DistributionOAuthToken): Prom
       token_type: typeof token.token_type === "string" ? token.token_type : null,
       scope: typeof token.scope === "string" ? token.scope : null,
       expires_at: expiresAt,
-      verified_at: new Date().toISOString(),
+      verified_at: null,
     },
     { onConflict: "connection_key" }
   );
@@ -56,12 +56,21 @@ export async function loadDistributionAccessToken(): Promise<string | null> {
   return decryptDistributionSecret(data.access_token_ciphertext);
 }
 
+export async function markDistributionCredentialVerified(): Promise<void> {
+  const db = createServiceClient();
+  const { error } = await db
+    .from("distribution_provider_credentials")
+    .update({ verified_at: new Date().toISOString() })
+    .eq("connection_key", "primary");
+  if (error) throw new Error("Could not mark Distribution Engine credentials as verified.");
+}
+
 export async function hasDistributionCredential(): Promise<boolean> {
   const db = createServiceClient();
   const { data, error } = await db
     .from("distribution_provider_credentials")
-    .select("verified_at")
+    .select("access_token_ciphertext")
     .eq("connection_key", "primary")
     .maybeSingle();
-  return !error && Boolean(data?.verified_at);
+  return !error && Boolean(data?.access_token_ciphertext);
 }
