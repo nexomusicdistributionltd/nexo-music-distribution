@@ -3,7 +3,12 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getProvider, getProviderConnectionState } from "@/lib/provider";
-import { toProviderErrorPayload, PROVIDER_NOT_CONNECTED_CODE } from "@/lib/provider/errors";
+import type { ProviderReleasePayload } from "@/lib/provider/types";
+import {
+  toProviderErrorPayload,
+  PROVIDER_DELIVERY_VALIDATION_CODE,
+  PROVIDER_NOT_CONNECTED_CODE,
+} from "@/lib/provider/errors";
 import { mapProviderStatusToRelease } from "./types";
 
 export type DistActionResult<T = unknown> =
@@ -27,12 +32,142 @@ export async function queueApprovedRelease(
  * Idempotent submit of a queued job. Never invents provider success.
  * When provider not connected → records failed/unavailable truthfully.
  */
+function providerPayloadFromRelease(release: Record<string, any>): ProviderReleasePayload {
+  const audioAssets = (release.release_assets ?? []).filter(
+    (asset: { kind: string }) => asset.kind === "audio"
+  );
+  const artwork = (release.release_assets ?? []).find(
+    (asset: { kind: string }) => asset.kind === "artwork"
+  );
+  const tracks = [...(release.release_tracks ?? [])].sort(
+    (a: { track_number: number }, b: { track_number: number }) =>
+      a.track_number - b.track_number
+  );
+
+  return {
+    releaseId: release.id,
+    title: release.title,
+    type: release.release_type,
+    primaryArtistName: release.primary_artist_name,
+    labelName: release.label_name,
+    genre: release.genre,
+    subgenre: release.subgenre,
+    language: release.language,
+    upc: release.upc,
+    releaseDate: release.release_date,
+    originalReleaseDate: release.original_release_date,
+    copyrightYear: release.copyright_year,
+    copyrightLine: release.copyright_line,
+    phonogramLine: release.phonogram_line,
+    tracks: tracks.map(
+      (t: {
+        id: string;
+        track_number: number;
+        title: string;
+        version: string | null;
+        isrc: string | null;
+        language: string | null;
+        explicit: boolean;
+      }) => {
+        const linked = audioAssets.find(
+          (asset: { track_id?: string | null }) => asset.track_id === t.id
+        );
+        const audio =
+          linked ??
+          (tracks.length === 1 && audioAssets.length === 1 ? audioAssets[0] : null);
+
+        return {
+          trackId: t.id,
+          trackNumber: t.track_number,
+          title: t.title,
+          version: t.version,
+          isrc: t.isrc,
+          language: t.language,
+          explicit: t.explicit,
+          audioStorageBucket: audio?.storage_bucket ?? null,
+          audioStoragePath: audio?.storage_path ?? null,
+          audioFilename: audio?.filename ?? null,
+          audioMimeType: audio?.mime_type ?? null,
+        };
+      }
+    ),
+    artworkStorageBucket: artwork?.storage_bucket ?? null,
+    artworkStoragePath: artwork?.storage_path ?? null,
+    artworkFilename: artwork?.filename ?? null,
+    artworkMimeType: artwork?.mime_type ?? null,
+    territories: release.territories ?? [],
+    deliverySettings:
+      release.distribution_settings && typeof release.distribution_settings === "object"
+        ? release.distribution_settings
+        : {},
+  };
+}
+
+function validateProviderPayloadBeforeAttempt(payload: ProviderReleasePayload): string | null {
+  if (!payload.artworkStorageBucket || !payload.artworkStoragePath) {
+    return "Cover artwork is required before Distribution Engine delivery.";
+  }
+  if (!payload.tracks.length) {
+    return "At least one track is required before Distribution Engine delivery.";
+  }
+  for (const track of payload.tracks) {
+    if (!track.audioStorageBucket || !track.audioStoragePath) {
+      return `Track ${track.trackNumber} is missing linked audio.`;
+    }
+    if (track.audioMimeType !== "audio/flac") {
+      return `Track ${track.trackNumber} must use lossless FLAC audio for Distribution Engine delivery. Re-upload this track as FLAC before retrying.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Idempotent submission of a queued job. Connection/media preflight happens before
+ * an attempt row is opened so predictable operator fixes do not create fake failures.
+ */
 export async function submitQueuedRelease(
   jobId: string,
   idempotencyKey: string
 ): Promise<DistActionResult> {
   const supabase = await createClient();
   const service = createServiceClient();
+
+  const state = await getProviderConnectionState();
+  const provider = getProvider();
+  if (!state.connected || !provider.connected) {
+    return {
+      ok: false,
+      error: "Distribution Engine authorization is unavailable. Reconnect it from the secure admin integration.",
+      code: PROVIDER_NOT_CONNECTED_CODE,
+    };
+  }
+
+  const { data: job, error: jobError } = await supabase
+    .from("distribution_jobs")
+    .select("id, release_id, status")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (jobError) return { ok: false, error: jobError.message };
+  if (!job) return { ok: false, error: "Distribution job not found." };
+
+  const { data: release, error: releaseError } = await supabase
+    .from("releases")
+    .select("*, release_tracks(*), release_assets(*), release_contributors(*)")
+    .eq("id", job.release_id)
+    .maybeSingle();
+  if (releaseError) return { ok: false, error: releaseError.message };
+  if (!release) return { ok: false, error: "Release not found." };
+
+  const providerPayload = providerPayloadFromRelease(release as Record<string, any>);
+  const preflightError = validateProviderPayloadBeforeAttempt(providerPayload);
+  if (preflightError) {
+    return {
+      ok: false,
+      error: preflightError,
+      code: PROVIDER_DELIVERY_VALIDATION_CODE,
+    };
+  }
+
   const { data: begin, error: beginErr } = await supabase.rpc("begin_submit_queued_release", {
     p_job_id: jobId,
     p_idempotency_key: idempotencyKey,
@@ -46,119 +181,11 @@ export async function submitQueuedRelease(
     status?: string;
     provider_release_id?: string;
   };
-
-  if (began.idempotent) {
-    return { ok: true, data: began };
-  }
-
-  const provider = getProvider();
-  const state = await getProviderConnectionState();
-
-  if (!state.connected || !provider.connected) {
-    const { data, error } = await service.rpc("complete_submit_queued_release", {
-      p_submission_id: began.submission_id,
-      p_ok: false,
-      p_error_code: PROVIDER_NOT_CONNECTED_CODE,
-      p_error_message:
-        "Distribution Engine authorization is unavailable. Connect it from the secure admin integration.",
-    });
-    if (error) return { ok: false, error: error.message, code: PROVIDER_NOT_CONNECTED_CODE };
-    return {
-      ok: false,
-      error: "Distribution Engine authorization is unavailable.",
-      code: PROVIDER_NOT_CONNECTED_CODE,
-      data,
-    };
-  }
-
-  // Load release payload
-  const { data: release } = await supabase
-    .from("releases")
-    .select("*, release_tracks(*), release_assets(*), release_contributors(*)")
-    .eq("id", began.release_id!)
-    .maybeSingle();
-
-  if (!release) {
-    await service.rpc("complete_submit_queued_release", {
-      p_submission_id: began.submission_id,
-      p_ok: false,
-      p_error_code: "RELEASE_NOT_FOUND",
-      p_error_message: "Release not found for submission",
-    });
-    return { ok: false, error: "Release not found" };
-  }
+  if (began.idempotent) return { ok: true, data: began };
 
   try {
-    const audioAssets = (release.release_assets ?? []).filter(
-      (asset: { kind: string }) => asset.kind === "audio"
-    );
-    const artwork = (release.release_assets ?? []).find(
-      (asset: { kind: string }) => asset.kind === "artwork"
-    );
-    const tracks = [...(release.release_tracks ?? [])].sort(
-      (a: { track_number: number }, b: { track_number: number }) =>
-        a.track_number - b.track_number
-    );
+    const result = await provider.submitRelease(providerPayload);
 
-    const result = await provider.submitRelease({
-      releaseId: release.id,
-      title: release.title,
-      type: release.release_type,
-      primaryArtistName: release.primary_artist_name,
-      labelName: release.label_name,
-      genre: release.genre,
-      subgenre: release.subgenre,
-      language: release.language,
-      upc: release.upc,
-      releaseDate: release.release_date,
-      originalReleaseDate: release.original_release_date,
-      copyrightYear: release.copyright_year,
-      copyrightLine: release.copyright_line,
-      phonogramLine: release.phonogram_line,
-      tracks: tracks.map(
-        (t: {
-          id: string;
-          track_number: number;
-          title: string;
-          version: string | null;
-          isrc: string | null;
-          language: string | null;
-          explicit: boolean;
-        }) => {
-          const linked = audioAssets.find(
-            (asset: { track_id?: string | null }) => asset.track_id === t.id
-          );
-          const audio =
-            linked ??
-            (tracks.length === 1 && audioAssets.length === 1 ? audioAssets[0] : null);
-
-          return {
-            trackId: t.id,
-            trackNumber: t.track_number,
-            title: t.title,
-            version: t.version,
-            isrc: t.isrc,
-            language: t.language,
-            explicit: t.explicit,
-            audioStorageBucket: audio?.storage_bucket ?? null,
-            audioStoragePath: audio?.storage_path ?? null,
-            audioFilename: audio?.filename ?? null,
-            audioMimeType: audio?.mime_type ?? null,
-          };
-        }
-      ),
-      artworkStorageBucket: artwork?.storage_bucket ?? null,
-      artworkStoragePath: artwork?.storage_path ?? null,
-      artworkFilename: artwork?.filename ?? null,
-      artworkMimeType: artwork?.mime_type ?? null,
-      territories: release.territories ?? [],
-      deliverySettings:
-        release.distribution_settings && typeof release.distribution_settings === "object"
-          ? release.distribution_settings
-          : {},
-    });
-
-    // Success finalize is service_role only — never forge via staff JWT.
     const { data, error } = await service.rpc("complete_submit_queued_release", {
       p_submission_id: began.submission_id,
       p_ok: true,
