@@ -35,6 +35,48 @@ alter table public.portal_service_requests
 create index if not exists portal_service_status_idx
   on public.portal_service_requests (kind, status, created_at desc);
 
+create or replace function public.guard_marketing_request_admin_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  if old.kind in (
+    'dsp_pitching',
+    'campaign',
+    'priority_pitch',
+    'spotify_discovery_mode',
+    'promotional_assets',
+    'fan_blast',
+    'award_monitoring',
+    'third_party_playlisting',
+    'ad_box',
+    'influencers',
+    'labs',
+    'luminate'
+  ) and not (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  ) then
+    raise exception 'Marketing request updates require administrator access'
+      using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists guard_marketing_request_admin_update on public.portal_service_requests;
+create trigger guard_marketing_request_admin_update
+  before update on public.portal_service_requests
+  for each row execute function public.guard_marketing_request_admin_update();
+
+
 create table if not exists public.marketing_service_controls (
   kind text primary key,
   label text not null,
@@ -66,8 +108,14 @@ create policy "marketing_service_controls_select" on public.marketing_service_co
 drop policy if exists "marketing_service_controls_staff_write" on public.marketing_service_controls;
 create policy "marketing_service_controls_staff_write" on public.marketing_service_controls
   for all to authenticated
-  using (public.is_staff(auth.uid()))
-  with check (public.is_staff(auth.uid()));
+  using (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  )
+  with check (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  );
 
 insert into public.marketing_service_controls
   (kind, label, enabled, accepting_requests, requires_release, provider_mode, provider_feature, description, admin_instructions)
@@ -143,8 +191,14 @@ create policy "marketing_content_pages_select" on public.marketing_content_pages
 drop policy if exists "marketing_content_pages_staff_write" on public.marketing_content_pages;
 create policy "marketing_content_pages_staff_write" on public.marketing_content_pages
   for all to authenticated
-  using (public.is_staff(auth.uid()))
-  with check (public.is_staff(auth.uid()));
+  using (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  )
+  with check (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  );
 
 insert into public.marketing_content_pages (slug, title, summary, sections)
 values
