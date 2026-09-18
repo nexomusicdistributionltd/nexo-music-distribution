@@ -47,6 +47,18 @@ export const ENROLLABLE_SERVICES = [
 
 export const SERVICE_KIND_LABEL: Record<PortalServiceKind, string> = {
   ringtone: "Create Ringtone",
+  profile_defender: "Profile Defender",
+  priority_pitch: "Priority Pitch",
+  usage_discovery: "Usage Discovery",
+  chart_registration: "Chart Registration",
+  cover_song_licensing: "Cover Song Licensing",
+  audio_recognition: "Audio Recognition",
+  spotify_discovery_mode: "Spotify Discovery Mode",
+  tiktok_cml: "TikTok CML",
+  promotional_assets: "Promotional Assets",
+  fan_blast: "Fan Blast",
+  award_monitoring: "Award Monitoring",
+  conflict_resolution: "Conflict Resolution",
   mastering: "Master Your Track",
   sync: "Sync Representation",
   physical: "Physical Distribution",
