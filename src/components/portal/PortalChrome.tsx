@@ -19,6 +19,7 @@ export function PortalChrome({
   workspaceKind,
   unreadNotifications = 0,
   labelName,
+  identityVerified = false,
 }: {
   sections: NavSection[];
   accountItems: NavItem[];
@@ -26,6 +27,7 @@ export function PortalChrome({
   workspaceKind: Exclude<WorkspaceKind, "admin">;
   unreadNotifications?: number;
   labelName?: string | null;
+  identityVerified?: boolean;
 }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = React.useState(false);
@@ -120,7 +122,7 @@ export function PortalChrome({
             setAccountOpen(true);
           }}
         >
-          {displayName}
+          {displayName}{identityVerified ? <span className="ml-1 inline-flex rounded-full bg-black px-1.5 py-0.5 text-[0.55rem] font-bold text-white" title="Identity verified">✓</span> : null}
         </button>
         <ThemeToggle />
         <button
@@ -162,7 +164,7 @@ export function PortalChrome({
                 id="portal-account-title"
                 className="mt-3 truncate text-[0.95rem] font-semibold uppercase tracking-[0.08em] text-[var(--nexo-text)]"
               >
-                {displayName}
+                {displayName}{identityVerified ? <span className="ml-2 inline-flex rounded-full bg-black px-2 py-0.5 text-[0.6rem] font-bold text-white">✓ VERIFIED</span> : null}
               </h2>
             </div>
             <CloseX onClick={() => setAccountOpen(false)} />
