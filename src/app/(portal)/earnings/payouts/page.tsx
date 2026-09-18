@@ -41,7 +41,7 @@ export default async function EarningsPayoutsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-h2">Request Payment</h1>
+      <section className="rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 sm:p-8"><p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--nexo-text-muted)]">Finance</p><h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">Payouts</h1><p className="mt-2 text-small text-[var(--nexo-text-secondary)]">Request payment from your available royalty balance and follow each request through review and payment.</p></section>
       <EarningsNav />
       <PayoutRequestForm
         availableMinor={availableMinor}
