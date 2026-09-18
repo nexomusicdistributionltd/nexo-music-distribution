@@ -13,6 +13,7 @@ import { countUnreadNotifications } from "@/lib/releases/queries";
 import { getLabelProfileForUser } from "@/lib/roster/queries";
 import { isBlockedStatus } from "@/lib/auth/types";
 import { redirect } from "next/navigation";
+import { getIdentityVerificationForUser } from "@/lib/identity/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,13 @@ export default async function PortalLayout({
   }
 
   const isPortalWorkspace = workspaceKind === "artist" || workspaceKind === "label";
+  const identityVerification = isPortalWorkspace
+    ? await getIdentityVerificationForUser(ctx.userId)
+    : null;
+
+  if (isPortalWorkspace && identityVerification?.status !== "verified") {
+    redirect("/verify-identity");
+  }
 
   if (isPortalWorkspace) {
     return (
@@ -60,6 +68,7 @@ export default async function PortalLayout({
           workspaceKind={workspaceKind}
           unreadNotifications={unread}
           labelName={labelName}
+          identityVerified={identityVerification?.status === "verified"}
         />
         <RealtimeRefresh userId={ctx.userId} />
         <main className="flex-1 px-4 py-5 sm:px-6 lg:ml-[18.5rem] lg:px-8">{children}</main>
