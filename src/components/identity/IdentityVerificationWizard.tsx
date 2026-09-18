@@ -82,7 +82,7 @@ export function IdentityVerificationWizard({
           if (row.status) setLiveStatus(row.status);
           if ("reason" in row) setLiveReason(row.reason ?? null);
           if (row.status === "verified") {
-            router.replace("/dashboard");
+            router.replace("/distribution-agreement");
             router.refresh();
           }
         }
@@ -207,8 +207,8 @@ export function IdentityVerificationWizard({
             Your Nexo identity verification is approved.
           </p>
         </div>
-        <Link href="/dashboard" className="inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white">
-          Continue to dashboard
+        <Link href="/distribution-agreement" className="inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white">
+          Continue to agreement
         </Link>
       </div>
     );
