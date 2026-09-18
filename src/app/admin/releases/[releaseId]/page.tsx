@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { QcDecisionForm } from "@/components/admin/QcDecisionForm";
+import { AdminReleaseMetadataForm } from "@/components/admin/AdminReleaseMetadataForm";
+import { PostApprovalReviewForm } from "@/components/admin/PostApprovalReviewForm";
 import { TrackPlayer } from "@/components/admin/TrackPlayer";
 import { ReleaseDetailView } from "@/components/releases/ReleaseDetailView";
 import { getReleaseDetail } from "@/lib/releases/queries";
@@ -72,6 +74,16 @@ export default async function AdminReleaseDetailPage({
     .select("territories, use_types, commercial_model_types, validity_start, validity_end")
     .eq("release_id", releaseId);
 
+  const adminMetadataEditable = [
+    "draft",
+    "submitted",
+    "in_qc",
+    "changes_requested",
+    "approved",
+    "rejected",
+    "failed",
+  ].includes(release.status);
+
   const readiness = evaluateReleaseReadiness({
     upc: release.upc,
     copyright_line: release.copyright_line,
@@ -117,6 +129,8 @@ export default async function AdminReleaseDetailPage({
       }
       extra={
         <div className="space-y-8">
+          {adminMetadataEditable ? <AdminReleaseMetadataForm release={release} /> : null}
+          {release.status === "approved" ? <PostApprovalReviewForm releaseId={release.id} /> : null}
           <section className="space-y-3">
             <h2 className="text-h4">Listen</h2>
             {trackPlayers.length === 0 ? (
