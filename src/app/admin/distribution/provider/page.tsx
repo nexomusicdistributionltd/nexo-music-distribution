@@ -19,7 +19,7 @@ export default async function ProviderStatusPage({
 }: {
   searchParams: Promise<{ connection?: string }>;
 }) {
-  await RequireAdministrator();
+  const ctx = await RequireAdministrator();
   const query = await searchParams;
   const oauthConfigured = isDistributionOAuthConfigured();
   const authorized = oauthConfigured ? await hasDistributionCredential() : false;
@@ -52,6 +52,23 @@ export default async function ProviderStatusPage({
           Provider authorization did not complete. Use Reconnect Distribution Engine to start a
           fresh authorization.
         </div>
+      ) : null}
+      {ctx.roles.includes("super_admin") ? (
+        <Card className="mt-4">
+          <CardHeader><CardTitle>API response checks</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-small">
+            <p>Download a report of response types using the existing connection. Reports exclude customer values and tokens. Each check makes up to four read requests that count toward your provider quota.</p>
+            <p>These checks help verify integrations when documentation is unavailable. Empty responses cannot establish the missing schema.</p>
+            <form method="post" action="/api/admin/distribution/inspect" className="flex flex-wrap gap-3">
+              {["analytics", "sales", "preferences", "lookups"].map(group => (
+                <button key={group} type="submit" name="group" value={group} disabled={!authorized}
+                  className="rounded-md border border-[var(--nexo-border)] px-4 py-2 capitalize disabled:opacity-50">
+                  Check {group}
+                </button>
+              ))}
+            </form>
+          </CardContent>
+        </Card>
       ) : null}
       <Card className="mt-4">
         <CardHeader>
