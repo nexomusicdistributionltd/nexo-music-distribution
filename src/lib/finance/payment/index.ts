@@ -22,6 +22,9 @@ export {
   verifyPayoutWebhookSignature,
   extractPayoutWebhookEventId,
   extractPayoutWebhookEventType,
+  extractProviderPayoutReference,
+  extractPayoutPaymentReference,
+  extractPayoutMappedStatus,
 } from "./webhook";
 
 let cached: PaymentProvider | null = null;

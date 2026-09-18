@@ -7,6 +7,9 @@ import {
   verifyPayoutWebhookSignature,
   extractPayoutWebhookEventId,
   extractPayoutWebhookEventType,
+  extractProviderPayoutReference,
+  extractPayoutPaymentReference,
+  extractPayoutMappedStatus,
   getPaymentProvider,
 } from "@/lib/finance/payment";
 import {
@@ -28,10 +31,40 @@ function serviceClient() {
   });
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+async function resolveInternalPayoutId(
+  supabase: NonNullable<ReturnType<typeof serviceClient>>,
+  payoutReference: string | null
+): Promise<string | null> {
+  if (!payoutReference) return null;
+
+  if (isUuid(payoutReference)) {
+    const { data: direct } = await supabase
+      .from("payouts")
+      .select("id")
+      .eq("id", payoutReference)
+      .maybeSingle();
+    if (typeof direct?.id === "string") return direct.id;
+  }
+
+  const { data: rows } = await supabase
+    .from("payouts")
+    .select("id")
+    .eq("provider_payout_id", payoutReference)
+    .limit(2);
+
+  return rows?.length === 1 && typeof rows[0]?.id === "string" ? rows[0].id : null;
+}
+
 /**
  * Payout provider webhook ingress.
- * Fail-closed when PAYMENT_WEBHOOK_SECRET missing or signature invalid.
- * Idempotent by (provider_name, event_id).
+ * Fails closed when PAYMENT_WEBHOOK_SECRET is missing or signature verification fails.
+ * Only a verified webhook is allowed to resolve or mutate a payout.
  */
 export async function POST(req: Request) {
   const ip = clientIpFromRequest(req);
@@ -57,52 +90,23 @@ export async function POST(req: Request) {
     signatureHeader: signature,
   });
 
-  let payload: Record<string, unknown> = {};
+  let payload: Record<string, unknown>;
   try {
     payload = rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {};
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  const eventId = extractPayoutWebhookEventId(payload);
+  const eventId = extractPayoutWebhookEventId(payload, rawBody);
   if (!eventId) {
     return NextResponse.json({ ok: false, error: "event id required" }, { status: 400 });
   }
 
   const eventType = extractPayoutWebhookEventType(payload);
   const providerName = getConfiguredPaymentProviderName() ?? "not_connected";
-
-  const payoutId =
-    typeof payload.payout_id === "string"
-      ? payload.payout_id
-      : typeof payload.payoutId === "string"
-        ? payload.payoutId
-        : null;
-
-  const paymentReference =
-    typeof payload.payment_reference === "string"
-      ? payload.payment_reference
-      : typeof payload.paymentReference === "string"
-        ? payload.paymentReference
-        : null;
-
-  const mappedStatus =
-    typeof payload.status === "string"
-      ? payload.status
-      : eventType.toLowerCase().includes("paid")
-        ? "paid"
-        : eventType.toLowerCase().includes("fail")
-          ? "failed"
-          : null;
-
-  await getPaymentProvider().handlePayoutWebhook({
-    providerName,
-    eventId,
-    eventType,
-    rawBody,
-    signatureHeader: signature,
-    payload,
-  });
+  const payoutReference = extractProviderPayoutReference(payload);
+  const paymentReference = extractPayoutPaymentReference(payload);
+  const mappedStatus = extractPayoutMappedStatus(payload);
 
   const supabase = serviceClient();
   if (!supabase) {
@@ -113,6 +117,24 @@ export async function POST(req: Request) {
       { ok: false, error: "Service role not configured — cannot persist webhook" },
       { status: 503 }
     );
+  }
+
+  const payoutId = verification.ok
+    ? await resolveInternalPayoutId(supabase, payoutReference)
+    : null;
+
+  if (verification.ok) {
+    const adapter = getPaymentProvider();
+    if (adapter.connected) {
+      await adapter.handlePayoutWebhook({
+        providerName,
+        eventId,
+        eventType,
+        rawBody,
+        signatureHeader: signature,
+        payload,
+      });
+    }
   }
 
   const { data, error } = await supabase.rpc("process_payout_webhook_event", {
@@ -127,7 +149,10 @@ export async function POST(req: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: publicErrorMessage(error.message, "Webhook processing failed") }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: publicErrorMessage(error.message, "Webhook processing failed") },
+      { status: 500 }
+    );
   }
 
   if (!verification.ok) {
@@ -137,5 +162,10 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, event: data });
+  return NextResponse.json({
+    ok: true,
+    matchedPayout: Boolean(payoutId),
+    mappedStatus,
+    event: data,
+  });
 }

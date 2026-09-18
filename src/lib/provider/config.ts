@@ -34,7 +34,11 @@ export function getProviderApiBaseUrl(): string | null {
 }
 
 export function getProviderWebhookSecret(): string | null {
-  const secret = trim(process.env.PROVIDER_WEBHOOK_SECRET);
+  // OAuth-backed Distribution Engine integrations use a dedicated webhook secret.
+  // Keep PROVIDER_WEBHOOK_SECRET as a legacy fallback for non-OAuth adapters.
+  const secret =
+    trim(process.env.DISTRIBUTION_WEBHOOK_SECRET) ||
+    trim(process.env.PROVIDER_WEBHOOK_SECRET);
   return secret.length > 0 ? secret : null;
 }
 

@@ -24,6 +24,12 @@ import {
   NO_FAKE_COLLECTION_MESSAGE,
   NO_FAKE_REGISTRATION_MESSAGE,
 } from "@/lib/publishing/types";
+import {
+  extractProviderPayoutReference,
+  extractPayoutMappedStatus,
+  extractPayoutPaymentReference,
+  extractPayoutWebhookEventId,
+} from "./payment/webhook";
 
 describe("Batch 7 ledger / money", () => {
   it("uses integer minor units only", () => {
@@ -276,5 +282,38 @@ describe("Batch 7 hostile PAID path", () => {
     const { getPaymentConnectionState } = await import("./payment");
     expect(getPaymentConnectionState().connected).toBe(false);
     expect(canSetPaidWithPaymentOp({ paymentReference: "x", paidAt: null }).ok).toBe(false);
+  });
+});
+
+
+describe("Batch 7 payout webhook hardening", () => {
+  it("does not confuse an external payout id with an event id", () => {
+    const payload = { payout_id: "provider_payout_123", status: "paid" };
+    expect(extractPayoutWebhookEventId(payload)).toBeNull();
+    expect(extractProviderPayoutReference(payload)).toBe("provider_payout_123");
+  });
+
+  it("derives deterministic idempotency when no provider event id is supplied", () => {
+    const raw = JSON.stringify({ payout_id: "provider_payout_123", status: "paid" });
+    const a = extractPayoutWebhookEventId(JSON.parse(raw), raw);
+    const b = extractPayoutWebhookEventId(JSON.parse(raw), raw);
+    expect(a).toMatch(/^body_[0-9a-f]{64}$/);
+    expect(b).toBe(a);
+  });
+
+  it("maps only explicit terminal payout statuses", () => {
+    expect(extractPayoutMappedStatus({ status: "paid" })).toBe("paid");
+    expect(extractPayoutMappedStatus({ type: "payout.completed" })).toBe("paid");
+    expect(extractPayoutMappedStatus({ type: "payout.failed" })).toBe("failed");
+    expect(extractPayoutMappedStatus({ type: "payout.unpaid" })).toBeNull();
+    expect(extractPayoutMappedStatus({ status: "processing" })).toBeNull();
+  });
+
+  it("extracts payment reference from nested payloads", () => {
+    expect(
+      extractPayoutPaymentReference({
+        data: { payout: { payment_reference: "bank_ref_123" } },
+      })
+    ).toBe("bank_ref_123");
   });
 });
