@@ -5,6 +5,7 @@ import type {
   DistributionJobRow,
   ProviderSubmissionRow,
   ProviderWebhookEventRow,
+  ProviderDeliverySnapshotRow,
 } from "./types";
 import { sanitizeDistributionSearchQuery } from "./search";
 
@@ -16,7 +17,7 @@ export async function listDistributionJobs(filters?: {
   const limit = Math.min(100, Math.max(1, filters?.limit ?? 50));
   let q = supabase
     .from("distribution_jobs")
-    .select("*, releases(id, title, primary_artist_name, status, upc)")
+    .select("*, releases(id, title, primary_artist_name, status, upc, release_date, provider_status, provider_release_id)")
     .order("queued_at", { ascending: false })
     .limit(limit);
   if (filters?.status) q = q.eq("status", filters.status);
@@ -45,6 +46,17 @@ export async function listWebhookEvents(limit = 50) {
     .limit(Math.min(100, limit));
   if (error) throw error;
   return (data ?? []) as ProviderWebhookEventRow[];
+}
+
+export async function listDeliverySnapshots(limit = 300) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("provider_delivery_snapshots")
+    .select("*")
+    .order("captured_at", { ascending: false })
+    .limit(Math.min(500, Math.max(1, limit)));
+  if (error) throw error;
+  return (data ?? []) as ProviderDeliverySnapshotRow[];
 }
 
 export async function listFailedJobs(limit = 50) {
