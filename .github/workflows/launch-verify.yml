@@ -41,5 +41,29 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
-      - run: npm test
-      - run: npm run build
+      - name: Test suite
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee test.log
+          echo "TEST_EXIT_CODE=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+          exit 0
+      - name: Production build
+        shell: bash
+        run: |
+          set +e
+          npm run build 2>&1 | tee build.log
+          echo "BUILD_EXIT_CODE=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+          exit 0
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launch-verification-logs
+          path: |
+            test.log
+            build.log
+      - name: Enforce verification result
+        run: |
+          test "${TEST_EXIT_CODE}" = "0"
+          test "${BUILD_EXIT_CODE}" = "0"
