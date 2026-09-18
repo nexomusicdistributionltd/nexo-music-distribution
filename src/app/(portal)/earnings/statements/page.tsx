@@ -27,8 +27,8 @@ export default async function EarningsStatementsPage() {
       <EarningsNav />
       {(data ?? []).length === 0 ? (
         <EmptyState
-          title="No statements available"
-          description="Published statements from real ledger data will appear here. No fabricated figures."
+          title="No statements yet"
+          description="Your royalty statements will appear here when available."
         />
       ) : (
         <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
