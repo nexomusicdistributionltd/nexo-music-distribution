@@ -33,7 +33,7 @@ export type BillingToolListResult = {
 
 function safeSearchTerm(raw: string | null | undefined): string {
   return (raw ?? "")
-    .replace(/[%_,()]/g, " ")
+    .replace(/[^a-zA-Z0-9@.+ -]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
@@ -87,21 +87,32 @@ export async function listBillingToolUsers(input: {
 
     const userIds = profiles.map((profile) => profile.id);
 
-    const [{ data: subscriptions }, { data: overrides }, { data: ownedReleases }] =
-      await Promise.all([
-        db
-          .from("billing_subscriptions")
-          .select("*")
-          .in("user_id", userIds)
-          .order("updated_at", { ascending: false }),
-        db
-          .from("billing_entitlement_overrides")
-          .select(
-            "user_id,account_type,plan_id,billing_interval,status,starts_at,ends_at,reason"
-          )
-          .in("user_id", userIds),
-        db.from("releases").select("id,owner_user_id").in("owner_user_id", userIds),
-      ]);
+    const [subscriptionResult, overrideResult, releaseResult] = await Promise.all([
+      db
+        .from("billing_subscriptions")
+        .select("*")
+        .in("user_id", userIds)
+        .order("updated_at", { ascending: false }),
+      db
+        .from("billing_entitlement_overrides")
+        .select(
+          "user_id,account_type,plan_id,billing_interval,status,starts_at,ends_at,reason"
+        )
+        .in("user_id", userIds),
+      db
+        .from("releases")
+        .select("id,owner_user_id")
+        .in("owner_user_id", userIds)
+        .limit(2000),
+    ]);
+
+    const sourceError =
+      subscriptionResult.error ?? overrideResult.error ?? releaseResult.error;
+    if (sourceError) return { rows: [], error: sourceError.message };
+
+    const subscriptions = subscriptionResult.data;
+    const overrides = overrideResult.data;
+    const ownedReleases = releaseResult.data;
 
     const releaseOwner = new Map<string, string>();
     for (const release of ownedReleases ?? []) {
