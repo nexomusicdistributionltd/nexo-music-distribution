@@ -11,6 +11,8 @@ import { FinanceNav } from "@/components/finance/FinanceNav";
 import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { CreatePayoutForm } from "@/components/finance/CreatePayoutForm";
 import type { PayoutStatus } from "@/lib/finance/money";
+import { AdminPayoutMethodForm } from "@/components/finance/AdminPayoutMethodForm";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { unwrapAdminList } from "@/lib/db/admin-query";
 
 export const metadata: Metadata = {
@@ -21,10 +23,14 @@ export const metadata: Metadata = {
 export default async function PayoutsPage() {
   await RequireAdmin();
   const supabase = await createClient();
+  const service = createServiceClient();
   const payment = getPaymentConnectionState();
-  const listed = unwrapAdminList(
-    await supabase.from("payouts").select("*").order("created_at", { ascending: false }).limit(50)
-  );
+  const [payoutResult, methodsResult] = await Promise.all([
+    supabase.from("payouts").select("*").order("created_at", { ascending: false }).limit(50),
+    service.from("payout_methods").select("id,owner_user_id,method_type,label,destination_mask,is_preferred,source,status,created_at").order("created_at", { ascending: false }).limit(100),
+  ]);
+  const listed = unwrapAdminList(payoutResult);
+  const methods = methodsResult.data ?? [];
 
   return (
     <div>
@@ -34,12 +40,28 @@ export default async function PayoutsPage() {
       />
       <FinanceNav />
       <Alert variant="warning" title="Payment protection">
-        {payment.message} Marking PAID requires payment_reference + paid_at from an authorized
-        server/provider path.
+        {payment.connected
+          ? "Automated payment provider is available."
+          : "Automated provider payout may be unavailable; finance can still record a real externally completed/manual payment using its actual payment reference."}
+        {" "}PAID always requires an immutable payment reference and server-side finance action.
       </Alert>
-      <div className="mt-4">
+      <div className="mt-4 space-y-4">
         <CreatePayoutForm />
+        <AdminPayoutMethodForm />
       </div>
+      {methods.length > 0 ? (
+        <section className="mt-6 space-y-2">
+          <h2 className="text-h4">Configured payout methods</h2>
+          <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
+            {methods.map((method) => (
+              <li key={method.id} className="px-4 py-3 text-small">
+                <p className="font-medium">{method.label} {method.is_preferred ? "· Preferred" : ""}</p>
+                <p className="text-caption text-[var(--nexo-text-muted)]">{method.owner_user_id} · {String(method.method_type).replace(/_/g, " ")} · {method.destination_mask || "secure"} · {method.source} · {method.status}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {listed.error ? (
         <div className="mt-4">
           <ErrorState title="Payouts unavailable" description={listed.error} retryHref="/admin/payouts" />
