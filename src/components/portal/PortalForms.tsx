@@ -19,6 +19,7 @@ import {
   saveTaxDetailsAction,
 } from "@/app/(portal)/portal-actions";
 import type { SplitShareInput } from "@/lib/finance/splits";
+import { currencyFractionDigits, minorUnitsToInputValue, parseMajorToMinorUnits } from "@/lib/finance/money";
 
 function usePendingAction() {
   const router = useRouter();
@@ -238,7 +239,7 @@ export function RecoupmentForm() {
         void s.run(async () => {
           const r = await createRecoupmentAction({
             title: String(fd.get("title") || ""),
-            amountMinor: Math.round(Number(fd.get("amount_display")) * 100),
+            amountMinor: Number(fd.get("amount_minor")),
             currency: String(fd.get("currency") || "USD"),
             notes: String(fd.get("notes") || ""),
           });
@@ -250,7 +251,7 @@ export function RecoupmentForm() {
       {s.error ? <Alert variant="warning">{s.error}</Alert> : null}
       {s.ok ? <Alert variant="success">Saved.</Alert> : null}
       <Input name="title" required placeholder="Advance / cost name" />
-      <Input name="amount_minor" type="number" required placeholder="Amount in minor units (e.g. 10000 = $100.00)" />
+      <Input name="amount_minor" type="number" required min={1} step={1} placeholder="Amount in minor units (e.g. 10000 = $100.00)" />
       <Input name="currency" defaultValue="USD" maxLength={3} />
       <Textarea name="notes" placeholder="Notes" />
       <Button type="submit" disabled={s.pending}>
@@ -369,8 +370,15 @@ export function PayoutRequestForm({
         const fd = new FormData(e.currentTarget);
         const form = e.currentTarget;
         void s.run(async () => {
+          const parsedAmount = parseMajorToMinorUnits(
+            String(fd.get("amount_display") || ""),
+            currency
+          );
+          if (parsedAmount == null) {
+            return { ok: false as const, error: "Enter a valid payout amount for this currency." };
+          }
           const r = await createPayoutRequestAction({
-            amountMinor: Number(fd.get("amount_minor")),
+            amountMinor: parsedAmount,
             currency,
             method_note: String(fd.get("method_note") || ""),
           });
@@ -382,9 +390,16 @@ export function PayoutRequestForm({
       <Alert variant="warning">{paymentMessage}</Alert>
       {s.error ? <Alert variant="error">{s.error}</Alert> : null}
       {s.ok ? <Alert variant="success">Request submitted for staff review.</Alert> : null}
-      <p className="text-caption text-[var(--nexo-text-muted)]">Available balance: {(availableMinor / 100).toLocaleString(undefined, { style: "currency", currency })}</p>
-      <label className="block space-y-1"><span className="text-caption text-[var(--nexo-text-muted)]">Payout amount ({currency})</span><Input name="amount_display" type="number" required min={0.01} max={availableMinor / 100} step="0.01" placeholder="0.00" /></label>
-      <input type="hidden" name="amount_minor" value="" />
+      <p className="text-caption text-[var(--nexo-text-muted)]">Available balance: {new Intl.NumberFormat(undefined, { style: "currency", currency, minimumFractionDigits: currencyFractionDigits(currency), maximumFractionDigits: currencyFractionDigits(currency) }).format(Number(minorUnitsToInputValue(availableMinor, currency)))}</p>
+      <label className="block space-y-1"><span className="text-caption text-[var(--nexo-text-muted)]">Payout amount ({currency})</span><Input
+        name="amount_display"
+        type="number"
+        required
+        min={currencyFractionDigits(currency) === 0 ? "1" : `0.${"0".repeat(Math.max(0, currencyFractionDigits(currency) - 1))}1`}
+        max={minorUnitsToInputValue(availableMinor, currency)}
+        step={currencyFractionDigits(currency) === 0 ? "1" : `0.${"0".repeat(Math.max(0, currencyFractionDigits(currency) - 1))}1`}
+        placeholder={currencyFractionDigits(currency) === 0 ? "0" : `0.${"0".repeat(currencyFractionDigits(currency))}`}
+      /></label>
       <Input name="method_note" placeholder="Method note (optional)" />
       <Button type="submit" disabled={s.pending || availableMinor <= 0}>
         {s.pending ? "Submitting…" : "Request payment"}
