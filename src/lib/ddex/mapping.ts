@@ -74,7 +74,7 @@ export function mapCatalogToErn(
   if (!cfg.recipientPartyId) errors.push("Recipient DPID is not configured.");
 
   const releaseType = mapReleaseTypeToAvs(release.release_type);
-  if (!releaseType) errors.push("Release type must be single, EP, or album.");
+  if (!releaseType) errors.push("Release type must be single, EP, album, or compilation.");
 
   const upc = release.upc?.trim() || "";
   if (!upc) errors.push("UPC / ICPN is required and is never fabricated.");
