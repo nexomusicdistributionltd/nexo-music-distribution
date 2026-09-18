@@ -28,8 +28,9 @@ function scalarString(value: unknown): string | null {
 export function verifyProviderWebhookSignature(options: {
   rawBody: string;
   signatureHeader: string | null;
+  secret?: string | null;
 }): { ok: true } | { ok: false; reason: string } {
-  const secret = getProviderWebhookSecret();
+  const secret = options.secret ?? getProviderWebhookSecret();
   if (!secret) {
     return {
       ok: false,
