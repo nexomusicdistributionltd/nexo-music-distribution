@@ -17,6 +17,7 @@ import { artistMetadata, musicGroupJsonLd } from "@/lib/website/seo";
 import { isSafeHttpUrl } from "@/lib/website/sanitize";
 import { SITE_URL } from "@/lib/site";
 import { ExternalLink } from "lucide-react";
+import { VerifiedBadge } from "@/components/verification/VerifiedBadge";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -94,7 +95,7 @@ export default async function ArtistDetailPage({ params }: Props) {
               Artist
               {a.country ? ` · ${a.country}` : ""}
             </p>
-            <h1 className="mt-2 text-display text-[var(--nexo-text)]">{name}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-3"><h1 className="text-display text-[var(--nexo-text)]">{name}</h1>{a.identity_verified ? <VerifiedBadge /> : null}</div>
             {a.public_tagline ? (
               <p className="mt-3 max-w-2xl text-body text-[var(--nexo-text-muted)]">
                 {a.public_tagline}
