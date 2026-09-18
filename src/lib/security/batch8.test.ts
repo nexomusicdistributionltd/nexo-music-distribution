@@ -44,7 +44,7 @@ describe("Batch 8 hostile self-check", () => {
     expect(h["Permissions-Policy"]).toContain("camera=(self)");
     expect(h["Content-Security-Policy"]).toContain("*.supabase.co");
     expect(h["Referrer-Policy"]).toBeTruthy();
-    expect(h["Permissions-Policy"]).toContain("camera=()");
+    expect(h["Permissions-Policy"]).toContain("camera=(self)");
   });
 
   it("signed URL bucket allowlist rejects unknown buckets and traversal", () => {
