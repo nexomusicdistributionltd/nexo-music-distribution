@@ -1,159 +1,437 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+
 import { ANALYTICS_DSP_MATCH, type AnalyticsKey } from "@/lib/portal/service-kinds";
-import { ownedAnalytics } from "@/lib/provider/owned-data";
+import { ownedAnalytics, ownedSales } from "@/lib/provider/owned-data";
+
+type Row = Record<string, unknown>;
 
 export type AnalyticsSnapshot = {
   key: AnalyticsKey;
   connected: boolean;
-  statusLabel: "LIVE" | "EMPTY" | "AVAILABLE";
+  statusLabel: "LIVE" | "CONNECTED" | "UNAVAILABLE";
   rowCount: number;
   amountMinor: number | null;
   currency: string | null;
   dspCodes: string[];
   streamCounts: Record<string, number>;
   trendPercentByDsp: Record<string, number>;
+  metricTotals: Record<string, number>;
+  updatedAt: string | null;
   note: string;
 };
 
-function numericValue(row: Record<string, unknown>, keys: string[]): number | null {
+const METRICS = {
+  streams: ["streams", "stream_count", "streamCount", "total_streams", "totalStreams", "plays", "play_count", "playCount"],
+  downloads: ["downloads", "download_count", "downloadCount", "units", "quantity"],
+  video_creations: ["video_creations", "videoCreations", "total_video_creations", "totalVideoCreations", "creations", "creates", "uses"],
+  views: ["views", "view_count", "viewCount", "total_views", "totalViews"],
+  likes: ["likes", "like_count", "likeCount", "total_likes", "totalLikes"],
+  comments: ["comments", "comment_count", "commentCount", "total_comments", "totalComments"],
+  shares: ["shares", "share_count", "shareCount", "total_shares", "totalShares"],
+  listeners: ["listeners", "listener_count", "listenerCount", "unique_listeners", "uniqueListeners"],
+  saves: ["saves", "save_count", "saveCount", "total_saves", "totalSaves"],
+  skips: ["skips", "skip_count", "skipCount", "total_skips", "totalSkips"],
+  playlist_adds: ["playlist_adds", "playlistAdds", "playlist_additions", "playlistAdditions"],
+  first_time_listeners: ["first_time_listeners", "firstTimeListeners", "new_listeners", "newListeners"],
+  discovery_mode_streams: ["discovery_mode_streams", "discoveryModeStreams", "discovery_streams", "discoveryStreams"],
+  completion_rate: ["completion_rate", "completionRate"],
+  shuffle_rate: ["shuffle_rate", "shuffleRate"],
+  weekly_engagement: ["weekly_engagement", "weeklyEngagement"],
+  hourly_engagement: ["hourly_engagement", "hourlyEngagement"],
+  suspicious_streams: ["suspicious_streams", "suspiciousStreams", "flagged_streams", "flaggedStreams"],
+  artificial_streams: ["artificial_streams", "artificialStreams", "fraudulent_streams", "fraudulentStreams", "invalid_streams", "invalidStreams"],
+  suspicious_rate: ["suspicious_rate", "suspiciousRate", "fraud_rate", "fraudRate", "artificial_rate", "artificialRate"],
+} as const;
+
+type MetricName = keyof typeof METRICS;
+
+const STREAM_PLATFORMS = [
+  "spotify",
+  "apple",
+  "apple_music",
+  "audiomack",
+  "amazon",
+  "amazon_music",
+  "deezer",
+  "tidal",
+  "pandora",
+  "youtube",
+  "soundcloud",
+];
+
+function numericValue(row: Row, keys: readonly string[]): number | null {
   for (const key of keys) {
     const raw = row[key];
-    const value = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
-    if (Number.isFinite(value)) return value;
+    if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+    if (typeof raw === "string" && raw.trim()) {
+      const normalized = raw.trim().replace(/,/g, "").replace(/%$/, "");
+      const value = Number(normalized);
+      if (Number.isFinite(value)) return value;
+    }
   }
   return null;
 }
 
-function platformCode(row: Record<string, unknown>): string {
-  return String(row.platform ?? row.channel ?? row.dsp ?? row.store ?? "").trim().toLowerCase();
+function stringValue(row: Row, keys: string[]): string | null {
+  for (const key of keys) {
+    const raw = row[key];
+    if (typeof raw === "string" && raw.trim()) return raw.trim();
+    if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
+  }
+  return null;
 }
 
-function realStreamCounts(rows: Record<string, unknown>[]): Record<string, number> {
+function platformCode(row: Row): string {
+  return String(
+    row.platform ??
+      row.channel ??
+      row.dsp ??
+      row.store ??
+      row.service ??
+      row.store_service ??
+      row.storeService ??
+      ""
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function rowText(row: Row): string {
+  const selectedValues = [
+    row.platform,
+    row.channel,
+    row.dsp,
+    row.store,
+    row.service,
+    row.metric,
+    row.category,
+    row.type,
+    row.analytics_section,
+    row._analytics_source,
+  ]
+    .filter((value) => typeof value === "string")
+    .join(" ");
+  return `${Object.keys(row).join(" ")} ${selectedValues}`.toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function hasMetric(row: Row, metric: MetricName): boolean {
+  return numericValue(row, METRICS[metric]) != null;
+}
+
+function matchesDsp(dsp: string, key: AnalyticsKey): boolean {
+  if (!dsp) return false;
+  return ANALYTICS_DSP_MATCH[key].some((code) => dsp === code || dsp.includes(code));
+}
+
+function matchesAnalyticsKey(row: Row, key: AnalyticsKey): boolean {
+  const dsp = platformCode(row);
+  const text = rowText(row);
+
+  if (key === "streams") {
+    return hasMetric(row, "streams") && (!dsp || STREAM_PLATFORMS.some((code) => dsp.includes(code)));
+  }
+  if (key === "meta") {
+    return matchesDsp(dsp, key) || /(^|_)(meta|facebook|instagram)(_|$)/.test(text);
+  }
+  if (key === "youtube_ugc") {
+    return (
+      matchesDsp(dsp, key) ||
+      (text.includes("youtube") &&
+        (text.includes("ugc") || text.includes("content_id") || text.includes("contentid") || hasMetric(row, "video_creations")))
+    );
+  }
+  if (key === "tiktok") {
+    return matchesDsp(dsp, key) || text.includes("tiktok");
+  }
+  if (key === "streamsafe") {
+    return (
+      matchesDsp(dsp, key) ||
+      text.includes("streamsafe") ||
+      text.includes("artificial") ||
+      text.includes("fraud") ||
+      text.includes("suspicious") ||
+      text.includes("invalid_stream")
+    );
+  }
+  if (key === "spotify_discovery") {
+    return (
+      hasMetric(row, "discovery_mode_streams") ||
+      (text.includes("spotify") && text.includes("discovery"))
+    );
+  }
+  if (key === "spotify_engagement") {
+    const spotify = dsp.includes("spotify") || text.includes("spotify");
+    return (
+      spotify &&
+      (hasMetric(row, "listeners") ||
+        hasMetric(row, "saves") ||
+        hasMetric(row, "skips") ||
+        hasMetric(row, "playlist_adds") ||
+        hasMetric(row, "first_time_listeners") ||
+        hasMetric(row, "completion_rate") ||
+        hasMetric(row, "shuffle_rate") ||
+        hasMetric(row, "weekly_engagement") ||
+        hasMetric(row, "hourly_engagement"))
+    );
+  }
+  if (key === "downloads") {
+    return (
+      hasMetric(row, "downloads") ||
+      text.includes("download") ||
+      dsp.includes("itunes") ||
+      dsp.includes("amazon_download")
+    );
+  }
+  return false;
+}
+
+function sourceRank(row: Row): number {
+  switch (String(row._analytics_source ?? "")) {
+    case "track_detail":
+      return 0;
+    case "tracks":
+      return 1;
+    case "track_charts":
+      return 2;
+    case "platform_data":
+      return 3;
+    case "overview":
+      return 4;
+    case "sales":
+      return 5;
+    default:
+      return 6;
+  }
+}
+
+function rowIdentity(row: Row, index: number): string {
+  return (
+    stringValue(row, ["isrc", "ISRC", "track_isrc", "release_id", "releaseId", "provider_release_id", "providerReleaseId", "id"]) ??
+    `row-${index}`
+  );
+}
+
+function rowDate(row: Row): string | null {
+  return stringValue(row, [
+    "date",
+    "day",
+    "week",
+    "month",
+    "period",
+    "period_start",
+    "periodStart",
+    "timestamp",
+    "updated_at",
+    "updatedAt",
+    "last_updated",
+    "lastUpdated",
+  ]);
+}
+
+function aggregateMetric(
+  rows: Row[],
+  aliases: readonly string[],
+  mode: "sum" | "latest" = "sum"
+): number | null {
+  const groups = new Map<string, Array<{ row: Row; value: number; date: string | null }>>();
+
+  rows.forEach((row, index) => {
+    const value = numericValue(row, aliases);
+    if (value == null) return;
+    const key = `${rowIdentity(row, index)}|${platformCode(row) || "all"}|${String(row.analytics_section ?? "")}`;
+    const list = groups.get(key) ?? [];
+    list.push({ row, value, date: rowDate(row) });
+    groups.set(key, list);
+  });
+
+  if (groups.size === 0) return null;
+
+  let total = 0;
+  for (const entries of groups.values()) {
+    const bestRank = Math.min(...entries.map((entry) => sourceRank(entry.row)));
+    const preferred = entries.filter((entry) => sourceRank(entry.row) === bestRank);
+
+    if (mode === "latest") {
+      const withDate = preferred.filter((entry) => entry.date).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      total += (withDate[0] ?? preferred[preferred.length - 1]).value;
+      continue;
+    }
+
+    const summary = preferred.filter((entry) => !entry.date);
+    if (summary.length > 0) {
+      total += Math.max(...summary.map((entry) => entry.value));
+      continue;
+    }
+
+    const byDate = new Map<string, number>();
+    for (const entry of preferred) {
+      const date = entry.date ?? "undated";
+      byDate.set(date, Math.max(byDate.get(date) ?? Number.NEGATIVE_INFINITY, entry.value));
+    }
+    total += [...byDate.values()].reduce((sum, value) => sum + value, 0);
+  }
+  return total;
+}
+
+function streamCountsByPlatform(rows: Row[]): Record<string, number> {
+  const platforms = [...new Set(rows.map(platformCode).filter(Boolean))];
+  const result: Record<string, number> = {};
+  for (const platform of platforms) {
+    const value = aggregateMetric(
+      rows.filter((row) => platformCode(row) === platform),
+      METRICS.streams,
+      "sum"
+    );
+    if (value != null) result[platform] = value;
+  }
+  return result;
+}
+
+function trendPercentByPlatform(rows: Row[]): Record<string, number> {
+  const aliases = [
+    "trend_percent",
+    "trendPercent",
+    "change_percent",
+    "changePercent",
+    "percent_change",
+    "percentChange",
+  ];
+  const result: Record<string, number> = {};
+  for (const platform of [...new Set(rows.map(platformCode).filter(Boolean))]) {
+    const values = rows
+      .filter((row) => platformCode(row) === platform)
+      .map((row) => numericValue(row, aliases))
+      .filter((value): value is number => value != null);
+    if (values.length > 0) result[platform] = values[values.length - 1];
+  }
+  return result;
+}
+
+function metricNamesForKey(key: AnalyticsKey): MetricName[] {
+  switch (key) {
+    case "streams":
+      return ["streams", "listeners"];
+    case "meta":
+    case "youtube_ugc":
+    case "tiktok":
+      return ["video_creations", "views", "likes", "comments", "shares"];
+    case "streamsafe":
+      return ["suspicious_streams", "artificial_streams", "suspicious_rate"];
+    case "spotify_discovery":
+      return ["discovery_mode_streams", "saves", "playlist_adds", "first_time_listeners"];
+    case "spotify_engagement":
+      return [
+        "streams",
+        "listeners",
+        "saves",
+        "skips",
+        "playlist_adds",
+        "first_time_listeners",
+        "completion_rate",
+        "shuffle_rate",
+        "weekly_engagement",
+        "hourly_engagement",
+      ];
+    case "downloads":
+      return ["downloads"];
+  }
+}
+
+function buildMetricTotals(rows: Row[], key: AnalyticsKey): Record<string, number> {
   const totals: Record<string, number> = {};
-  for (const row of rows) {
-    const platform = platformCode(row);
-    const count = numericValue(row, ["streams", "stream_count", "streamCount", "plays", "play_count", "count"]);
-    if (!platform || count == null || count < 0) continue;
-    totals[platform] = (totals[platform] ?? 0) + count;
+  for (const metric of metricNamesForKey(key)) {
+    const isRate = metric.endsWith("_rate");
+    const value = aggregateMetric(rows, METRICS[metric], isRate ? "latest" : "sum");
+    if (value != null) totals[metric] = value;
   }
   return totals;
 }
 
-function realTrendPercent(rows: Record<string, unknown>[]): Record<string, number> {
-  const trends: Record<string, number> = {};
-  for (const row of rows) {
-    const platform = platformCode(row);
-    const trend = numericValue(row, [
-      "trend_percent",
-      "trendPercent",
-      "change_percent",
-      "changePercent",
-      "percent_change",
-      "percentChange",
-    ]);
-    if (!platform || trend == null) continue;
-    trends[platform] = trend;
-  }
-  return trends;
+function latestUpdatedAt(rows: Row[]): string | null {
+  const dates = rows.map(rowDate).filter((value): value is string => Boolean(value));
+  return dates.sort((a, b) => b.localeCompare(a))[0] ?? null;
 }
 
-function matchesKey(dsp: string | null, key: AnalyticsKey): boolean {
-  if (!dsp) return false;
-  const needle = dsp.toLowerCase();
-  return ANALYTICS_DSP_MATCH[key].some((code) => needle === code || needle.includes(code));
+function salesSupplementNeeded(rows: Row[], key: AnalyticsKey): boolean {
+  if (key === "streams") return !rows.some((row) => hasMetric(row, "streams"));
+  if (key === "downloads") return !rows.some((row) => hasMetric(row, "downloads"));
+  return false;
 }
 
 export async function loadAnalyticsSnapshot(
   ownerUserId: string,
   key: AnalyticsKey
 ): Promise<AnalyticsSnapshot> {
-  // Prefer live Distribution Engine analytics for releases owned by this account.
-  // Fall back to Nexo ledger rows when the upstream has no rows yet.
   try {
-    const allProviderRows = await ownedAnalytics(ownerUserId);
-    const typedRows = (allProviderRows as Record<string, unknown>[]).filter((row) => {
-      if (key === "streams") return true;
-      return matchesKey(platformCode(row), key);
-    });
-    if (typedRows.length > 0) {
-      const codes = [...new Set(typedRows.map(platformCode).filter(Boolean))];
-      const streamCounts = realStreamCounts(typedRows);
-      const trendPercentByDsp = realTrendPercent(typedRows);
-      return {
-        key,
-        connected: true,
-        statusLabel: "LIVE",
-        rowCount: typedRows.length,
-        amountMinor: null,
-        currency: null,
-        dspCodes: codes,
-        streamCounts,
-        trendPercentByDsp,
-        note: "Live Distribution Engine analytics are connected for releases owned by this account. Stream totals are shown only when the provider returns numeric stream data.",
-      };
+    const provider = await ownedAnalytics(ownerUserId);
+    let rows = provider.rows.filter((row) => matchesAnalyticsKey(row, key));
+    let connected = provider.connected;
+
+    if (salesSupplementNeeded(rows, key)) {
+      try {
+        const salesKind = key === "downloads" ? "tracks" : "channels";
+        const salesRows = await ownedSales(ownerUserId, salesKind);
+        const supplement = salesRows
+          .map((row) => ({ ...row, _analytics_source: "sales" }))
+          .filter((row) => matchesAnalyticsKey(row, key));
+        rows = [...rows, ...supplement];
+        connected = true;
+      } catch {
+        // Analytics stays usable even when the sales supplement is unavailable.
+      }
     }
+
+    const dspCodes = [...new Set(rows.map(platformCode).filter(Boolean))];
+    const streamCounts = streamCountsByPlatform(rows);
+    const metricTotals = buildMetricTotals(rows, key);
+    const hasLiveValues =
+      rows.length > 0 &&
+      (Object.keys(metricTotals).length > 0 || Object.keys(streamCounts).length > 0);
+
+    const statusLabel: AnalyticsSnapshot["statusLabel"] = hasLiveValues
+      ? "LIVE"
+      : connected
+        ? "CONNECTED"
+        : "UNAVAILABLE";
+
+    const note =
+      statusLabel === "LIVE"
+        ? "Live distribution analytics are being read from the connected provider for catalog owned by this Nexo account. Values are never estimated or generated by Nexo."
+        : statusLabel === "CONNECTED"
+          ? provider.hasCatalogScope
+            ? "The live analytics connection is active. The provider has not returned reportable rows for this analytics source on this account yet."
+            : "The live analytics connection is active, but this account does not yet have linked distributed catalog identifiers to query."
+          : "Live distribution analytics are temporarily unavailable. Nexo is not substituting statement rows or invented counts.";
+
+    return {
+      key,
+      connected,
+      statusLabel,
+      rowCount: rows.length,
+      amountMinor: null,
+      currency: null,
+      dspCodes,
+      streamCounts,
+      trendPercentByDsp: trendPercentByPlatform(rows),
+      metricTotals,
+      updatedAt: latestUpdatedAt(rows),
+      note,
+    };
   } catch {
-    // Continue to the authoritative Nexo ledger fallback below.
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("ledger_entries")
-    .select("id, amount_minor, currency, dsp_code, kind")
-    .eq("owner_user_id", ownerUserId)
-    .limit(2000);
-
-  if (error) {
     return {
       key,
       connected: false,
-      statusLabel: "AVAILABLE",
+      statusLabel: "UNAVAILABLE",
       rowCount: 0,
       amountMinor: null,
       currency: null,
       dspCodes: [],
       streamCounts: {},
       trendPercentByDsp: {},
-      note: "Analytics are available through Nexo. No verified rows can be displayed for this source right now.",
+      metricTotals: {},
+      updatedAt: null,
+      note: "Live distribution analytics are temporarily unavailable. Nexo is not substituting statement rows or invented counts.",
     };
   }
-
-  const rows = (data ?? []).filter((r) => matchesKey(r.dsp_code as string | null, key));
-  const codes = [...new Set(rows.map((r) => String(r.dsp_code)).filter(Boolean))];
-  const amountMinor = rows.reduce((sum, r) => sum + Number(r.amount_minor || 0), 0);
-  const currency = rows[0]?.currency ? String(rows[0].currency) : null;
-
-  if (rows.length === 0) {
-    return {
-      key,
-      connected: true,
-      statusLabel: "EMPTY",
-      rowCount: 0,
-      amountMinor: 0,
-      currency: null,
-      dspCodes: [],
-      streamCounts: {},
-      trendPercentByDsp: {},
-      note:
-        key === "spotify_discovery"
-          ? "Spotify Discovery Mode is available through Nexo. No verified enrollment or activity rows are available for this account yet."
-          : key === "streamsafe"
-            ? "StreamSafe is available through Nexo. No verified suspicious-stream flags are available for this account."
-            : "No verified analytics rows are available for this source yet.",
-    };
-  }
-
-  return {
-    key,
-    connected: true,
-    statusLabel: "LIVE",
-    rowCount: rows.length,
-    amountMinor,
-    currency,
-    dspCodes: codes,
-    streamCounts: {},
-    trendPercentByDsp: {},
-    note: "Figures come from posted ledger rows only. Ledger money rows are never converted into invented stream counts.",
-  };
 }
