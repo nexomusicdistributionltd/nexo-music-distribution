@@ -99,6 +99,23 @@ export async function upsertHomepageSettingsAction(
   return { ok: true, data };
 }
 
+
+export async function upsertFooterSettingsAction(
+  value: Record<string, unknown>
+): Promise<ActionResult> {
+  await RequireAdminPermission("admin:settings");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_upsert_website_setting", {
+    p_key: "footer",
+    p_value: value,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/pages");
+  revalidatePath("/admin/website");
+  revalidatePath("/", "layout");
+  return { ok: true, data };
+}
+
 export async function upsertWebsiteVideoAction(input: {
   id?: string;
   title?: string;
@@ -161,6 +178,7 @@ export async function upsertPartnerAction(input: {
     if (error) return { ok: false, error: error.message };
   }
   revalidatePath("/admin/partners");
+  revalidatePath("/admin/website");
   revalidatePath("/");
   return { ok: true };
 }
@@ -171,6 +189,8 @@ export async function deletePartnerAction(id: string): Promise<ActionResult> {
   const { error } = await supabase.from("website_partners").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/partners");
+  revalidatePath("/admin/website");
+  revalidatePath("/");
   return { ok: true };
 }
 
@@ -207,7 +227,9 @@ export async function upsertBlogPostAction(input: {
     if (error) return { ok: false, error: error.message };
   }
   revalidatePath("/admin/blog");
+  revalidatePath("/admin/website");
   revalidatePath("/blog");
+  revalidatePath("/");
   return { ok: true };
 }
 
@@ -235,8 +257,11 @@ export async function upsertCmsPageAction(input: {
     .eq("id", input.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/pages");
+  revalidatePath("/admin/website");
   revalidatePath("/privacy");
   revalidatePath("/terms");
   revalidatePath("/cookies");
+  revalidatePath("/refund-policy");
+  revalidatePath("/pages", "layout");
   return { ok: true };
 }
