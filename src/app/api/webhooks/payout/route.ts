@@ -49,7 +49,7 @@ async function resolveInternalPayoutId(
       .select("id")
       .eq("id", payoutReference)
       .maybeSingle();
-    if (direct?.id) return direct.id;
+    if (typeof direct?.id === "string") return direct.id;
   }
 
   const { data: rows } = await supabase
@@ -58,7 +58,7 @@ async function resolveInternalPayoutId(
     .eq("provider_payout_id", payoutReference)
     .limit(2);
 
-  return rows?.length === 1 ? rows[0].id : null;
+  return rows?.length === 1 && typeof rows[0]?.id === "string" ? rows[0].id : null;
 }
 
 /**
