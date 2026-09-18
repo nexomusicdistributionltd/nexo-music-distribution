@@ -403,12 +403,12 @@ begin
       when exists (
         select 1 from public.catalog_migration_items
         where migration_id = m.id and selected = true and status in ('pending','ready','conflict','skipped','failed')
-      ) then 'review'
+      ) then 'review'::public.catalog_migration_status
       when exists (
         select 1 from public.catalog_migration_items
         where migration_id = m.id and selected = true and status = 'imported'
-      ) then 'completed'
-      else 'review'
+      ) then 'completed'::public.catalog_migration_status
+      else 'review'::public.catalog_migration_status
     end,
     workflow_step = case
       when exists (
