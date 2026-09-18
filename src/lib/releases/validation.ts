@@ -1,4 +1,9 @@
 import type { ReleaseRow, ReleaseTrackRow, ReleaseAssetRow, ReleaseContributorRow, ReleaseType } from "./types";
+import {
+  COMPOSITION_CREDIT_ROLES,
+  PERFORMER_CREDIT_ROLES,
+  PRODUCTION_CREDIT_ROLES,
+} from "./contributor-roles";
 
 export type ValidationIssue = { field: string; message: string };
 
@@ -53,7 +58,7 @@ export function validateReleaseForSubmit(input: {
     "track_number" | "title" | "isrc" | "id" | "duration_ms"
   >[];
   assets: Pick<ReleaseAssetRow, "kind" | "track_id" | "mime_type">[];
-  contributors: Pick<ReleaseContributorRow, "name" | "role">[];
+  contributors: Pick<ReleaseContributorRow, "name" | "role" | "track_id">[];
 }): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const { release, tracks, assets, contributors } = input;
@@ -201,12 +206,37 @@ export function validateReleaseForSubmit(input: {
     }
   }
 
-  const hasNamedContributor = contributors.some((c) => Boolean(c.name?.trim()));
-  if (!hasNamedContributor) {
+  const namedContributors = contributors.filter((c) => Boolean(c.name?.trim()));
+  if (!namedContributors.length) {
     issues.push({
       field: "contributors",
-      message: "At least one contributor is required.",
+      message: "Complete contributor credits are required.",
     });
+  } else {
+    for (const track of tracks) {
+      const scoped = namedContributors.filter(
+        (contributor) => !contributor.track_id || contributor.track_id === track.id
+      );
+      const contributorRoles = new Set(scoped.map((contributor) => contributor.role));
+      if (![...contributorRoles].some((role) => PERFORMER_CREDIT_ROLES.has(role))) {
+        issues.push({
+          field: `track.${track.track_number}.contributors`,
+          message: `Track ${track.track_number} needs an accurate performer credit (for example lead vocals, vocals, choir, instrument, primary or featured artist).`,
+        });
+      }
+      if (![...contributorRoles].some((role) => COMPOSITION_CREDIT_ROLES.has(role))) {
+        issues.push({
+          field: `track.${track.track_number}.contributors`,
+          message: `Track ${track.track_number} needs a composition/lyrics credit (songwriter, composer, lyricist or arranger).`,
+        });
+      }
+      if (![...contributorRoles].some((role) => PRODUCTION_CREDIT_ROLES.has(role))) {
+        issues.push({
+          field: `track.${track.track_number}.contributors`,
+          message: `Track ${track.track_number} needs a production/engineering credit (for example producer, recording, mixing or mastering engineer).`,
+        });
+      }
+    }
   }
 
   // Never fabricate codes

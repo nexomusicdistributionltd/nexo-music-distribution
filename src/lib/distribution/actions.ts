@@ -243,17 +243,17 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
 
 function validateProviderPayloadBeforeAttempt(payload: ProviderReleasePayload): string | null {
   if (!payload.artworkStorageBucket || !payload.artworkStoragePath) {
-    return "Cover artwork is required before Distribution Engine delivery.";
+    return "Cover artwork is required before Nexo delivery.";
   }
   if (!payload.tracks.length) {
-    return "At least one track is required before Distribution Engine delivery.";
+    return "At least one track is required before Nexo delivery.";
   }
   for (const track of payload.tracks) {
     if (!track.audioStorageBucket || !track.audioStoragePath) {
       return `Track ${track.trackNumber} is missing linked audio.`;
     }
     if (track.audioMimeType !== "audio/flac") {
-      return `Track ${track.trackNumber} must use lossless FLAC audio for Distribution Engine delivery. Re-upload this track as FLAC before retrying.`;
+      return `Track ${track.trackNumber} must use lossless FLAC audio for Nexo delivery. Re-upload this track as FLAC before retrying.`;
     }
   }
   return null;
