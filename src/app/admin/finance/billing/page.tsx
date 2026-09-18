@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { RequireAdmin } from "@/lib/auth/guards";
+import { RequireAdminPermission } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import { AdminPlanCatalogPanel } from "@/components/admin/AdminPlanCatalogPanel";
@@ -21,7 +21,7 @@ export default async function AdminBillingPage({
 }: {
   searchParams: Promise<{ status?: string; accountType?: string; plan?: string; q?: string }>;
 }) {
-  await RequireAdmin();
+  await RequireAdminPermission("admin:billing_tools");
   const sp = await searchParams;
   const accountType =
     sp.accountType === "artist" || sp.accountType === "label"
