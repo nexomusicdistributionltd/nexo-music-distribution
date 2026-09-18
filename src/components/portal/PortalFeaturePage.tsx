@@ -328,9 +328,9 @@ async function TracksView({ userId }: { userId: string }) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("release_tracks")
-    .select("id, title, isrc, track_no, releases!inner(id, title, owner_user_id)")
+    .select("id, title, isrc, track_number, releases!inner(id, title, owner_user_id)")
     .eq("releases.owner_user_id", userId)
-    .order("track_no", { ascending: true })
+    .order("track_number", { ascending: true })
     .limit(200);
   return (
     <div className="space-y-6">
