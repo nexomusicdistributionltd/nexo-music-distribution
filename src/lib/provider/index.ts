@@ -33,20 +33,6 @@ export function getProvider(): DistributionProvider {
     cached = new DistributionEngineProvider();
     return cached;
   }
-  const cfg = readProviderConfig();
-  if (isDistributionOAuthConfigured()) {
-    const p = getProvider();
-    return {
-      connected: p.connected,
-      providerName: "distribution_engine",
-      message: p.connected ? "Distribution Engine configured. Authorization is verified at request time." : "Distribution Engine unavailable.",
-      webhookConfigured: cfg.webhookSecretPresent,
-    };
-  }
-  if (!cfg.connected) {
-    cached = new NotConnectedProvider();
-    return cached;
-  }
   cached = new NotConnectedProvider();
   return cached;
 }
@@ -63,28 +49,23 @@ export function getProviderConnectionState(): {
   webhookConfigured: boolean;
 } {
   const cfg = readProviderConfig();
-  if (!cfg.connected) {
+
+  if (isDistributionOAuthConfigured()) {
+    const p = getProvider();
     return {
-      connected: false,
-      providerName: null,
-      message: "Not connected — no distribution provider is configured.",
+      connected: p.connected,
+      providerName: "distribution_engine",
+      message: p.connected
+        ? "Distribution Engine configured. Authorization is verified at request time."
+        : "Distribution Engine unavailable.",
       webhookConfigured: cfg.webhookSecretPresent,
     };
   }
-  const p = getProvider();
-  // Even if env looks set, adapter may still be NotConnected until real impl lands
-  if (!p.connected) {
-    return {
-      connected: false,
-      providerName: cfg.name,
-      message: `Provider "${cfg.name}" credentials present but no live adapter is registered yet. Delivery remains unavailable.`,
-      webhookConfigured: cfg.webhookSecretPresent,
-    };
-  }
+
   return {
-    connected: true,
-    providerName: p.name,
-    message: `Connected to ${p.name}`,
+    connected: false,
+    providerName: null,
+    message: "Distribution Engine is not configured.",
     webhookConfigured: cfg.webhookSecretPresent,
   };
 }
