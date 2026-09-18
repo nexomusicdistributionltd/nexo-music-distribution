@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { setArtistWebsiteAction } from "@/app/admin/website/actions";
+import { uploadCmsMediaAction } from "@/app/admin/website/media-actions";
 
 type Props = {
   artist: {
@@ -28,6 +29,7 @@ type Props = {
 export function ArtistWebsiteEditor({ artist }: Props) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<"avatar" | "cover" | null>(null);
   const socials = artist.social_links ?? {};
   const [form, setForm] = useState({
     artistName: artist.artist_name || artist.stage_name || "",
@@ -45,6 +47,35 @@ export function ArtistWebsiteEditor({ artist }: Props) {
     published: artist.website_published,
     featured: artist.website_featured,
   });
+
+
+  async function uploadArtistImage(kind: "avatar" | "cover", file: File | null) {
+    if (!file) return;
+    setUploading(kind);
+    setMsg(null);
+    try {
+      const data = new FormData();
+      data.set("file", file);
+      const result = await uploadCmsMediaAction(data);
+      if (!result.ok) {
+        setMsg(result.error);
+        return;
+      }
+      const url = result.data?.publicUrl;
+      if (!url) {
+        setMsg("Upload completed but no public image URL was returned.");
+        return;
+      }
+      setForm((value) =>
+        kind === "avatar"
+          ? { ...value, avatarUrl: url }
+          : { ...value, coverUrl: url }
+      );
+      setMsg(`${kind === "avatar" ? "Artist image" : "Cover image"} uploaded. Save the profile to publish it.`);
+    } finally {
+      setUploading(null);
+    }
+  }
 
   return (
     <section className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
@@ -93,22 +124,46 @@ export function ArtistWebsiteEditor({ artist }: Props) {
             onChange={(e) => setForm((f) => ({ ...f, genres: e.target.value }))}
           />
         </label>
-        <label className="text-caption">
-          Avatar image URL
-          <Input
-            className="mt-1"
-            value={form.avatarUrl}
-            onChange={(e) => setForm((f) => ({ ...f, avatarUrl: e.target.value }))}
-          />
-        </label>
-        <label className="text-caption">
-          Cover image URL
-          <Input
-            className="mt-1"
-            value={form.coverUrl}
-            onChange={(e) => setForm((f) => ({ ...f, coverUrl: e.target.value }))}
-          />
-        </label>
+        <div className="space-y-2">
+          <label className="text-caption">
+            Artist image URL
+            <Input
+              className="mt-1"
+              value={form.avatarUrl}
+              onChange={(e) => setForm((f) => ({ ...f, avatarUrl: e.target.value }))}
+            />
+          </label>
+          <label className="inline-flex h-9 cursor-pointer items-center rounded-[var(--nexo-radius)] border border-dashed border-[var(--nexo-border)] px-3 text-caption text-[var(--nexo-text-muted)]">
+            {uploading === "avatar" ? "Uploading artist image…" : "Upload artist image"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="sr-only"
+              disabled={pending || uploading !== null}
+              onChange={(e) => uploadArtistImage("avatar", e.target.files?.[0] ?? null)}
+            />
+          </label>
+        </div>
+        <div className="space-y-2">
+          <label className="text-caption">
+            Cover image URL
+            <Input
+              className="mt-1"
+              value={form.coverUrl}
+              onChange={(e) => setForm((f) => ({ ...f, coverUrl: e.target.value }))}
+            />
+          </label>
+          <label className="inline-flex h-9 cursor-pointer items-center rounded-[var(--nexo-radius)] border border-dashed border-[var(--nexo-border)] px-3 text-caption text-[var(--nexo-text-muted)]">
+            {uploading === "cover" ? "Uploading cover…" : "Upload cover image"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="sr-only"
+              disabled={pending || uploading !== null}
+              onChange={(e) => uploadArtistImage("cover", e.target.files?.[0] ?? null)}
+            />
+          </label>
+        </div>
       </div>
       <label className="block text-caption">
         Tagline
@@ -181,7 +236,7 @@ export function ArtistWebsiteEditor({ artist }: Props) {
         </label>
       </div>
       <Button
-        disabled={pending}
+        disabled={pending || uploading !== null}
         onClick={() =>
           start(async () => {
             const genres = form.genres
@@ -211,7 +266,7 @@ export function ArtistWebsiteEditor({ artist }: Props) {
           })
         }
       >
-        Save website profile
+        Save & publish website profile
       </Button>
       {msg ? <p className="text-caption text-[var(--nexo-text-muted)]">{msg}</p> : null}
     </section>

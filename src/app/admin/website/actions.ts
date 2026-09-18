@@ -20,6 +20,7 @@ export async function setReleaseWebsiteAction(input: {
   embedSpotify?: string;
   embedApple?: string;
   embedYoutube?: string;
+  coverUrl?: string | null;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:releases");
   const supabase = await createClient();
@@ -36,6 +37,17 @@ export async function setReleaseWebsiteAction(input: {
     p_embed_youtube: input.embedYoutube ?? null,
   });
   if (error) return { ok: false, error: error.message };
+  if (input.coverUrl !== undefined) {
+    const { error: coverError } = await supabase
+      .from("releases")
+      .update({
+        website_cover_override_url: input.coverUrl?.trim()
+          ? input.coverUrl.trim()
+          : null,
+      })
+      .eq("id", input.releaseId);
+    if (coverError) return { ok: false, error: coverError.message };
+  }
   revalidatePath("/admin/website");
   revalidatePath("/music");
   revalidatePath("/");
@@ -99,6 +111,23 @@ export async function upsertHomepageSettingsAction(
   return { ok: true, data };
 }
 
+
+export async function upsertFooterSettingsAction(
+  value: Record<string, unknown>
+): Promise<ActionResult> {
+  await RequireAdminPermission("admin:settings");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_upsert_website_setting", {
+    p_key: "footer",
+    p_value: value,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/pages");
+  revalidatePath("/admin/website");
+  revalidatePath("/", "layout");
+  return { ok: true, data };
+}
+
 export async function upsertWebsiteVideoAction(input: {
   id?: string;
   title?: string;
@@ -126,6 +155,27 @@ export async function upsertWebsiteVideoAction(input: {
     p_delete: input.delete ?? false,
   });
   if (error) return { ok: false, error: error.message };
+
+  // The legacy RPC intentionally treats NULL associations as "keep existing".
+  // Apply explicit nullable edits here so admins can actually clear fields.
+  if (input.id) {
+    const explicit: Record<string, unknown> = {};
+    if (input.thumbnailUrl !== undefined) {
+      explicit.thumbnail_url = input.thumbnailUrl?.trim() || null;
+    }
+    if (input.artistId !== undefined) explicit.artist_id = input.artistId || null;
+    if (input.releaseId !== undefined) explicit.release_id = input.releaseId || null;
+    if (input.trackId !== undefined) explicit.track_id = input.trackId || null;
+    if (Object.keys(explicit).length) {
+      explicit.updated_at = new Date().toISOString();
+      const { error: explicitError } = await supabase
+        .from("website_videos")
+        .update(explicit)
+        .eq("id", input.id);
+      if (explicitError) return { ok: false, error: explicitError.message };
+    }
+  }
+
   revalidatePath("/admin/videos");
   revalidatePath("/admin/website");
   revalidatePath("/");
@@ -161,6 +211,7 @@ export async function upsertPartnerAction(input: {
     if (error) return { ok: false, error: error.message };
   }
   revalidatePath("/admin/partners");
+  revalidatePath("/admin/website");
   revalidatePath("/");
   return { ok: true };
 }
@@ -171,6 +222,8 @@ export async function deletePartnerAction(id: string): Promise<ActionResult> {
   const { error } = await supabase.from("website_partners").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/partners");
+  revalidatePath("/admin/website");
+  revalidatePath("/");
   return { ok: true };
 }
 
@@ -207,7 +260,9 @@ export async function upsertBlogPostAction(input: {
     if (error) return { ok: false, error: error.message };
   }
   revalidatePath("/admin/blog");
+  revalidatePath("/admin/website");
   revalidatePath("/blog");
+  revalidatePath("/");
   return { ok: true };
 }
 
@@ -235,8 +290,11 @@ export async function upsertCmsPageAction(input: {
     .eq("id", input.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/pages");
+  revalidatePath("/admin/website");
   revalidatePath("/privacy");
   revalidatePath("/terms");
   revalidatePath("/cookies");
+  revalidatePath("/refund-policy");
+  revalidatePath("/pages", "layout");
   return { ok: true };
 }

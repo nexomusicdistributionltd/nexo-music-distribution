@@ -5,7 +5,6 @@ import { ReleasePlayer } from "@/components/website/ReleasePlayer";
 import { ShareLinkButton } from "@/components/website/ShareLinkButton";
 import { VideoCard } from "@/components/website/VideoCard";
 import { Reveal } from "@/components/motion/Reveal";
-import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   getPublicReleaseById,
@@ -87,7 +86,6 @@ export default async function ReleaseDetailPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <PublicCatalogRealtime />
       <section className="relative overflow-hidden border-b border-[var(--nexo-border)]">
         <div
           className="pointer-events-none absolute inset-0 opacity-40"

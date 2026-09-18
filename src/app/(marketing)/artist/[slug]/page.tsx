@@ -5,7 +5,6 @@ import { SafeHtml } from "@/components/cms/SafeHtml";
 import { ShareLinkButton } from "@/components/website/ShareLinkButton";
 import { VideoCard } from "@/components/website/VideoCard";
 import { Reveal } from "@/components/motion/Reveal";
-import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   getPublicArtistBySlug,
@@ -65,7 +64,6 @@ export default async function ArtistDetailPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <PublicCatalogRealtime />
       <section className="relative overflow-hidden border-b border-[var(--nexo-border)]">
         {a.cover_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -191,7 +189,7 @@ export default async function ArtistDetailPage({ params }: Props) {
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <h2 className="text-h3">Videos</h2>
           <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-            External sources · labeled clearly · not hosted by Nexo
+            Nexo Video · presented in the Nexo player experience
           </p>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {videos.map((v) => (

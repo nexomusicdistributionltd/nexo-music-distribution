@@ -13,10 +13,10 @@ export default async function AdminPartnersPage() {
   await RequireAdmin();
   const partners = await listAllPartnersAdmin();
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         title="Partners"
-        description="Active partners appear in the public logo marquee (seamless RTL)."
+        description="Upload, edit, order and publish partner logos and links. Active partners appear on the public homepage in realtime."
       />
       <PartnersAdminClient partners={partners} />
     </div>

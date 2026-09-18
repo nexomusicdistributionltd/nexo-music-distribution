@@ -1,6 +1,6 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Play } from "lucide-react";
 import { isSafeHttpUrl } from "@/lib/website/sanitize";
-import { youtubeEmbedSrc } from "@/lib/website/embeds";
+import { directVideoSrc, vimeoEmbedSrc, youtubeEmbedSrc } from "@/lib/website/embeds";
 
 export type VideoCardProps = {
   title: string;
@@ -8,46 +8,93 @@ export type VideoCardProps = {
   thumbnailUrl?: string | null;
 };
 
-/**
- * Videos display in Nexo chrome. External hosts are labeled — never downloaded.
- * YouTube may render an embed inside Nexo frame; other hosts are outbound only.
- */
 export function VideoCard({ title, url, thumbnailUrl }: VideoCardProps) {
   if (!isSafeHttpUrl(url)) return null;
-  const yt = youtubeEmbedSrc(url);
+
+  const youtube = youtubeEmbedSrc(url);
+  const vimeo = vimeoEmbedSrc(url);
+  const direct = directVideoSrc(url);
+  const frame = youtube || vimeo;
+  const hasThumbnail = Boolean(thumbnailUrl && isSafeHttpUrl(thumbnailUrl));
 
   return (
-    <article className="overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)]">
-      {yt ? (
-        <div className="aspect-video w-full bg-black">
+    <article className="group overflow-hidden border border-[var(--nexo-border)] bg-[var(--nexo-card)]">
+      <div className="relative aspect-video w-full overflow-hidden bg-black">
+        <div className="pointer-events-none absolute left-3 top-3 z-20 inline-flex items-center gap-2 border border-white/20 bg-black/70 px-2.5 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
+          <span className="inline-flex h-5 w-5 items-center justify-center bg-white text-black">N</span>
+          Nexo Video
+        </div>
+
+        {frame ? (
           <iframe
             title={title}
-            src={yt}
+            src={frame}
             className="h-full w-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allowFullScreen
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"
           />
+        ) : direct ? (
+          <video
+            className="h-full w-full object-contain"
+            controls
+            preload="metadata"
+            poster={hasThumbnail ? thumbnailUrl ?? undefined : undefined}
+            playsInline
+          >
+            <source src={direct} />
+          </video>
+        ) : hasThumbnail ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative block h-full w-full"
+            aria-label={`Open ${title} video`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={thumbnailUrl ?? ""} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]" />
+            <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white text-black shadow-xl">
+                <Play className="h-5 w-5 translate-x-px" fill="currentColor" aria-hidden />
+              </span>
+            </span>
+          </a>
+        ) : (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[var(--nexo-elevated)] px-6 text-center"
+          >
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--nexo-text)] text-[var(--nexo-bg)]">
+              <Play className="h-5 w-5 translate-x-px" fill="currentColor" aria-hidden />
+            </span>
+            <span className="text-caption text-[var(--nexo-text-muted)]">
+              Open video in its source player
+            </span>
+          </a>
+        )}
+      </div>
+
+      <div className="flex items-start justify-between gap-4 p-4">
+        <div>
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--nexo-text-muted)]">
+            Nexo Music Distribution
+          </p>
+          <h3 className="mt-1 text-small font-medium text-[var(--nexo-text)]">{title}</h3>
         </div>
-      ) : thumbnailUrl && isSafeHttpUrl(thumbnailUrl) ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumbnailUrl} alt="" className="aspect-video w-full object-cover" />
-      ) : (
-        <div className="flex aspect-video items-center justify-center bg-[var(--nexo-elevated)] text-caption text-[var(--nexo-text-muted)]">
-          External video
-        </div>
-      )}
-      <div className="space-y-2 p-4">
-        <h3 className="text-small font-medium text-[var(--nexo-text)]">{title}</h3>
-        <p className="text-caption text-[var(--nexo-text-muted)]">External source</p>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-caption text-[var(--nexo-text-secondary)] underline-offset-4 hover:underline"
-        >
-          Open original <ExternalLink className="h-3 w-3" aria-hidden />
-        </a>
+        {!frame && !direct ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 text-caption text-[var(--nexo-text-secondary)] underline-offset-4 hover:underline"
+          >
+            Source <ExternalLink className="h-3 w-3" aria-hidden />
+          </a>
+        ) : null}
       </div>
     </article>
   );

@@ -86,7 +86,7 @@ export function HomeFeaturedCatalog({
               const name = a.artist_name || a.stage_name || "Artist";
               const entzopediaUrl =
                 typeof a.social_links?.entzopedia === "string" &&
-                /^https:\/\/(?:www\.)?entzopedia\.(?:com|net|org)\//i.test(a.social_links.entzopedia)
+                /^https:\/\/(?:www\.)?entzopedia\.(?:com|net|org)(?:\/|$)/i.test(a.social_links.entzopedia)
                   ? a.social_links.entzopedia
                   : null;
               if (!a.public_slug && !entzopediaUrl) return null;

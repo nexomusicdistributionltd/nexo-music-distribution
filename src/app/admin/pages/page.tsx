@@ -3,6 +3,8 @@ import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { listAllPagesAdmin } from "@/lib/cms/pages";
+import { getWebsiteSetting } from "@/lib/website/queries";
+import { FooterSettingsClient } from "@/components/website/FooterSettingsClient";
 
 export const metadata: Metadata = {
   title: "CMS pages",
@@ -11,15 +13,21 @@ export const metadata: Metadata = {
 
 export default async function AdminPagesPage() {
   await RequireAdmin();
-  const pages = await listAllPagesAdmin();
+  const [pages, footer] = await Promise.all([
+    listAllPagesAdmin(),
+    getWebsiteSetting("footer"),
+  ]);
 
   return (
-    <div>
+    <div className="space-y-8">
       <PageHeader
-        title="Pages"
-        description="Legal and custom CMS pages. Publish Privacy/Terms/Cookies to complete the footer."
+        title="Pages & footer"
+        description="Edit footer content and manage every CMS-backed footer/legal page. Published changes refresh the public website in realtime."
       />
-      <ul className="mt-4 divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
+      <FooterSettingsClient initial={(footer?.value as Record<string, unknown>) ?? {}} />
+      <section>
+        <h2 className="mb-3 text-h4">Footer and legal pages</h2>
+        <ul className=" divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
         {pages.map((p) => (
           <li key={p.id} className="flex items-center justify-between px-4 py-3 text-small">
             <div>
@@ -33,7 +41,8 @@ export default async function AdminPagesPage() {
             </Link>
           </li>
         ))}
-      </ul>
+        </ul>
+      </section>
     </div>
   );
 }
