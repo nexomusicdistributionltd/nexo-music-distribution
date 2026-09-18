@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { RequireAdmin } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { DistributionNav } from "@/components/distribution/DistributionNav";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { listArtistDspMappings } from "@/lib/migration/queries";
 import { MappingClient } from "@/components/distribution/MappingClient";
+import { getProviderConnectionState } from "@/lib/provider";
 
 export const metadata: Metadata = {
   title: "Artist DSP mapping",
@@ -13,37 +15,65 @@ export const metadata: Metadata = {
 
 export default async function MappingPage() {
   await RequireAdmin();
-  const rows = await listArtistDspMappings();
+  const db = await createClient();
+
+  const [rows, { data: artistRows }, provider] = await Promise.all([
+    listArtistDspMappings().catch(() => []),
+    db
+      .from("artist_profiles")
+      .select("id,artist_name,stage_name")
+      .order("artist_name", { ascending: true })
+      .limit(500),
+    getProviderConnectionState().catch(() => ({
+      connected: false,
+      providerName: null,
+      message: "Distribution Engine health is unavailable.",
+      webhookConfigured: false,
+    })),
+  ]);
+
+  const artists = (artistRows ?? []).map((artist) => ({
+    id: artist.id,
+    name: artist.artist_name || artist.stage_name || artist.id,
+  }));
 
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         title="Artist mapping"
-        description="Manual DSP artist ID mappings. source_connected stays false without real API credentials."
+        description="Map Nexo artists to external DSP artist identifiers used for delivery, migration and catalog reconciliation."
       />
       <DistributionNav current="/admin/distribution/mapping" />
-      <div className="mt-4">
-        <MappingClient />
+
+      <div className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4 text-small">
+        <span className="font-medium">Distribution Engine:</span>{" "}
+        {provider.connected ? "API access verified." : provider.message}
       </div>
+
+      <MappingClient artists={artists} />
+
       {rows.length === 0 ? (
-        <div className="mt-4">
-          <EmptyState title="No mappings" description="Add DSP artist mappings for migration discovery." />
-        </div>
+        <EmptyState
+          title="No mappings"
+          description="Choose an artist above and add the DSP artist ID. Existing mappings will appear here."
+        />
       ) : (
-        <ul className="mt-4 divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
-          {rows.map((m) => {
-            const ap = m.artist_profiles as { display_name?: string } | null;
+        <ul className="divide-y divide-[var(--nexo-border)] overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
+          {rows.map((mapping) => {
+            const artist = mapping.artist_profiles as {
+              artist_name?: string | null;
+              stage_name?: string | null;
+            } | null;
             return (
-              <li key={m.id} className="px-4 py-3 text-small">
+              <li key={mapping.id} className="px-4 py-3 text-small">
                 <p className="font-medium">
-                  {ap?.display_name || m.artist_profile_id} · {m.dsp_name}
+                  {artist?.artist_name || artist?.stage_name || mapping.artist_profile_id} ·{" "}
+                  {mapping.dsp_name}
                 </p>
                 <p className="text-caption text-[var(--nexo-text-muted)]">
-                  external id: {m.external_artist_id || "—"}
-                  {" · connected="}
-                  {String(m.source_connected)}
-                  {" · verified="}
-                  {String(m.verified)}
+                  External ID: {mapping.external_artist_id || "—"}
+                  {" · "}
+                  {mapping.verified ? "Staff verified" : "Pending verification"}
                 </p>
               </li>
             );
