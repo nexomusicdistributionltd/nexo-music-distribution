@@ -71,6 +71,7 @@ export function ReleaseWizard({
   mode = "create",
   accountRole = "artist",
   rosterArtists = [],
+  initialArtistProfileId = "",
 }: {
   initial?: ReleaseRow | null;
   tracks?: ReleaseTrackRow[];
@@ -79,22 +80,30 @@ export function ReleaseWizard({
   mode?: "create" | "edit";
   accountRole?: "artist" | "label";
   rosterArtists?: RosterOption[];
+  initialArtistProfileId?: string;
 }) {
   const router = useRouter();
   const initialDistribution =
     initial?.distribution_settings && typeof initial.distribution_settings === "object"
       ? initial.distribution_settings
       : {};
+  const seededRosterArtistId = initial?.artist_profile_id ?? initialArtistProfileId;
+  const seededRosterArtist = rosterArtists.find((artist) => artist.id === seededRosterArtistId);
+
   const [step, setStep] = React.useState(0);
   const [releaseId, setReleaseId] = React.useState<string | null>(initial?.id ?? null);
   const [type, setType] = React.useState<ReleaseType>(initial?.release_type ?? "single");
   const [rosterArtistId, setRosterArtistId] = React.useState<string>(
-    initial?.artist_profile_id ?? ""
+    seededRosterArtistId ?? ""
   );
   const [info, setInfo] = React.useState({
     title: initial?.title ?? "",
     version: initial?.version ?? "",
-    primary_artist_name: initial?.primary_artist_name ?? "",
+    primary_artist_name:
+      initial?.primary_artist_name ??
+      (accountRole === "label"
+        ? seededRosterArtist?.artist_name || seededRosterArtist?.stage_name || ""
+        : ""),
     genre: initial?.genre ?? "",
     subgenre: initial?.subgenre ?? "",
     language: initial?.language ?? "en",
