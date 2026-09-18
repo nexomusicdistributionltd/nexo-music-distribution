@@ -1,6 +1,6 @@
 /** Home/overview helpers. Stream counts are never invented. */
 
-export type StreamOverviewStatus = "LIVE" | "EMPTY" | "NOT CONNECTED";
+export type StreamOverviewStatus = "LIVE" | "EMPTY" | "AVAILABLE";
 
 export const STREAM_OVERVIEW_DSPS = [
   { id: "audiomack", label: "Audiomack", match: ["audiomack"] },
@@ -82,9 +82,9 @@ export function streamOverviewHeadline(opts: {
   }
   if (!opts.connected) {
     return {
-      status: "NOT CONNECTED",
+      status: "AVAILABLE",
       chartNote:
-        "NOT CONNECTED — no ingested stream statements. Commercial DSP APIs are not linked. Counts are not estimated.",
+        "Analytics are available in Nexo. No verified stream rows are available for this account yet; counts are never estimated.",
     };
   }
   return {
