@@ -12,7 +12,7 @@ export async function savePayoutMethodAction(input: {
   accountHolder?: string;
   bankName?: string;
   country?: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<{ ok: true; data: { id: string; method_type: string; label: string; destination_mask: string | null; is_preferred: boolean; status: string } } | { ok: false; error: string }> {
   const ctx = await RequireRole(["artist", "label"]);
   if (!isPayoutMethodType(input.methodType)) return { ok: false, error: "Unsupported payout method." };
   const label = input.label.trim();
@@ -27,7 +27,7 @@ export async function savePayoutMethodAction(input: {
     .neq("status", "disabled");
   const preferred = (count ?? 0) === 0;
 
-  const { error } = await service.from("payout_methods").insert({
+  const { data, error } = await service.from("payout_methods").insert({
     owner_user_id: ctx.userId,
     method_type: input.methodType,
     label: label.slice(0, 120),
@@ -42,10 +42,12 @@ export async function savePayoutMethodAction(input: {
     source: "user",
     status: "active",
     created_by: ctx.userId,
-  });
-  if (error) return { ok: false, error: "Could not save payout method." };
+  })
+    .select("id,method_type,label,destination_mask,is_preferred,status")
+    .single();
+  if (error || !data) return { ok: false, error: "Could not save payout method." };
   revalidatePath("/earnings/payouts");
-  return { ok: true };
+  return { ok: true, data };
 }
 
 export async function setPreferredPayoutMethodAction(id: string) {
