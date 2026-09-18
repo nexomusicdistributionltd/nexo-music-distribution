@@ -128,8 +128,14 @@ export default async function RoyaltiesPage() {
           <ErrorState title="Royalties unavailable" description={loadError} retryHref="/admin/royalties" />
         ) : statements.items.length === 0 ? (
           <EmptyState
-            title="No Nexo royalty statements yet"
-            description="Statements appear after real provider reports are reconciled into the append-only Nexo ledger."
+            title="No reconciled Nexo statements yet"
+            description={
+              providerSalesReady
+                ? "Live TooLost sales are available above. Nexo statements are published only after confirmed settlement rows with explicit currency are reconciled into the ledger; estimated or unconfirmed provider sales are never made withdrawable."
+                : salesAuthorizationDenied
+                  ? "Reconnect TooLost with read:sales to restore live reporting. Existing Nexo ledger entries and published statements remain unchanged."
+                  : "Statements appear after confirmed provider settlement rows are reconciled into the append-only Nexo ledger."
+            }
           />
         ) : (
           <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
