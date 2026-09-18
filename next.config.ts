@@ -29,7 +29,7 @@ const securityHeaders = [
       // Next.js / Supabase Auth need these; avoid breaking login + realtime
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.paddle.com https://sandbox-cdn.paddle.com",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nexomusicdistribution.com https://*.paddle.com https://sandbox-api.paddle.com https://api.paddle.com",
-      "frame-src 'self' https://*.supabase.co https://www.youtube.com https://www.youtube-nocookie.com https://buy.paddle.com https://sandbox-buy.paddle.com https://*.paddle.com",
+      "frame-src 'self' https://*.supabase.co https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://buy.paddle.com https://sandbox-buy.paddle.com https://*.paddle.com",
       "worker-src 'self' blob:",
       "upgrade-insecure-requests",
     ].join("; "),
