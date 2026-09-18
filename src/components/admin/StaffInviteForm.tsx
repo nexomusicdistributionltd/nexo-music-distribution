@@ -6,74 +6,118 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
 import { inviteStaffUserAction } from "@/app/admin/actions";
-import type { AppRole } from "@/lib/auth/types";
 
-const STAFF_ROLES: Array<{ role: AppRole; label: string; description: string }> = [
+type TeamRole = {
+  role_key: string;
+  name: string;
+  description: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+type BaseRole = "support" | "admin" | "super_admin";
+
+const BASE_ROLES: Array<{
+  role: BaseRole;
+  label: string;
+  description: string;
+}> = [
   {
     role: "support",
-    label: "Support Staff",
+    label: "Team Staff",
     description:
-      "Support tickets, contact messages, catalog lookup and QC. No finance, royalties, TooLost distribution, settings or staff management.",
+      "Least-privilege staff account. Access comes only from the functional teams selected below.",
   },
   {
     role: "admin",
     label: "Administrator",
     description:
-      "Full day-to-day administration including users, finance, TooLost distribution, DDEX, website tools and settings. Can invite staff.",
+      "Full day-to-day Nexo administration. Administrator access can only be granted by a Super Admin.",
   },
   {
     role: "super_admin",
     label: "Super Admin",
     description:
-      "Full administrator access plus privileged role changes and Super Admin management.",
+      "Full access including administrator promotion and privileged role management.",
   },
 ];
 
 export function StaffInviteForm({
-  allowSuperAdmin = false,
+  teamRoles,
+  allowAdministratorLevel = false,
 }: {
-  allowSuperAdmin?: boolean;
+  teamRoles: TeamRole[];
+  allowAdministratorLevel?: boolean;
 }) {
   const router = useRouter();
+  const defaultTeam =
+    teamRoles.find((item) => item.role_key === "support")?.role_key ??
+    teamRoles[0]?.role_key ??
+    "";
+
   const [email, setEmail] = React.useState("");
-  const [role, setRole] = React.useState<AppRole>("support");
+  const [baseRole, setBaseRole] = React.useState<BaseRole>("support");
+  const [selectedTeams, setSelectedTeams] = React.useState<string[]>(
+    defaultTeam ? [defaultTeam] : []
+  );
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState<string | null>(null);
 
-  const availableRoles = allowSuperAdmin
-    ? STAFF_ROLES
-    : STAFF_ROLES.filter((item) => item.role !== "super_admin");
+  const availableBaseRoles = allowAdministratorLevel
+    ? BASE_ROLES
+    : BASE_ROLES.filter((item) => item.role === "support");
+
+  function toggleTeam(roleKey: string) {
+    setSelectedTeams((current) =>
+      current.includes(roleKey)
+        ? current.filter((item) => item !== roleKey)
+        : [...current, roleKey]
+    );
+  }
 
   return (
     <form
-      className="mb-6 space-y-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-5"
-      onSubmit={async (e) => {
-        e.preventDefault();
+      className="mb-6 space-y-5 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-5"
+      onSubmit={async (event) => {
+        event.preventDefault();
         if (pending) return;
         setPending(true);
         setError(null);
         setOk(null);
-        const res = await inviteStaffUserAction({ email, roles: [role] });
+
+        const result = await inviteStaffUserAction({
+          email,
+          baseRole,
+          teamRoles: baseRole === "support" ? selectedTeams : [],
+        });
+
         setPending(false);
-        if (!res.ok) {
-          setError(res.error);
+        if (!result.ok) {
+          setError(result.error);
           return;
         }
-        const label = STAFF_ROLES.find((item) => item.role === role)?.label ?? role;
-        setOk(`Invitation sent to ${email} with ${label} access.`);
+
+        const teamNames = teamRoles
+          .filter((item) => selectedTeams.includes(item.role_key))
+          .map((item) => item.name);
+        const access =
+          baseRole === "support"
+            ? teamNames.join(", ")
+            : BASE_ROLES.find((item) => item.role === baseRole)?.label ?? baseRole;
+
+        setOk(`Invitation sent to ${email} with ${access} access.`);
         setEmail("");
-        setRole("support");
+        setBaseRole("support");
+        setSelectedTeams(defaultTeam ? [defaultTeam] : []);
         router.refresh();
       }}
     >
       <div>
-        <h2 className="text-h4">Invite staff member</h2>
+        <h2 className="text-h4">Invite team member</h2>
         <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-          Choose one access level. Permissions are enforced on the server, not only in the sidebar.
-          {allowSuperAdmin
-            ? " Super Admin access is available because you are a Super Admin."
-            : " Only a Super Admin can grant Super Admin access."}
+          Assign one or multiple functional teams. The member only sees and can use the
+          admin areas granted by those teams.
         </p>
       </div>
 
@@ -88,34 +132,86 @@ export function StaffInviteForm({
         type="email"
         required
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(event) => setEmail(event.target.value)}
         placeholder="team@nexomusicdistribution.com"
       />
 
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-        {availableRoles.map((item) => (
-          <label
-            key={item.role}
-            className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3"
-          >
-            <span className="flex items-center gap-2 font-medium">
-              <input
-                type="radio"
-                name="staff-role"
-                value={item.role}
-                checked={role === item.role}
-                onChange={() => setRole(item.role)}
-              />
-              {item.label}
-            </span>
-            <span className="mt-1 block text-caption text-[var(--nexo-text-muted)]">
-              {item.description}
-            </span>
-          </label>
-        ))}
-      </div>
+      {allowAdministratorLevel ? (
+        <div className="space-y-2">
+          <p className="text-caption font-medium text-[var(--nexo-text-muted)]">
+            Account access level
+          </p>
+          <div className="grid gap-2 md:grid-cols-3">
+            {availableBaseRoles.map((item) => (
+              <label
+                key={item.role}
+                className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3"
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <input
+                    type="radio"
+                    name="base-role"
+                    value={item.role}
+                    checked={baseRole === item.role}
+                    onChange={() => setBaseRole(item.role)}
+                  />
+                  {item.label}
+                </span>
+                <span className="mt-1 block text-caption text-[var(--nexo-text-muted)]">
+                  {item.description}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
-      <Button type="submit" disabled={pending} aria-busy={pending}>
+      {baseRole === "support" ? (
+        <div className="space-y-2">
+          <div>
+            <p className="text-caption font-medium text-[var(--nexo-text-muted)]">
+              Functional team access
+            </p>
+            <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+              Select as many teams as this staff member actually needs.
+            </p>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {teamRoles.map((item) => (
+              <label
+                key={item.role_key}
+                className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3"
+              >
+                <span className="flex items-start gap-2 font-medium">
+                  <input
+                    className="mt-1"
+                    type="checkbox"
+                    checked={selectedTeams.includes(item.role_key)}
+                    onChange={() => toggleTeam(item.role_key)}
+                  />
+                  <span>{item.name}</span>
+                </span>
+                <span className="mt-1 block text-caption text-[var(--nexo-text-muted)]">
+                  {item.description}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <Alert title="Full administrative account">
+          Functional team restrictions do not apply to Administrator or Super Admin accounts.
+        </Alert>
+      )}
+
+      <Button
+        type="submit"
+        disabled={
+          pending ||
+          (baseRole === "support" && selectedTeams.length === 0)
+        }
+        aria-busy={pending}
+      >
         {pending ? "Sending invitation…" : "Send invitation"}
       </Button>
     </form>

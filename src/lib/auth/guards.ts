@@ -11,7 +11,8 @@ import {
   type AppRole,
   type AuthUserContext,
 } from "@/lib/auth/types";
-import { hasAdminPermission, type AdminPermission } from "@/lib/admin/permissions";
+import { type AdminPermission } from "@/lib/admin/permissions";
+import { getEffectiveAdminPermissionsForContext } from "@/lib/admin/staff-access";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
 function authNotConfiguredRedirect() {
@@ -126,7 +127,8 @@ export async function RequireAdminPermission(
   permission: AdminPermission
 ): Promise<AuthUserContext> {
   const ctx = await RequireAdmin();
-  if (!hasAdminPermission(ctx.roles, permission)) {
+  const permissions = await getEffectiveAdminPermissionsForContext(ctx);
+  if (!permissions.has(permission)) {
     redirect(homePathForRoles(ctx.roles));
   }
   return ctx;

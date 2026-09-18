@@ -1,5 +1,9 @@
 import type { AppRole } from "@/lib/auth/types";
-import { adminPermissionForPath, hasAdminPermission } from "@/lib/admin/permissions";
+import {
+  adminPermissionForPath,
+  adminPermissionsForRoles,
+  type AdminPermission,
+} from "@/lib/admin/permissions";
 import { portalSectionsForKind } from "@/lib/portal/ia";
 
 export type NavIconId =
@@ -198,14 +202,18 @@ function labelSections(): NavSection[] {
   return portalSectionsForKind("label");
 }
 
-export function navSectionsForRoles(roles: AppRole[]): NavSection[] {
+export function navSectionsForRoles(
+  roles: AppRole[],
+  effectivePermissions?: ReadonlySet<AdminPermission>
+): NavSection[] {
   const kind = workspaceKindForRoles(roles);
   if (kind === "admin") {
+    const permissions = effectivePermissions ?? adminPermissionsForRoles(roles);
     return ADMIN_SECTIONS.map((section) => ({
       ...section,
       items: section.items.filter((item) => {
         const permission = adminPermissionForPath(item.href);
-        return !permission || hasAdminPermission(roles, permission);
+        return !permission || permissions.has(permission);
       }),
     })).filter((section) => section.items.length > 0);
   }

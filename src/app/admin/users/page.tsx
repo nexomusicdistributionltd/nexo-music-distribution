@@ -13,6 +13,7 @@ import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
 import { hasAdminPermission } from "@/lib/admin/permissions";
 import { adminListErrorMessage } from "@/lib/db/admin-query";
 import type { AppRole } from "@/lib/auth/types";
+import { listActiveStaffTeamRoles } from "@/lib/admin/staff-access";
 
 export const metadata: Metadata = {
   title: "Admin users",
@@ -28,6 +29,7 @@ export default async function AdminUsersPage({
   const sp = await searchParams;
   const q = sanitizeAdminSearchQuery(sp.q);
   const supabase = await createClient();
+  const teamRoles = await listActiveStaffTeamRoles();
   let query = supabase
     .from("profiles")
     .select("id, email, full_name, display_name, account_status, account_type, created_at")
@@ -56,7 +58,12 @@ export default async function AdminUsersPage({
   return (
     <div>
       <PageHeader title="Users & access" description="Manage accounts, invite staff and control administrative roles." showSearch searchQ={sp.q} />
-      {canInviteStaff ? <StaffInviteForm allowSuperAdmin={ctx.roles.includes("super_admin")} /> : null}
+      {canInviteStaff ? (
+        <StaffInviteForm
+          teamRoles={teamRoles}
+          allowAdministratorLevel={ctx.roles.includes("super_admin")}
+        />
+      ) : null}
       {error ? (
         <ErrorState title="Users unavailable" description={adminListErrorMessage(error)} retryHref="/admin/users" />
       ) : (data ?? []).length === 0 ? (
