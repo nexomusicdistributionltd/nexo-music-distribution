@@ -40,7 +40,7 @@ export async function listArtistDspMappings(artistProfileId?: string) {
   const supabase = await createClient();
   let q = supabase
     .from("artist_dsp_mappings")
-    .select("*, artist_profiles(id, display_name, user_id)")
+    .select("*, artist_profiles(id, artist_name, stage_name, user_id)")
     .order("updated_at", { ascending: false })
     .limit(100);
   if (artistProfileId) q = q.eq("artist_profile_id", artistProfileId);

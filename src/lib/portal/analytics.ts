@@ -11,8 +11,33 @@ export type AnalyticsSnapshot = {
   amountMinor: number | null;
   currency: string | null;
   dspCodes: string[];
+  streamCounts: Record<string, number>;
   note: string;
 };
+
+function numericValue(row: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const raw = row[key];
+    const value = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function platformCode(row: Record<string, unknown>): string {
+  return String(row.platform ?? row.channel ?? row.dsp ?? row.store ?? "").trim().toLowerCase();
+}
+
+function realStreamCounts(rows: Record<string, unknown>[]): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const row of rows) {
+    const platform = platformCode(row);
+    const count = numericValue(row, ["streams", "stream_count", "streamCount", "plays", "play_count", "count"]);
+    if (!platform || count == null || count < 0) continue;
+    totals[platform] = (totals[platform] ?? 0) + count;
+  }
+  return totals;
+}
 
 function matchesKey(dsp: string | null, key: AnalyticsKey): boolean {
   if (!dsp) return false;
@@ -31,7 +56,9 @@ export async function loadAnalyticsSnapshot(
       ? await ownedAnalytics(ownerUserId)
       : await ownedSales(ownerUserId, "overview");
     if (providerRows.length > 0) {
-      const codes = [...new Set(providerRows.map((r) => String(r.platform ?? r.channel ?? r.dsp ?? "")).filter(Boolean))];
+      const typedRows = providerRows as Record<string, unknown>[];
+      const codes = [...new Set(typedRows.map(platformCode).filter(Boolean))];
+      const streamCounts = key === "streams" ? realStreamCounts(typedRows) : {};
       return {
         key,
         connected: true,
@@ -40,7 +67,8 @@ export async function loadAnalyticsSnapshot(
         amountMinor: null,
         currency: null,
         dspCodes: codes,
-        note: "Live Distribution Engine analytics are connected for releases owned by this account.",
+        streamCounts,
+        note: "Live Distribution Engine analytics are connected for releases owned by this account. Stream totals are shown only when the provider returns numeric stream data.",
       };
     }
   } catch {
@@ -98,6 +126,7 @@ export async function loadAnalyticsSnapshot(
     amountMinor,
     currency,
     dspCodes: codes,
-    note: "Figures come from posted ledger rows only.",
+    streamCounts: {},
+    note: "Figures come from posted ledger rows only. Ledger money rows are never converted into invented stream counts.",
   };
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
   createReleaseDraft,
+  getDistributionMetadataLookups,
   prepareAssetUpload,
   registerUploadedAsset,
   replaceContributors,
@@ -47,6 +48,8 @@ type TrackDraft = {
   version: string;
   isrc: string;
   explicit: boolean;
+  language: string;
+  lyrics: string;
 };
 
 type ContribDraft = {
@@ -115,8 +118,10 @@ export function ReleaseWizard({
           version: t.version ?? "",
           isrc: t.isrc ?? "",
           explicit: t.explicit,
+          language: t.language ?? initial?.language ?? "en",
+          lyrics: t.lyrics ?? "",
         }))
-      : [{ track_number: 1, title: "", version: "", isrc: "", explicit: false }]
+      : [{ track_number: 1, title: "", version: "", isrc: "", explicit: false, language: initial?.language ?? "en", lyrics: "" }]
   );
   const [contributors, setContributors] = React.useState<ContribDraft[]>(
     initialContributors?.length
@@ -141,6 +146,20 @@ export function ReleaseWizard({
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState<string | null>(null);
+  const [providerGenres, setProviderGenres] = React.useState<Array<{ value: string; label: string }>>([]);
+  const [providerLanguages, setProviderLanguages] = React.useState<Array<{ value: string; label: string }>>([]);
+
+  React.useEffect(() => {
+    let active = true;
+    void getDistributionMetadataLookups().then((result) => {
+      if (!active || !result.ok) return;
+      setProviderGenres(result.data.genres);
+      setProviderLanguages(result.data.languages);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function ensureDraft(): Promise<string> {
     if (releaseId) return releaseId;
@@ -200,6 +219,8 @@ export function ReleaseWizard({
         version: t.version || null,
         isrc: t.isrc || null,
         explicit: t.explicit,
+        language: t.language || info.language || null,
+        lyrics: t.lyrics.trim() || null,
       }))
     );
     if (!res.ok) throw new Error(res.error);
@@ -212,6 +233,8 @@ export function ReleaseWizard({
           version: t.version ?? "",
           isrc: t.isrc ?? "",
           explicit: t.explicit,
+          language: t.language ?? info.language ?? "en",
+          lyrics: t.lyrics ?? "",
         }))
       );
     }
@@ -264,6 +287,13 @@ export function ReleaseWizard({
     }
   }
 
+  async function artworkDimensions(file: File): Promise<{ width: number; height: number }> {
+    const bitmap = await createImageBitmap(file);
+    const dimensions = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return dimensions;
+  }
+
   async function onUpload(kind: "audio" | "artwork", file: File, trackId?: string) {
     setError(null);
     const check = kind === "audio" ? assertAudioFile(file) : assertArtworkFile(file);
@@ -271,6 +301,25 @@ export function ReleaseWizard({
       setError(check);
       return;
     }
+
+    let clientArtworkMeta: { width: number; height: number } | null = null;
+    if (kind === "artwork") {
+      try {
+        clientArtworkMeta = await artworkDimensions(file);
+      } catch {
+        setError("Could not read the artwork dimensions. Use a valid JPEG, PNG, or WebP file.");
+        return;
+      }
+      const { width, height } = clientArtworkMeta;
+      const accepted = width === height && [1400, 3000, 4000].includes(width);
+      if (!accepted) {
+        setError(
+          `Artwork is ${width}×${height}px. Nexo accepts square artwork at exactly 1400×1400, 3000×3000, or 4000×4000px. Please upload a supported size.`
+        );
+        return;
+      }
+    }
+
     const id = await ensureDraft();
     setUploadProgress(`Uploading ${file.name}…`);
     try {
@@ -289,6 +338,8 @@ export function ReleaseWizard({
         filename: file.name,
         mimeType: file.type,
         sizeBytes: file.size,
+        width: clientArtworkMeta?.width ?? null,
+        height: clientArtworkMeta?.height ?? null,
       });
       if (!reg.ok) throw new Error(reg.error);
       setAssets((prev) => [
@@ -304,8 +355,8 @@ export function ReleaseWizard({
           mime_type: file.type,
           size_bytes: file.size,
           checksum: null,
-          width: null,
-          height: null,
+          width: clientArtworkMeta?.width ?? null,
+          height: clientArtworkMeta?.height ?? null,
           codec: null,
           container: null,
           sample_rate_hz: null,
@@ -465,7 +516,16 @@ export function ReleaseWizard({
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Genre</span>
-                <Input value={info.genre} onChange={(e) => setInfo({ ...info, genre: e.target.value })} />
+                <Input
+                  list="nexo-provider-genres"
+                  value={info.genre}
+                  onChange={(e) => setInfo({ ...info, genre: e.target.value })}
+                />
+                <datalist id="nexo-provider-genres">
+                  {providerGenres.map((genre) => (
+                    <option key={genre.value} value={genre.value}>{genre.label}</option>
+                  ))}
+                </datalist>
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Subgenre</span>
@@ -473,7 +533,16 @@ export function ReleaseWizard({
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Language</span>
-                <Input value={info.language} onChange={(e) => setInfo({ ...info, language: e.target.value })} />
+                <Input
+                  list="nexo-provider-languages"
+                  value={info.language}
+                  onChange={(e) => setInfo({ ...info, language: e.target.value })}
+                />
+                <datalist id="nexo-provider-languages">
+                  {providerLanguages.map((language) => (
+                    <option key={language.value} value={language.value}>{language.label}</option>
+                  ))}
+                </datalist>
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Release date</span>
@@ -519,7 +588,7 @@ export function ReleaseWizard({
           {step === 2 ? (
             <div className="space-y-4">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                ISRC is optional and never auto-generated. Upload audio per track.
+                Enter complete DSP metadata for every track. ISRC is never fabricated. Upload a lossless WAV or FLAC master whenever possible; MP3/AIFF/M4A remain accepted for catalog intake but may require a lossless master before provider delivery.
               </p>
               {tracks.map((t, idx) => (
                 <div key={idx} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-4 space-y-3">
@@ -564,23 +633,50 @@ export function ReleaseWizard({
                       }}
                     />
                   </div>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={t.explicit}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block space-y-1">
+                      <span className="text-caption text-[var(--nexo-text-muted)]">Track language</span>
+                      <Input
+                        value={t.language}
+                        placeholder="en"
+                        onChange={(e) => {
+                          const next = [...tracks];
+                          next[idx] = { ...t, language: e.target.value };
+                          setTracks(next);
+                        }}
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 pt-6">
+                      <input
+                        type="checkbox"
+                        checked={t.explicit}
+                        onChange={(e) => {
+                          const next = [...tracks];
+                          next[idx] = { ...t, explicit: e.target.checked };
+                          setTracks(next);
+                        }}
+                      />
+                      <span className="text-small">Explicit lyrics/content</span>
+                    </label>
+                  </div>
+                  <label className="block space-y-1">
+                    <span className="text-caption text-[var(--nexo-text-muted)]">Lyrics</span>
+                    <Textarea
+                      rows={8}
+                      value={t.lyrics}
+                      placeholder="Paste the complete lyrics for this track. Leave blank only for instrumentals."
                       onChange={(e) => {
                         const next = [...tracks];
-                        next[idx] = { ...t, explicit: e.target.checked };
+                        next[idx] = { ...t, lyrics: e.target.value };
                         setTracks(next);
                       }}
                     />
-                    <span className="text-small">Explicit</span>
                   </label>
                   <div>
                     <label className="text-caption text-[var(--nexo-text-muted)]">Audio file</label>
                     <Input
                       type="file"
-                      accept="audio/*,.wav,.flac,.mp3,.aiff,.m4a"
+                      accept=".wav,.flac,.mp3,.aiff,.aif,.m4a,audio/wav,audio/x-wav,audio/flac,audio/x-flac,audio/aiff,audio/x-aiff,audio/mpeg,audio/mp4"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (f) void onUpload("audio", f, t.id);
@@ -606,6 +702,8 @@ export function ReleaseWizard({
                       version: "",
                       isrc: "",
                       explicit: false,
+                      language: info.language || "en",
+                      lyrics: "",
                     },
                   ])
                 }
@@ -719,9 +817,11 @@ export function ReleaseWizard({
 
           {step === 4 ? (
             <div className="space-y-3">
-              <p className="text-small text-[var(--nexo-text-muted)]">
-                Cover art (JPEG/PNG/WebP). Stored in private bucket; DB keeps the file reference.
-              </p>
+              <div className="space-y-1 text-small text-[var(--nexo-text-muted)]">
+                <p>Cover artwork must be square and one of these accepted dimensions:</p>
+                <p className="font-medium text-[var(--nexo-text)]">1400×1400, 3000×3000, or 4000×4000 px</p>
+                <p>JPEG, PNG, or WebP. Nexo checks width and height before upload and rejects unsupported artwork immediately.</p>
+              </div>
               <Input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
