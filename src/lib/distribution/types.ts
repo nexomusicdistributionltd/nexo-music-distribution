@@ -83,8 +83,29 @@ export interface ProviderWebhookEventRow {
   processed_at: string | null;
 }
 
+export interface ProviderDeliverySnapshotRow {
+  id: string;
+  job_id: string | null;
+  release_id: string;
+  provider_name: string;
+  provider_release_id: string | null;
+  release_status: string;
+  dsp_statuses: Array<{
+    dsp: string;
+    status: string;
+    message?: string;
+    updatedAt?: string;
+  }>;
+  source: "api_sync" | "webhook";
+  event_id: string | null;
+  captured_at: string;
+}
+
 /** Safe provider → internal status mapping (never invents live without signal). */
 export const SAFE_WEBHOOK_STATUS_MAP: Record<string, string> = {
+  pending: "delivering",
+  in_review: "delivering",
+  processing: "delivering",
   delivering: "delivering",
   in_delivery: "delivering",
   submitted: "delivering",
