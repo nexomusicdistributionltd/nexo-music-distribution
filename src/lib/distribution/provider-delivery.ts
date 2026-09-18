@@ -1,5 +1,3 @@
-import "server-only";
-
 import type { ProviderDspDeliveryStatus } from "@/lib/provider/types";
 
 type Json = Record<string, unknown>;
