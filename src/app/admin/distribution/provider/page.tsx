@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import { DistributionNav } from "@/components/distribution/DistributionNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { getProviderConnectionState } from "@/lib/provider";
 import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
 import { hasDistributionCredential } from "@/lib/provider/oauth/store";
 
@@ -15,7 +14,6 @@ export const metadata: Metadata = {
 
 export default async function ProviderStatusPage() {
   await RequireAdministrator();
-  const state = getProviderConnectionState();
   const oauthConfigured = isDistributionOAuthConfigured();
   const authorized = oauthConfigured ? await hasDistributionCredential() : false;
 
