@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ReleaseWizard } from "@/components/releases/ReleaseWizard";
+import { distributionMetadataLookups } from "@/lib/provider/distribution-reference";
 import { RequireRole } from "@/lib/auth/guards";
 import {
   getLabelProfileIdForUser,
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 export default async function NewReleasePage() {
   const ctx = await RequireRole(["artist", "label"]);
   const isLabel = ctx.roles.includes("label");
+  const lookups = await distributionMetadataLookups().catch(() => ({ genres: [], languages: [], platforms: [] }));
   let rosterArtists: { id: string; artist_name: string; stage_name: string }[] = [];
   if (isLabel) {
     const labelId = await getLabelProfileIdForUser(ctx.userId);
@@ -39,6 +41,9 @@ export default async function NewReleasePage() {
         mode="create"
         accountRole={isLabel ? "label" : "artist"}
         rosterArtists={rosterArtists}
+        genreOptions={lookups.genres}
+        languageOptions={lookups.languages}
+        platformOptions={lookups.platforms}
       />
     </div>
   );
