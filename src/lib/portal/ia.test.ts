@@ -80,13 +80,14 @@ describe("portal IA", () => {
     expect(engagement?.badge).toBe("NEW");
   });
 
-  it("account overlay covers payment, members, enrollments, labels, profile", () => {
+  it("account overlay covers payment, members, enrollments, labels, agreement, profile", () => {
     const items = accountOverlayItems("label").map((i) => i.label);
     expect(items).toEqual([
       "Payment & Tax Details",
       "Account Members",
       "Enrollments",
       "Labels",
+      "Distribution Agreement",
       "My profile",
     ]);
   });
