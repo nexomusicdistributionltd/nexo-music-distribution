@@ -251,30 +251,39 @@ export function PortalOverview({
           )}
         </section>
 
-        <section className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5 shadow-[var(--nexo-shadow-sm)]">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="text-h4">Account Balance</h3>
-            <p className="text-caption text-[var(--nexo-text-muted)]">
-              Reporting period: {balance.periodLabel ?? "—"}
+        <section className="overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] shadow-[var(--nexo-shadow-sm)]">
+          <div className="relative border-b border-[var(--nexo-divider)] bg-[var(--nexo-elevated)] p-5 sm:p-6">
+            <div className="absolute right-5 top-5 rounded-full border border-[var(--nexo-border)] px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-[var(--nexo-text-muted)]">
+              Royalties
+            </div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--nexo-text-muted)]">
+              Available balance
+            </p>
+            <p className="mt-3 text-4xl font-semibold tracking-[-0.05em] tabular-nums sm:text-5xl">
+              {formatMinorUnits(balance.outstandingMinor, balance.currency)}
+            </p>
+            <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
+              Real posted ledger data only. No estimated or generated royalties.
             </p>
           </div>
-          <dl className="mt-4 space-y-2 text-small">
-            <BalanceRow label="Opening balance" value={moneyOrDash(balance.openingMinor, balance.currency)} />
-            <BalanceRow
-              label="Earnings (after taxes)"
-              value={moneyOrDash(balance.earningsMinor, balance.currency)}
-            />
-            <BalanceRow label="Adjustments" value={moneyOrDash(balance.adjustmentsMinor, balance.currency)} />
-            <BalanceRow label="Payments" value={moneyOrDash(balance.paymentsMinor, balance.currency)} />
-            <BalanceRow
-              label="Outstanding balance"
-              value={formatMinorUnits(balance.outstandingMinor, balance.currency)}
-              emphasis
-            />
-          </dl>
-          <p className="mt-3 text-caption text-[var(--nexo-text-muted)]">{balance.note}</p>
-          <div className="mt-4">
-            <Pill href={OVERVIEW_HREFS.royalties}>View royalties</Pill>
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-h4">Royalty activity</h3>
+              <p className="text-caption text-[var(--nexo-text-muted)]">
+                {balance.periodLabel ? `Period: ${balance.periodLabel}` : "No statement period yet"}
+              </p>
+            </div>
+            <dl className="mt-4 space-y-2 text-small">
+              <BalanceRow label="Opening balance" value={moneyOrDash(balance.openingMinor, balance.currency)} />
+              <BalanceRow label="Earnings" value={moneyOrDash(balance.earningsMinor, balance.currency)} />
+              <BalanceRow label="Adjustments" value={moneyOrDash(balance.adjustmentsMinor, balance.currency)} />
+              <BalanceRow label="Payments" value={moneyOrDash(balance.paymentsMinor, balance.currency)} />
+            </dl>
+            <p className="mt-3 text-caption text-[var(--nexo-text-muted)]">{balance.note}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Pill href={OVERVIEW_HREFS.royalties}>View royalties</Pill>
+              <Pill href="/earnings/payouts">Payment methods</Pill>
+            </div>
           </div>
         </section>
       </div>
