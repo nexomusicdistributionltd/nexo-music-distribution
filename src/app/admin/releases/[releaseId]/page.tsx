@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { QcDecisionForm } from "@/components/admin/QcDecisionForm";
+import { ReleaseCorrectionForm } from "@/components/admin/ReleaseCorrectionForm";
 import { TrackPlayer } from "@/components/admin/TrackPlayer";
 import { ReleaseDetailView } from "@/components/releases/ReleaseDetailView";
 import { getReleaseDetail } from "@/lib/releases/queries";
@@ -105,7 +106,13 @@ export default async function AdminReleaseDetailPage({
         </Link>
       }
       qcPanel={
-        isQcableStatus(release.status) ? <QcDecisionForm releaseId={release.id} /> : null
+        isQcableStatus(release.status) ? (
+          <QcDecisionForm releaseId={release.id} />
+        ) : release.status === "approved" ||
+          release.status === "scheduled" ||
+          release.status === "failed" ? (
+          <ReleaseCorrectionForm releaseId={release.id} status={release.status} />
+        ) : null
       }
       ddexPanel={
         <div className="space-y-4">
