@@ -45,7 +45,14 @@ export default async function VerificationDetailPage({
     ? await service.storage.from("identity-verification").createSignedUrls(paths, 600)
     : { data: [] as { path: string; signedUrl: string }[] };
 
-  const signed = new Map((signedRows ?? []).map((row) => [row.path, row.signedUrl]));
+  const signed = new Map<string, string>(
+    (signedRows ?? [])
+      .filter(
+        (row): row is { path: string; signedUrl: string } =>
+          typeof row.path === "string" && typeof row.signedUrl === "string"
+      )
+      .map((row) => [row.path, row.signedUrl])
+  );
   const profile = verification.profiles as unknown as { email?: string; display_name?: string; account_type?: string } | null;
   const canDecide = isAdministratorRole(ctx.roles);
 
