@@ -19,7 +19,13 @@ import {
 type Json = Record<string, unknown>;
 
 const INTERNAL_PROVIDER_KEY = "distribution_engine";
-const PROVIDER_AUDIO_MIME = "audio/flac";
+const PROVIDER_AUDIO_MIMES = new Set([
+  "audio/flac",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/aiff",
+  "audio/x-aiff",
+]);
 
 async function request(path: string, init: RequestInit = {}): Promise<unknown> {
   const token = await loadDistributionAccessToken();
@@ -173,9 +179,9 @@ async function loadAudioBytes(track: ProviderReleasePayload["tracks"][number]): 
     );
   }
 
-  if (track.audioMimeType !== PROVIDER_AUDIO_MIME) {
+  if (!track.audioMimeType || !PROVIDER_AUDIO_MIMES.has(track.audioMimeType)) {
     throw new ProviderDeliveryValidationError(
-      `Track ${track.trackNumber} must use lossless FLAC audio for Distribution Engine delivery. Re-upload this track as FLAC before retrying.`
+      `Track ${track.trackNumber} must use a lossless WAV, FLAC, or AIFF master for Distribution Engine delivery.`
     );
   }
 
@@ -197,6 +203,7 @@ async function uploadTrackAudio(
   track: ProviderReleasePayload["tracks"][number]
 ): Promise<string> {
   const fileName = nonEmpty(track.audioFilename) ?? `track-${track.trackNumber}.flac`;
+  const contentType = track.audioMimeType || "audio/flac";
   const raw = await request(
     `/releases/${encodeURIComponent(providerReleaseId)}/tracks/upload-url`,
     {
@@ -204,7 +211,7 @@ async function uploadTrackAudio(
       body: JSON.stringify({
         kind: "audio",
         fileName,
-        contentType: PROVIDER_AUDIO_MIME,
+        contentType,
       }),
     }
   );
@@ -240,7 +247,7 @@ async function uploadTrackAudio(
   for (const [key, value] of Object.entries(providedHeaders)) {
     if (typeof value === "string") headers.set(key, value);
   }
-  if (!headers.has("content-type")) headers.set("content-type", PROVIDER_AUDIO_MIME);
+  if (!headers.has("content-type")) headers.set("content-type", contentType);
 
   const uploaded = await fetch(uploadUrl, {
     method,
@@ -380,9 +387,9 @@ function validateSubmission(input: ProviderReleasePayload): void {
         `Track ${track.trackNumber} is missing linked audio.`
       );
     }
-    if (track.audioMimeType !== PROVIDER_AUDIO_MIME) {
+    if (!track.audioMimeType || !PROVIDER_AUDIO_MIMES.has(track.audioMimeType)) {
       throw new ProviderDeliveryValidationError(
-        `Track ${track.trackNumber} must use lossless FLAC audio for Distribution Engine delivery. Re-upload this track as FLAC before retrying.`
+        `Track ${track.trackNumber} must use a lossless WAV, FLAC, or AIFF master for Distribution Engine delivery.`
       );
     }
   }
