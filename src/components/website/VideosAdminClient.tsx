@@ -227,8 +227,6 @@ export function VideosAdminClient({
                 video={video}
                 artists={artists}
                 releases={releases}
-                pending={pending}
-                start={start}
                 setMsg={setMsg}
               />
             ))}
@@ -249,17 +247,14 @@ function VideoEditor({
   video,
   artists,
   releases,
-  pending,
-  start,
   setMsg,
 }: {
   video: VideoRow;
   artists: ArtistOption[];
   releases: ReleaseOption[];
-  pending: boolean;
-  start: (callback: () => Promise<void>) => void;
   setMsg: (value: string) => void;
 }) {
+  const [pending, start] = useTransition();
   const [form, setForm] = useState({
     title: video.title,
     url: video.url,
