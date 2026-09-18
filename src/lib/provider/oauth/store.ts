@@ -48,8 +48,10 @@ async function refreshStoredCredential(data: StoredCredential): Promise<string |
   if (!data.refresh_token_ciphertext) return null;
   const refreshToken = decryptDistributionSecret(data.refresh_token_ciphertext);
   const refreshed = await refreshDistributionAccessToken(refreshToken);
-  // OAuth refresh responses commonly omit scope when it is unchanged. Preserve the
-  // last provider-reported grant so capability diagnostics do not regress to unknown.
+  // OAuth refresh responses commonly omit unchanged fields. Preserve the previous
+  // refresh token and provider-reported scope so one successful refresh does not
+  // make the next refresh impossible or regress capability diagnostics to unknown.
+  if (!refreshed.refresh_token) refreshed.refresh_token = refreshToken;
   if (!refreshed.scope && data.scope) refreshed.scope = data.scope;
   await saveDistributionToken(refreshed);
   return refreshed.access_token;
