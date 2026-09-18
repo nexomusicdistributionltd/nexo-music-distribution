@@ -32,6 +32,8 @@ describe("storage auth concepts", () => {
     expect(assertArtworkFile({ type: "image/tiff", size: 10 })).toBeNull();
     expect(assertAudioFile({ type: "audio/flac", size: 0 })).toMatch(/empty/);
     expect(assertAudioFile({ type: "audio/wav", size: 100 })).toMatch(/FLAC/);
+    expect(assertAudioFile({ type: "text/html", size: 100, name: "fake.flac" })).toMatch(/FLAC/);
+    expect(assertArtworkFile({ type: "text/html", size: 100, name: "fake.jpg" })).toMatch(/Artwork must/);
   });
 
   it("rejects path traversal and cross-user paths", () => {
