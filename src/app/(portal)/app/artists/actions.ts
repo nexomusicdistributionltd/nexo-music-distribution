@@ -65,34 +65,24 @@ export async function createRosterArtist(
   if (!label) return { ok: false, error: "Label profile not found." };
 
   const genres = (input.genres ?? []).map((g) => g.trim()).filter(Boolean);
-  const { data: artistId, error } = await supabase.rpc("create_label_roster_artist", {
+  const { data: artistId, error } = await supabase.rpc("create_label_roster_artist_with_dsp", {
     p_stage_name: stage,
     p_bio: input.bio?.trim() || null,
     p_country: input.country?.trim() || null,
     p_genres: genres,
     p_avatar_url: input.avatar_url?.trim() || null,
     p_website: input.website?.trim() || null,
+    p_dsp_links: validatedDspLinks.map((row) => ({
+      dsp_key: row.dsp_key,
+      url: row.url,
+      enabled: row.enabled,
+    })),
   });
   if (error || !artistId) {
     return { ok: false, error: error?.message ?? "Could not create roster artist." };
   }
   const artist = { id: String(artistId) };
 
-  if (validatedDspLinks.length > 0) {
-    const payload = validatedDspLinks.map((row) => ({
-      ...row,
-      artist_profile_id: artist.id,
-    }));
-    const { error: dspError } = await supabase
-      .from("artist_dsp_links")
-      .upsert(payload, { onConflict: "artist_profile_id,dsp_key" });
-    if (dspError) {
-      return {
-        ok: false,
-        error: "Artist was created, but DSP profile links could not be saved. Open the artist and retry the DSP links.",
-      };
-    }
-  }
 
   try {
     await supabase.rpc("write_audit_log", {
