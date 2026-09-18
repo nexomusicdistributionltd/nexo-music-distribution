@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { RequireAdmin } from "@/lib/auth/guards";
+import { RequireAdminPermission } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPlaylistPitchesPage() {
-  await RequireAdmin();
+  await RequireAdminPermission("admin:marketing");
   const supabase = await createClient();
   const { data } = await supabase
     .from("playlist_pitch_requests")
