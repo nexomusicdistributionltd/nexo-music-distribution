@@ -8,7 +8,7 @@ function rows(x:unknown){const o=(x&&typeof x==="object"?x:{}) as Json;const d=(
 export const distributionReference={
  me:()=>api("/me"), releases:()=>api("/releases"), release:(id:string)=>api("/releases/"+encodeURIComponent(id)),
  releaseTracks:(id:string)=>api("/releases/"+encodeURIComponent(id)+"/tracks"),
- countries:()=>api("/countries"), platforms:()=>api("/platforms"), genres:()=>api("/genres"), languages:()=>api("/languages"),
+ countries:()=>api("/lookup/countries"), platforms:()=>api("/lookup/platforms"), genres:()=>api("/lookup/genres"), languages:()=>api("/lookup/languages"),
  salesOverview:()=>api("/sales/overview"), salesTracks:()=>api("/sales/tracks"), salesReleases:()=>api("/sales/releases"),
  salesArtists:()=>api("/sales/artists"), salesChannels:()=>api("/sales/channels"), salesTerritories:()=>api("/sales/territories"),
  streamRates:()=>api("/sales/stream-rates"), analytics:()=>api("/analytics"), preferences:()=>api("/preferences"),
