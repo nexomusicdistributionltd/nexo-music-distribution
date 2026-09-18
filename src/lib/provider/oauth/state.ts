@@ -5,9 +5,7 @@ const PREFIX = "nexo_dist_v1";
 const MAX_AGE_SECONDS = 10 * 60;
 
 function signingSecret(): string {
-  const secret =
-    (process.env.DISTRIBUTION_OAUTH_STATE_SECRET ?? "").trim() ||
-    (process.env.DISTRIBUTION_CLIENT_SECRET ?? "").trim();
+  const secret = (process.env.DISTRIBUTION_OAUTH_STATE_SECRET ?? "").trim();
   if (!secret) throw new Error("Distribution OAuth state signing secret is not configured.");
   return secret;
 }
