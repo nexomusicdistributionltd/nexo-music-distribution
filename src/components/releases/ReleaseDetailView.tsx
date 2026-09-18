@@ -79,7 +79,7 @@ export function ReleaseDetailView({
       </div>
 
       {release.status === "changes_requested" && release.changes_requested_reason ? (
-        <Alert variant="warning" title="Changes requested">
+        <Alert variant="error" title="Declined — changes required">
           {release.changes_requested_reason}
         </Alert>
       ) : null}

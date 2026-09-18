@@ -5,7 +5,7 @@ const LABELS: Record<string, string> = {
   draft: "Draft",
   submitted: "Submitted",
   in_qc: "QC Review",
-  changes_requested: "Changes requested",
+  changes_requested: "Declined",
   approved: "Approved",
   rejected: "Rejected",
   scheduled: "Queued for distribution",

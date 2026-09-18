@@ -211,7 +211,7 @@ export function statusLabel(status: ReleaseStatus): string {
     draft: "Draft",
     submitted: "Submitted",
     in_qc: "QC Review",
-    changes_requested: "Changes requested",
+    changes_requested: "Declined",
     approved: "Approved",
     rejected: "Rejected",
     scheduled: "Queued for distribution",
@@ -236,6 +236,7 @@ export function statusKind(
     case "scheduled":
       return "approved";
     case "rejected":
+    case "changes_requested":
     case "taken_down":
     case "failed":
       return "rejected";
@@ -243,7 +244,6 @@ export function statusKind(
       return "draft";
     case "submitted":
     case "in_qc":
-    case "changes_requested":
     case "takedown_requested":
       return "pending";
     case "delivering":

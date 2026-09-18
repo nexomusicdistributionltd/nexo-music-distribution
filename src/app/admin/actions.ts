@@ -20,6 +20,7 @@ import {
   submitQueuedRelease,
   syncReleaseStatus,
 } from "@/lib/distribution/actions";
+import { PROVIDER_DELIVERY_VALIDATION_CODE } from "@/lib/provider/errors";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -69,6 +70,7 @@ export type QcDecisionActionData = {
     queued: unknown;
     submitted?: unknown;
     synced?: unknown;
+    returnedForChanges?: unknown;
   };
   distributionWarning?: string;
 };
@@ -137,8 +139,27 @@ export async function performQcDecisionAction(input: {
         );
 
         if (!submitted.ok) {
-          distributionWarning =
-            `Release approved and queued, but TooLost submission needs attention: ${submitted.error}`;
+          if (submitted.code === PROVIDER_DELIVERY_VALIDATION_CODE) {
+            const { data: returned, error: returnError } = await supabase.rpc(
+              "admin_reopen_release_for_corrections",
+              {
+                p_release_id: input.releaseId,
+                p_reason: submitted.error,
+              }
+            );
+
+            if (!returnError) {
+              distribution.returnedForChanges = returned;
+              distributionWarning =
+                `Release declined and returned to the artist/label for correction: ${submitted.error}`;
+            } else {
+              distributionWarning =
+                `Delivery validation failed: ${submitted.error} Nexo could not automatically return the release for correction: ${returnError.message}`;
+            }
+          } else {
+            distributionWarning =
+              `Release approved and queued, but TooLost submission needs attention: ${submitted.error}`;
+          }
         } else {
           distribution.submitted = submitted.data;
 

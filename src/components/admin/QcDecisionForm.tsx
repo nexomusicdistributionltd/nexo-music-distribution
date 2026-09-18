@@ -25,7 +25,7 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
   const [reason, setReason] = React.useState("");
   const [internal, setInternal] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-  const [notice, setNotice] = React.useState<{ kind: "success" | "warning"; text: string } | null>(null);
+  const [notice, setNotice] = React.useState<{ kind: "success" | "warning"; title: string; text: string } | null>(null);
   const [pending, setPending] = React.useState(false);
 
   async function run(decision: QcDecision) {
@@ -45,11 +45,24 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
       return;
     }
     if (decision === "approve") {
-      if (res.data.distributionWarning) {
-        setNotice({ kind: "warning", text: res.data.distributionWarning });
+      if (res.data.distribution?.returnedForChanges) {
+        setNotice({
+          kind: "warning",
+          title: "Declined — returned for changes",
+          text:
+            res.data.distributionWarning ??
+            "The release was returned to the artist or label for correction and can be edited and resubmitted.",
+        });
+      } else if (res.data.distributionWarning) {
+        setNotice({
+          kind: "warning",
+          title: "Approved — distribution needs attention",
+          text: res.data.distributionWarning,
+        });
       } else {
         setNotice({
           kind: "success",
+          title: "Distribution started",
           text: "Release approved and submitted to TooLost for distribution. Delivery status will continue syncing automatically.",
         });
       }
@@ -103,7 +116,7 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
       {notice ? (
         <Alert
           variant={notice.kind === "success" ? "success" : "warning"}
-          title={notice.kind === "success" ? "Distribution started" : "Approved — distribution needs attention"}
+          title={notice.title}
         >
           {notice.text}
         </Alert>
@@ -117,14 +130,14 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
           variant="secondary"
           onClick={() => run("request_changes")}
         >
-          Request changes
+          Decline & return for changes
         </Button>
         <Button
           disabled={pending}
           variant="secondary"
           onClick={() => run("reject")}
         >
-          Reject
+          Reject permanently
         </Button>
       </div>
     </div>
