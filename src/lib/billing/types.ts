@@ -33,6 +33,8 @@ export type BillingSubscriptionRow = {
   canceled_at: string | null;
   paused_at: string | null;
   occurred_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type BillingTransactionRow = {

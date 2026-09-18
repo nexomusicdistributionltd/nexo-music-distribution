@@ -125,6 +125,14 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
+    id: "tools",
+    label: "Tools",
+    collapsible: true,
+    items: [
+      { href: "/admin/tools/billing", label: "Billing tools", icon: "settings" },
+    ],
+  },
+  {
     id: "messages",
     label: "Messages",
     collapsible: true,

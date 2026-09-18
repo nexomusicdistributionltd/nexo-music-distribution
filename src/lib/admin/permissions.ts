@@ -18,6 +18,7 @@ export type AdminPermission =
   | "admin:users"
   | "admin:staff_invite"
   | "admin:finance"
+  | "admin:billing_tools"
   | "admin:royalties"
   | "admin:payouts"
   | "admin:publishing"
@@ -69,6 +70,7 @@ const ADMIN_PERMS: AdminPermission[] = [
   "admin:users",
   "admin:staff_invite",
   "admin:finance",
+  "admin:billing_tools",
   "admin:royalties",
   "admin:payouts",
   "admin:publishing",
@@ -127,6 +129,7 @@ const ADMIN_PATH_PERMISSIONS: Array<{
   prefix: string;
   permission: AdminPermission;
 }> = [
+  { prefix: "/admin/tools/billing", permission: "admin:billing_tools" },
   { prefix: "/admin/finance/billing", permission: "admin:finance" },
   { prefix: "/admin/releases", permission: "admin:releases" },
   { prefix: "/admin/qc", permission: "admin:qc" },
