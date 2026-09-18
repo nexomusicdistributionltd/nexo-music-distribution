@@ -9,6 +9,8 @@ import { isAllowedFinanceReportType } from "@/lib/finance/exports";
 import { getPaymentProvider, paymentNotConnectedMessage } from "@/lib/finance/payment";
 import { validatePublishingShares } from "@/lib/publishing/shares";
 import type { PublishingRightType } from "@/lib/publishing/types";
+import { isPayoutMethodType, maskDestination } from "@/lib/finance/payout-methods";
+import { createServiceClient } from "@/lib/supabase/admin";
 
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 export type ActionResult<T = unknown> =
@@ -141,27 +143,24 @@ export async function completePayoutPaidAction(input: {
   paymentReference: string;
   providerName?: string;
   providerPayoutId?: string;
+  manual?: boolean;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:payouts");
   if (!input.paymentReference?.trim()) {
     return { ok: false, error: "payment_reference required from real payment operation." };
   }
-  // Without a connected provider, refuse casual PAID even with a typed reference
-  // unless staff explicitly uses the RPC after a real op. We still call the RPC
-  // which enforces GUC + processing state — but UI should not invent refs.
   const provider = getPaymentProvider();
-  if (!provider.connected) {
+  if (!input.manual && !provider.connected) {
     return {
       ok: false,
-      error:
-        "Payment provider NOT CONNECTED. Cannot mark PAID without an authorized server/provider payment path.",
+      error: "Automated payment is unavailable. Use the verified manual-payment path after completing the payment externally.",
     };
   }
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("complete_payout_paid", {
     p_payout_id: input.payoutId,
     p_payment_reference: input.paymentReference.trim(),
-    p_provider_name: input.providerName ?? null,
+    p_provider_name: input.manual ? "manual" : (input.providerName ?? provider.name),
     p_provider_payout_id: input.providerPayoutId ?? null,
   });
   if (error) return { ok: false, error: error.message };
@@ -454,6 +453,51 @@ export async function addPublishingShareAction(input: {
     .select("*")
     .single();
   if (error) return { ok: false, error: error.message };
+  revalidateFinance();
+  return { ok: true, data };
+}
+
+
+export async function saveAdminPayoutMethodAction(input: {
+  ownerUserId: string;
+  methodType: string;
+  label: string;
+  destination: string;
+  accountHolder?: string;
+  bankName?: string;
+  country?: string;
+  preferred?: boolean;
+}): Promise<ActionResult> {
+  const ctx = await RequireAdminPermission("admin:payouts");
+  if (!isPayoutMethodType(input.methodType)) return { ok: false, error: "Unsupported payout method." };
+  const ownerUserId = input.ownerUserId.trim();
+  const label = input.label.trim();
+  const destination = input.destination.trim();
+  if (!ownerUserId || !label || !destination) return { ok: false, error: "Owner, label and destination are required." };
+
+  const service = createServiceClient();
+  const { data: owner } = await service.from("profiles").select("id").eq("id", ownerUserId).maybeSingle();
+  if (!owner) return { ok: false, error: "Account owner not found." };
+  if (input.preferred) {
+    await service.from("payout_methods").update({ is_preferred: false }).eq("owner_user_id", ownerUserId);
+  }
+  const { data, error } = await service.from("payout_methods").insert({
+    owner_user_id: ownerUserId,
+    method_type: input.methodType,
+    label: label.slice(0, 120),
+    destination_mask: maskDestination(destination),
+    details: {
+      destination,
+      account_holder: input.accountHolder?.trim() || null,
+      bank_name: input.bankName?.trim() || null,
+      country: input.country?.trim() || null,
+    },
+    is_preferred: Boolean(input.preferred),
+    source: "admin",
+    status: "active",
+    created_by: ctx.userId,
+  }).select("id").single();
+  if (error || !data) return { ok: false, error: "Could not save payout method." };
   revalidateFinance();
   return { ok: true, data };
 }
