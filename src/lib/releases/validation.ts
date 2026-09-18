@@ -1,5 +1,4 @@
 import type { ReleaseRow, ReleaseTrackRow, ReleaseAssetRow, ReleaseContributorRow, ReleaseType } from "./types";
-import { COMPOSITION_CREDIT_ROLES } from "./contributor-roles";
 
 export type ValidationIssue = { field: string; message: string };
 
@@ -220,10 +219,11 @@ export function validateReleaseForSubmit(input: {
         (contributor) => !contributor.track_id || contributor.track_id === track.id
       );
       const contributorRoles = new Set(scoped.map((contributor) => contributor.role));
-      if (![...contributorRoles].some((role) => COMPOSITION_CREDIT_ROLES.has(role))) {
+      const hasProviderComposer = contributorRoles.has("composer") || contributorRoles.has("songwriter");
+      if (!hasProviderComposer) {
         issues.push({
           field: `track.${track.track_number}.contributors`,
-          message: `Track ${track.track_number} needs at least one songwriter/composer/lyricist or arranger credit.`,
+          message: `Track ${track.track_number} needs at least one songwriter or composer credit for distribution.`,
         });
       }
     }
