@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { RequireAdministrator } from "@/lib/auth/guards";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export async function sendBroadcastNotificationAction(input: {
   title: string;
   body: string;
   audience: "all" | "artists" | "labels";
 }): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
-  const ctx = await RequireAdministrator();
+  await RequireAdministrator();
   const title = input.title.trim();
   const body = input.body.trim();
 
@@ -23,68 +23,32 @@ export async function sendBroadcastNotificationAction(input: {
     return { ok: false, error: "Select a valid audience." };
   }
 
-  const service = createServiceClient();
-  const { data: broadcast, error: broadcastError } = await service
-    .from("notification_broadcasts")
-    .insert({
-      title,
-      body,
-      audience: input.audience,
-      created_by: ctx.userId,
-    })
-    .select("id")
-    .single();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("publish_notification_broadcast", {
+    p_title: title,
+    p_body: body,
+    p_audience: input.audience,
+  });
 
-  if (broadcastError || !broadcast) {
-    return { ok: false, error: "Could not create the broadcast." };
+  if (error) {
+    return {
+      ok: false,
+      error:
+        error.code === "42501"
+          ? "Administrator permission required."
+          : "Could not publish the notification broadcast.",
+    };
   }
 
-  let recipientsQuery = service
-    .from("profiles")
-    .select("id,account_type")
-    .in("account_status", ["active", "pending_verification"]);
-
-  if (input.audience === "artists") {
-    recipientsQuery = recipientsQuery.eq("account_type", "artist");
-  } else if (input.audience === "labels") {
-    recipientsQuery = recipientsQuery.eq("account_type", "label");
-  } else {
-    recipientsQuery = recipientsQuery.in("account_type", ["artist", "label"]);
-  }
-
-  const { data: recipients, error: recipientError } = await recipientsQuery;
-  if (recipientError) {
-    return { ok: false, error: "Broadcast created, but recipients could not be resolved." };
-  }
-
-  const rows = (recipients ?? []).map((profile) => ({
-    user_id: profile.id,
-    type: "broadcast",
-    title,
-    body,
-    entity_type: "notification_broadcast",
-    entity_id: broadcast.id,
-  }));
-
-  for (let i = 0; i < rows.length; i += 500) {
-    const { error } = await service.from("notifications").insert(rows.slice(i, i + 500));
-    if (error) {
-      return {
-        ok: false,
-        error: "Broadcast created, but delivery to every account could not be completed.",
-      };
-    }
-  }
-
-  await service
-    .from("notification_broadcasts")
-    .update({
-      recipient_count: rows.length,
-      published_at: new Date().toISOString(),
-    })
-    .eq("id", broadcast.id);
+  const result =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
 
   revalidatePath("/admin/notifications");
   revalidatePath("/dashboard/notifications");
-  return { ok: true, count: rows.length };
+  return {
+    ok: true,
+    count: Number(result.recipient_count ?? 0),
+  };
 }
