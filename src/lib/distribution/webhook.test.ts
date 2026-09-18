@@ -16,6 +16,8 @@ describe("webhook signature verification", () => {
   });
 
   it("fails closed when secret missing", () => {
+    delete process.env.DISTRIBUTION_WEBHOOK_SECRET;
+    delete process.env.PROVIDER_WEBHOOK_SECRET;
     const r = verifyProviderWebhookSignature({ rawBody: "{}", signatureHeader: "abc" });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toMatch(/not configured|fail closed/i);
