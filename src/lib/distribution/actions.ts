@@ -252,6 +252,7 @@ export async function submitQueuedRelease(
 
 export async function syncReleaseStatus(jobId: string): Promise<DistActionResult> {
   const supabase = await createClient();
+  const service = createServiceClient();
   const state = await getProviderConnectionState();
 
   if (!state.connected) {
@@ -276,8 +277,6 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
     .maybeSingle();
 
   if (!job?.provider_release_id) {
-    // A queued Nexo job does not have an upstream id until it is actually submitted.
-    // This is an expected pre-submission state, not a provider failure.
     await supabase.rpc("record_provider_sync_run", {
       p_job_id: jobId,
       p_status: "unavailable",
@@ -292,31 +291,67 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
 
   const provider = getProvider();
   try {
-    const status = await provider.syncRelease(job.provider_release_id);
-    const mapped = mapProviderStatusToRelease(status.status);
+    const delivery = await provider.getDeliveryStatus(job.provider_release_id);
+    const mapped = mapProviderStatusToRelease(delivery.deliveryStatus);
 
-    if (mapped) {
-      // Staff RPC sets trusted GUC — never call transition_release_status with spoofable source.
+    const { error: snapshotError } = await service
+      .from("provider_delivery_snapshots")
+      .insert({
+        job_id: job.id,
+        release_id: job.release_id,
+        provider_name: job.provider_name,
+        provider_release_id: job.provider_release_id,
+        release_status: delivery.deliveryStatus,
+        dsp_statuses: delivery.dspStatuses ?? [],
+        source: "api_sync",
+      });
+
+    const { data: currentRelease } = await supabase
+      .from("releases")
+      .select("status")
+      .eq("id", job.release_id)
+      .maybeSingle();
+
+    let run: unknown;
+    if (mapped && currentRelease?.status !== mapped) {
       const { data, error } = await supabase.rpc("apply_provider_sync_status", {
         p_job_id: jobId,
         p_mapped_status: mapped,
-        p_provider_status: status.status,
+        p_provider_status: delivery.deliveryStatus,
       });
       if (error) return { ok: false, error: error.message };
-      if (mapped === "live") {
-        try { const { drainFanlinkSyncJobs } = await import("@/lib/fanlink/jobs"); await drainFanlinkSyncJobs(5); } catch { /* release sync succeeds even if fanlink retry remains queued */ }
-      }
-      return { ok: true, data: { run: data, status, mapped } };
+      run = data;
+    } else {
+      const { data, error } = await supabase.rpc("record_provider_sync_run", {
+        p_job_id: jobId,
+        p_status: "succeeded",
+        p_provider_status: delivery.deliveryStatus,
+        p_delivery_status: mapped ?? delivery.deliveryStatus,
+      });
+      if (error) return { ok: false, error: error.message };
+      run = data;
     }
 
-    const { data, error } = await supabase.rpc("record_provider_sync_run", {
-      p_job_id: jobId,
-      p_status: "succeeded",
-      p_provider_status: status.status,
-      p_delivery_status: mapped,
-    });
-    if (error) return { ok: false, error: error.message };
-    return { ok: true, data: { run: data, status, mapped } };
+    if (mapped === "live") {
+      try {
+        const { drainFanlinkSyncJobs } = await import("@/lib/fanlink/jobs");
+        await drainFanlinkSyncJobs(5);
+      } catch {
+        // Delivery sync remains successful; fanlink retry can remain queued.
+      }
+    }
+
+    return {
+      ok: true,
+      data: {
+        run,
+        status: delivery,
+        mapped,
+        ...(snapshotError
+          ? { snapshotWarning: "Provider status synced, but the delivery-history snapshot could not be stored." }
+          : {}),
+      },
+    };
   } catch (err) {
     const payload = toProviderErrorPayload(err);
     await supabase.rpc("record_provider_sync_run", {
