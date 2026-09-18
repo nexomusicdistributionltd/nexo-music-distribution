@@ -40,6 +40,8 @@ jobs:
         with:
           node-version: "24"
           cache: npm
+      - name: Install DDEX XSD validator
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils
       - run: npm ci
       - name: Tests
         shell: bash
