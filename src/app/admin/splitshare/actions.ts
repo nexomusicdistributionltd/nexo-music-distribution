@@ -15,9 +15,17 @@ export async function reviewSplitShareItemAction(input: {
   note?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const ctx = await RequireAdminPermission("admin:splitshare");
+  const validKinds = new Set<SplitShareReviewKind>(["payee", "split", "assignment", "recoupment"]);
+  const validDecisions = new Set<SplitShareDecision>(["approve", "reject", "close"]);
+  if (!validKinds.has(input.kind) || !validDecisions.has(input.decision)) {
+    return { ok: false, error: "Invalid SplitShare review action." };
+  }
   if (!/^[0-9a-f-]{36}$/i.test(input.id)) return { ok: false, error: "Invalid record id." };
 
   const note = (input.note ?? "").trim().slice(0, 2000) || null;
+  if (input.decision === "reject" && !note) {
+    return { ok: false, error: "Add a reason before rejecting this submission." };
+  }
   const supabase = await createClient();
   const reviewedAt = new Date().toISOString();
 
