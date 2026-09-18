@@ -47,15 +47,28 @@ type DistributionReleaseTrack = {
   title: string;
   version: string | null;
   isrc: string | null;
+  iswc: string | null;
+  liner_note: string | null;
+  tiktok_start_time: string | null;
   language: string | null;
   explicit: boolean;
+  clean_version: boolean;
+  instrumental: boolean;
+  ai_assisted: boolean;
+  lyrics: string | null;
+};
+
+type DistributionReleaseContributor = {
+  track_id: string | null;
+  name: string;
+  role: string;
 };
 
 type DistributionReleaseRecord = {
   id: string;
   title: string;
   version: string | null;
-  release_type: "single" | "ep" | "album";
+  release_type: "single" | "ep" | "album" | "compilation";
   primary_artist_name: string;
   label_name: string | null;
   genre: string | null;
@@ -71,6 +84,7 @@ type DistributionReleaseRecord = {
   distribution_settings: Record<string, unknown> | null;
   release_tracks: DistributionReleaseTrack[];
   release_assets: DistributionReleaseAsset[];
+  release_contributors: DistributionReleaseContributor[];
 };
 
 function providerPayloadFromRelease(release: DistributionReleaseRecord): ProviderReleasePayload {
@@ -88,6 +102,37 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
   const coverSongs = Array.isArray(settings.coverSongs)
     ? settings.coverSongs.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
     : [];
+  const providerArtistId =
+    Number.isFinite(Number(settings.providerArtistId)) && Number(settings.providerArtistId) > 0
+      ? Number(settings.providerArtistId)
+      : undefined;
+
+  const releaseContributors = release.release_contributors ?? [];
+  const artistRoles = new Set(["primary_artist", "featured_artist", "remixer"]);
+  const writerRoles = new Set(["songwriter", "composer", "lyricist"]);
+  const toRole = (role: string) =>
+    role === "primary_artist"
+      ? "primary"
+      : role === "featured_artist"
+        ? "featured"
+        : role.replace(/_/g, " ");
+
+  const releaseArtists = releaseContributors
+    .filter((contributor) => !contributor.track_id && artistRoles.has(contributor.role))
+    .map((contributor) => ({
+      name: contributor.name,
+      role: [toRole(contributor.role)],
+      ...(contributor.role === "primary_artist" && providerArtistId
+        ? { artistId: providerArtistId }
+        : {}),
+    }));
+  if (!releaseArtists.some((artist) => artist.role.includes("primary"))) {
+    releaseArtists.unshift({
+      name: release.primary_artist_name,
+      role: ["primary"],
+      ...(providerArtistId ? { artistId: providerArtistId } : {}),
+    });
+  }
 
   return {
     releaseId: release.id,
@@ -95,6 +140,8 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
     version: release.version,
     type: release.release_type,
     primaryArtistName: release.primary_artist_name,
+    primaryArtistProviderId: providerArtistId,
+    participants: releaseArtists,
     labelName: release.label_name,
     genre: release.genre,
     subgenre: release.subgenre,
@@ -124,14 +171,59 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
         linked ??
         (tracks.length === 1 && audioAssets.length === 1 ? audioAssets[0] : null);
 
+      const scoped = releaseContributors.filter(
+        (contributor) => !contributor.track_id || contributor.track_id === track.id
+      );
+      const artists = scoped
+        .filter((contributor) => artistRoles.has(contributor.role))
+        .map((contributor) => ({
+          name: contributor.name,
+          role: [toRole(contributor.role)],
+          ...(contributor.role === "primary_artist" && providerArtistId
+            ? { artistId: providerArtistId }
+            : {}),
+        }));
+      if (!artists.some((artist) => artist.role.includes("primary"))) {
+        artists.unshift({
+          name: release.primary_artist_name,
+          role: ["primary"],
+          ...(providerArtistId ? { artistId: providerArtistId } : {}),
+        });
+      }
+      const writers = scoped
+        .filter((contributor) => writerRoles.has(contributor.role))
+        .map((contributor) => ({
+          name: contributor.name,
+          role: [toRole(contributor.role)],
+        }));
+      const credits = scoped
+        .filter(
+          (contributor) =>
+            !artistRoles.has(contributor.role) && !writerRoles.has(contributor.role)
+        )
+        .map((contributor) => ({
+          name: contributor.name,
+          role: [toRole(contributor.role)],
+        }));
+
       return {
         trackId: track.id,
         trackNumber: track.track_number,
         title: track.title,
         version: track.version,
         isrc: track.isrc,
+        iswc: track.iswc,
+        linerNote: track.liner_note,
+        tiktokStartTime: track.tiktok_start_time,
         language: track.language,
         explicit: track.explicit,
+        cleanVersion: track.clean_version,
+        instrumental: track.instrumental,
+        lyrics: track.lyrics,
+        aiAssisted: track.ai_assisted,
+        artists,
+        writers,
+        credits,
         audioStorageBucket: audio?.storage_bucket ?? null,
         audioStoragePath: audio?.storage_path ?? null,
         audioFilename: audio?.filename ?? null,
