@@ -38,7 +38,7 @@ export default async function AdminDashboardPage() {
         const { count, error } = await db
           .from("identity_verifications")
           .select("*", { count: "exact", head: true })
-          .in("status", ["submitted", "pending_review", "additional_info_required"]);
+          .in("status", ["submitted", "under_review", "additional_info_required"]);
         return error ? 0 : Number(count ?? 0);
       })(),
       liveCount("distribution_agreement_executions"),
@@ -47,7 +47,7 @@ export default async function AdminDashboardPage() {
         const { count, error } = await db
           .from("payout_requests")
           .select("*", { count: "exact", head: true })
-          .in("status", ["requested", "approved", "processing"]);
+          .in("status", ["submitted", "reviewing", "approved"]);
         return error ? 0 : Number(count ?? 0);
       })(),
       liveCount("notification_broadcasts"),
