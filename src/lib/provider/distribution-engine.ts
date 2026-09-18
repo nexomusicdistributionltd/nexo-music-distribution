@@ -14,7 +14,7 @@ import type {
 import { ProviderUnavailableError } from "./errors";
 
 type Json = Record<string, unknown>;
-type ProviderTrack = { id: string | number; title?: string | null };
+type ProviderTrack = { id: string; title?: string | null };
 
 function object(value: unknown): Json {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : {};
