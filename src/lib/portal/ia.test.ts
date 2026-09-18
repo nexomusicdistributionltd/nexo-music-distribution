@@ -20,22 +20,28 @@ import {
 import { PORTAL_SERVICE_KINDS } from "@/lib/portal/service-kinds";
 
 describe("portal IA", () => {
-  it("exposes seven accordion sections for artist and label", () => {
+  it("exposes the complete Nexo portal sections for artist and label", () => {
     for (const kind of ["artist", "label"] as const) {
       const sections = portalSectionsForKind(kind);
       expect(sections.map((s) => s.id)).toEqual([
+        "main",
         "catalog",
-        "marketing",
+        "sales",
         "analytics",
+        "reports",
+        "marketing",
         "royalties",
         "splitshare",
         "rights",
         "help",
       ]);
       expect(sections.map((s) => s.label)).toEqual([
+        "Main",
         "Catalog",
-        "Marketing",
+        "Sales",
         "Analytics",
+        "Reports",
+        "Marketing",
         "Royalties",
         "SplitShare",
         "Rights",
@@ -87,6 +93,10 @@ describe("portal IA", () => {
       "Account Members",
       "Enrollments",
       "Labels",
+      "Signed agreements",
+      "Preferences",
+      "Notifications",
+      "Support",
       "My profile",
     ]);
   });
