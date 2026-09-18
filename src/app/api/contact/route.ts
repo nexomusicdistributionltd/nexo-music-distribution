@@ -79,10 +79,13 @@ export async function POST(request: Request) {
       relatedEntityId: typeof data === "string" ? data : null,
       payload: {
         FIRST_NAME: name.split(/\s+/)[0] || "there",
+        SUPPORT_TICKET_ID: typeof data === "string" ? data : "",
         CONTACT_SUBJECT: subject,
+        STATUS: "Received",
+        REASON: subject,
         CTA_URL: "https://nexomusicdistribution.com",
         CTA_LABEL: "Visit Nexo",
-        PREHEADER: "We received your message",
+        PREHEADER: `We received your message — ${subject}`,
       },
       idempotencyKey: `CONTACT_ACK:${typeof data === "string" ? data : email}:${subject}`,
     });
