@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProfileForm } from "@/components/auth/ProfileForm";
+import { LabelProfileForm } from "@/components/auth/LabelProfileForm";
 import { Alert } from "@/components/ui/Alert";
 import { DspProfileLinksEditor } from "@/components/roster/DspProfileLinksEditor";
 import { ArtistBioForm } from "@/components/roster/ArtistBioForm";
 import { RequireAuth } from "@/lib/auth/guards";
-import { getArtistProfileForUser, listArtistDspLinks } from "@/lib/roster/queries";
+import {
+  getArtistProfileForUser,
+  getLabelProfileForUser,
+  listArtistDspLinks,
+} from "@/lib/roster/queries";
 import { IdentityVerifiedBadge } from "@/components/identity/IdentityVerifiedBadge";
 import { getIdentityVerificationForUser } from "@/lib/identity/queries";
 
@@ -24,6 +29,7 @@ export default async function DashboardProfilePage() {
     );
   }
   const artist = ctx.roles.includes("artist") ? await getArtistProfileForUser(ctx.userId) : null;
+  const label = ctx.roles.includes("label") ? await getLabelProfileForUser(ctx.userId) : null;
   const dspLinks = artist ? await listArtistDspLinks(artist.id) : [];
   const identity = await getIdentityVerificationForUser(ctx.userId);
 
@@ -36,6 +42,7 @@ export default async function DashboardProfilePage() {
         </p>
       </div>
       <ProfileForm profile={ctx.profile} roles={ctx.roles} email={ctx.email} />
+      {label ? <LabelProfileForm label={label} /> : null}
       {ctx.roles.includes("label") && !artist ? (
         <Alert>
           DSP profile links (Spotify, Apple Music, Audiomack, and others) live on each roster artist.{" "}
