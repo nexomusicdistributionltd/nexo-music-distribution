@@ -54,7 +54,7 @@ export function NotificationsClient({ items }: { items: NotificationRow[] }) {
       </div>
       <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
         {rows.map((n) => {
-          const href = n.action_path || `/dashboard/notifications/${n.id}`;
+          const href = `/dashboard/notifications/${n.id}`;
           return (
             <li key={n.id} className="flex items-start justify-between gap-3 p-4">
               <Link href={href} className="min-w-0 flex-1" onClick={() => !n.read_at && void markOne(n.id)}>
