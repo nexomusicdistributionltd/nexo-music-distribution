@@ -3,7 +3,7 @@ import { DEFAULT_SITE_URL, getSiteUrl, isForbiddenAuthHost } from "@/lib/site-ur
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createServiceClient, getServiceRoleKeyStatus } from "@/lib/supabase/admin";
 import { loginOtpHealthSnapshot } from "@/lib/auth/login-otp/env";
-import { readProviderConfig } from "@/lib/provider/config";
+import { getProviderConnectionState } from "@/lib/provider";
 import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { isZohoSmtpConfigured } from "@/lib/email/zoho-smtp";
 import { createClient } from "@supabase/supabase-js";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const env = getSupabaseEnv();
-  const provider = readProviderConfig();
+  const provider = await getProviderConnectionState();
   const payment = getPaymentConnectionState();
   const royaltyConfigured = Boolean(
     process.env.ROYALTY_PROVIDER_NAME?.trim() &&
