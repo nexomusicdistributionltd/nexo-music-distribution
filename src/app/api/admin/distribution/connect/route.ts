@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
 import { RequireAdministrator } from "@/lib/auth/guards";
 import { createDistributionAuthorizationUrl } from "@/lib/provider/oauth/authorize";
-import {
-  DISTRIBUTION_OAUTH_CALLBACK_PATH,
-  isDistributionOAuthConfigured,
-} from "@/lib/provider/oauth/config";
-import { getSiteUrl } from "@/lib/site-url";
+import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
 
 export async function GET() {
   await RequireAdministrator();
-  const canonicalOrigin = getSiteUrl();
 
   if (!isDistributionOAuthConfigured()) {
     return NextResponse.json(
@@ -18,18 +13,17 @@ export async function GET() {
     );
   }
 
-  const { url, state } = createDistributionAuthorizationUrl();
-  const callbackUrl = `${canonicalOrigin}${DISTRIBUTION_OAUTH_CALLBACK_PATH}`;
-  url.searchParams.set("redirect_uri", callbackUrl);
-  url.searchParams.set("prompt", "consent");
-
+  const { url, state, codeVerifier } = createDistributionAuthorizationUrl();
   const response = NextResponse.redirect(url);
-  response.cookies.set("nexo_distribution_oauth_state", state, {
+  const cookieBase = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: DISTRIBUTION_OAUTH_CALLBACK_PATH,
+    sameSite: "lax" as const,
+    path: "/",
     maxAge: 10 * 60,
-  });
+  };
+
+  response.cookies.set("nexo_distribution_oauth_state", state, cookieBase);
+  response.cookies.set("nexo_distribution_oauth_pkce", codeVerifier, cookieBase);
   return response;
 }
