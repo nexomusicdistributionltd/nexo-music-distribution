@@ -20,6 +20,7 @@ export type AdminPermission =
   | "admin:finance"
   | "admin:billing_tools"
   | "admin:royalties"
+  | "admin:splitshare"
   | "admin:payouts"
   | "admin:publishing"
   | "admin:statements"
@@ -72,6 +73,7 @@ const ADMIN_PERMS: AdminPermission[] = [
   "admin:finance",
   "admin:billing_tools",
   "admin:royalties",
+  "admin:splitshare",
   "admin:payouts",
   "admin:publishing",
   "admin:statements",
@@ -146,6 +148,7 @@ const ADMIN_PATH_PERMISSIONS: Array<{
   { prefix: "/admin/publishing", permission: "admin:publishing" },
   { prefix: "/admin/finance", permission: "admin:finance" },
   { prefix: "/admin/royalties", permission: "admin:royalties" },
+  { prefix: "/admin/splitshare", permission: "admin:splitshare" },
   { prefix: "/admin/statements", permission: "admin:statements" },
   { prefix: "/admin/payouts", permission: "admin:payouts" },
   { prefix: "/admin/analytics", permission: "admin:analytics" },
