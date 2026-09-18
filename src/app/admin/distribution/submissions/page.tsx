@@ -8,7 +8,7 @@ import { getProviderConnectionState } from "@/lib/provider";
 import { listProviderSubmissions } from "@/lib/distribution/queries";
 
 export const metadata: Metadata = {
-  title: "Provider submissions",
+  title: "Distribution submissions",
   robots: { index: false, follow: false },
 };
 
@@ -19,7 +19,7 @@ export default async function SubmissionsPage() {
 
   return (
     <div>
-      <PageHeader title="Submissions" description="Idempotent provider submission attempts. No fake accepted rows." />
+      <PageHeader title="Submissions" description="Distribution Engine submission history and delivery attempts." />
       <DistributionNav current="/admin/distribution/submissions" />
       <ProviderBanner connected={provider.connected} />
       {rows.length === 0 ? (
@@ -34,10 +34,12 @@ export default async function SubmissionsPage() {
               <li key={s.id} className="px-4 py-3 text-small">
                 <p className="font-medium">{rel?.title || s.release_id}</p>
                 <p className="text-caption text-[var(--nexo-text-muted)]">
-                  {s.status} · attempt {s.attempt_number} · {s.provider_name}
-                  {s.error_code ? ` · ${s.error_code}` : ""}
-                  {s.provider_release_id ? ` · provider id ${s.provider_release_id}` : ""}
+                  {s.status} · attempt {s.attempt_number} · Distribution Engine
+                  {s.provider_release_id ? ` · delivery id ${s.provider_release_id}` : ""}
                 </p>
+                {s.error_message ? (
+                  <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">{s.error_message}</p>
+                ) : null}
               </li>
             );
           })}
