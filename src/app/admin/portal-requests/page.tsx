@@ -3,6 +3,12 @@ import { RequireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  PortalRequestReviewClient,
+  type PortalReviewRow,
+} from "@/components/admin/PortalRequestReviewClient";
+import { formatMinorUnits } from "@/lib/finance/money";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Portal requests",
@@ -11,57 +17,113 @@ export const metadata: Metadata = {
 
 export default async function AdminPortalRequestsPage() {
   await RequireAdmin();
-  const supabase = await createClient();
+  const db = await createClient();
+
   const [{ data: services }, { data: videos }, { data: payouts }] = await Promise.all([
-    supabase
+    db
       .from("portal_service_requests")
-      .select("id, kind, title, status, created_at, owner_user_id")
+      .select("id,kind,title,status,created_at,owner_user_id,admin_note")
       .order("created_at", { ascending: false })
-      .limit(80),
-    supabase
+      .limit(200),
+    db
       .from("music_video_submissions")
-      .select("id, title, status, created_at, video_url")
+      .select("id,title,status,created_at,video_url,owner_user_id,admin_note")
       .order("created_at", { ascending: false })
-      .limit(40),
-    supabase
-      .from("payout_requests")
-      .select("id, amount_minor, currency, status, created_at")
+      .limit(100),
+    db
+      .from("payouts")
+      .select("id,owner_user_id,amount_minor,currency,status,created_at")
       .order("created_at", { ascending: false })
-      .limit(40),
+      .limit(60),
   ]);
 
-  const empty =
-    (services ?? []).length === 0 && (videos ?? []).length === 0 && (payouts ?? []).length === 0;
+  const ownerIds = [
+    ...new Set([
+      ...(services ?? []).map((row) => row.owner_user_id),
+      ...(videos ?? []).map((row) => row.owner_user_id),
+    ]),
+  ];
+  const { data: profiles } = ownerIds.length
+    ? await db
+        .from("profiles")
+        .select("id,email,display_name,full_name")
+        .in("id", ownerIds)
+    : { data: [] };
+
+  const profileById = new Map(
+    (profiles ?? []).map((profile) => [
+      profile.id,
+      profile.display_name || profile.full_name || profile.email || profile.id,
+    ])
+  );
+
+  const reviewRows: PortalReviewRow[] = [
+    ...(services ?? []).map((row) => ({
+      id: row.id,
+      type: "service" as const,
+      title: row.title,
+      kind: row.kind,
+      status: row.status,
+      adminNote: row.admin_note,
+      ownerLabel: profileById.get(row.owner_user_id) ?? row.owner_user_id,
+      createdAt: row.created_at,
+    })),
+    ...(videos ?? []).map((row) => ({
+      id: row.id,
+      type: "video" as const,
+      title: row.title,
+      kind: "music_video",
+      status: row.status,
+      adminNote: row.admin_note,
+      ownerLabel: profileById.get(row.owner_user_id) ?? row.owner_user_id,
+      createdAt: row.created_at,
+    })),
+  ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageIntro
         title="Portal requests"
-        description="Artist/label service, video, and payout requests. Status stays pending until staff act — no invented DSP connections."
+        description="Review Artist and Label service requests from Marketing, Rights, Catalog and video workflows. Status updates are stored and sent back to the account."
       />
-      {empty ? <EmptyState title="No portal requests" /> : null}
-      <RequestList title="Services" rows={(services ?? []).map((r) => `${r.kind} · ${r.title} · ${r.status}`)} />
-      <RequestList title="Videos" rows={(videos ?? []).map((r) => `${r.title} · ${r.status}`)} />
-      <RequestList
-        title="Payout requests"
-        rows={(payouts ?? []).map((r) => `${r.amount_minor} ${r.currency} · ${r.status}`)}
-      />
-    </div>
-  );
-}
 
-function RequestList({ title, rows }: { title: string; rows: string[] }) {
-  if (rows.length === 0) return null;
-  return (
-    <section className="space-y-2">
-      <h2 className="text-h4">{title}</h2>
-      <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
-        {rows.map((row, i) => (
-          <li key={`${title}-${i}`} className="px-4 py-3 text-small">
-            {row}
-          </li>
-        ))}
-      </ul>
-    </section>
+      <section className="space-y-3">
+        <h2 className="text-h4">Service & content review</h2>
+        {reviewRows.length === 0 ? (
+          <EmptyState title="No service requests" />
+        ) : (
+          <PortalRequestReviewClient rows={reviewRows} />
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-h4">Recent payout requests</h2>
+            <p className="text-small text-[var(--nexo-text-muted)]">
+              Finance controls and payout destinations are managed in the dedicated payout workspace.
+            </p>
+          </div>
+          <Link href="/admin/payouts" className="text-small underline-offset-4 hover:underline">
+            Open payouts
+          </Link>
+        </div>
+        {(payouts ?? []).length === 0 ? (
+          <EmptyState title="No payout requests" />
+        ) : (
+          <ul className="divide-y divide-[var(--nexo-divider)] overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
+            {(payouts ?? []).map((row) => (
+              <li key={row.id} className="flex flex-wrap justify-between gap-3 px-4 py-3 text-small">
+                <span>{row.owner_user_id}</span>
+                <span className="tabular-nums">
+                  {formatMinorUnits(Number(row.amount_minor), String(row.currency).trim())} ·{" "}
+                  {String(row.status).replace(/_/g, " ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   );
 }
