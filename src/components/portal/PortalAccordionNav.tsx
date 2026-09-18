@@ -48,10 +48,10 @@ function AccordionSection({
   }, [hasActive, pathname]);
 
   return (
-    <div className="border-b border-white/10">
+    <div className="border-b border-[var(--nexo-border)]">
       <button
         type="button"
-        className="flex w-full items-center justify-between px-4 py-3.5 text-left text-[0.9375rem] text-white/90 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        className="flex w-full items-center justify-between px-4 py-3.5 text-left text-[0.9375rem] text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)] hover:text-[var(--nexo-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)]"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -64,11 +64,11 @@ function AccordionSection({
       </button>
       {open ? (
         <div className="px-3 pb-3">
-          <div className="overflow-hidden rounded-xl bg-[#3a3a42] text-white">
+          <div className="overflow-hidden rounded-xl border border-[var(--nexo-border)] bg-[var(--nexo-surface)] text-[var(--nexo-text)]">
             {groups.map((group, gi) => (
               <div
                 key={`${section.id}-g-${gi}`}
-                className={gi > 0 ? "border-t border-white/10" : undefined}
+                className={gi > 0 ? "border-t border-[var(--nexo-border)]" : undefined}
               >
                 {group.map((item) => {
                   const active = isNavActive(pathname, item.href);
@@ -79,8 +79,8 @@ function AccordionSection({
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex items-center justify-between gap-3 px-4 py-2.5 text-[0.875rem] text-white/90 hover:bg-white/10",
-                        active && "bg-white/15 text-white"
+                        "flex items-center justify-between gap-3 px-4 py-2.5 text-[0.875rem] text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)] hover:text-[var(--nexo-text)]",
+                        active && "bg-[var(--nexo-ghost-hover)] text-[var(--nexo-text)]"
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-2">
