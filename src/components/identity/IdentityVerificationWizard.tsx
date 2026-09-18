@@ -258,7 +258,17 @@ export function IdentityVerificationWizard({
         <section className="space-y-4 rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6">
           <label className="block space-y-1.5">
             <span className="text-label">Country</span>
-            <Select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} required>
+            <Select
+              value={countryCode}
+              onChange={(e) => {
+                const nextCountry = e.target.value;
+                setCountryCode(nextCountry);
+                if (nextCountry !== "NG" && documentType === "nin") {
+                  setDocumentType("national_id");
+                }
+              }}
+              required
+            >
               <option value="">Select country</option>
               {countries.map((country) => (
                 <option key={country.code} value={country.code}>
@@ -278,7 +288,9 @@ export function IdentityVerificationWizard({
           <div className="space-y-2">
             <p className="text-label">Identity document</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {(Object.keys(IDENTITY_DOCUMENT_LABELS) as IdentityDocumentType[]).map((type) => (
+              {(Object.keys(IDENTITY_DOCUMENT_LABELS) as IdentityDocumentType[])
+                .filter((type) => type !== "nin" || countryCode === "NG")
+                .map((type) => (
                 <button
                   type="button"
                   key={type}
@@ -289,6 +301,11 @@ export function IdentityVerificationWizard({
                 </button>
               ))}
             </div>
+            {countryCode && countryCode !== "NG" ? (
+              <p className="text-caption text-[var(--nexo-text-muted)]">
+                NIN is available only for Nigeria. Use your national ID card, driver&apos;s license, or passport.
+              </p>
+            ) : null}
           </div>
           <Button type="button" onClick={() => void startAttempt()} disabled={busy || !countryCode || !legalName || !dateOfBirth} className="w-full rounded-full">
             {busy ? "Starting…" : "Continue"}
