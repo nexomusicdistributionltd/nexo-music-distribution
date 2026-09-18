@@ -733,7 +733,7 @@ export async function requestTakedown(
     return { ok: false, error: "Takedown is not available for this status." };
   }
 
-  void await getProviderConnectionState();
+  await getProviderConnectionState();
 
   const { data, error } = await supabase.rpc("transition_release_status", {
     p_release_id: releaseId,
