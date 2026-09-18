@@ -57,7 +57,7 @@ export default async function ProviderStatusPage({
           fresh authorization.
         </div>
       ) : null}
-      {connected && missingDataScopes.length > 0 ? (
+      {connected && grantedScopes.length > 0 && missingDataScopes.length > 0 ? (
         <div className="mt-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-small">
           <p className="font-medium">Provider authorization needs an updated grant</p>
           <p className="mt-1">
@@ -71,6 +71,13 @@ export default async function ProviderStatusPage({
           >
             Reauthorize Distribution Engine
           </Link>
+        </div>
+      ) : null}
+
+      {connected && grantedScopes.length === 0 ? (
+        <div className="mt-4 rounded-md border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3 text-small text-[var(--nexo-text-secondary)]">
+          OAuth token did not report its granted scope list. Nexo will verify Sales and Analytics by
+          calling the protected endpoints directly; a 403 response will require one reauthorization.
         </div>
       ) : null}
 
