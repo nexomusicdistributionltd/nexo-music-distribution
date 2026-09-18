@@ -55,26 +55,16 @@ export class DistributionEngineProvider implements DistributionProvider {
   readonly name = "distribution_engine";
   readonly connected = true;
 
-  async submitRelease(input: ProviderReleasePayload) {
-    const payload = {
-      title: input.title,
-      release_type: input.type,
-      primary_artist_name: input.primaryArtistName,
-      upc: input.upc ?? undefined,
-      release_date: input.releaseDate ?? undefined,
-      territories: input.territories,
-      tracks: input.tracks.map(t => ({
-        track_number: t.trackNumber,
-        title: t.title,
-        isrc: t.isrc ?? undefined,
-      })),
-    };
-    const data = await request("/releases", { method: "POST", body: JSON.stringify(payload) });
-    return { providerReleaseId: releaseId(data) };
+  async submitRelease(_input: ProviderReleasePayload): Promise<{ providerReleaseId: string }> {
+    throw new ProviderUnavailableError(
+      "Release delivery is awaiting the verified upstream release-create schema; no unverified payload will be sent."
+    );
   }
 
-  async updateRelease(providerReleaseId: string, input: Partial<ProviderReleasePayload>) {
-    await request(`/releases/${encodeURIComponent(providerReleaseId)}`, { method: "PATCH", body: JSON.stringify(input) });
+  async updateRelease(_providerReleaseId: string, _input: Partial<ProviderReleasePayload>): Promise<void> {
+    throw new ProviderUnavailableError(
+      "Release updates are awaiting the verified upstream update schema."
+    );
   }
 
   async requestTakedown(): Promise<void> {
