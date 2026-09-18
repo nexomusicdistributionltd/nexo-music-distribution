@@ -58,7 +58,7 @@ export function validateReleaseForSubmit(input: {
     "track_number" | "title" | "isrc" | "id" | "duration_ms"
   >[];
   assets: Pick<ReleaseAssetRow, "kind" | "track_id" | "mime_type">[];
-  contributors: Pick<ReleaseContributorRow, "name" | "role">[];
+  contributors: Pick<ReleaseContributorRow, "name" | "role" | "track_id">[];
 }): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const { release, tracks, assets, contributors } = input;
@@ -213,24 +213,29 @@ export function validateReleaseForSubmit(input: {
       message: "Complete contributor credits are required.",
     });
   } else {
-    const contributorRoles = new Set(namedContributors.map((c) => c.role));
-    if (![...contributorRoles].some((role) => PERFORMER_CREDIT_ROLES.has(role))) {
-      issues.push({
-        field: "contributors",
-        message: "Add at least one accurate performer credit (for example lead vocals, vocals, choir, instrument, primary or featured artist).",
-      });
-    }
-    if (![...contributorRoles].some((role) => COMPOSITION_CREDIT_ROLES.has(role))) {
-      issues.push({
-        field: "contributors",
-        message: "Add at least one composition/lyrics credit (songwriter, composer, lyricist or arranger).",
-      });
-    }
-    if (![...contributorRoles].some((role) => PRODUCTION_CREDIT_ROLES.has(role))) {
-      issues.push({
-        field: "contributors",
-        message: "Add at least one production/engineering credit (for example producer, recording, mixing or mastering engineer).",
-      });
+    for (const track of tracks) {
+      const scoped = namedContributors.filter(
+        (contributor) => !contributor.track_id || contributor.track_id === track.id
+      );
+      const contributorRoles = new Set(scoped.map((contributor) => contributor.role));
+      if (![...contributorRoles].some((role) => PERFORMER_CREDIT_ROLES.has(role))) {
+        issues.push({
+          field: `track.${track.track_number}.contributors`,
+          message: `Track ${track.track_number} needs an accurate performer credit (for example lead vocals, vocals, choir, instrument, primary or featured artist).`,
+        });
+      }
+      if (![...contributorRoles].some((role) => COMPOSITION_CREDIT_ROLES.has(role))) {
+        issues.push({
+          field: `track.${track.track_number}.contributors`,
+          message: `Track ${track.track_number} needs a composition/lyrics credit (songwriter, composer, lyricist or arranger).`,
+        });
+      }
+      if (![...contributorRoles].some((role) => PRODUCTION_CREDIT_ROLES.has(role))) {
+        issues.push({
+          field: `track.${track.track_number}.contributors`,
+          message: `Track ${track.track_number} needs a production/engineering credit (for example producer, recording, mixing or mastering engineer).`,
+        });
+      }
     }
   }
 
