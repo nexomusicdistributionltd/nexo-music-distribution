@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { completeAuthRedirect } from "@/lib/supabase/auth-redirect";
 import { verifyDistributionOAuthState } from "@/lib/provider/oauth/state";
+import { exchangeDistributionAuthorizationCode } from "@/lib/provider/oauth/token";
+import { verifyDistributionIdentity } from "@/lib/provider/oauth/client";
 
 /**
  * Shared callback URL.
@@ -21,12 +23,19 @@ export async function GET(request: NextRequest) {
         new URL("/admin/distribution/provider?connection=failed", url.origin)
       );
     }
-    // Fail closed rather than risk exposing/storing a token incorrectly.
-    // The authorization start route is added separately once admin-only
-    // connection ownership and encrypted token persistence are confirmed.
-    return NextResponse.redirect(
-      new URL("/admin/distribution/provider?connection=pending-token-exchange", url.origin)
-    );
+    try {
+      const token = await exchangeDistributionAuthorizationCode(code);
+      await verifyDistributionIdentity(token.access_token);
+      // Do not persist or expose the token yet. Persistence is added only with
+      // encrypted server-side storage and an explicit refresh-token lifecycle.
+      return NextResponse.redirect(
+        new URL("/admin/distribution/provider?connection=verified-not-persisted", url.origin)
+      );
+    } catch {
+      return NextResponse.redirect(
+        new URL("/admin/distribution/provider?connection=failed", url.origin)
+      );
+    }
   }
 
   return completeAuthRedirect(request, "pkce");
