@@ -138,8 +138,13 @@ function validateProviderPayloadBeforeAttempt(payload: ProviderReleasePayload): 
     if (!track.audioStorageBucket || !track.audioStoragePath) {
       return `Track ${track.trackNumber} is missing linked audio.`;
     }
-    if (track.audioMimeType !== "audio/flac") {
-      return `Track ${track.trackNumber} must use lossless FLAC audio for Distribution Engine delivery. Re-upload this track as FLAC before retrying.`;
+    if (
+      !track.audioMimeType ||
+      !["audio/flac", "audio/wav", "audio/x-wav", "audio/aiff", "audio/x-aiff"].includes(
+        track.audioMimeType
+      )
+    ) {
+      return `Track ${track.trackNumber} must use a lossless WAV, FLAC, or AIFF master for Distribution Engine delivery.`;
     }
   }
   return null;
