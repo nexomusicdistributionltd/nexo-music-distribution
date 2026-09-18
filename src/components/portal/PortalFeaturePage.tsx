@@ -26,6 +26,7 @@ import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { getArtistProfileForUser, getLabelProfileForUser, listArtistDspLinks, listRosterArtists } from "@/lib/roster/queries";
 import { listPublishedVideos } from "@/lib/website/queries";
 import { workspaceKindForRoles } from "@/lib/auth/nav";
+import { isPortalFeatureEnabled } from "@/lib/portal/controls";
 import { getEntitlementsForAuth } from "@/lib/billing/queries";
 import { isFeatureUnlocked, pricingHrefForAccount } from "@/lib/billing/feature-access";
 
@@ -47,6 +48,7 @@ export async function PortalFeaturePage({ href }: { href: string }) {
   const kind = workspaceKindForRoles(ctx.roles);
   if (kind === "admin") notFound();
   if (def.visibility && def.visibility !== "all" && def.visibility !== kind) notFound();
+  if (!(await isPortalFeatureEnabled(href, kind))) notFound();
 
   if (def.pageKind === "knowledge") {
     return <KnowledgeView def={def} />;
