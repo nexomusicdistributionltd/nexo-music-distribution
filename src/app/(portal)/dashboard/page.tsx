@@ -119,7 +119,8 @@ export default async function DashboardPage() {
   });
   const streamRows = streamOverviewRows(
     streamSnap?.dspCodes ?? [],
-    headline.status === "LIVE" ? "EMPTY" : headline.status
+    headline.status === "LIVE" ? "EMPTY" : headline.status,
+    streamSnap?.streamCounts ?? {}
   );
   const balance = buildBalanceOverview({ statement, ledger });
 
