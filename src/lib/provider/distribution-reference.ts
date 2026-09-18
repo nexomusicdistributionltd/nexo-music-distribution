@@ -102,6 +102,15 @@ async function api(path: string): Promise<unknown> {
   return cachedApiGet(path);
 }
 
+/**
+ * Sales and analytics are user-facing operational reporting. They deliberately bypass
+ * Next's shared 60-second reference cache so a page refresh asks TooLost for the latest
+ * available rows. fetch() itself remains no-store inside apiUncached().
+ */
+async function realtimeApi(path: string): Promise<unknown> {
+  return apiUncached(path);
+}
+
 function rows(value: unknown): Json[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is Json => Boolean(item && typeof item === "object"));
@@ -161,61 +170,61 @@ export const distributionReference = {
   languages: () => api("/lookup/languages"),
 
   salesOverview: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/overview", salesQuery(query))),
+    realtimeApi(withQuery("/sales/overview", salesQuery(query))),
   salesTracks: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/tracks", salesQuery(query))),
+    realtimeApi(withQuery("/sales/tracks", salesQuery(query))),
   salesTrackOverview: (isrc: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/tracks/${id(isrc)}/overview`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/tracks/${id(isrc)}/overview`, salesQuery(query))),
   salesTrackChannels: (isrc: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/tracks/${id(isrc)}/channels`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/tracks/${id(isrc)}/channels`, salesQuery(query))),
   salesTrackTerritories: (isrc: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/tracks/${id(isrc)}/territories`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/tracks/${id(isrc)}/territories`, salesQuery(query))),
 
   salesReleases: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/releases", salesQuery(query))),
+    realtimeApi(withQuery("/sales/releases", salesQuery(query))),
   salesReleaseOverview: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/releases/${id(releaseId)}/overview`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/releases/${id(releaseId)}/overview`, salesQuery(query))),
   salesReleaseChannels: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/releases/${id(releaseId)}/channels`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/releases/${id(releaseId)}/channels`, salesQuery(query))),
   salesReleaseTerritories: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/releases/${id(releaseId)}/territories`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/releases/${id(releaseId)}/territories`, salesQuery(query))),
 
   salesArtists: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/artists", salesQuery(query))),
+    realtimeApi(withQuery("/sales/artists", salesQuery(query))),
   salesArtistOverview: (artist: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/artists/${id(artist)}/overview`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/artists/${id(artist)}/overview`, salesQuery(query))),
   salesArtistChannels: (artist: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/artists/${id(artist)}/channels`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/artists/${id(artist)}/channels`, salesQuery(query))),
   salesArtistTerritories: (artist: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/artists/${id(artist)}/territories`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/artists/${id(artist)}/territories`, salesQuery(query))),
 
   salesChannels: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/channels", salesQuery(query))),
+    realtimeApi(withQuery("/sales/channels", salesQuery(query))),
   salesChannelOverview: (channel: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/channels/${id(channel)}/overview`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/channels/${id(channel)}/overview`, salesQuery(query))),
   salesChannelReleases: (channel: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/channels/${id(channel)}/releases`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/channels/${id(channel)}/releases`, salesQuery(query))),
   salesChannelTerritories: (channel: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/channels/${id(channel)}/territories`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/channels/${id(channel)}/territories`, salesQuery(query))),
 
   salesTerritories: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/territories", salesQuery(query))),
+    realtimeApi(withQuery("/sales/territories", salesQuery(query))),
 
   streamRates: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/stream-rates", salesQuery(query))),
+    realtimeApi(withQuery("/sales/stream-rates", salesQuery(query))),
   streamRateOverview: (service: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/stream-rates/${id(service)}/overview`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/stream-rates/${id(service)}/overview`, salesQuery(query))),
   streamRateTerritories: (service: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/stream-rates/${id(service)}/territories`, salesQuery(query))),
+    realtimeApi(withQuery(`/sales/stream-rates/${id(service)}/territories`, salesQuery(query))),
 
-  analyticsOverview: () => api("/analytics/overview"),
-  analyticsTracks: () => api("/analytics/tracks"),
-  analyticsTrackCharts: () => api("/analytics/tracks/charts"),
-  analyticsTrack: (isrc: string) => api(`/analytics/tracks/${id(isrc)}`),
-  analyticsPlatforms: () => api("/analytics/platforms"),
-  analyticsPlatformData: () => api("/analytics/platforms/data"),
+  analyticsOverview: () => realtimeApi("/analytics/overview"),
+  analyticsTracks: () => realtimeApi("/analytics/tracks"),
+  analyticsTrackCharts: () => realtimeApi("/analytics/tracks/charts"),
+  analyticsTrack: (isrc: string) => realtimeApi(`/analytics/tracks/${id(isrc)}`),
+  analyticsPlatforms: () => realtimeApi("/analytics/platforms"),
+  analyticsPlatformData: () => realtimeApi("/analytics/platforms/data"),
   /** Compatibility alias used by existing Nexo analytics loaders. */
-  analytics: () => api("/analytics/overview"),
+  analytics: () => realtimeApi("/analytics/overview"),
 
   preferences: () => api("/preferences"),
 };
