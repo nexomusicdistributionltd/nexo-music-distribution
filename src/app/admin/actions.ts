@@ -86,9 +86,14 @@ export async function performQcDecisionAction(input: {
     p_internal_note: input.internalNote ?? null,
   });
   if (error) return { ok: false, error: error.message };
-  void import("@/lib/email/hooks")
-    .then(({ drainQueuedOutbox }) => drainQueuedOutbox(10))
-    .catch(() => undefined);
+  // QC notifications are time-sensitive: drain the queued catalog email before returning
+  // so approval / changes / rejection mail is attempted immediately, not left to a later request.
+  try {
+    const { drainQueuedOutbox } = await import("@/lib/email/hooks");
+    await drainQueuedOutbox(10);
+  } catch {
+    // QC state remains authoritative even if SMTP is temporarily unavailable.
+  }
   revalidateAdmin([
     "/admin/qc",
     "/admin/releases",
