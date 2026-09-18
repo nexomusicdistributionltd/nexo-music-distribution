@@ -129,7 +129,7 @@ export function PayoutMethodsManager({
   const visible = rows.filter((row) => row.status !== "disabled");
 
   return (
-    <section className="space-y-5 rounded-[1.25rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
+    <section id="payment-methods" className="scroll-mt-20 space-y-5 rounded-[1.25rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
       <div>
         <h2 className="text-h4">Payment method</h2>
         <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
