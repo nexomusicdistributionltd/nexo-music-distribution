@@ -9,6 +9,10 @@ import {
   Play,
   Sparkles,
   Video,
+  Link2,
+  BarChart3,
+  WalletCards,
+  ArrowUpRight,
 } from "lucide-react";
 import { CoverArt } from "@/components/workspace/CoverArt";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -50,7 +54,24 @@ export function PortalOverview({
 }) {
   return (
     <div className="relative space-y-4 pb-16">
-      <h2 className="text-h2 tracking-tight">Welcome, {welcomeName}</h2>
+      <section className="overflow-hidden rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] shadow-[var(--nexo-shadow-sm)]">
+        <div className="relative p-6 sm:p-8">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--nexo-text)]/30 to-transparent" />
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--nexo-text-muted)]">Nexo Music Workspace</p>
+          <div className="mt-2 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">Welcome back, {welcomeName}</h2>
+              <p className="mt-2 max-w-2xl text-small text-[var(--nexo-text-secondary)]">Manage your catalog, distribution, fanlinks, analytics and royalties from one workspace.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <HeroAction href={OVERVIEW_HREFS.createRelease} icon={<CirclePlus className="h-4 w-4" />} primary>New release</HeroAction>
+              <HeroAction href="/dashboard/fanlinks" icon={<Link2 className="h-4 w-4" />}>Fanlinks</HeroAction>
+              <HeroAction href={OVERVIEW_HREFS.streams} icon={<BarChart3 className="h-4 w-4" />}>Analytics</HeroAction>
+              <HeroAction href="/earnings/payouts" icon={<WalletCards className="h-4 w-4" />}>Payouts</HeroAction>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {loadError ? (
         <ErrorState title="Dashboard unavailable" description={loadError} retryHref="/dashboard" />
@@ -65,7 +86,13 @@ export function PortalOverview({
         </p>
       ) : null}
 
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <QuickCard icon={<Link2 className="h-8 w-8" aria-hidden />} title="Fanlinks">
+          <p className="min-h-[3.25rem] text-small text-[var(--nexo-text-secondary)]">Create and manage smart links for live releases and track fan engagement.</p>
+          <Pill href="/dashboard/fanlinks" tone="accent">Open fanlinks</Pill>
+        </QuickCard>
+
+        <div className="sm:col-span-1 xl:col-span-3 grid gap-3 lg:grid-cols-3">
         <QuickCard
           icon={<Disc3 className="h-8 w-8 text-[#c45b9a]" aria-hidden />}
           title="My Catalog"
@@ -117,6 +144,7 @@ export function PortalOverview({
           </div>
           <Pill href={OVERVIEW_HREFS.videos}>Upload music video</Pill>
         </QuickCard>
+        </div>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -239,6 +267,14 @@ export function PortalOverview({
   );
 }
 
+function HeroAction({ href, icon, children, primary = false }: { href: string; icon: ReactNode; children: ReactNode; primary?: boolean }) {
+  return (
+    <Link href={href} className={cn("inline-flex h-10 items-center gap-2 rounded-full border px-4 text-small font-semibold transition-transform hover:-translate-y-0.5", primary ? "border-[var(--nexo-text)] bg-[var(--nexo-text)] [color:var(--nexo-text-inverse)]" : "border-[var(--nexo-border)] bg-[var(--nexo-bg)] hover:bg-[var(--nexo-ghost-hover)]")}>
+      {icon}{children}<ArrowUpRight className="h-3.5 w-3.5 opacity-60" />
+    </Link>
+  );
+}
+
 function moneyOrDash(amount: number | null, currency: string) {
   if (amount == null) return "—";
   return formatMinorUnits(amount, currency);
@@ -314,3 +350,4 @@ function BalanceRow({
     </div>
   );
 }
+
