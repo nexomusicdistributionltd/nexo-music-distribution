@@ -20,7 +20,8 @@ describe("TooLost sales portal contract", () => {
     const source = read("src/lib/provider/owned-data.ts");
     expect(source).toContain("distributionReference.salesReleaseOverview");
     expect(source).toContain("distributionReference.salesTrackOverview");
-    expect(source).toContain("distributionReference.salesArtistOverview");
+    expect(source).toContain("Keep interactive calls bounded");
+    expect(source).toContain('if (kind === "artists")');
     expect(source).toContain("distributionReference.salesReleaseChannels");
     expect(source).toContain("distributionReference.salesReleaseTerritories");
     expect(source).toContain('"dividends"');
