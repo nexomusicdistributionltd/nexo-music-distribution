@@ -256,12 +256,18 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
     .maybeSingle();
 
   if (!job?.provider_release_id) {
+    // A queued Nexo job does not have an upstream id until it is actually submitted.
+    // This is an expected pre-submission state, not a provider failure.
     await supabase.rpc("record_provider_sync_run", {
       p_job_id: jobId,
-      p_status: "failed",
-      p_error_message: "No provider_release_id on job — nothing to sync.",
+      p_status: "unavailable",
+      p_error_message: "Awaiting provider submission — submit this queued job before syncing status.",
     });
-    return { ok: false, error: "No provider release id" };
+    return {
+      ok: false,
+      error: "Awaiting provider submission. Submit this queued job before syncing status.",
+      code: "AWAITING_PROVIDER_SUBMISSION",
+    };
   }
 
   const provider = getProvider();
