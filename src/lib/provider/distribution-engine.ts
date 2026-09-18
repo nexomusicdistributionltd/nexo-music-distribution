@@ -474,7 +474,7 @@ export class DistributionEngineProvider implements DistributionProvider {
     let providerTracks = rows(replaced).map((row) => ({
       id: firstString(row, ["id", "track_id", "trackId"]) ?? "",
       title: firstString(row, ["title"]) ?? null,
-    })).filter((row): row is ProviderTrack => Boolean(row.id));
+    })).filter((row) => Boolean(row.id));
 
     if (providerTracks.length !== local.tracks.length) {
       providerTracks = rows(
@@ -484,7 +484,7 @@ export class DistributionEngineProvider implements DistributionProvider {
       ).map((row) => ({
         id: firstString(row, ["id", "track_id", "trackId"]) ?? "",
         title: firstString(row, ["title"]) ?? null,
-      })).filter((row): row is ProviderTrack => Boolean(row.id));
+      })).filter((row) => Boolean(row.id));
     }
 
     if (providerTracks.length !== local.tracks.length) {
