@@ -8,11 +8,11 @@ import {
   getDdexMessage,
   listDdexMessages,
   loadDdexSnapshot,
+  listDspTargets,
   sha256Utf8,
   updateDdexValidation,
 } from "./persistence";
 import { getDdexTransport } from "./transport";
-import { listDspTargets } from "./persistence";
 import { configForTarget } from "./targets";
 import { validateErnXml } from "./validate";
 import {
