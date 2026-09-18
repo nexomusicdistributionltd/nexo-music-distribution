@@ -8,7 +8,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { getProviderConnectionState } from "@/lib/provider";
 import { listCatalogMigrations } from "@/lib/migration/queries";
-import { defaultUnavailableCatalog } from "@/lib/migration/external-catalog";
+import { discoverTooLostCatalog } from "@/lib/migration/external-catalog";
 import { EXISTING_TRACK_PROMPT } from "@/lib/migration/duplicates";
 import { MigrationClient } from "@/components/distribution/MigrationClient";
 
@@ -21,7 +21,7 @@ export default async function MigrationPage() {
   await RequireAdmin();
   const provider = await getProviderConnectionState();
   const migrations = await listCatalogMigrations(30);
-  const discovery = defaultUnavailableCatalog();
+  const discovery = await discoverTooLostCatalog({ source: "other", page: 1, limit: 1 });
 
   return (
     <div>
@@ -32,11 +32,17 @@ export default async function MigrationPage() {
       <DistributionNav current="/admin/distribution/migration" />
       <ProviderBanner connected={provider.connected} />
 
-      {!discovery.available ? (
-        <Alert variant="warning" title="External catalog unavailable" className="mt-4">
+      {discovery.available ? (
+        <Alert variant="success" title="TooLost catalog source ready" className="mt-4">
+          Live TooLost release catalog access is available for admin migration discovery. Spotify
+          and Apple Music discovery only claims releases when the provider response contains matching
+          platform delivery metadata.
+        </Alert>
+      ) : (
+        <Alert variant="warning" title="TooLost catalog access unavailable" className="mt-4">
           {discovery.reason}
         </Alert>
-      ) : null}
+      )}
 
       <Card className="mt-4">
         <CardHeader>
@@ -56,7 +62,7 @@ export default async function MigrationPage() {
         <div className="mt-3">
           <EmptyState
             title="No migrations"
-            description="Create a migration run. Discovery stays unavailable until an external source is connected."
+            description="Create a migration run, then use the live TooLost catalog discovery controls above. No release, UPC, or ISRC is generated when provider data is missing."
           />
         </div>
       ) : (
