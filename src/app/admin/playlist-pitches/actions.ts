@@ -10,7 +10,7 @@ export async function reviewPlaylistPitchAction(input: {
   status: string;
   adminNote?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const ctx = await RequireAdminPermission("admin:releases");
+  const ctx = await RequireAdminPermission("admin:marketing");
   if (!isPlaylistPitchStatus(input.status)) return { ok: false, error: "Invalid status." };
   const supabase = await createClient();
   const { data: row } = await supabase
