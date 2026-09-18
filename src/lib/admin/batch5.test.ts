@@ -57,6 +57,7 @@ describe("Batch 5 admin route protection / roles", () => {
     expect(adminPermissionForPath("/admin/distribution/queue")).toBe("admin:distribution");
     expect(adminPermissionForPath("/admin/finance/billing")).toBe("admin:finance");
     expect(adminPermissionForPath("/admin/users")).toBe("admin:users");
+    expect(adminPermissionForPath("/admin/roles")).toBe("admin:staff_invite");
     expect(adminPermissionForPath("/admin/support/tickets")).toBe("admin:support");
     expect(adminPermissionForPath("/admin/unknown-sensitive-tool")).toBe("admin:operations");
   });
@@ -68,6 +69,7 @@ describe("Batch 5 admin route protection / roles", () => {
       "/admin/qc",
       "/admin/artists",
       "/admin/labels",
+      "/admin/roles",
       "/admin/finance",
       "/admin/royalties",
       "/admin/payouts",
@@ -91,6 +93,7 @@ describe("Batch 5 admin route protection / roles", () => {
     expect(supportHrefs).toContain("/admin/qc");
     expect(supportHrefs).not.toContain("/admin/settings");
     expect(supportHrefs).not.toContain("/admin/users");
+    expect(supportHrefs).not.toContain("/admin/roles");
     expect(supportHrefs).not.toContain("/admin/finance");
     expect(supportHrefs).not.toContain("/admin/distribution");
     expect(supportHrefs).not.toContain("/admin/ddex");
