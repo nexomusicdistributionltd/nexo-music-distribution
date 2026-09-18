@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import {
   Bell,
@@ -68,6 +68,14 @@ export function AppNav({
   id?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const prefetchOnIntent = React.useCallback(
+    (href: string) => {
+      if (href.startsWith("/")) router.prefetch(href);
+    },
+    [router]
+  );
 
   return (
     <nav id={id} className="space-y-4" aria-label="Workspace">
@@ -77,6 +85,7 @@ export function AppNav({
           section={section}
           pathname={pathname}
           onNavigate={onNavigate}
+          onIntent={prefetchOnIntent}
         />
       ))}
     </nav>
@@ -87,10 +96,12 @@ function NavGroup({
   section,
   pathname,
   onNavigate,
+  onIntent,
 }: {
   section: NavSection;
   pathname: string;
   onNavigate?: () => void;
+  onIntent?: (href: string) => void;
 }) {
   const hasActive = section.items.some((item) => isNavActive(pathname, item.href));
   const collapsible = Boolean(section.collapsible && section.items.length > 1);
@@ -107,7 +118,12 @@ function NavGroup({
         <p className="mb-1 px-3 text-[0.65rem] font-medium uppercase tracking-[0.14em] text-[var(--nexo-text-muted)]">
           {section.label}
         </p>
-        <NavLink item={item} pathname={pathname} onNavigate={onNavigate} />
+        <NavLink
+          item={item}
+          pathname={pathname}
+          onNavigate={onNavigate}
+          onIntent={onIntent}
+        />
       </div>
     );
   }
@@ -134,7 +150,13 @@ function NavGroup({
       {open || !collapsible ? (
         <div className="mt-0.5 space-y-0.5" role="group" aria-label={section.label}>
           {section.items.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
+            <NavLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              onNavigate={onNavigate}
+              onIntent={onIntent}
+            />
           ))}
         </div>
       ) : null}
@@ -146,15 +168,20 @@ function NavLink({
   item,
   pathname,
   onNavigate,
+  onIntent,
 }: {
   item: NavSection["items"][number];
   pathname: string;
   onNavigate?: () => void;
+  onIntent?: (href: string) => void;
 }) {
   const active = isNavActive(pathname, item.href);
   return (
     <Link
       href={item.href}
+      prefetch={false}
+      onPointerEnter={() => onIntent?.(item.href)}
+      onFocus={() => onIntent?.(item.href)}
       onClick={onNavigate}
       className={cn(
         "nexo-motion group flex items-center gap-2.5 rounded-[var(--nexo-radius-sm)] px-3 py-1.5 text-[0.8125rem] transition-colors duration-[var(--nexo-duration)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)]",
