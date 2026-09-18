@@ -12,6 +12,7 @@ export type AnalyticsSnapshot = {
   currency: string | null;
   dspCodes: string[];
   streamCounts: Record<string, number>;
+  trendPercentByDsp: Record<string, number>;
   note: string;
 };
 
@@ -39,6 +40,24 @@ function realStreamCounts(rows: Record<string, unknown>[]): Record<string, numbe
   return totals;
 }
 
+function realTrendPercent(rows: Record<string, unknown>[]): Record<string, number> {
+  const trends: Record<string, number> = {};
+  for (const row of rows) {
+    const platform = platformCode(row);
+    const trend = numericValue(row, [
+      "trend_percent",
+      "trendPercent",
+      "change_percent",
+      "changePercent",
+      "percent_change",
+      "percentChange",
+    ]);
+    if (!platform || trend == null) continue;
+    trends[platform] = trend;
+  }
+  return trends;
+}
+
 function matchesKey(dsp: string | null, key: AnalyticsKey): boolean {
   if (!dsp) return false;
   const needle = dsp.toLowerCase();
@@ -59,6 +78,7 @@ export async function loadAnalyticsSnapshot(
       const typedRows = providerRows as Record<string, unknown>[];
       const codes = [...new Set(typedRows.map(platformCode).filter(Boolean))];
       const streamCounts = key === "streams" ? realStreamCounts(typedRows) : {};
+      const trendPercentByDsp = realTrendPercent(typedRows);
       return {
         key,
         connected: true,
@@ -68,6 +88,7 @@ export async function loadAnalyticsSnapshot(
         currency: null,
         dspCodes: codes,
         streamCounts,
+        trendPercentByDsp,
         note: "Live Distribution Engine analytics are connected for releases owned by this account. Stream totals are shown only when the provider returns numeric stream data.",
       };
     }
@@ -92,6 +113,7 @@ export async function loadAnalyticsSnapshot(
       currency: null,
       dspCodes: [],
       streamCounts: {},
+      trendPercentByDsp: {},
       note: "Analytics are available through Nexo. No verified rows can be displayed for this source right now.",
     };
   }
@@ -111,6 +133,7 @@ export async function loadAnalyticsSnapshot(
       currency: null,
       dspCodes: [],
       streamCounts: {},
+      trendPercentByDsp: {},
       note:
         key === "spotify_discovery"
           ? "Spotify Discovery Mode is available through Nexo. No verified enrollment or activity rows are available for this account yet."
@@ -129,6 +152,7 @@ export async function loadAnalyticsSnapshot(
     currency,
     dspCodes: codes,
     streamCounts: {},
+    trendPercentByDsp: {},
     note: "Figures come from posted ledger rows only. Ledger money rows are never converted into invented stream counts.",
   };
 }
