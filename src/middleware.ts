@@ -7,6 +7,8 @@ import {
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { LOGIN_OTP_VERIFY_PATH, NEXO_OTP_CHALLENGE_COOKIE } from "@/lib/auth/login-otp/constants";
 import { isOtpPendingAllowedPath } from "@/lib/auth/login-otp/paths";
+import { adminPermissionForPath, hasAdminPermission } from "@/lib/admin/permissions";
+import type { AppRole } from "@/lib/auth/types";
 
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -182,7 +184,7 @@ export async function middleware(request: NextRequest) {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id);
-      const list = (roles ?? []).map((r) => r.role as string);
+      const list = (roles ?? []).map((r) => r.role as AppRole[]);
       if (
         !list.includes("admin") &&
         !list.includes("super_admin") &&
@@ -191,6 +193,15 @@ export async function middleware(request: NextRequest) {
         const url = request.nextUrl.clone();
         if (list.includes("artist") || list.includes("label")) url.pathname = "/dashboard";
         else url.pathname = "/profile";
+        return redirectWithSession(url, getResponse);
+      }
+
+      const requiredPermission = adminPermissionForPath(pathname);
+      if (requiredPermission && !hasAdminPermission(list, requiredPermission)) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/admin";
+        url.search = "";
+        url.searchParams.set("reason", "forbidden");
         return redirectWithSession(url, getResponse);
       }
     }
