@@ -17,7 +17,9 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const state = url.searchParams.get("state");
 
-  if (verifyDistributionOAuthState(state)) {
+  const stateCookie = request.cookies.get("nexo_distribution_oauth_state")?.value ?? null;
+
+  if (verifyDistributionOAuthState(state) && stateCookie === state) {
     const code = url.searchParams.get("code");
     if (!code) {
       return NextResponse.redirect(
@@ -28,13 +30,17 @@ export async function GET(request: NextRequest) {
       const token = await exchangeDistributionAuthorizationCode(code);
       await verifyDistributionIdentity(token.access_token);
       await saveDistributionToken(token);
-      return NextResponse.redirect(
+      const response = NextResponse.redirect(
         new URL("/admin/distribution/provider?connection=connected", url.origin)
       );
+      response.cookies.delete("nexo_distribution_oauth_state");
+      return response;
     } catch {
-      return NextResponse.redirect(
+      const response = NextResponse.redirect(
         new URL("/admin/distribution/provider?connection=failed", url.origin)
       );
+      response.cookies.delete("nexo_distribution_oauth_state");
+      return response;
     }
   }
 
