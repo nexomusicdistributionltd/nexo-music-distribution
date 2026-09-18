@@ -23,10 +23,6 @@ type LocalReleaseScope = {
   release_tracks?: LocalTrackScope[] | null;
 };
 
-function normalize(value: unknown): string {
-  return String(value ?? "").trim().toLowerCase();
-}
-
 function positiveId(value: unknown): string | null {
   const v = String(value ?? "").trim();
   return v ? v : null;
@@ -55,17 +51,6 @@ function releaseIdFromRow(row: Row): string {
 
 function isrcFromRow(row: Row): string {
   return String(row.isrc ?? row.ISRC ?? row.track_isrc ?? "").trim().toUpperCase();
-}
-
-function artistFromRow(row: Row): string {
-  return normalize(
-    row.artist ??
-      row.artist_name ??
-      row.artistName ??
-      row.primary_artist ??
-      row.primaryArtist ??
-      row.name
-  );
 }
 
 function annotate(rows: Row[], extra: Row): Row[] {
@@ -236,7 +221,7 @@ export async function ownedDistributionScope(userId: string) {
       providerIds.add(providerId);
       releaseByProviderId.set(providerId, release);
     }
-    if (release.primary_artist_name) artistNames.add(normalize(release.primary_artist_name));
+    if (release.primary_artist_name?.trim()) artistNames.add(release.primary_artist_name.trim());
     for (const track of release.release_tracks ?? []) {
       if (!track.isrc) continue;
       const isrc = track.isrc.trim().toUpperCase();
