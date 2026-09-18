@@ -18,6 +18,7 @@ export type StreamOverviewRow = {
   label: string;
   status: StreamOverviewStatus;
   statementRows: number;
+  streams: number | null;
 };
 
 function codeMatches(dspCode: string, needles: readonly string[]): boolean {
@@ -37,7 +38,8 @@ export function countByMatchedDsp(dspCodes: string[]): Record<string, number> {
 
 export function streamOverviewRows(
   liveDspCodes: string[],
-  idleStatus: StreamOverviewStatus = "EMPTY"
+  idleStatus: StreamOverviewStatus = "EMPTY",
+  realStreamTotals: Record<string, number> = {}
 ): StreamOverviewRow[] {
   const counts = countByMatchedDsp(liveDspCodes);
   const used = new Set<string>();
@@ -49,11 +51,16 @@ export function streamOverviewRows(
         used.add(code);
       }
     }
+    let streams: number | null = null;
+    for (const [code, value] of Object.entries(realStreamTotals)) {
+      if (codeMatches(code, dsp.match)) streams = (streams ?? 0) + Number(value || 0);
+    }
     return {
       id: dsp.id,
       label: dsp.label,
-      status: statementRows > 0 ? "LIVE" : idleStatus,
+      status: statementRows > 0 || streams != null ? "LIVE" : idleStatus,
       statementRows,
+      streams,
     };
   });
 
@@ -64,6 +71,7 @@ export function streamOverviewRows(
       label: code,
       status: "LIVE",
       statementRows: n,
+      streams: realStreamTotals[code.toLowerCase()] ?? null,
     });
   }
   return rows;
@@ -82,9 +90,9 @@ export function streamOverviewHeadline(opts: {
   }
   if (!opts.connected) {
     return {
-      status: "NOT CONNECTED",
+      status: "EMPTY",
       chartNote:
-        "NOT CONNECTED — no ingested stream statements. Commercial DSP APIs are not linked. Counts are not estimated.",
+        "No verified stream rows are available right now. Nexo does not estimate or generate stream counts.",
     };
   }
   return {
