@@ -168,24 +168,6 @@ export function MoveInClient({
           <h2 className="text-h4">Search / Import</h2>
           <div className="flex flex-wrap gap-2">
             <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={pending || items.length === 0}
-              onClick={() => setItems((prev) => prev.map((item) => ({ ...item, selected: true })))}
-            >
-              Select all
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={pending || items.length === 0}
-              onClick={() => setItems((prev) => prev.map((item) => ({ ...item, selected: false })))}
-            >
-              Clear selection
-            </Button>
-            <Button
               size="sm"
               variant="secondary"
               disabled={pending}
@@ -363,6 +345,24 @@ export function MoveInClient({
             </ul>
           )}
           <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending || items.length === 0}
+              onClick={() => setItems((prev) => prev.map((item) => ({ ...item, selected: true })))}
+            >
+              Select all
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending || items.length === 0}
+              onClick={() => setItems((prev) => prev.map((item) => ({ ...item, selected: false })))}
+            >
+              Clear selection
+            </Button>
             <Button
               size="sm"
               variant="secondary"
