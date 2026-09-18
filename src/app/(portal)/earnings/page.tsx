@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Alert } from "@/components/ui/Alert";
 import { formatMinorUnits, emptyBalancesMessage } from "@/lib/finance/money";
 import { EarningsNav } from "@/components/finance/EarningsNav";
+import { ownedSales } from "@/lib/provider/owned-data";
 
 export const metadata: Metadata = {
   title: "Earnings",
@@ -23,6 +24,8 @@ export default async function EarningsPage() {
   ]);
 
   const hasRows = (ledgerCount ?? 0) > 0;
+  let upstreamRows: Record<string, unknown>[] = [];
+  try { upstreamRows = await ownedSales(user.userId, "overview"); } catch { /* ledger remains authoritative */ }
 
   return (
     <div className="space-y-4">
@@ -32,6 +35,7 @@ export default async function EarningsPage() {
         Balances are derived from the royalty ledger (available / pending / paid). They are not
         editable fields.
       </Alert>
+      {upstreamRows.length ? <Alert>Distribution sales data is connected for releases owned by this account. Nexo ledger balances below remain authoritative for available, pending and paid balances.</Alert> : null}
       {!hasRows ? (
         <EmptyState
           title="No financial data available yet"
