@@ -22,7 +22,7 @@ export async function exchangeDistributionAuthorizationCode(
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code,
-    redirect_uri: cfg.redirectUri,
+    redirect_uri: redirectUriOverride ?? cfg.redirectUri,
   });
   const basic = Buffer.from(`${cfg.clientId}:${cfg.clientSecret}`).toString("base64");
   let response = await fetch(cfg.tokenUrl, {

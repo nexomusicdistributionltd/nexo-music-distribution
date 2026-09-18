@@ -14,8 +14,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function ProviderStatusPage() {
-  await RequireAdministrator();
+export default async function ProviderStatusPage({ searchParams }: { searchParams: Promise<{ connection?: string }> }) {
+  await RequireAdministrator();\n  const query = await searchParams;
   const oauthConfigured = isDistributionOAuthConfigured();
   const authorized = oauthConfigured ? await hasDistributionCredential() : false;
   const health = authorized ? await getStoredDistributionIdentityHealth() : null;
@@ -25,7 +25,7 @@ export default async function ProviderStatusPage() {
     <div>
       <PageHeader title="Provider status" description="Server-side configuration only. Secrets never shown." />
       <DistributionNav current="/admin/distribution/provider" />
-      <ProviderBanner connected={connected} />
+      <ProviderBanner connected={connected} />\n      {query.connection === "forbidden" ? (\n        <div className="mt-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-small">Authorization returned, but the provider denied protected API access (HTTP 403). The connection is not active.</div>\n      ) : null}\n      {query.connection === "failed" || query.connection === "verification_failed" ? (\n        <div className="mt-4 rounded-md border border-red-500/40 bg-red-500/10 p-3 text-small">Provider authorization did not complete. Use Reconnect Distribution Engine to start a fresh authorization.</div>\n      ) : null}
       <Card className="mt-4">
         <CardHeader>
           <CardTitle>Connection</CardTitle>
