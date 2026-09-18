@@ -5,6 +5,7 @@ import {
   canMarkPayoutPaid,
   hasAdminPermission,
   isAdminPortalRole,
+  type AdminPermission,
 } from "@/lib/admin/permissions";
 import {
   decisionToStatus,
@@ -96,7 +97,7 @@ describe("Batch 5 admin route protection / roles", () => {
     expect(supportHrefs).not.toContain("/admin/qc");
     expect(supportHrefs).not.toContain("/admin/distribution");
 
-    const distributionTeam = new Set([
+    const distributionTeam = new Set<AdminPermission>([
       "admin:access",
       "admin:dashboard",
       "admin:directory",
@@ -106,7 +107,7 @@ describe("Batch 5 admin route protection / roles", () => {
       "admin:distribution",
       "admin:analytics",
       "admin:search",
-    ] as const);
+    ]);
     const distributionHrefs = navSectionsForRoles(["support"], distributionTeam)
       .flatMap((section) => section.items)
       .map((item) => item.href);
