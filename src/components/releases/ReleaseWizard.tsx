@@ -1300,19 +1300,117 @@ export function ReleaseWizard({
                       }}
                     />
                   </label>
-                  <div>
-                    <label className="text-caption text-[var(--nexo-text-muted)]">Audio file</label>
+                  <div className="space-y-3">
+                    <label className="text-caption text-[var(--nexo-text-muted)]">Lossless FLAC master</label>
                     <Input
                       type="file"
-                      accept=".flac,audio/flac,audio/x-flac"
+                      accept=".flac,audio/flac,audio/x-flac,application/flac,application/octet-stream"
                       onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) void onUpload("audio", f, idx);
+                        const file = e.target.files?.[0];
+                        if (file) void onUpload("audio", file, idx);
                       }}
                     />
-                    {audioAssets.length ? (
-                      <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-                        {audioAssets.length} audio file(s) on release — replace before submit if needed.
+
+                    {uploadState?.kind === "audio" && uploadState.trackIndex === idx ? (
+                      <div className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-4">
+                        <div className="flex items-center justify-between gap-3 text-small">
+                          <span className="truncate font-medium">
+                            {uploadState.status === "success"
+                              ? "Upload successful"
+                              : uploadState.status === "processing"
+                                ? "Verifying FLAC…"
+                                : uploadState.status === "error"
+                                  ? "Upload failed"
+                                  : `Uploading ${uploadState.filename}`}
+                          </span>
+                          <span className="shrink-0 font-semibold">{uploadState.percent}%</span>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--nexo-bg)]">
+                          <div
+                            className="h-full rounded-full bg-[var(--nexo-primary)] transition-[width] duration-200"
+                            style={{ width: `${uploadState.percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {(t.id && audioPreviewUrls[t.id]) ||
+                    (tracks.length === 1 && audioPreviewUrls.__single__) ? (
+                      <div className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <span className="text-small font-medium">Track preview</span>
+                          <span className="text-caption text-[var(--nexo-text-muted)]">FLAC uploaded</span>
+                        </div>
+                        <audio
+                          className="w-full"
+                          controls
+                          preload="metadata"
+                          src={
+                            (t.id && audioPreviewUrls[t.id]) ||
+                            audioPreviewUrls.__single__
+                          }
+                          onLoadedMetadata={(e) => {
+                            const duration = e.currentTarget.duration;
+                            if (!Number.isFinite(duration)) return;
+                            setAudioDurations((current) => ({
+                              ...current,
+                              [t.id ?? `track-${idx}`]: duration,
+                            }));
+                          }}
+                        />
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-caption text-[var(--nexo-text-muted)]">
+                              TikTok start time
+                            </span>
+                            <span className="text-caption font-medium">
+                              {t.tiktok_start_time || "0:00"}
+                            </span>
+                          </div>
+                          <input
+                            className="w-full"
+                            type="range"
+                            min={0}
+                            max={Math.max(
+                              1,
+                              Math.floor(
+                                audioDurations[t.id ?? `track-${idx}`] ?? 60
+                              )
+                            )}
+                            step={1}
+                            value={Math.min(
+                              parseTimestamp(t.tiktok_start_time),
+                              Math.max(
+                                1,
+                                Math.floor(
+                                  audioDurations[t.id ?? `track-${idx}`] ?? 60
+                                )
+                              )
+                            )}
+                            onChange={(e) => {
+                              const next = [...tracks];
+                              next[idx] = {
+                                ...t,
+                                tiktok_start_time: formatTimestamp(Number(e.target.value)),
+                              };
+                              setTracks(next);
+                            }}
+                          />
+                          <p className="text-caption text-[var(--nexo-text-muted)]">
+                            Choose where the song should begin when used on TikTok.
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {audioAssets.some(
+                      (asset) =>
+                        asset.kind === "audio" &&
+                        (asset.track_id === t.id ||
+                          (tracks.length === 1 && asset.track_id == null))
+                    ) ? (
+                      <p className="text-caption text-[var(--nexo-text-muted)]">
+                        Audio is linked to this track. Upload another FLAC to replace it.
                       </p>
                     ) : null}
                   </div>
@@ -1447,16 +1545,51 @@ export function ReleaseWizard({
               </div>
               <Input
                 type="file"
-                accept=".jpg,.jpeg,.png,.tif,.tiff,image/jpeg,image/png,image/tiff"
+                accept=".jpg,.jpeg,.png,.tif,.tiff,image/jpeg,image/png,image/tiff,application/octet-stream"
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void onUpload("artwork", f);
+                  const file = e.target.files?.[0];
+                  if (file) void onUpload("artwork", file);
                 }}
               />
-              {artwork ? (
+
+              {uploadState?.kind === "artwork" ? (
+                <div className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-4">
+                  <div className="flex items-center justify-between gap-3 text-small">
+                    <span className="truncate font-medium">
+                      {uploadState.status === "success"
+                        ? "Artwork upload successful"
+                        : uploadState.status === "processing"
+                          ? "Verifying artwork…"
+                          : uploadState.status === "error"
+                            ? "Artwork upload failed"
+                            : `Uploading ${uploadState.filename}`}
+                    </span>
+                    <span className="shrink-0 font-semibold">{uploadState.percent}%</span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--nexo-bg)]">
+                    <div
+                      className="h-full rounded-full bg-[var(--nexo-primary)] transition-[width] duration-200"
+                      style={{ width: `${uploadState.percent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {artwork && artworkPreviewUrl ? (
+                <div className="overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
+                  <img
+                    src={artworkPreviewUrl}
+                    alt="Uploaded release artwork preview"
+                    className="aspect-square w-full max-w-sm object-cover"
+                  />
+                  <div className="border-t border-[var(--nexo-border)] p-3">
+                    <p className="text-small font-medium">Upload successful</p>
+                    <p className="text-caption text-[var(--nexo-text-muted)]">{artwork.filename}</p>
+                  </div>
+                </div>
+              ) : artwork ? (
                 <p className="text-small">
-                  Current: <span className="font-medium">{artwork.filename}</span> (replace anytime before
-                  submit)
+                  Current: <span className="font-medium">{artwork.filename}</span>
                 </p>
               ) : (
                 <p className="text-small text-[var(--nexo-text-muted)]">No artwork uploaded yet.</p>
