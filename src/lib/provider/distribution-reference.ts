@@ -103,11 +103,11 @@ async function api(path: string): Promise<unknown> {
 }
 
 /**
- * Sales and analytics are user-facing operational reporting. They deliberately bypass
- * Next's shared 60-second reference cache so a page refresh asks TooLost for the latest
- * available rows. fetch() itself remains no-store inside apiUncached().
+ * Analytics must reflect the freshest data exposed by the provider. We deliberately
+ * bypass the generic 60-second reference cache here. The upstream provider can still
+ * have its own reporting delay; Nexo never fabricates values between provider refreshes.
  */
-async function realtimeApi(path: string): Promise<unknown> {
+async function apiLive(path: string): Promise<unknown> {
   return apiUncached(path);
 }
 
@@ -170,61 +170,61 @@ export const distributionReference = {
   languages: () => api("/lookup/languages"),
 
   salesOverview: (query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery("/sales/overview", salesQuery(query))),
+    apiLive(withQuery("/sales/overview", salesQuery(query))),
   salesTracks: (query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery("/sales/tracks", salesQuery(query))),
+    apiLive(withQuery("/sales/tracks", salesQuery(query))),
   salesTrackOverview: (isrc: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/tracks/${id(isrc)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/tracks/${id(isrc)}/overview`, salesQuery(query))),
   salesTrackChannels: (isrc: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/tracks/${id(isrc)}/channels`, salesQuery(query))),
+    apiLive(withQuery(`/sales/tracks/${id(isrc)}/channels`, salesQuery(query))),
   salesTrackTerritories: (isrc: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/tracks/${id(isrc)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/tracks/${id(isrc)}/territories`, salesQuery(query))),
 
   salesReleases: (query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery("/sales/releases", salesQuery(query))),
+    apiLive(withQuery("/sales/releases", salesQuery(query))),
   salesReleaseOverview: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/releases/${id(releaseId)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/releases/${id(releaseId)}/overview`, salesQuery(query))),
   salesReleaseChannels: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/releases/${id(releaseId)}/channels`, salesQuery(query))),
+    apiLive(withQuery(`/sales/releases/${id(releaseId)}/channels`, salesQuery(query))),
   salesReleaseTerritories: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/releases/${id(releaseId)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/releases/${id(releaseId)}/territories`, salesQuery(query))),
 
   salesArtists: (query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery("/sales/artists", salesQuery(query))),
+    apiLive(withQuery("/sales/artists", salesQuery(query))),
   salesArtistOverview: (artist: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/artists/${id(artist)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/artists/${id(artist)}/overview`, salesQuery(query))),
   salesArtistChannels: (artist: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/artists/${id(artist)}/channels`, salesQuery(query))),
+    apiLive(withQuery(`/sales/artists/${id(artist)}/channels`, salesQuery(query))),
   salesArtistTerritories: (artist: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/artists/${id(artist)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/artists/${id(artist)}/territories`, salesQuery(query))),
 
   salesChannels: (query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery("/sales/channels", salesQuery(query))),
+    apiLive(withQuery("/sales/channels", salesQuery(query))),
   salesChannelOverview: (channel: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/channels/${id(channel)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/channels/${id(channel)}/overview`, salesQuery(query))),
   salesChannelReleases: (channel: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/channels/${id(channel)}/releases`, salesQuery(query))),
+    apiLive(withQuery(`/sales/channels/${id(channel)}/releases`, salesQuery(query))),
   salesChannelTerritories: (channel: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/channels/${id(channel)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/channels/${id(channel)}/territories`, salesQuery(query))),
 
   salesTerritories: (query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery("/sales/territories", salesQuery(query))),
+    apiLive(withQuery("/sales/territories", salesQuery(query))),
 
   streamRates: (query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery("/sales/stream-rates", salesQuery(query))),
+    apiLive(withQuery("/sales/stream-rates", salesQuery(query))),
   streamRateOverview: (service: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/stream-rates/${id(service)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/stream-rates/${id(service)}/overview`, salesQuery(query))),
   streamRateTerritories: (service: string, query?: ProviderSalesPageQuery) =>
-    realtimeApi(withQuery(`/sales/stream-rates/${id(service)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/stream-rates/${id(service)}/territories`, salesQuery(query))),
 
-  analyticsOverview: () => realtimeApi("/analytics/overview"),
-  analyticsTracks: () => realtimeApi("/analytics/tracks"),
-  analyticsTrackCharts: () => realtimeApi("/analytics/tracks/charts"),
-  analyticsTrack: (isrc: string) => realtimeApi(`/analytics/tracks/${id(isrc)}`),
-  analyticsPlatforms: () => realtimeApi("/analytics/platforms"),
-  analyticsPlatformData: () => realtimeApi("/analytics/platforms/data"),
+  analyticsOverview: () => apiLive("/analytics/overview"),
+  analyticsTracks: () => apiLive("/analytics/tracks"),
+  analyticsTrackCharts: () => apiLive("/analytics/tracks/charts"),
+  analyticsTrack: (isrc: string) => apiLive(`/analytics/tracks/${id(isrc)}`),
+  analyticsPlatforms: () => apiLive("/analytics/platforms"),
+  analyticsPlatformData: () => apiLive("/analytics/platforms/data"),
   /** Compatibility alias used by existing Nexo analytics loaders. */
-  analytics: () => realtimeApi("/analytics/overview"),
+  analytics: () => apiLive("/analytics/overview"),
 
   preferences: () => api("/preferences"),
 };
@@ -247,6 +247,147 @@ export async function distributionDashboardData() {
     genres: value(genres),
     languages: value(languages),
   };
+}
+
+const ANALYTICS_PLATFORM_HINTS = new Set([
+  "spotify",
+  "apple",
+  "apple_music",
+  "itunes",
+  "youtube",
+  "youtube_ugc",
+  "yt_ugc",
+  "amazon",
+  "amazon_music",
+  "audiomack",
+  "deezer",
+  "tidal",
+  "pandora",
+  "soundcloud",
+  "meta",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "streamsafe",
+  "spotify_discovery",
+  "spotify_discovery_mode",
+  "spotify_engagement",
+]);
+
+const ANALYTICS_SECTION_HINTS = [
+  "discovery",
+  "engagement",
+  "ugc",
+  "content_id",
+  "contentid",
+  "fraud",
+  "artificial",
+  "suspicious",
+  "streamsafe",
+  "download",
+  "social",
+  "daily",
+  "weekly",
+  "hourly",
+];
+
+function analyticsHint(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function isScalar(value: unknown): boolean {
+  return (
+    value == null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  );
+}
+
+function numberLike(value: unknown): boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "string" || !value.trim()) return false;
+  return Number.isFinite(Number(value));
+}
+
+function deepAnalyticsRows(
+  value: unknown,
+  inherited: Json = {},
+  parentKey = ""
+): Json[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => deepAnalyticsRows(item, inherited, parentKey));
+  }
+  if (!value || typeof value !== "object") return [];
+
+  const object = value as Json;
+  const scalar: Json = {};
+  const nested: Array<[string, unknown]> = [];
+
+  for (const [key, entry] of Object.entries(object)) {
+    if (isScalar(entry)) scalar[key] = entry;
+    else nested.push([key, entry]);
+  }
+
+  const row: Json = { ...inherited, ...scalar };
+  const normalizedParent = analyticsHint(parentKey);
+  if (
+    normalizedParent &&
+    ANALYTICS_PLATFORM_HINTS.has(normalizedParent) &&
+    !row.platform &&
+    !row.channel &&
+    !row.dsp &&
+    !row.store
+  ) {
+    row.platform = normalizedParent;
+  }
+  if (
+    normalizedParent &&
+    ANALYTICS_SECTION_HINTS.some((hint) => normalizedParent.includes(hint)) &&
+    !row.analytics_section
+  ) {
+    row.analytics_section = normalizedParent;
+  }
+
+  const scalarKeys = Object.keys(scalar);
+  const hasNumericMetric = scalarKeys.some((key) => numberLike(scalar[key]));
+  const hasKnownDimension = [
+    "platform",
+    "channel",
+    "dsp",
+    "store",
+    "isrc",
+    "ISRC",
+    "release_id",
+    "releaseId",
+    "provider_release_id",
+    "providerReleaseId",
+    "date",
+    "day",
+    "week",
+    "month",
+    "period",
+    "metric",
+    "category",
+    "type",
+  ].some((key) => row[key] != null);
+
+  const output: Json[] = [];
+  if (hasNumericMetric && (hasKnownDimension || nested.length === 0)) {
+    output.push(row);
+  }
+
+  for (const [key, entry] of nested) {
+    output.push(...deepAnalyticsRows(entry, row, key));
+  }
+
+  return output;
+}
+
+export function providerAnalyticsRows(value: unknown, seed: Json = {}): Json[] {
+  const flattened = deepAnalyticsRows(value, seed);
+  if (flattened.length > 0) return flattened;
+  return rows(value).map((row) => ({ ...seed, ...row }));
 }
 
 export function providerRows(value: unknown): Json[] {
