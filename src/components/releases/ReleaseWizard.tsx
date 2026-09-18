@@ -22,10 +22,7 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { DeliveryBrandIcon } from "@/components/releases/DeliveryBrandIcon";
 import { createClient } from "@/lib/supabase/client";
-import {
-  COMPOSITION_CREDIT_ROLES,
-  CONTRIBUTOR_ROLE_OPTIONS,
-} from "@/lib/releases/contributor-roles";
+import { CONTRIBUTOR_ROLE_OPTIONS } from "@/lib/releases/contributor-roles";
 import type {
   ContributorRole,
   ReleaseAssetRow,
@@ -367,9 +364,8 @@ export function ReleaseWizard({
       ),
     [contributors]
   );
-  const compositionCreditsReady = [...contributorRoleSet].some((role) =>
-    COMPOSITION_CREDIT_ROLES.has(role)
-  );
+  const compositionCreditsReady =
+    contributorRoleSet.has("composer") || contributorRoleSet.has("songwriter");
   const contributorCount = contributors.filter((contributor) => contributor.name.trim()).length;
 
   React.useEffect(() => {
