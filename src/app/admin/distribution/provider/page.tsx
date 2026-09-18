@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { RequireAdministrator } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ProviderBanner } from "@/components/releases/ProviderBanner";
@@ -31,12 +32,12 @@ export default async function ProviderStatusPage() {
           <p>OAuth configuration: {oauthConfigured ? "ready" : "incomplete"}</p>
           <p className="text-[var(--nexo-text-muted)]">{authorized ? "Distribution Engine authorization is stored securely." : "Connect the Distribution Engine to authorize delivery and data access."}</p>
           {oauthConfigured && !authorized ? (
-            <a
+            <Link
               href="/api/admin/distribution/connect"
               className="inline-flex rounded-md bg-[var(--nexo-accent)] px-4 py-2 font-semibold text-black"
             >
               Connect Distribution Engine
-            </a>
+            </Link>
           ) : null}
           {!authorized ? (
             <p className="text-[var(--nexo-text-muted)]">
