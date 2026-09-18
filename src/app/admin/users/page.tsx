@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { RequireAdmin } from "@/lib/auth/guards";
+import { RequireAdminPermission } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -24,7 +24,7 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const ctx = await RequireAdmin();
+  const ctx = await RequireAdminPermission("admin:users");
   const sp = await searchParams;
   const q = sanitizeAdminSearchQuery(sp.q);
   const supabase = await createClient();
@@ -41,6 +41,7 @@ export default async function AdminUsersPage({
   const { data, error } = await query;
   const canManage = hasAdminPermission(ctx.roles, "admin:users");
   const canRoles = hasAdminPermission(ctx.roles, "admin:roles");
+  const canInviteStaff = hasAdminPermission(ctx.roles, "admin:staff_invite");
   const ids = (data ?? []).map((u) => u.id);
   const { data: roleRows } = ids.length
     ? await supabase.from("user_roles").select("user_id, role").in("user_id", ids)
@@ -55,7 +56,7 @@ export default async function AdminUsersPage({
   return (
     <div>
       <PageHeader title="Users & access" description="Manage accounts, invite staff and control administrative roles." showSearch searchQ={sp.q} />
-      {canRoles ? <StaffInviteForm /> : null}
+      {canInviteStaff ? <StaffInviteForm allowSuperAdmin={ctx.roles.includes("super_admin")} /> : null}
       {error ? (
         <ErrorState title="Users unavailable" description={adminListErrorMessage(error)} retryHref="/admin/users" />
       ) : (data ?? []).length === 0 ? (
