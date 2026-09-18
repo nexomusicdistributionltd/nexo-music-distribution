@@ -161,7 +161,7 @@ export async function listAdminWebsiteReleases(limit = 100) {
   const { data, error } = await supabase
     .from("releases")
     .select(
-      "id, title, primary_artist_name, status, website_published, website_featured, website_slug, website_sort_order, website_playback_enabled, website_embed_spotify_url, website_embed_apple_url, website_embed_youtube_url, updated_at"
+      "id, title, primary_artist_name, status, website_published, website_featured, website_slug, website_sort_order, website_playback_enabled, website_embed_spotify_url, website_embed_apple_url, website_embed_youtube_url, website_cover_override_url, updated_at"
     )
     .order("updated_at", { ascending: false })
     .limit(limit);
