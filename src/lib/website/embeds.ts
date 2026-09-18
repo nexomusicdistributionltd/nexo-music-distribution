@@ -4,13 +4,18 @@
 
 import { isSafeHttpUrl } from "./sanitize";
 
+function hostnameMatches(hostname: string, domain: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
 export type EmbedKind = "spotify" | "apple" | "youtube" | "vimeo";
 
 export function spotifyEmbedSrc(url: string): string | null {
   if (!isSafeHttpUrl(url)) return null;
   try {
     const u = new URL(url);
-    if (!u.hostname.includes("spotify.com")) return null;
+    if (!hostnameMatches(u.hostname, "spotify.com")) return null;
     // https://open.spotify.com/album/ID → /embed/album/ID
     const parts = u.pathname.split("/").filter(Boolean);
     if (parts.length < 2) return null;
@@ -29,7 +34,7 @@ export function appleMusicEmbedSrc(url: string): string | null {
   if (!isSafeHttpUrl(url)) return null;
   try {
     const u = new URL(url);
-    if (!u.hostname.includes("apple.com") && !u.hostname.includes("itunes.apple.com")) {
+    if (!hostnameMatches(u.hostname, "apple.com") && !hostnameMatches(u.hostname, "itunes.apple.com")) {
       return null;
     }
     // Prefer embed.music.apple.com when already an embed URL
@@ -45,11 +50,11 @@ export function youtubeEmbedSrc(url: string): string | null {
   try {
     const u = new URL(url);
     let id: string | null = null;
-    if (u.hostname.includes("youtu.be")) {
+    if (hostnameMatches(u.hostname, "youtu.be")) {
       id = u.pathname.replace("/", "") || null;
-    } else if (u.hostname.includes("youtube.com")) {
+    } else if (hostnameMatches(u.hostname, "youtube.com")) {
       id = u.searchParams.get("v");
-      if (!id && u.pathname.startsWith("/embed/")) {
+      if (!id && (u.pathname.startsWith("/embed/") || u.pathname.startsWith("/shorts/") || u.pathname.startsWith("/live/"))) {
         id = u.pathname.split("/")[2] || null;
       }
     }
@@ -64,7 +69,7 @@ export function vimeoEmbedSrc(url: string): string | null {
   if (!isSafeHttpUrl(url)) return null;
   try {
     const u = new URL(url);
-    if (!u.hostname.endsWith("vimeo.com")) return null;
+    if (!hostnameMatches(u.hostname, "vimeo.com")) return null;
     const parts = u.pathname.split("/").filter(Boolean);
     const id = [...parts].reverse().find((part) => /^\d+$/.test(part));
     if (!id) return null;
