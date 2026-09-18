@@ -26,14 +26,32 @@ export async function getProviderWebhookRuntimeSettings(): Promise<ProviderWebho
     };
   }
 
-  const db = createServiceClient();
-  const { data, error } = await db
-    .from("distribution_webhook_settings")
-    .select("secret_ciphertext,signature_header,enabled")
-    .eq("connection_key", "primary")
-    .maybeSingle();
+  let data: {
+    secret_ciphertext: string | null;
+    signature_header: string | null;
+    enabled: boolean;
+  } | null = null;
 
-  if (error || !data || !data.enabled || !data.secret_ciphertext) {
+  try {
+    const db = createServiceClient();
+    const result = await db
+      .from("distribution_webhook_settings")
+      .select("secret_ciphertext,signature_header,enabled")
+      .eq("connection_key", "primary")
+      .maybeSingle();
+    if (result.error) throw result.error;
+    data = result.data;
+  } catch {
+    return {
+      configured: false,
+      enabled: false,
+      secret: null,
+      signatureHeader: DEFAULT_HEADER,
+      source: "none",
+    };
+  }
+
+  if (!data || !data.enabled || !data.secret_ciphertext) {
     return {
       configured: false,
       enabled: Boolean(data?.enabled),
