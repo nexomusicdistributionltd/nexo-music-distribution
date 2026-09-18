@@ -10,7 +10,7 @@ import {
 } from "@/lib/cms/media";
 
 export async function uploadCmsMediaAction(formData: FormData) {
-  const ctx = await RequireAdminPermission("admin:settings");
+  const ctx = await RequireAdminPermission("admin:website");
   const file = formData.get("file");
   if (!(file instanceof File)) {
     return { ok: false as const, error: "File required." };
