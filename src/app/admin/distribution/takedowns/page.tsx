@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default async function TakedownsPage() {
   await RequireAdmin();
-  const provider = getProviderConnectionState();
+  const provider = await getProviderConnectionState();
   const jobs = await listTakedownJobs(50);
   const supabase = await createClient();
   const { data: live } = await supabase
