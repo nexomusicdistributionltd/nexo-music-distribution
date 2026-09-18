@@ -233,7 +233,7 @@ export function ReleaseWizard({
       soundcloud: initialAdditional.soundcloud === true,
       soundExchange: initialAdditional.soundExchange === true,
       beatPort: initialAdditional.beatPort === true,
-      junoDownloads: initialAdditional.junoDownloads === true,
+      junoDownloads: false,
       trackLibs: initialAdditional.trackLibs === true,
       hook: initialAdditional.hook === true,
       lyricfind: initialAdditional.lyricfind === true,
@@ -319,10 +319,10 @@ export function ReleaseWizard({
   const [providerPreferencesBusy, setProviderPreferencesBusy] = React.useState(false);
 
   const timeZones = React.useMemo(() => {
-    const supportedValuesOf = (
-      Intl as typeof Intl & { supportedValuesOf?: (key: "timeZone") => string[] }
-    ).supportedValuesOf;
-    const values = supportedValuesOf?.("timeZone") ?? [
+    const intlApi = Intl as typeof Intl & {
+      supportedValuesOf?: (key: "timeZone") => string[];
+    };
+    const values = intlApi.supportedValuesOf?.("timeZone") ?? [
       "UTC",
       "Africa/Lagos",
       "Africa/Accra",
@@ -514,7 +514,7 @@ export function ReleaseWizard({
           timeZone: current.timeZone || defaults.timeZone || "",
           additional: hasAdditionalSelection
             ? current.additional
-            : { ...current.additional, ...defaults.additional },
+            : { ...current.additional, ...defaults.additional, junoDownloads: false },
         };
       });
       setSelectedPlatforms((current) =>
