@@ -8,7 +8,11 @@ import { ProviderDataTable } from "@/components/admin/ProviderDataTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { getProviderConnectionState } from "@/lib/provider";
-import { distributionReference, providerRows } from "@/lib/provider/distribution-reference";
+import {
+  distributionReference,
+  isDistributionAuthorizationError,
+  providerRows,
+} from "@/lib/provider/distribution-reference";
 import { getDistributionCredentialMetadata } from "@/lib/provider/oauth/store";
 import { distributionCapabilityReport, missingDistributionScopes } from "@/lib/provider/capabilities";
 import { isDistributionOAuthConfigured, readDistributionOAuthConfig } from "@/lib/provider/oauth/config";
@@ -44,6 +48,15 @@ export default async function DistributionAccountPage() {
     distributionReference.analytics(),
     distributionReference.salesOverview({ page: 1, perPage: 25 }),
   ]);
+  const salesAuthorizationDenied =
+    sales.status === "rejected" &&
+    isDistributionAuthorizationError(sales.reason, "read:sales");
+  const effectiveMissing = Array.from(
+    new Set([
+      ...missing,
+      ...(salesAuthorizationDenied ? ["read:sales"] : []),
+    ])
+  );
 
   return (
     <div>
@@ -54,17 +67,31 @@ export default async function DistributionAccountPage() {
       <DistributionNav current="/admin/distribution/account" />
       <ProviderBanner connected={provider.connected} />
 
-      {!reportedScope ? (
+      {salesAuthorizationDenied ? (
+        <Alert variant="warning" title="TooLost sales permission denied">
+          The live TooLost sales endpoint rejected the stored authorization after one shared token refresh.
+          {" "}
+          <Link href="/api/admin/distribution/connect" className="font-medium underline">
+            Reconnect TooLost and grant read:sales
+          </Link>
+          .
+        </Alert>
+      ) : !reportedScope ? (
         <Alert variant="default" title="Provider scope list not reported">
           The token did not report its granted scope list. The live protected endpoint checks below are the authoritative capability test.
         </Alert>
-      ) : missing.length ? (
+      ) : effectiveMissing.length ? (
         <Alert variant="warning" title="Provider permissions need attention">
-          Missing required scope{missing.length === 1 ? "" : "s"}: {missing.join(", ")}. Reconnect TooLost to request the current Nexo scope set.
+          Missing required scope{effectiveMissing.length === 1 ? "" : "s"}: {effectiveMissing.join(", ")}.
+          {" "}
+          <Link href="/api/admin/distribution/connect" className="font-medium underline">
+            Reconnect TooLost
+          </Link>
+          .
         </Alert>
       ) : (
         <Alert variant="success" title="Provider permissions ready">
-          The stored authorization reports all Nexo-required TooLost scopes.
+          The stored authorization and live protected endpoint checks are ready for the current Nexo scope set.
         </Alert>
       )}
 
@@ -96,11 +123,21 @@ export default async function DistributionAccountPage() {
           {capabilities.map((capability) => (
             <div key={capability.key} className="flex items-center justify-between rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-3 py-2 text-small">
               <span>{capability.label}<span className="ml-2 text-caption text-[var(--nexo-text-muted)]">{capability.scope}</span></span>
-              <strong>{reportedScope ? (capability.granted ? "READY" : "MISSING") : (capability.granted ? "REQUESTED" : "NOT REQUESTED")}</strong>
+              <strong>
+                {capability.key === "sales" && salesAuthorizationDenied
+                  ? "DENIED"
+                  : reportedScope
+                    ? capability.granted
+                      ? "READY"
+                      : "MISSING"
+                    : capability.granted
+                      ? "REQUESTED"
+                      : "NOT REQUESTED"}
+              </strong>
             </div>
           ))}
         </div>
-        {reportedScope && missing.length ? (
+        {effectiveMissing.length ? (
           <Link href="/api/admin/distribution/connect" className="mt-4 inline-flex rounded-md bg-[var(--nexo-accent)] px-4 py-2 text-small font-semibold text-black">
             Reconnect TooLost
           </Link>
@@ -124,7 +161,11 @@ export default async function DistributionAccountPage() {
           title="Sales / royalties"
           description="Live TooLost sales response. Access requires read:sales."
           payload={sales.status === "fulfilled" ? sales.value : null}
-          error={errorMessage(sales)}
+          error={
+            salesAuthorizationDenied
+              ? "TooLost denied read:sales for the current authorization. Reconnect TooLost to grant sales reporting."
+              : errorMessage(sales)
+          }
         />
       </div>
 
