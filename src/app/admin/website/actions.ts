@@ -20,6 +20,7 @@ export async function setReleaseWebsiteAction(input: {
   embedSpotify?: string;
   embedApple?: string;
   embedYoutube?: string;
+  coverUrl?: string | null;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:releases");
   const supabase = await createClient();
@@ -36,6 +37,17 @@ export async function setReleaseWebsiteAction(input: {
     p_embed_youtube: input.embedYoutube ?? null,
   });
   if (error) return { ok: false, error: error.message };
+  if (input.coverUrl !== undefined) {
+    const { error: coverError } = await supabase
+      .from("releases")
+      .update({
+        website_cover_override_url: input.coverUrl?.trim()
+          ? input.coverUrl.trim()
+          : null,
+      })
+      .eq("id", input.releaseId);
+    if (coverError) return { ok: false, error: coverError.message };
+  }
   revalidatePath("/admin/website");
   revalidatePath("/music");
   revalidatePath("/");
