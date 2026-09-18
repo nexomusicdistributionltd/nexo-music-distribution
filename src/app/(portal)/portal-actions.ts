@@ -178,6 +178,70 @@ export async function createServiceRequestAction(input: {
   return { ok: true, data: { id: data.id } };
 }
 
+export async function reviseServiceRequestAction(input: {
+  request_id: string;
+  body?: string;
+  related_url?: string;
+}): Promise<PortalActionResult<{ id: string }>> {
+  const ctx = await requirePortal();
+  try {
+    assertCanMutateCatalog(ctx);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Restricted." };
+  }
+
+  const requestId = input.request_id.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(requestId)) {
+    return { ok: false, error: "Invalid request." };
+  }
+
+  const body = (input.body ?? "").trim();
+  if (!body || body.length > 8000) {
+    return { ok: false, error: body ? "Details are too long." : "Add the information requested by Nexo operations." };
+  }
+
+  const urlRaw = (input.related_url ?? "").trim();
+  if (urlRaw) {
+    const parsed = new URL(urlRaw);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return { ok: false, error: "Reference URL must be http(s)." };
+    }
+  }
+
+  const supabase = await createClient();
+  const { data: existing, error: readError } = await supabase
+    .from("portal_service_requests")
+    .select("id, owner_user_id, status")
+    .eq("id", requestId)
+    .eq("owner_user_id", ctx.userId)
+    .maybeSingle();
+
+  if (readError || !existing) {
+    return { ok: false, error: "Request not found." };
+  }
+  if (existing.status !== "needs_info" && existing.status !== "rejected") {
+    return { ok: false, error: "This request is not open for revision." };
+  }
+
+  const { error } = await supabase
+    .from("portal_service_requests")
+    .update({
+      body,
+      related_url: urlRaw || null,
+      status: "submitted",
+      reviewed_by: null,
+      reviewed_at: null,
+      admin_note: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestId)
+    .eq("owner_user_id", ctx.userId);
+
+  if (error) return { ok: false, error: publicErrorMessage(error.message) };
+  revalidatePortal();
+  return { ok: true, data: { id: requestId } };
+}
+
 export async function createMusicVideoAction(input: {
   title: string;
   video_url: string;
