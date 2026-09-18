@@ -435,17 +435,27 @@ export class DistributionEngineProvider implements DistributionProvider {
   ): Promise<void> {
     const metadata = compactObject({
       title: nonEmpty(input.title),
+      version: nonEmpty(input.version),
+      remixTitle: nonEmpty(input.remixTitle),
       label: nonEmpty(input.labelName),
       primaryGenre: nonEmpty(input.genre),
       secondaryGenre: nonEmpty(input.subgenre),
       language: nonEmpty(input.language),
       releaseDate: nonEmpty(input.releaseDate),
       originalReleaseDate: nonEmpty(input.originalReleaseDate),
+      applePreorder: input.applePreorder,
+      applePreorderDate: input.applePreorder ? nonEmpty(input.applePreorderDate) : undefined,
+      licenseType: nonEmpty(input.licenseType),
+      licenseInfo: nonEmpty(input.licenseInfo),
       upc: nonEmpty(input.upc),
       cYear: input.copyrightYear ?? undefined,
       cLine: nonEmpty(input.copyrightLine),
       pYear: input.copyrightYear ?? undefined,
       pLine: nonEmpty(input.phonogramLine),
+      isAiGenerated: input.isAiGenerated,
+      releaseTime: nonEmpty(input.releaseTime),
+      timeZone: nonEmpty(input.timeZone),
+      coverSongs: input.coverSongs?.length ? input.coverSongs : undefined,
     });
     if (Object.keys(metadata).length === 0) return;
     await request(
