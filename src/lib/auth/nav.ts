@@ -119,6 +119,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/finance", label: "Finance", icon: "finance" },
       { href: "/admin/royalties", label: "Royalties", icon: "finance" },
+      { href: "/admin/splitshare", label: "SplitShare", icon: "finance" },
       { href: "/admin/statements", label: "Statements", icon: "finance" },
       { href: "/admin/payouts", label: "Payouts", icon: "finance" },
       { href: "/admin/finance/billing", label: "Billing", icon: "finance" },
