@@ -20,7 +20,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { DeliveryBrandIcon } from "@/components/releases/DeliveryBrandIcon";
 import { createClient } from "@/lib/supabase/client";
+import { CONTRIBUTOR_ROLE_OPTIONS } from "@/lib/releases/contributor-roles";
 import type {
   ContributorRole,
   ReleaseAssetRow,
@@ -41,6 +43,49 @@ const STEPS = [
   "Distribution",
   "Review",
 ] as const;
+
+const ADDITIONAL_DELIVERY_OPTIONS = [
+  { key: "youtube", label: "YouTube Content ID" },
+  { key: "facebook", label: "Meta Rights Manager" },
+  { key: "soundcloud", label: "SoundCloud Monetization" },
+  { key: "soundExchange", label: "SoundExchange" },
+  { key: "beatPort", label: "Beatport" },
+  { key: "trackLibs", label: "Tracklib" },
+  { key: "hook", label: "Hook" },
+  { key: "lyricfind", label: "LyricFind" },
+  { key: "even", label: "EVEN" },
+] as const;
+
+type UploadState = {
+  kind: "audio" | "artwork";
+  trackIndex?: number;
+  filename: string;
+  percent: number;
+  status: "uploading" | "processing" | "success" | "error";
+};
+
+function ensureRightsPrefix(value: string | null | undefined, symbol: "©" | "℗") {
+  const body = (value ?? "").replace(/^[©℗]\s*/, "").trim();
+  return `${symbol} ${body}`;
+}
+
+function parseTimestamp(value: string) {
+  const raw = value.trim();
+  if (!raw) return 0;
+  if (/^\d+(\.\d+)?$/.test(raw)) return Math.max(0, Number(raw));
+  const parts = raw.split(":").map(Number);
+  if (parts.some((part) => !Number.isFinite(part))) return 0;
+  if (parts.length === 2) return Math.max(0, parts[0] * 60 + parts[1]);
+  if (parts.length === 3) return Math.max(0, parts[0] * 3600 + parts[1] * 60 + parts[2]);
+  return 0;
+}
+
+function formatTimestamp(seconds: number) {
+  const safe = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safe / 60);
+  const remaining = safe % 60;
+  return `${minutes}:${String(remaining).padStart(2, "0")}`;
+}
 
 type TrackDraft = {
   id?: string;
@@ -130,8 +175,8 @@ export function ReleaseWizard({
   });
   const [rights, setRights] = React.useState({
     copyright_year: initial?.copyright_year?.toString() ?? String(new Date().getFullYear()),
-    copyright_line: initial?.copyright_line ?? "",
-    phonogram_line: initial?.phonogram_line ?? "",
+    copyright_line: ensureRightsPrefix(initial?.copyright_line, "©"),
+    phonogram_line: ensureRightsPrefix(initial?.phonogram_line, "℗"),
     upc: initial?.upc ?? "",
   });
   const [territories, setTerritories] = React.useState(
@@ -255,7 +300,10 @@ export function ReleaseWizard({
   const [assets, setAssets] = React.useState(initialAssets ?? []);
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
-  const [uploadProgress, setUploadProgress] = React.useState<string | null>(null);
+  const [uploadState, setUploadState] = React.useState<UploadState | null>(null);
+  const [audioPreviewUrls, setAudioPreviewUrls] = React.useState<Record<string, string>>({});
+  const [audioDurations, setAudioDurations] = React.useState<Record<string, number>>({});
+  const [artworkPreviewUrl, setArtworkPreviewUrl] = React.useState<string | null>(null);
   const [providerGenres, setProviderGenres] = React.useState<Array<{ value: string; label: string }>>([]);
   const [providerLanguages, setProviderLanguages] = React.useState<Array<{ value: string; label: string }>>([]);
   const [providerPlatforms, setProviderPlatforms] = React.useState<Array<{ value: string; label: string }>>([]);
@@ -264,6 +312,44 @@ export function ReleaseWizard({
     Array<{ value: string; label: string }>
   >([]);
   const [providerPreferencesBusy, setProviderPreferencesBusy] = React.useState(false);
+
+  const timeZones = React.useMemo(() => {
+    const supportedValuesOf = (
+      Intl as typeof Intl & { supportedValuesOf?: (key: "timeZone") => string[] }
+    ).supportedValuesOf;
+    const values = supportedValuesOf?.("timeZone") ?? [
+      "UTC",
+      "Africa/Lagos",
+      "Africa/Accra",
+      "Africa/Johannesburg",
+      "Europe/London",
+      "Europe/Paris",
+      "America/New_York",
+      "America/Chicago",
+      "America/Denver",
+      "America/Los_Angeles",
+      "Asia/Dubai",
+      "Asia/Kolkata",
+      "Asia/Tokyo",
+      "Australia/Sydney",
+    ];
+    return ["", ...values];
+  }, []);
+
+  const copyrightYears = React.useMemo(() => {
+    const current = new Date().getFullYear() + 1;
+    return Array.from({ length: current - 1899 }, (_, index) => String(current - index));
+  }, []);
+
+  const selectedTerritoryCodes = React.useMemo(
+    () =>
+      territories
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean),
+    [territories]
+  );
+  const worldwideTerritories = selectedTerritoryCodes.includes("WW");
 
   React.useEffect(() => {
     let active = true;
@@ -279,6 +365,92 @@ export function ReleaseWizard({
       active = false;
     };
   }, []);
+
+  React.useEffect(() => {
+    let active = true;
+    const loadPreviews = async () => {
+      if (!assets.length) return;
+      const supabase = createClient();
+      const artworkAsset = assets.find((asset) => asset.kind === "artwork");
+      if (artworkAsset) {
+        const { data } = await supabase.storage
+          .from(artworkAsset.storage_bucket)
+          .createSignedUrl(artworkAsset.storage_path, 3600);
+        if (active && data?.signedUrl) setArtworkPreviewUrl(data.signedUrl);
+      }
+
+      const previews: Record<string, string> = {};
+      for (const asset of assets.filter((item) => item.kind === "audio")) {
+        const { data } = await supabase.storage
+          .from(asset.storage_bucket)
+          .createSignedUrl(asset.storage_path, 3600);
+        if (data?.signedUrl) {
+          previews[asset.track_id ?? "__single__"] = data.signedUrl;
+        }
+      }
+      if (active && Object.keys(previews).length) {
+        setAudioPreviewUrls((current) => ({ ...current, ...previews }));
+      }
+    };
+    void loadPreviews();
+    return () => {
+      active = false;
+    };
+  }, [assets]);
+
+  async function uploadToStorageWithProgress(options: {
+    bucket: string;
+    path: string;
+    file: File;
+    contentType: string;
+    onProgress: (percent: number) => void;
+  }) {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!session?.access_token || !baseUrl || !anonKey) {
+      throw new Error("Secure upload session is unavailable. Sign in again and retry.");
+    }
+
+    const encodedPath = options.path
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    const endpoint = `${baseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(
+      options.bucket
+    )}/${encodedPath}`;
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", endpoint, true);
+      xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+      xhr.setRequestHeader("apikey", anonKey);
+      xhr.setRequestHeader("x-upsert", "true");
+      xhr.setRequestHeader("Content-Type", options.contentType);
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) return;
+        options.onProgress(Math.min(95, Math.round((event.loaded / event.total) * 95)));
+      };
+      xhr.onerror = () => reject(new Error("Network error while uploading the file."));
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else {
+          let message = "Upload failed.";
+          try {
+            const payload = JSON.parse(xhr.responseText) as { message?: string; error?: string };
+            message = payload.message || payload.error || message;
+          } catch {
+            // Keep generic message.
+          }
+          reject(new Error(message));
+        }
+      };
+      xhr.send(options.file);
+    });
+  }
 
   async function applyDistributionPreferences() {
     setError(null);
@@ -303,8 +475,12 @@ export function ReleaseWizard({
       }));
       setRights((current) => ({
         ...current,
-        copyright_line: current.copyright_line || defaults.cLine || "",
-        phonogram_line: current.phonogram_line || defaults.pLine || "",
+        copyright_line: current.copyright_line.replace(/^©\s*/, "").trim()
+          ? current.copyright_line
+          : ensureRightsPrefix(defaults.cLine, "©"),
+        phonogram_line: current.phonogram_line.replace(/^℗\s*/, "").trim()
+          ? current.phonogram_line
+          : ensureRightsPrefix(defaults.pLine, "℗"),
       }));
       setProviderMeta((current) => {
         const hasAdditionalSelection = Object.values(current.additional).some(Boolean);
@@ -442,6 +618,7 @@ export function ReleaseWizard({
         }))
       );
     }
+    return res.data.tracks ?? [];
   }
 
   async function saveContributors(id: string) {
@@ -498,7 +675,7 @@ export function ReleaseWizard({
     return dimensions;
   }
 
-  async function onUpload(kind: "audio" | "artwork", file: File, trackId?: string) {
+  async function onUpload(kind: "audio" | "artwork", file: File, trackIndex?: number) {
     setError(null);
     const check = kind === "audio" ? assertAudioFile(file) : assertArtworkFile(file);
     if (check) {
@@ -532,19 +709,61 @@ export function ReleaseWizard({
     }
 
     const id = await ensureDraft();
-    setUploadProgress(`Uploading ${file.name}…`);
+    setUploadState({
+      kind,
+      trackIndex,
+      filename: file.name,
+      percent: 0,
+      status: "uploading",
+    });
+
     try {
+      let resolvedTrackId: string | null = null;
+      if (kind === "audio") {
+        if (trackIndex == null) throw new Error("Track selection is required for audio upload.");
+        const persistedTracks = await saveTracks(id);
+        resolvedTrackId = persistedTracks[trackIndex]?.id ?? null;
+        if (!resolvedTrackId) {
+          throw new Error("Nexo could not save the track before audio upload. Retry the upload.");
+        }
+      }
+
       const prep = await prepareAssetUpload({ releaseId: id, kind, filename: file.name });
       if (!prep.ok) throw new Error(prep.error);
-      const supabase = createClient();
-      const uploadMimeType = kind === "audio" ? "audio/flac" : file.type;
-      const { error: upErr } = await supabase.storage
-        .from(prep.data.bucket)
-        .upload(prep.data.path, file, { upsert: true, contentType: uploadMimeType });
-      if (upErr) throw upErr;
+      const uploadMimeType =
+        kind === "audio"
+          ? "audio/flac"
+          : file.type || (file.name.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
+
+      await uploadToStorageWithProgress({
+        bucket: prep.data.bucket,
+        path: prep.data.path,
+        file,
+        contentType: uploadMimeType,
+        onProgress: (percent) =>
+          setUploadState((current) =>
+            current
+              ? { ...current, percent, status: "uploading" }
+              : current
+          ),
+      });
+
+      setUploadState((current) =>
+        current ? { ...current, percent: 97, status: "processing" } : current
+      );
+
+      const replaceAsset =
+        kind === "audio" && resolvedTrackId
+          ? assets.find(
+              (asset) => asset.kind === "audio" && asset.track_id === resolvedTrackId
+            )
+          : kind === "artwork"
+            ? assets.find((asset) => asset.kind === "artwork")
+            : undefined;
+
       const reg = await registerUploadedAsset({
         releaseId: id,
-        trackId: trackId ?? null,
+        trackId: resolvedTrackId,
         kind,
         storagePath: prep.data.path,
         filename: file.name,
@@ -552,39 +771,71 @@ export function ReleaseWizard({
         sizeBytes: file.size,
         width: clientArtworkMeta?.width ?? null,
         height: clientArtworkMeta?.height ?? null,
+        replaceAssetId: replaceAsset?.id ?? null,
       });
       if (!reg.ok) throw new Error(reg.error);
-      setAssets((prev) => [
-        ...prev.filter((a) => !(kind === "artwork" && a.kind === "artwork")),
-        {
-          id: reg.data.id,
-          release_id: id,
-          track_id: trackId ?? null,
-          kind,
-          storage_bucket: prep.data.bucket,
-          storage_path: prep.data.path,
-          filename: file.name,
-          mime_type: uploadMimeType,
-          size_bytes: file.size,
-          checksum: null,
-          width: clientArtworkMeta?.width ?? null,
-          height: clientArtworkMeta?.height ?? null,
-          codec: null,
-          container: null,
-          sample_rate_hz: null,
-          bit_depth: null,
-          channels: null,
-          duration_ms: null,
-          hash_algorithm: null,
-          uploaded_by: null,
-          created_at: new Date().toISOString(),
-        },
+
+      const nextAsset: ReleaseAssetRow = {
+        id: reg.data.id,
+        release_id: id,
+        track_id: resolvedTrackId,
+        kind,
+        storage_bucket: prep.data.bucket,
+        storage_path: prep.data.path,
+        filename: file.name,
+        mime_type: uploadMimeType,
+        size_bytes: file.size,
+        checksum: null,
+        width: clientArtworkMeta?.width ?? null,
+        height: clientArtworkMeta?.height ?? null,
+        codec: kind === "audio" ? "flac" : null,
+        container: kind === "audio" ? "flac" : null,
+        sample_rate_hz: null,
+        bit_depth: null,
+        channels: null,
+        duration_ms: null,
+        hash_algorithm: null,
+        uploaded_by: null,
+        created_at: new Date().toISOString(),
+      };
+
+      setAssets((current) => [
+        ...current.filter((asset) => {
+          if (kind === "artwork") return asset.kind !== "artwork";
+          return !(
+            asset.kind === "audio" &&
+            resolvedTrackId &&
+            asset.track_id === resolvedTrackId
+          );
+        }),
+        nextAsset,
       ]);
+
+      const supabase = createClient();
+      const { data: signed } = await supabase.storage
+        .from(prep.data.bucket)
+        .createSignedUrl(prep.data.path, 3600);
+      if (signed?.signedUrl) {
+        if (kind === "artwork") {
+          setArtworkPreviewUrl(signed.signedUrl);
+        } else if (resolvedTrackId) {
+          setAudioPreviewUrls((current) => ({
+            ...current,
+            [resolvedTrackId]: signed.signedUrl,
+          }));
+        }
+      }
+
+      setUploadState((current) =>
+        current ? { ...current, percent: 100, status: "success" } : current
+      );
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setUploadProgress(null);
+      const message = e instanceof Error ? e.message : "Upload failed";
+      setError(message);
+      setUploadState((current) =>
+        current ? { ...current, status: "error" } : current
+      );
     }
   }
 
@@ -649,7 +900,6 @@ export function ReleaseWizard({
           {error}
         </Alert>
       ) : null}
-      {uploadProgress ? <Alert title="Upload">{uploadProgress}</Alert> : null}
 
       <Card>
         <CardHeader>
@@ -1057,7 +1307,7 @@ export function ReleaseWizard({
                       accept=".flac,audio/flac,audio/x-flac"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
-                        if (f) void onUpload("audio", f, t.id);
+                        if (f) void onUpload("audio", f, idx);
                       }}
                     />
                     {audioAssets.length ? (
@@ -1100,8 +1350,9 @@ export function ReleaseWizard({
           {step === 3 ? (
             <div className="space-y-3">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                Assign each contributor to the whole release or a specific track. Share % is optional
-                ownership metadata only — not a DDEX DisplayArtist percentage.
+                Add complete credits for performers, composition/lyrics, and production/engineering.
+                Apple requires accurate credits across these categories; one person may hold multiple roles.
+                Share % remains optional ownership metadata.
               </p>
               {contributors.map((c, idx) => (
                 <div key={idx} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -1122,21 +1373,9 @@ export function ReleaseWizard({
                       setContributors(next);
                     }}
                   >
-                    {[
-                      "primary_artist",
-                      "featured_artist",
-                      "producer",
-                      "songwriter",
-                      "composer",
-                      "lyricist",
-                      "mixer",
-                      "engineer",
-                      "publisher",
-                      "remixer",
-                      "other",
-                    ].map((r) => (
-                      <option key={r} value={r}>
-                        {r.replace(/_/g, " ")}
+                    {CONTRIBUTOR_ROLE_OPTIONS.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
                       </option>
                     ))}
                   </Select>
@@ -1241,10 +1480,14 @@ export function ReleaseWizard({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Copyright year</span>
-                <Input
+                <Select
                   value={rights.copyright_year}
                   onChange={(e) => setRights({ ...rights, copyright_year: e.target.value })}
-                />
+                >
+                  {copyrightYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </Select>
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">UPC (optional — Nexo can assign one if omitted)</span>
@@ -1256,19 +1499,37 @@ export function ReleaseWizard({
               </label>
               <label className="block space-y-1 sm:col-span-2">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Copyright line (C)</span>
-                <Input
-                  value={rights.copyright_line}
-                  onChange={(e) => setRights({ ...rights, copyright_line: e.target.value })}
-                  placeholder="© 2026 Artist Name"
-                />
+                <div className="flex items-center rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-bg)]">
+                  <span className="pl-3 text-small font-semibold" aria-hidden="true">©</span>
+                  <Input
+                    className="border-0 shadow-none focus:ring-0"
+                    value={rights.copyright_line.replace(/^©\s*/, "")}
+                    onChange={(e) =>
+                      setRights({
+                        ...rights,
+                        copyright_line: ensureRightsPrefix(e.target.value, "©"),
+                      })
+                    }
+                    placeholder="2026 Artist or copyright owner"
+                  />
+                </div>
               </label>
               <label className="block space-y-1 sm:col-span-2">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Phonogram line (P)</span>
-                <Input
-                  value={rights.phonogram_line}
-                  onChange={(e) => setRights({ ...rights, phonogram_line: e.target.value })}
-                  placeholder="℗ 2026 Artist Name"
-                />
+                <div className="flex items-center rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-bg)]">
+                  <span className="pl-3 text-small font-semibold" aria-hidden="true">℗</span>
+                  <Input
+                    className="border-0 shadow-none focus:ring-0"
+                    value={rights.phonogram_line.replace(/^℗\s*/, "")}
+                    onChange={(e) =>
+                      setRights({
+                        ...rights,
+                        phonogram_line: ensureRightsPrefix(e.target.value, "℗"),
+                      })
+                    }
+                    placeholder="2026 Artist, label or master owner"
+                  />
+                </div>
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">License type</span>
@@ -1334,13 +1595,17 @@ export function ReleaseWizard({
                 </label>
                 <label className="block space-y-1">
                   <span className="text-caption text-[var(--nexo-text-muted)]">Time zone</span>
-                  <Input
+                  <Select
                     value={providerMeta.timeZone}
                     onChange={(e) =>
                       setProviderMeta((current) => ({ ...current, timeZone: e.target.value }))
                     }
-                    placeholder="e.g. Africa/Lagos"
-                  />
+                  >
+                    <option value="">Store default / local midnight</option>
+                    {timeZones.filter(Boolean).map((zone) => (
+                      <option key={zone} value={zone}>{zone}</option>
+                    ))}
+                  </Select>
                 </label>
               </div>
 
@@ -1372,21 +1637,62 @@ export function ReleaseWizard({
                 ) : null}
               </div>
 
-              <label className="block space-y-1">
-                <span className="text-caption text-[var(--nexo-text-muted)]">
-                  Territories (comma-separated ISO codes, or WW)
-                </span>
-                <Input
-                  list="nexo-provider-countries"
-                  value={territories}
-                  onChange={(e) => setTerritories(e.target.value)}
-                />
-                <datalist id="nexo-provider-countries">
-                  {providerCountries.map((country) => (
-                    <option key={country.value} value={country.value}>{country.label}</option>
-                  ))}
-                </datalist>
-              </label>
+              <fieldset className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
+                <legend className="px-1 text-caption font-medium text-[var(--nexo-text-muted)]">
+                  Territories
+                </legend>
+                <Select
+                  value={worldwideTerritories ? "worldwide" : "custom"}
+                  onChange={(e) =>
+                    setTerritories(e.target.value === "worldwide" ? "WW" : "")
+                  }
+                >
+                  <option value="worldwide">Worldwide — all available territories</option>
+                  <option value="custom">Select specific countries / territories</option>
+                </Select>
+
+                {!worldwideTerritories ? (
+                  <details className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3">
+                    <summary className="cursor-pointer text-small font-medium">
+                      {selectedTerritoryCodes.length
+                        ? `${selectedTerritoryCodes.length} selected`
+                        : "Choose countries / territories"}
+                    </summary>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="text-caption text-[var(--nexo-text-muted)]">
+                        Live territory list
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setTerritories(providerCountries.map((country) => country.value).join(", "))
+                        }
+                      >
+                        Select all
+                      </Button>
+                    </div>
+                    <div className="mt-2 grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
+                      {providerCountries.map((country) => (
+                        <label key={country.value} className="flex items-center gap-2 text-small">
+                          <input
+                            type="checkbox"
+                            checked={selectedTerritoryCodes.includes(country.value)}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...new Set([...selectedTerritoryCodes, country.value])]
+                                : selectedTerritoryCodes.filter((code) => code !== country.value);
+                              setTerritories(next.join(", "));
+                            }}
+                          />
+                          <span>{country.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </fieldset>
 
               <fieldset className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
                 <legend className="px-1 text-caption font-medium text-[var(--nexo-text-muted)]">
@@ -1399,22 +1705,19 @@ export function ReleaseWizard({
                 <label className="flex items-center gap-2 text-small font-medium">
                   <input
                     type="checkbox"
-                    checked={Object.values(providerMeta.additional).every(Boolean)}
+                    checked={ADDITIONAL_DELIVERY_OPTIONS.every(
+                      (option) => providerMeta.additional[option.key]
+                    )}
                     onChange={(e) => {
                       const enabled = e.target.checked;
                       setProviderMeta((current) => ({
                         ...current,
                         additional: {
-                          youtube: enabled,
-                          facebook: enabled,
-                          soundcloud: enabled,
-                          soundExchange: enabled,
-                          beatPort: enabled,
-                          junoDownloads: enabled,
-                          trackLibs: enabled,
-                          hook: enabled,
-                          lyricfind: enabled,
-                          even: enabled,
+                          ...current.additional,
+                          ...Object.fromEntries(
+                            ADDITIONAL_DELIVERY_OPTIONS.map((option) => [option.key, enabled])
+                          ),
+                          junoDownloads: false,
                         },
                       }));
                     }}
@@ -1422,18 +1725,7 @@ export function ReleaseWizard({
                   <span>Select all additional deliveries</span>
                 </label>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {[
-                    ["youtube", "YouTube Content ID"],
-                    ["facebook", "Meta Rights Manager"],
-                    ["soundcloud", "SoundCloud Monetization"],
-                    ["soundExchange", "SoundExchange"],
-                    ["beatPort", "Beatport"],
-                    ["junoDownloads", "Juno Download"],
-                    ["trackLibs", "Tracklib"],
-                    ["hook", "Hook"],
-                    ["lyricfind", "LyricFind"],
-                    ["even", "EVEN"],
-                  ].map(([key, label]) => (
+                  {ADDITIONAL_DELIVERY_OPTIONS.map(({ key, label }) => (
                     <label key={key} className="flex items-center gap-2 text-small">
                       <input
                         type="checkbox"
@@ -1452,6 +1744,7 @@ export function ReleaseWizard({
                           }))
                         }
                       />
+                      <DeliveryBrandIcon name={label} className="h-5 w-5 shrink-0" />
                       <span>{label}</span>
                     </label>
                   ))}
@@ -1520,6 +1813,7 @@ export function ReleaseWizard({
                             )
                           }
                         />
+                        <DeliveryBrandIcon name={platform.label} className="h-5 w-5 shrink-0" />
                         <span>{platform.label}</span>
                       </label>
                     ))}
@@ -1557,9 +1851,9 @@ export function ReleaseWizard({
               </p>
               <p>
                 <strong>Additional deliveries:</strong>{" "}
-                {Object.entries(providerMeta.additional)
-                  .filter(([, enabled]) => enabled)
-                  .map(([key]) => key)
+                {ADDITIONAL_DELIVERY_OPTIONS
+                  .filter((option) => providerMeta.additional[option.key])
+                  .map((option) => option.label)
                   .join(", ") || "None"}
               </p>
               <p>
