@@ -23,14 +23,15 @@ export type SalesDisplayRow = {
   units: number | null;
   total: number | null;
   currency: string | null;
+  streamRate: number | null;
   trendPercent: number | null;
 };
 
 export type SalesSnapshot = {
   key: SalesViewKey;
   rows: SalesDisplayRow[];
-  connected: boolean;
-  note: string;
+  status: "ready" | "empty" | "unavailable";
+  note: string | null;
 };
 
 function numberValue(row: Record<string, unknown>, keys: string[]): number | null {
@@ -61,6 +62,9 @@ function normalizeRow(row: Record<string, unknown>, index: number): SalesDisplay
     "artist",
     "artist_name",
     "artistName",
+    "service",
+    "store",
+    "channel",
     "name",
   ]);
   const subtitle = stringValue(row, [
@@ -70,6 +74,7 @@ function normalizeRow(row: Record<string, unknown>, index: number): SalesDisplay
     "catalogNumber",
     "service",
     "store",
+    "code",
   ]);
   const channel = stringValue(row, [
     "channel",
@@ -90,7 +95,7 @@ function normalizeRow(row: Record<string, unknown>, index: number): SalesDisplay
   ]);
   return {
     id:
-      stringValue(row, ["id", "isrc", "upc", "date", "month"]) ??
+      stringValue(row, ["id", "isrc", "upc", "date", "month", "code", "name"]) ??
       `row-${index}`,
     date: stringValue(row, ["date", "month", "period", "period_start", "periodStart"]),
     title,
@@ -108,6 +113,7 @@ function normalizeRow(row: Record<string, unknown>, index: number): SalesDisplay
     units: numberValue(row, ["units", "quantity", "count", "downloads"]),
     total: numberValue(row, [
       "total",
+      "dividends",
       "amount",
       "earnings",
       "revenue",
@@ -116,6 +122,16 @@ function normalizeRow(row: Record<string, unknown>, index: number): SalesDisplay
       "royalties",
     ]),
     currency: stringValue(row, ["currency", "currency_code", "currencyCode"]),
+    streamRate: numberValue(row, [
+      "stream_rate",
+      "streamRate",
+      "rate",
+      "average_rate",
+      "averageRate",
+      "per_stream",
+      "perStream",
+      "value",
+    ]),
     trendPercent: numberValue(row, [
       "trend_percent",
       "trendPercent",
@@ -130,7 +146,15 @@ function normalizeRow(row: Record<string, unknown>, index: number): SalesDisplay
 function monthlyRows(rows: Record<string, unknown>[]): SalesDisplayRow[] {
   const grouped = new Map<
     string,
-    { total: number; streams: number; units: number; currency: string | null; hasTotal: boolean; hasStreams: boolean; hasUnits: boolean }
+    {
+      total: number;
+      streams: number;
+      units: number;
+      currency: string | null;
+      hasTotal: boolean;
+      hasStreams: boolean;
+      hasUnits: boolean;
+    }
   >();
 
   for (const row of rows) {
@@ -145,7 +169,16 @@ function monthlyRows(rows: Record<string, unknown>[]): SalesDisplayRow[] {
       hasStreams: false,
       hasUnits: false,
     };
-    const total = numberValue(row, ["total", "amount", "earnings", "revenue", "net"]);
+    const total = numberValue(row, [
+      "total",
+      "dividends",
+      "amount",
+      "earnings",
+      "revenue",
+      "net",
+      "royalty",
+      "royalties",
+    ]);
     const streams = numberValue(row, ["streams", "stream_count", "streamCount", "plays"]);
     const units = numberValue(row, ["units", "quantity", "count", "downloads"]);
     const currency = stringValue(row, ["currency", "currency_code", "currencyCode"]);
@@ -180,6 +213,7 @@ function monthlyRows(rows: Record<string, unknown>[]): SalesDisplayRow[] {
       units: value.hasUnits ? value.units : null,
       total: value.hasTotal ? value.total : null,
       currency: value.currency,
+      streamRate: null,
       trendPercent: null,
     }));
 }
@@ -201,28 +235,24 @@ export async function loadSalesSnapshot(
 ): Promise<SalesSnapshot> {
   try {
     const raw = await ownedSales(ownerUserId, kindForKey[key]);
-    const rows = key === "monthly"
-      ? monthlyRows(raw)
-      : raw.map((row, index) => normalizeRow(row, index));
+    const rows =
+      key === "monthly" || key === "overview"
+        ? monthlyRows(raw)
+        : raw.map((row, index) => normalizeRow(row, index));
 
     return {
       key,
       rows,
-      connected: true,
-      note:
-        rows.length > 0
-          ? "Live provider sales data for catalog owned by this Nexo account. No values are estimated."
-          : "The provider connection is available, but no sales rows are available for this account yet.",
+      status: rows.length > 0 ? "ready" : "empty",
+      note: null,
     };
-  } catch (error) {
+  } catch {
     return {
       key,
       rows: [],
-      connected: false,
+      status: "unavailable",
       note:
-        error instanceof Error
-          ? error.message
-          : "Distribution sales data is temporarily unavailable.",
+        "Reporting is temporarily unavailable. Refresh the page in a moment or try again later.",
     };
   }
 }
@@ -233,34 +263,34 @@ export const SALES_PAGE_COPY: Record<
 > = {
   overview: {
     title: "Sales Overview",
-    description: "Live sales and earnings rows scoped to releases owned by this account.",
+    description: "Latest reported sales and earnings activity for music in this account.",
   },
   releases: {
     title: "Sales by Release",
-    description: "Provider sales reporting matched to your Nexo releases.",
+    description: "Reported earnings performance across your releases.",
   },
   tracks: {
     title: "Sales by Track",
-    description: "Provider sales reporting matched to your catalog ISRCs.",
+    description: "Reported earnings performance across your tracks and ISRCs.",
   },
   channels: {
     title: "Stores / Services",
-    description: "Store and service performance returned for your releases.",
+    description: "Reported performance across stores and streaming services.",
   },
   artists: {
     title: "Sales by Artist",
-    description: "Provider artist sales rows matched to artists in your Nexo account.",
+    description: "Reported sales and earnings across artists in this account.",
   },
   territories: {
     title: "Sales by Territory",
-    description: "Territory reporting returned for your releases.",
+    description: "Reported performance by country and territory.",
   },
   monthly: {
     title: "Monthly Overviews",
-    description: "Monthly provider totals aggregated only from releases owned by this account.",
+    description: "Monthly reported totals across music in this account.",
   },
   stream_rates: {
     title: "Stream Rate",
-    description: "Provider-reported stream-rate reference data. Rates are not converted into estimated royalties.",
+    description: "Reported stream-rate data by month, service and territory.",
   },
 };
