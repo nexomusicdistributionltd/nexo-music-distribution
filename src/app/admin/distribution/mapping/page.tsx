@@ -32,11 +32,11 @@ export default async function MappingPage() {
       ) : (
         <ul className="mt-4 divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
           {rows.map((m) => {
-            const ap = m.artist_profiles as { display_name?: string } | null;
+            const ap = m.artist_profiles as { artist_name?: string; stage_name?: string } | null;
             return (
               <li key={m.id} className="px-4 py-3 text-small">
                 <p className="font-medium">
-                  {ap?.display_name || m.artist_profile_id} · {m.dsp_name}
+                  {ap?.artist_name || ap?.stage_name || m.artist_profile_id} · {m.dsp_name}
                 </p>
                 <p className="text-caption text-[var(--nexo-text-muted)]">
                   external id: {m.external_artist_id || "—"}
