@@ -105,7 +105,7 @@ export function StaffTeamRolesForm({
         </p>
       ) : null}
 
-      <Button type="submit" size="sm" disabled={pending || selected.length === 0}>
+      <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Saving…" : "Save team access"}
       </Button>
     </form>
