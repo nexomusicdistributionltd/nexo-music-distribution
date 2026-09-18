@@ -315,14 +315,23 @@
   direction: ltr;
 }
 
+.nexo-partner-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: nexo-marquee 70s linear infinite;
+  will-change: transform;
+}
+
 .nexo-marquee-track:hover,
-.nexo-marquee-track-rtl:hover {
+.nexo-marquee-track-rtl:hover,
+.nexo-partner-marquee-track:hover {
   animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .nexo-marquee-track,
-  .nexo-marquee-track-rtl {
+  .nexo-marquee-track-rtl,
+  .nexo-partner-marquee-track {
     animation: none;
   }
   .animate-fade-in,
