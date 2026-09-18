@@ -179,45 +179,153 @@ export async function setAccountPlanOverrideAction(input: {
   userId: string;
   accountType: "artist" | "label";
   planId: "artist_starter" | "artist_pro" | "label_starter" | "label_pro";
-  status: "active" | "trialing" | "expired" | "paused" | "canceled";
+  billingInterval?: "month" | "year" | null;
+  status: "active" | "trialing" | "past_due" | "expired" | "paused" | "canceled";
   endsAt?: string | null;
   reason?: string;
 }): Promise<ActionResult> {
-  const ctx = await RequireSuperAdmin();
-  const valid = input.accountType === "artist"
-    ? ["artist_starter","artist_pro"].includes(input.planId)
-    : ["label_starter","label_pro"].includes(input.planId);
-  if (!valid) return { ok:false, error:"Plan does not match account type." };
+  const ctx = await RequireAdminPermission("admin:billing_tools");
+  const valid =
+    input.accountType === "artist"
+      ? ["artist_starter", "artist_pro"].includes(input.planId)
+      : ["label_starter", "label_pro"].includes(input.planId);
+  if (!valid) return { ok: false, error: "Plan does not match account type." };
 
+  const paidPlan = input.planId !== "artist_starter";
+  const billingInterval = paidPlan ? input.billingInterval ?? "month" : null;
+  if (paidPlan && billingInterval !== "month" && billingInterval !== "year") {
+    return { ok: false, error: "Choose monthly or yearly billing." };
+  }
+
+  const nowDate = new Date();
+  const now = nowDate.toISOString();
   let normalizedEndsAt: string | null = null;
   if (input.endsAt?.trim()) {
     const parsed = new Date(input.endsAt);
-    if (Number.isNaN(parsed.getTime())) return { ok:false, error:"Plan end date is invalid." };
+    if (Number.isNaN(parsed.getTime())) {
+      return { ok: false, error: "Plan end date is invalid." };
+    }
+    if (parsed.getTime() <= nowDate.getTime() && (input.status === "active" || input.status === "trialing")) {
+      return { ok: false, error: "An active plan end date must be in the future." };
+    }
     normalizedEndsAt = parsed.toISOString();
+  } else if (paidPlan && (input.status === "active" || input.status === "trialing")) {
+    const automaticEnd = new Date(nowDate);
+    if (billingInterval === "year") {
+      automaticEnd.setUTCFullYear(automaticEnd.getUTCFullYear() + 1);
+    } else {
+      automaticEnd.setUTCMonth(automaticEnd.getUTCMonth() + 1);
+    }
+    normalizedEndsAt = automaticEnd.toISOString();
   }
 
-  const db=createServiceClient();
-  const now = new Date().toISOString();
+  const db = createServiceClient();
   const { data: existing } = await db
     .from("billing_entitlement_overrides")
     .select("created_by,created_at")
     .eq("user_id", input.userId)
     .maybeSingle();
-  const {error}=await db.from("billing_entitlement_overrides").upsert({
-    user_id:input.userId,
-    account_type:input.accountType,
-    plan_id:input.planId,
-    status:input.status,
-    ends_at:normalizedEndsAt,
-    reason:input.reason?.trim()||null,
-    updated_by:ctx.userId,
-    created_by:existing?.created_by ?? ctx.userId,
-    created_at:existing?.created_at ?? now,
-    updated_at:now
-  },{onConflict:"user_id"});
-  if(error)return {ok:false,error:error.message};
-  revalidateAdmin(["/admin/users","/admin/finance/billing","/dashboard","/billing"]);
-  return {ok:true,data:true};
+
+  const reason = input.reason?.trim() || "Admin billing adjustment";
+  const { error } = await db.from("billing_entitlement_overrides").upsert(
+    {
+      user_id: input.userId,
+      account_type: input.accountType,
+      plan_id: input.planId,
+      billing_interval: billingInterval,
+      status: input.status,
+      starts_at: now,
+      ends_at: normalizedEndsAt,
+      reason,
+      updated_by: ctx.userId,
+      created_by: existing?.created_by ?? ctx.userId,
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+    },
+    { onConflict: "user_id" }
+  );
+  if (error) return { ok: false, error: error.message };
+
+  try {
+    await db.rpc("write_audit_log", {
+      p_action: "billing_plan_override",
+      p_entity_type: "profile",
+      p_entity_id: input.userId,
+      p_metadata: {
+        actor: ctx.userId,
+        account_type: input.accountType,
+        plan_id: input.planId,
+        billing_interval: billingInterval,
+        status: input.status,
+        ends_at: normalizedEndsAt,
+        reason,
+      },
+    });
+  } catch {
+    // The billing update remains authoritative if an older audit enum rejects the event.
+  }
+
+  revalidateAdmin([
+    "/admin/users",
+    "/admin/finance/billing",
+    "/admin/tools/billing",
+    "/dashboard",
+    "/billing",
+  ]);
+  return {
+    ok: true,
+    data: {
+      endsAt: normalizedEndsAt,
+      billingInterval,
+      status: input.status,
+    },
+  };
+}
+
+export async function clearAccountPlanOverrideAction(input: {
+  userId: string;
+  reason?: string;
+}): Promise<ActionResult> {
+  const ctx = await RequireAdminPermission("admin:billing_tools");
+  const db = createServiceClient();
+
+  const { data: current, error: readError } = await db
+    .from("billing_entitlement_overrides")
+    .select("plan_id,billing_interval,status,ends_at")
+    .eq("user_id", input.userId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: readError.message };
+  if (!current) return { ok: true, data: true };
+
+  const { error } = await db
+    .from("billing_entitlement_overrides")
+    .delete()
+    .eq("user_id", input.userId);
+  if (error) return { ok: false, error: error.message };
+
+  try {
+    await db.rpc("write_audit_log", {
+      p_action: "billing_plan_override_cleared",
+      p_entity_type: "profile",
+      p_entity_id: input.userId,
+      p_metadata: {
+        actor: ctx.userId,
+        previous: current,
+        reason: input.reason?.trim() || "Returned to Paddle billing truth",
+      },
+    });
+  } catch {
+    // Clearing the override is independent of audit enum availability.
+  }
+
+  revalidateAdmin([
+    "/admin/users",
+    "/admin/finance/billing",
+    "/admin/tools/billing",
+    "/dashboard",
+    "/billing",
+  ]);
+  return { ok: true, data: true };
 }
 
 export async function inviteStaffUserAction(input: {
