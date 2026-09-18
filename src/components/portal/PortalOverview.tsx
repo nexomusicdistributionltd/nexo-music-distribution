@@ -24,6 +24,8 @@ import {
   type StreamOverviewStatus,
 } from "@/lib/portal/overview";
 import { cn } from "@/lib/utils";
+import * as SimpleIcons from "simple-icons";
+import type { AnalyticsTrendPoint } from "@/lib/portal/analytics";
 
 export type OverviewThumb = { id: string; title: string; src: string | null };
 
@@ -36,6 +38,8 @@ export function PortalOverview({
   streamRows,
   streamStatus,
   streamNote,
+  streamTrend,
+  totalStreams,
   balance,
   actionNeeded,
   loadError,
@@ -48,6 +52,8 @@ export function PortalOverview({
   streamRows: StreamOverviewRow[];
   streamStatus: StreamOverviewStatus;
   streamNote: string;
+  streamTrend: AnalyticsTrendPoint[];
+  totalStreams: number;
   balance: BalanceOverview;
   actionNeeded: { id: string; title: string }[];
   loadError: string | null;
@@ -174,27 +180,44 @@ export function PortalOverview({
           <ul className="divide-y divide-[var(--nexo-divider)] border-b border-[var(--nexo-divider)] lg:border-b-0 lg:border-r">
             {streamRows.map((row) => (
               <li key={row.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-small font-medium">{row.label}</span>
+                <span className="flex items-center gap-2 text-small font-medium">
+                  <DspLogo id={row.id} label={row.label} />
+                  {row.label}
+                </span>
                 <span className="text-right">
                   <span className="block text-[0.65rem] uppercase tracking-wide text-[var(--nexo-text-muted)]">
                     Streams
                   </span>
                   <span className="text-small tabular-nums text-[var(--nexo-text-secondary)]">
-                    {row.status}
+                    {row.streams != null && row.streams > 0
+                      ? row.streams.toLocaleString("en-US")
+                      : row.status}
                   </span>
                 </span>
               </li>
             ))}
           </ul>
-          <div className="flex min-h-[16rem] flex-col items-center justify-center bg-[var(--nexo-chart-surface)] px-6 py-10 text-center">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--nexo-text-muted)]">
-              {streamStatus}
-            </p>
-            <p className="mt-3 max-w-md text-small text-[var(--nexo-text-secondary)]">{streamNote}</p>
-            <div
-              className="mt-6 h-24 w-full max-w-lg rounded-md border border-dashed border-[var(--nexo-chart-grid)]"
-              aria-hidden
-            />
+          <div className="flex min-h-[16rem] flex-col justify-center bg-[var(--nexo-chart-surface)] px-6 py-8">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--nexo-text-muted)]">
+                  {streamStatus}
+                </p>
+                <p className="mt-1 text-3xl font-semibold tabular-nums">
+                  {totalStreams > 0 ? totalStreams.toLocaleString("en-US") : "0"}
+                </p>
+                <p className="text-caption text-[var(--nexo-text-muted)]">verified streams</p>
+              </div>
+              {streamTrend.length > 0 ? (
+                <p className="text-caption text-[var(--nexo-text-muted)]">
+                  {streamTrend[0]?.date} → {streamTrend[streamTrend.length - 1]?.date}
+                </p>
+              ) : null}
+            </div>
+            <div className="mt-5">
+              <StreamTrend points={streamTrend} />
+            </div>
+            <p className="mt-4 text-small text-[var(--nexo-text-secondary)]">{streamNote}</p>
           </div>
         </div>
         <div className="flex justify-center border-t border-[var(--nexo-divider)] px-4 py-4">
@@ -351,3 +374,81 @@ function BalanceRow({
   );
 }
 
+
+
+type SimpleIconShape = { title?: string; path?: string };
+const SIMPLE_ICONS = SimpleIcons as unknown as Record<string, SimpleIconShape>;
+const DSP_ICON_KEYS: Record<string, string> = {
+  audiomack: "siAudiomack",
+  spotify: "siSpotify",
+  apple_music: "siApplemusic",
+  youtube: "siYoutube",
+  youtube_music: "siYoutubemusic",
+  amazon: "siAmazonmusic",
+  amazon_music: "siAmazonmusic",
+  deezer: "siDeezer",
+  tidal: "siTidal",
+  pandora: "siPandora",
+};
+
+function DspLogo({ id, label }: { id: string; label: string }) {
+  const icon = SIMPLE_ICONS[DSP_ICON_KEYS[id] ?? ""];
+  if (!icon?.path) {
+    return (
+      <span
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--nexo-border)] text-[0.55rem] font-semibold"
+        aria-hidden
+      >
+        {label.slice(0, 1).toUpperCase()}
+      </span>
+    );
+  }
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      role="img"
+      aria-label={icon.title || label}
+      className="h-5 w-5 shrink-0 fill-current"
+    >
+      <path d={icon.path} />
+    </svg>
+  );
+}
+
+function StreamTrend({ points }: { points: AnalyticsTrendPoint[] }) {
+  if (points.length < 2) {
+    return (
+      <div className="flex h-28 items-center justify-center rounded-[var(--nexo-radius)] border border-dashed border-[var(--nexo-chart-grid)] px-4 text-center text-caption text-[var(--nexo-text-muted)]">
+        No verified trend data yet.
+      </div>
+    );
+  }
+
+  const values = points.map((point) => Math.max(0, Number(point.streams) || 0));
+  const max = Math.max(...values, 1);
+  const width = 600;
+  const height = 150;
+  const coords = points
+    .map((point, index) => {
+      const x = points.length === 1 ? 0 : (index / (points.length - 1)) * width;
+      const y = height - (Math.max(0, point.streams) / max) * (height - 12) - 6;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+
+  return (
+    <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-chart-grid)] p-3">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full" role="img" aria-label="Verified stream trend">
+        <polyline
+          points={coords}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </div>
+  );
+}
