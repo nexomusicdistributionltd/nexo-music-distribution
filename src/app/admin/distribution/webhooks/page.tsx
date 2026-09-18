@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function WebhooksPage() {
   await RequireAdmin();
-  const provider = getProviderConnectionState();
+  const provider = await getProviderConnectionState();
   const events = await listWebhookEvents(50);
 
   return (
