@@ -52,6 +52,7 @@ function normalizedTemplateVars(
     vars.REASON =
       firstText(
         vars.QC_NOTES,
+        vars.ARTIST_VISIBLE_REASON,
         vars.REPLY_BODY,
         vars.MESSAGE,
         vars.TICKET_SUBJECT,
@@ -75,6 +76,23 @@ function normalizedTemplateVars(
     row.related_entity_id
   ) {
     vars.SUPPORT_TICKET_ID = row.related_entity_id;
+  }
+
+  const reason = firstText(vars.REASON) ?? "";
+  if (row.template_key === "RELEASE_CHANGES_REQUIRED") {
+    vars.CORRECTION_TITLE =
+      firstText(vars.CORRECTION_TITLE) ?? "Changes required";
+  }
+  if (row.template_key === "RELEASE_CHANGES_REQUIRED" && /\bflac\b/i.test(reason)) {
+    vars.CORRECTION_TITLE = "Audio File Requires Attention";
+    vars.REQUIRED_FORMAT =
+      firstText(vars.REQUIRED_FORMAT) ?? "FLAC (lossless audio)";
+    vars.ACTION_REQUIRED =
+      firstText(vars.ACTION_REQUIRED) ??
+      "Replace the current audio file with a lossless FLAC file before resubmitting this release.";
+    vars.RESUBMIT_INSTRUCTION =
+      firstText(vars.RESUBMIT_INSTRUCTION) ??
+      "Once the corrected FLAC file has been uploaded, resubmit the release and our team will review it again.";
   }
 
   return vars;

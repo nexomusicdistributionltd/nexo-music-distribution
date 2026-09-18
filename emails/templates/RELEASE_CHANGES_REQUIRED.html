@@ -76,15 +76,24 @@
             <tr>
               <td bgcolor="#0a0a0a" style="background-color:#0a0a0a;padding:36px 48px 16px 48px;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;color:#f4f4f4;font-size:16px;line-height:26px;">
 <p style="margin:0 0 10px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.18em;text-transform:uppercase;color:#8a8a8a;">QC REVIEW</p>
-<h1 style="margin:0 0 24px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:26px;line-height:34px;font-weight:600;letter-spacing:-0.01em;color:#ffffff;">Changes required</h1>
+<h1 style="margin:0 0 24px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:26px;line-height:34px;font-weight:600;letter-spacing:-0.01em;color:#ffffff;">{{CORRECTION_TITLE}}</h1>
 <p style="margin:0 0 18px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:16px;line-height:26px;color:#f4f4f4;">Hi {{FIRST_NAME}},</p>
 <p style="margin:0 0 18px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:16px;line-height:26px;color:#c8c8c8;">QC reviewed <strong style="color:#ffffff;">{{RELEASE_TITLE}}</strong> and needs changes before approval.</p>
-<p style="margin:0 0 18px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:16px;line-height:26px;color:#c8c8c8;">Please address the items below, update the release, and resubmit. Clear, complete revisions help us turn this around faster.</p>
+<p style="margin:0 0 18px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:16px;line-height:26px;color:#c8c8c8;">Please address the issue below, update the affected release, and resubmit it for review.</p>
+{{#ACTION_REQUIRED}}
+<p style="margin:0 0 18px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:16px;line-height:26px;color:#c8c8c8;">{{ACTION_REQUIRED}}</p>
+{{/ACTION_REQUIRED}}
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#111111;border:1px solid #262626;margin:8px 0 28px 0;">
 <tr><td style="padding:18px 22px 10px 22px;border-bottom:1px solid #2a2a2a;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a;width:38%;vertical-align:top;padding-right:12px;">Release</td><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#ffffff;vertical-align:top;">{{RELEASE_TITLE}}</td></tr></table></td></tr>
 <tr><td style="padding:10px 22px 10px 22px;border-bottom:1px solid #2a2a2a;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a;width:38%;vertical-align:top;padding-right:12px;">Release ID</td><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#ffffff;vertical-align:top;">{{RELEASE_ID}}</td></tr></table></td></tr>
 <tr><td style="padding:10px 22px 10px 22px;border-bottom:1px solid #2a2a2a;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a;width:38%;vertical-align:top;padding-right:12px;">Status</td><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#ffffff;vertical-align:top;">Changes required</td></tr></table></td></tr>
-<tr><td style="padding:10px 22px 18px 22px;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a;width:38%;vertical-align:top;padding-right:12px;">Details</td><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#ffffff;vertical-align:top;">{{REASON}}</td></tr></table></td></tr>
+<tr><td style="padding:10px 22px 10px 22px;border-bottom:1px solid #2a2a2a;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a;width:38%;vertical-align:top;padding-right:12px;">Details</td><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#ffffff;vertical-align:top;white-space:pre-line;">{{REASON}}</td></tr></table></td></tr>
+{{#AFFECTED_TRACKS}}
+<tr><td style="padding:10px 22px 10px 22px;border-bottom:1px solid #2a2a2a;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a;width:38%;vertical-align:top;padding-right:12px;">Affected track(s)</td><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#ffffff;vertical-align:top;white-space:pre-line;">{{AFFECTED_TRACKS}}</td></tr></table></td></tr>
+{{/AFFECTED_TRACKS}}
+{{#REQUIRED_FORMAT}}
+<tr><td style="padding:10px 22px 18px 22px;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a;width:38%;vertical-align:top;padding-right:12px;">Required format</td><td style="font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#ffffff;vertical-align:top;">{{REQUIRED_FORMAT}}</td></tr></table></td></tr>
+{{/REQUIRED_FORMAT}}
 </table>
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 28px 0;">
   <tr>
@@ -97,6 +106,10 @@
     </td>
   </tr>
 </table>
+{{#RESUBMIT_INSTRUCTION}}
+<p style="margin:0 0 18px 0;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;font-size:16px;line-height:26px;color:#c8c8c8;">{{RESUBMIT_INSTRUCTION}}</p>
+{{/RESUBMIT_INSTRUCTION}}
+
               </td>
             </tr>
             <tr>
