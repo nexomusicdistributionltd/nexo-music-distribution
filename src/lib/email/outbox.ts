@@ -31,6 +31,106 @@ async function markStatus(
   if (error) throw new Error(error.message);
 }
 
+
+function firstText(...values: Array<string | number | null | undefined>): string | null {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function normalizedTemplateVars(
+  row: OutboundEventRow,
+  payload: Record<string, unknown>
+): Record<string, string | number | null | undefined> {
+  const vars = templateVarsFromPayload(payload);
+
+  // Older call sites used semantically equivalent keys. Normalize them here so
+  // an operational email never renders a blank reason/status/id block.
+  if (!firstText(vars.REASON)) {
+    vars.REASON =
+      firstText(
+        vars.QC_NOTES,
+        vars.REPLY_BODY,
+        vars.MESSAGE,
+        vars.TICKET_SUBJECT,
+        vars.CONTACT_SUBJECT
+      ) ?? "";
+  }
+  if (!firstText(vars.STATUS)) {
+    vars.STATUS =
+      firstText(vars.ACCOUNT_STATUS, vars.STATUS_LABEL, vars.RELEASE_STATUS) ?? "";
+  }
+  if (
+    !firstText(vars.RELEASE_ID) &&
+    row.related_entity_type === "release" &&
+    row.related_entity_id
+  ) {
+    vars.RELEASE_ID = row.related_entity_id;
+  }
+  if (
+    !firstText(vars.SUPPORT_TICKET_ID) &&
+    row.related_entity_type === "support_ticket" &&
+    row.related_entity_id
+  ) {
+    vars.SUPPORT_TICKET_ID = row.related_entity_id;
+  }
+
+  return vars;
+}
+
+async function canonicalSendRecipient(
+  supabase: SupabaseClient,
+  row: OutboundEventRow,
+  payload: Record<string, unknown>
+): Promise<string> {
+  let recipientUserId = payloadString(payload, OUTBOUND_META.recipientUserId);
+  const relatedReleaseId =
+    row.related_entity_type === "release" && row.related_entity_id
+      ? row.related_entity_id
+      : payloadString(payload, OUTBOUND_META.relatedReleaseId);
+
+  // Release lifecycle/QC messages are always resolved from the current release
+  // owner. This also repairs legacy queued rows whose to_email was wrong.
+  if (relatedReleaseId) {
+    const { data: release, error: releaseError } = await supabase
+      .from("releases")
+      .select("owner_user_id")
+      .eq("id", relatedReleaseId)
+      .maybeSingle();
+    if (releaseError || !release?.owner_user_id) {
+      throw new Error("Could not resolve the affected release owner");
+    }
+    recipientUserId = release.owner_user_id;
+  }
+
+  // Any user-scoped transactional message follows the canonical profile email,
+  // never an address copied from an admin form or stale outbox row.
+  if (recipientUserId) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", recipientUserId)
+      .maybeSingle();
+    const canonical = profile?.email?.trim();
+    if (profileError || !canonical) {
+      throw new Error("Could not resolve the affected user's email");
+    }
+    if (/[\r\n,;]/.test(canonical)) {
+      throw new Error("Transactional email requires exactly one recipient");
+    }
+    return canonical;
+  }
+
+  const explicit = row.to_email?.trim();
+  if (!explicit) throw new Error("Missing to_email");
+  if (/[\r\n,;]/.test(explicit)) {
+    throw new Error("Transactional email requires exactly one recipient");
+  }
+  return explicit;
+}
+
 /**
  * Process a single canonical outbox row. Never fabricates SENT.
  * Null provider → skipped; provider rejection → failed.
@@ -51,16 +151,17 @@ export async function processEmailEvent(
   const row = data as OutboundEventRow;
   if (row.status === "sent") return { status: "sent" };
 
-  const to = row.to_email?.trim();
-  if (!to) {
-    await markStatus(supabase, row.id, "failed", {
-      error: "Missing to_email",
-    });
-    return { status: "failed", error: "Missing to_email" };
+  const payload = payloadRecord(row.payload);
+  let to: string;
+  try {
+    to = await canonicalSendRecipient(supabase, row, payload);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Recipient resolution failed";
+    await markStatus(supabase, row.id, "failed", { error: msg });
+    return { status: "failed", error: msg };
   }
 
-  const payload = payloadRecord(row.payload);
-  const vars = templateVarsFromPayload(payload);
+  const vars = normalizedTemplateVars(row, payload);
   const stored = await tryLoadStoredTemplate(supabase, row.template_key);
   const entry = getCatalogEntry(row.template_key);
   const payloadHtml = payloadString(payload, "html");
