@@ -28,6 +28,7 @@ export type ProviderReleasePayload = {
   applePreorderDate?: string | null;
   licenseType?: string | null;
   licenseInfo?: string | null;
+  reviewNote?: string | null;
   releaseTime?: string | null;
   timeZone?: string | null;
   isAiGenerated?: boolean;
