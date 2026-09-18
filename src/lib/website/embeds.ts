@@ -4,7 +4,7 @@
 
 import { isSafeHttpUrl } from "./sanitize";
 
-export type EmbedKind = "spotify" | "apple" | "youtube";
+export type EmbedKind = "spotify" | "apple" | "youtube" | "vimeo";
 
 export function spotifyEmbedSrc(url: string): string | null {
   if (!isSafeHttpUrl(url)) return null;
@@ -60,6 +60,30 @@ export function youtubeEmbedSrc(url: string): string | null {
   }
 }
 
+export function vimeoEmbedSrc(url: string): string | null {
+  if (!isSafeHttpUrl(url)) return null;
+  try {
+    const u = new URL(url);
+    if (!u.hostname.endsWith("vimeo.com")) return null;
+    const parts = u.pathname.split("/").filter(Boolean);
+    const id = [...parts].reverse().find((part) => /^\d+$/.test(part));
+    if (!id) return null;
+    return `https://player.vimeo.com/video/${id}`;
+  } catch {
+    return null;
+  }
+}
+
+export function directVideoSrc(url: string): string | null {
+  if (!isSafeHttpUrl(url)) return null;
+  try {
+    const u = new URL(url);
+    return /\.(?:mp4|webm|ogg|m4v)$/i.test(u.pathname) ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function resolveEmbed(
   kind: EmbedKind,
   url: string | null | undefined
@@ -67,5 +91,6 @@ export function resolveEmbed(
   if (!url) return null;
   if (kind === "spotify") return spotifyEmbedSrc(url);
   if (kind === "apple") return appleMusicEmbedSrc(url);
+  if (kind === "vimeo") return vimeoEmbedSrc(url);
   return youtubeEmbedSrc(url);
 }
