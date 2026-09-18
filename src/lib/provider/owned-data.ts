@@ -210,14 +210,29 @@ export async function ownedAnalytics(userId: string): Promise<Row[]> {
   const scope = await ownedDistributionScope(userId);
   if (!scope.isrcs.size && !scope.providerIds.size) return [];
 
-  const raw = await distributionReference.analyticsOverview();
-  const rows = providerRows(raw);
-  return rows.filter((row) => {
-    const releaseId = releaseIdFromRow(row);
-    const isrc = isrcFromRow(row);
-    return (
-      (Boolean(releaseId) && scope.providerIds.has(releaseId)) ||
-      (Boolean(isrc) && scope.isrcs.has(isrc))
-    );
-  });
+  const settled = await Promise.allSettled([
+    distributionReference.analyticsOverview(),
+    distributionReference.analyticsTracks(),
+    distributionReference.analyticsPlatformData(),
+  ]);
+
+  const seen = new Set<string>();
+  const rows = settled
+    .flatMap((result) => (result.status === "fulfilled" ? providerRows(result.value) : []))
+    .filter((row) => {
+      const releaseId = releaseIdFromRow(row);
+      const isrc = isrcFromRow(row);
+      return (
+        (Boolean(releaseId) && scope.providerIds.has(releaseId)) ||
+        (Boolean(isrc) && scope.isrcs.has(isrc))
+      );
+    })
+    .filter((row) => {
+      const key = JSON.stringify(row);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  return rows;
 }
