@@ -55,7 +55,7 @@ export async function PortalFeaturePage({ href }: { href: string }) {
     return (
       <div className="space-y-6">
         <PageIntro eyebrow="Analytics" title={def.label} description={def.description} />
-        <Alert variant={snap.statusLabel === "LIVE" ? "success" : "info"} title={snap.statusLabel}>
+        <Alert variant={snap.statusLabel === "LIVE" ? "success" : "default"} title={snap.statusLabel}>
           {snap.note}
         </Alert>
         {snap.rowCount === 0 ? (
