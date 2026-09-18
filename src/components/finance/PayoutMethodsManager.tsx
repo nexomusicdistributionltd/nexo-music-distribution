@@ -10,10 +10,11 @@ import {
   savePayoutMethodAction,
   setPreferredPayoutMethodAction,
 } from "@/app/(portal)/earnings/payouts/actions";
-import { PAYOUT_METHOD_TYPES, payoutMethodLabel } from "@/lib/finance/payout-methods";
+import { payoutMethodLabel } from "@/lib/finance/payout-methods";
 
 export type PayoutMethodSafeRow = {
   id: string;
+  option_id?: string | null;
   method_type: string;
   display_name: string;
   country_code: string | null;
@@ -24,9 +25,30 @@ export type PayoutMethodSafeRow = {
   status: string;
 };
 
-export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow[] }) {
+export type PayoutMethodOptionSafeRow = {
+  id: string;
+  code: string;
+  display_name: string;
+  method_type: string;
+  destination_label: string;
+  instructions: string | null;
+  requires_institution: boolean;
+  requires_country: boolean;
+  requires_currency: boolean;
+  requires_review: boolean;
+  allowed_countries: string[] | null;
+  allowed_currencies: string[] | null;
+};
+
+export function PayoutMethodsManager({
+  methods,
+  options,
+}: {
+  methods: PayoutMethodSafeRow[];
+  options: PayoutMethodOptionSafeRow[];
+}) {
   const [rows, setRows] = React.useState(methods);
-  const [methodType, setMethodType] = React.useState("bank_transfer");
+  const [optionId, setOptionId] = React.useState(options[0]?.id ?? "");
   const [displayName, setDisplayName] = React.useState("");
   const [beneficiaryName, setBeneficiaryName] = React.useState("");
   const [destination, setDestination] = React.useState("");
@@ -37,13 +59,19 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
   const [message, setMessage] = React.useState<{ ok: boolean; text: string } | null>(null);
 
   React.useEffect(() => setRows(methods), [methods]);
+  React.useEffect(() => {
+    if (!optionId && options[0]?.id) setOptionId(options[0].id);
+  }, [optionId, options]);
+
+  const selected = options.find((option) => option.id === optionId) ?? options[0] ?? null;
 
   async function addMethod() {
+    if (!selected) return;
     setBusy(true);
     setMessage(null);
     try {
       const result = await savePayoutMethodAction({
-        methodType,
+        optionId: selected.id,
         displayName,
         beneficiaryName,
         destination,
@@ -58,7 +86,10 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
       setRows((current) => [...current, result.data]);
       setMessage({
         ok: true,
-        text: "Payout method saved and sent to Nexo Finance for verification.",
+        text:
+          result.data.status === "active"
+            ? "Payout method added and ready to use."
+            : "Payout method saved and sent to Nexo Finance for review.",
       });
       setDisplayName("");
       setBeneficiaryName("");
@@ -73,9 +104,7 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
 
   async function prefer(id: string) {
     const previous = rows;
-    setRows((current) =>
-      current.map((row) => ({ ...row, is_preferred: row.id === id }))
-    );
+    setRows((current) => current.map((row) => ({ ...row, is_preferred: row.id === id })));
     const result = await setPreferredPayoutMethodAction(id);
     if (!result.ok) {
       setRows(previous);
@@ -102,10 +131,9 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
   return (
     <section className="space-y-5 rounded-[1.25rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
       <div>
-        <h2 className="text-h4">Payout methods</h2>
+        <h2 className="text-h4">Payment method</h2>
         <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-          Add a bank, wallet or payment destination. New methods require Nexo Finance approval
-          before they can be used for a royalty payout.
+          Choose from the payout methods enabled by Nexo Finance, then enter your own receiving details.
         </p>
       </div>
 
@@ -125,7 +153,7 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
                 </p>
                 <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
                   {row.status === "active"
-                    ? "Approved"
+                    ? "Ready for payouts"
                     : row.status === "verification_required"
                       ? "Finance review required"
                       : row.status.replace(/_/g, " ")}
@@ -144,66 +172,78 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {options.length === 0 ? (
+        <Alert title="No payout methods available">
+          Nexo Finance has not enabled a payout method for account setup yet.
+        </Alert>
       ) : (
-        <p className="text-small text-[var(--nexo-text-muted)]">No payout method added yet.</p>
+        <div className="space-y-3 rounded-[var(--nexo-radius-lg)] bg-[var(--nexo-elevated)] p-4">
+          <Select value={selected?.id ?? ""} onChange={(event) => setOptionId(event.target.value)}>
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.display_name}
+              </option>
+            ))}
+          </Select>
+
+          {selected?.instructions ? (
+            <p className="text-caption text-[var(--nexo-text-muted)]">{selected.instructions}</p>
+          ) : null}
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Input
+              placeholder={selected ? `${selected.display_name} nickname (optional)` : "Method nickname"}
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+            />
+            <Input
+              placeholder="Beneficiary / account holder name"
+              value={beneficiaryName}
+              onChange={(event) => setBeneficiaryName(event.target.value)}
+            />
+            <Input
+              placeholder={selected?.destination_label ?? "Account / destination"}
+              value={destination}
+              onChange={(event) => setDestination(event.target.value)}
+            />
+            {selected?.requires_institution ? (
+              <Input
+                placeholder="Bank / payment provider"
+                value={institution}
+                onChange={(event) => setInstitution(event.target.value)}
+              />
+            ) : null}
+            {selected?.requires_country || (selected?.allowed_countries?.length ?? 0) > 0 ? (
+              <Input
+                placeholder="Country code, e.g. NG or US"
+                maxLength={2}
+                value={countryCode}
+                onChange={(event) => setCountryCode(event.target.value.toUpperCase())}
+              />
+            ) : null}
+            {selected?.requires_currency || (selected?.allowed_currencies?.length ?? 0) > 0 ? (
+              <Input
+                placeholder="Currency, e.g. USD"
+                maxLength={3}
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+              />
+            ) : null}
+          </div>
+
+          <Button
+            type="button"
+            disabled={busy || !selected || !beneficiaryName.trim() || !destination.trim()}
+            onClick={() => void addMethod()}
+          >
+            {busy ? "Saving…" : "Add payment method"}
+          </Button>
+        </div>
       )}
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Select value={methodType} onChange={(e) => setMethodType(e.target.value)}>
-          {PAYOUT_METHOD_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {payoutMethodLabel(type)}
-            </option>
-          ))}
-        </Select>
-        <Input
-          placeholder="Method name, e.g. Main USD bank"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-        />
-        <Input
-          placeholder="Beneficiary / account holder name"
-          value={beneficiaryName}
-          onChange={(e) => setBeneficiaryName(e.target.value)}
-        />
-        <Input
-          placeholder="Account number, email or wallet destination"
-          value={destination}
-          onChange={(e) => setDestination(e.target.value)}
-        />
-        <Input
-          placeholder="Bank / payment provider (optional)"
-          value={institution}
-          onChange={(e) => setInstitution(e.target.value)}
-        />
-        <Input
-          placeholder="Country code, e.g. NG or US"
-          maxLength={2}
-          value={countryCode}
-          onChange={(e) => setCountryCode(e.target.value.toUpperCase())}
-        />
-        <Input
-          placeholder="Currency, e.g. USD"
-          maxLength={3}
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-        />
-      </div>
-      <Button
-        type="button"
-        disabled={
-          busy ||
-          !displayName.trim() ||
-          !beneficiaryName.trim() ||
-          !destination.trim()
-        }
-        onClick={() => void addMethod()}
-      >
-        {busy ? "Saving…" : "Add payout method"}
-      </Button>
-      {message ? (
-        <Alert variant={message.ok ? "success" : "error"}>{message.text}</Alert>
-      ) : null}
+      {message ? <Alert variant={message.ok ? "success" : "error"}>{message.text}</Alert> : null}
     </section>
   );
 }
