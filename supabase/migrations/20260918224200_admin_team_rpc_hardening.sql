@@ -36,7 +36,7 @@ begin
 
   return eid;
 end;
-$function$
+$function$;
 
 -- admin_set_artist_website: admin:website
 CREATE OR REPLACE FUNCTION public.admin_set_artist_website(p_artist_profile_id uuid, p_published boolean DEFAULT NULL::boolean, p_featured boolean DEFAULT NULL::boolean, p_slug text DEFAULT NULL::text, p_tagline text DEFAULT NULL::text, p_bio_html text DEFAULT NULL::text, p_bio_json jsonb DEFAULT NULL::jsonb, p_social_links jsonb DEFAULT NULL::jsonb, p_sort_order integer DEFAULT NULL::integer, p_artist_name text DEFAULT NULL::text, p_genres text[] DEFAULT NULL::text[], p_country text DEFAULT NULL::text, p_avatar_url text DEFAULT NULL::text, p_cover_url text DEFAULT NULL::text)
@@ -92,7 +92,7 @@ begin
 
   return a;
 end;
-$function$
+$function$;
 
 -- admin_set_release_website: admin:website
 CREATE OR REPLACE FUNCTION public.admin_set_release_website(p_release_id uuid, p_published boolean DEFAULT NULL::boolean, p_featured boolean DEFAULT NULL::boolean, p_slug text DEFAULT NULL::text, p_blurb text DEFAULT NULL::text, p_sort_order integer DEFAULT NULL::integer, p_playback_enabled boolean DEFAULT NULL::boolean, p_embed_spotify text DEFAULT NULL::text, p_embed_apple text DEFAULT NULL::text, p_embed_youtube text DEFAULT NULL::text)
@@ -152,7 +152,7 @@ begin
 
   return r;
 end;
-$function$
+$function$;
 
 -- admin_upsert_website_setting: admin:website
 CREATE OR REPLACE FUNCTION public.admin_upsert_website_setting(p_key text, p_value jsonb)
@@ -189,7 +189,7 @@ begin
 
   return row;
 end;
-$function$
+$function$;
 
 -- admin_upsert_website_video: admin:website
 CREATE OR REPLACE FUNCTION public.admin_upsert_website_video(p_id uuid DEFAULT NULL::uuid, p_title text DEFAULT NULL::text, p_url text DEFAULT NULL::text, p_thumbnail_url text DEFAULT NULL::text, p_artist_id uuid DEFAULT NULL::uuid, p_release_id uuid DEFAULT NULL::uuid, p_track_id uuid DEFAULT NULL::uuid, p_published boolean DEFAULT NULL::boolean, p_sort_order integer DEFAULT NULL::integer, p_delete boolean DEFAULT false)
@@ -248,7 +248,7 @@ begin
 
   return row;
 end;
-$function$
+$function$;
 
 -- apply_provider_sync_status: admin:distribution
 CREATE OR REPLACE FUNCTION public.apply_provider_sync_status(p_job_id uuid, p_mapped_status text, p_provider_status text DEFAULT NULL::text)
@@ -342,7 +342,7 @@ begin
     'provider_status', p_provider_status
   );
 end;
-$function$
+$function$;
 
 -- queue_approved_release: admin:distribution
 CREATE OR REPLACE FUNCTION public.queue_approved_release(p_release_id uuid, p_notes text DEFAULT NULL::text)
@@ -441,7 +441,7 @@ begin
 
   return job;
 end;
-$function$
+$function$;
 
 -- begin_submit_queued_release: admin:distribution
 CREATE OR REPLACE FUNCTION public.begin_submit_queued_release(p_job_id uuid, p_idempotency_key text)
@@ -513,7 +513,7 @@ begin
     'status', 'pending'
   );
 end;
-$function$
+$function$;
 
 -- complete_submit_queued_release: admin:distribution
 CREATE OR REPLACE FUNCTION public.complete_submit_queued_release(p_submission_id uuid, p_ok boolean, p_provider_release_id text DEFAULT NULL::text, p_response_ref text DEFAULT NULL::text, p_response_payload jsonb DEFAULT NULL::jsonb, p_error_code text DEFAULT NULL::text, p_error_message text DEFAULT NULL::text)
@@ -680,7 +680,7 @@ begin
 
   return job;
 end;
-$function$
+$function$;
 
 -- record_provider_sync_run: admin:distribution
 CREATE OR REPLACE FUNCTION public.record_provider_sync_run(p_job_id uuid, p_status text, p_provider_status text DEFAULT NULL::text, p_delivery_status text DEFAULT NULL::text, p_error_message text DEFAULT NULL::text, p_response_ref text DEFAULT NULL::text)
@@ -736,7 +736,7 @@ begin
 
   return run;
 end;
-$function$
+$function$;
 
 -- reinstate_distribution_release: admin:distribution
 CREATE OR REPLACE FUNCTION public.reinstate_distribution_release(p_release_id uuid, p_reason text DEFAULT NULL::text)
@@ -811,7 +811,7 @@ begin
 
   return r;
 end;
-$function$
+$function$;
 
 -- request_distribution_takedown: admin:distribution
 CREATE OR REPLACE FUNCTION public.request_distribution_takedown(p_release_id uuid, p_reason text DEFAULT NULL::text)
@@ -875,7 +875,7 @@ begin
 
   return r;
 end;
-$function$
+$function$;
 
 -- claim_qc_item: admin:qc
 CREATE OR REPLACE FUNCTION public.claim_qc_item(p_item_id uuid)
@@ -915,7 +915,7 @@ begin
 
   return item;
 end;
-$function$
+$function$;
 
 -- release_qc_item: admin:qc
 CREATE OR REPLACE FUNCTION public.release_qc_item(p_item_id uuid)
@@ -954,7 +954,7 @@ begin
 
   return item;
 end;
-$function$
+$function$;
 
 -- set_qc_item_priority: admin:qc
 CREATE OR REPLACE FUNCTION public.set_qc_item_priority(p_item_id uuid, p_priority qc_priority)
@@ -983,7 +983,7 @@ begin
   values (actor, 'qc_claim', 'qc_queue_item', item.id, jsonb_build_object('priority', p_priority::text));
   return item;
 end;
-$function$
+$function$;
 
 -- perform_qc_decision: admin:qc
 CREATE OR REPLACE FUNCTION public.perform_qc_decision(p_release_id uuid, p_decision qc_decision, p_checklist jsonb DEFAULT '{}'::jsonb, p_artist_visible_reason text DEFAULT NULL::text, p_internal_note text DEFAULT NULL::text)
@@ -1098,7 +1098,7 @@ begin
 
   return review;
 end;
-$function$
+$function$;
 
 -- upsert_royalty_import_batch: admin:royalties
 CREATE OR REPLACE FUNCTION public.upsert_royalty_import_batch(p_source_provider text, p_report_id text, p_period_start date DEFAULT NULL::date, p_period_end date DEFAULT NULL::date, p_currency character DEFAULT NULL::bpchar)
@@ -1130,7 +1130,7 @@ begin
           jsonb_build_object('source_provider', p_source_provider, 'report_id', p_report_id));
   return b;
 end;
-$function$
+$function$;
 
 -- upsert_royalty_import_row: admin:royalties
 CREATE OR REPLACE FUNCTION public.upsert_royalty_import_row(p_batch_id uuid, p_row_key text, p_raw jsonb, p_amount_minor bigint DEFAULT NULL::bigint, p_currency character DEFAULT NULL::bpchar, p_isrc text DEFAULT NULL::text, p_upc text DEFAULT NULL::text, p_territory character DEFAULT NULL::bpchar, p_dsp_code text DEFAULT NULL::text, p_period_start date DEFAULT NULL::date, p_period_end date DEFAULT NULL::date)
@@ -1181,7 +1181,7 @@ begin
 
   return r;
 end;
-$function$
+$function$;
 
 -- post_royalty_import_batch: admin:royalties
 CREATE OR REPLACE FUNCTION public.post_royalty_import_batch(p_batch_id uuid)
@@ -1467,7 +1467,7 @@ begin
 
   return b;
 end;
-$function$
+$function$;
 
 -- publish_royalty_statement: admin:statements
 CREATE OR REPLACE FUNCTION public.publish_royalty_statement(p_owner_user_id uuid, p_period_start date, p_period_end date, p_currency character)
@@ -1556,7 +1556,7 @@ begin
 
   return stmt;
 end;
-$function$
+$function$;
 
 -- create_payout_request: admin:payouts
 CREATE OR REPLACE FUNCTION public.create_payout_request(p_owner_user_id uuid, p_amount_minor bigint, p_currency character, p_method text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
@@ -1626,7 +1626,7 @@ begin
 
   return created;
 end;
-$function$
+$function$;
 
 -- transition_payout_status: admin:payouts
 CREATE OR REPLACE FUNCTION public.transition_payout_status(p_payout_id uuid, p_new_status payout_status, p_reason text DEFAULT NULL::text)
@@ -1683,7 +1683,7 @@ begin
   );
   return p;
 end;
-$function$
+$function$;
 
 -- complete_payout_paid: admin:payouts
 CREATE OR REPLACE FUNCTION public.complete_payout_paid(p_payout_id uuid, p_payment_reference text, p_provider_name text DEFAULT NULL::text, p_provider_payout_id text DEFAULT NULL::text)
@@ -1795,7 +1795,7 @@ begin
 
   return p;
 end;
-$function$
+$function$;
 
 -- set_payout_compliance_hold: admin:compliance
 CREATE OR REPLACE FUNCTION public.set_payout_compliance_hold(p_owner_user_id uuid, p_reason text, p_case_id uuid DEFAULT NULL::uuid, p_active boolean DEFAULT true)
@@ -1827,7 +1827,7 @@ begin
           jsonb_build_object('active', p_active, 'owner', p_owner_user_id, 'reason', p_reason));
   return h;
 end;
-$function$
+$function$;
 
 -- publish_notification_broadcast: admin:notifications
 CREATE OR REPLACE FUNCTION public.publish_notification_broadcast(p_title text, p_body text, p_audience text DEFAULT 'all'::text)
@@ -1880,7 +1880,7 @@ begin
 
   return jsonb_build_object('id',v_id,'recipient_count',v_count);
 end;
-$function$
+$function$;
 
 -- list_owner_ddex_status: admin:ddex
 CREATE OR REPLACE FUNCTION public.list_owner_ddex_status(p_release_id uuid)
@@ -1910,4 +1910,4 @@ AS $function$
     )
   order by m.created_at desc
   limit 50;
-$function$
+$function$;
