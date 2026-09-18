@@ -20,6 +20,7 @@ function authNotConfiguredRedirect() {
 export async function RequireAuth(options?: {
   redirectTo?: string;
   allowUnverifiedIdentity?: boolean;
+  allowUnsignedAgreement?: boolean;
 }): Promise<AuthUserContext> {
   const { configured } = getSupabaseEnv();
   if (!configured) authNotConfiguredRedirect();
@@ -53,20 +54,27 @@ export async function RequireAuth(options?: {
   const isArtistOrLabel =
     ctx.roles.includes("artist") || ctx.roles.includes("label");
 
-  if (
-    !options?.allowUnverifiedIdentity &&
-    !isStaff &&
-    isArtistOrLabel
-  ) {
+  if (!isStaff && isArtistOrLabel) {
     const supabase = await (await import("@/lib/supabase/server")).createClient();
     const { data, error } = await supabase
       .from("identity_verifications")
       .select("status")
       .eq("user_id", ctx.userId)
       .maybeSingle();
+    const identityVerified = !error && data?.status === "verified";
 
-    if (error || data?.status !== "verified") {
+    if (!options?.allowUnverifiedIdentity && !identityVerified) {
       redirect("/verify-identity");
+    }
+
+    if (identityVerified && !options?.allowUnsignedAgreement) {
+      const { data: agreementOk, error: agreementError } = await supabase.rpc(
+        "has_current_distribution_agreement",
+        { p_user_id: ctx.userId }
+      );
+      if (agreementError || agreementOk !== true) {
+        redirect("/distribution-agreement");
+      }
     }
   }
 
@@ -87,7 +95,11 @@ export function assertCanSubmitRelease(ctx: AuthUserContext): void {
 }
 
 export async function RequireVerifiedEmail(
-  options?: { redirectTo?: string; allowUnverifiedIdentity?: boolean }
+  options?: {
+    redirectTo?: string;
+    allowUnverifiedIdentity?: boolean;
+    allowUnsignedAgreement?: boolean;
+  }
 ): Promise<AuthUserContext> {
   const ctx = await RequireAuth(options);
   if (!ctx.emailVerified) {
@@ -98,7 +110,11 @@ export async function RequireVerifiedEmail(
 
 export async function RequireRole(
   allowed: AppRole | AppRole[],
-  options?: { redirectTo?: string; allowUnverifiedIdentity?: boolean }
+  options?: {
+    redirectTo?: string;
+    allowUnverifiedIdentity?: boolean;
+    allowUnsignedAgreement?: boolean;
+  }
 ): Promise<AuthUserContext> {
   const ctx = await RequireVerifiedEmail(options);
   const list = Array.isArray(allowed) ? allowed : [allowed];
