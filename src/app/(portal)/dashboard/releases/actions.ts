@@ -45,6 +45,16 @@ export type ActionResult<T = unknown> =
 
 type ProviderLookupOption = { value: string; label: string };
 
+function providerValidationIsInvalid(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const outer = payload as Record<string, unknown>;
+  const data =
+    outer.data && typeof outer.data === "object" && !Array.isArray(outer.data)
+      ? (outer.data as Record<string, unknown>)
+      : outer;
+  return data.valid === false;
+}
+
 function normalizeProviderLookup(payload: unknown, keys: string[]): ProviderLookupOption[] {
   const outer =
     payload && typeof payload === "object" && !Array.isArray(payload)
@@ -94,18 +104,25 @@ export async function getDistributionMetadataLookups(): Promise<
     languages: ProviderLookupOption[];
     platforms: ProviderLookupOption[];
     countries: ProviderLookupOption[];
+    preferenceArtists: ProviderLookupOption[];
   }>
 > {
   await requireArtistOrLabel();
   try {
     const { distributionReference } = await import("@/lib/provider/distribution-reference");
-    const [genresResult, languagesResult, platformsResult, countriesResult] =
-      await Promise.allSettled([
-        distributionReference.genres(),
-        distributionReference.languages(),
-        distributionReference.platforms(),
-        distributionReference.countries(),
-      ]);
+    const [
+      genresResult,
+      languagesResult,
+      platformsResult,
+      countriesResult,
+      preferenceArtistsResult,
+    ] = await Promise.allSettled([
+      distributionReference.genres(),
+      distributionReference.languages(),
+      distributionReference.platforms(),
+      distributionReference.countries(),
+      distributionReference.artistPreferences(),
+    ]);
     return {
       ok: true,
       data: {
@@ -125,10 +142,26 @@ export async function getDistributionMetadataLookups(): Promise<
           countriesResult.status === "fulfilled"
             ? normalizeProviderLookup(countriesResult.value, ["countries", "items", "data"])
             : [],
+        preferenceArtists:
+          preferenceArtistsResult.status === "fulfilled"
+            ? normalizeProviderLookup(
+                preferenceArtistsResult.value,
+                ["artists", "preferences", "items", "data"]
+              )
+            : [],
       },
     };
   } catch {
-    return { ok: true, data: { genres: [], languages: [], platforms: [], countries: [] } };
+    return {
+      ok: true,
+      data: {
+        genres: [],
+        languages: [],
+        platforms: [],
+        countries: [],
+        preferenceArtists: [],
+      },
+    };
   }
 }
 
@@ -365,8 +398,14 @@ export async function replaceTracks(
     title: string;
     version?: string | null;
     isrc?: string | null;
+    iswc?: string | null;
+    liner_note?: string | null;
+    tiktok_start_time?: string | null;
     duration_ms?: number | null;
     explicit?: boolean;
+    clean_version?: boolean;
+    instrumental?: boolean;
+    ai_assisted?: boolean;
     language?: string | null;
     lyrics?: string | null;
   }>
@@ -425,8 +464,14 @@ export async function replaceTracks(
       title: t.title.trim(),
       version: t.version ?? null,
       isrc: t.isrc ?? null,
+      iswc: t.iswc?.trim() || null,
+      liner_note: t.liner_note?.trim() || null,
+      tiktok_start_time: t.tiktok_start_time?.trim() || null,
       duration_ms: t.duration_ms ?? null,
       explicit: t.explicit ?? false,
+      clean_version: t.clean_version ?? false,
+      instrumental: t.instrumental ?? false,
+      ai_assisted: t.ai_assisted ?? false,
       language: t.language ?? null,
       lyrics: t.lyrics ?? null,
     };
@@ -445,7 +490,7 @@ export async function replaceTracks(
 
   const { data: persisted } = await supabase
     .from("release_tracks")
-    .select("id, track_number, title, version, isrc, duration_ms, explicit, language, lyrics, created_at, updated_at, release_id")
+    .select("id, track_number, title, version, isrc, iswc, liner_note, tiktok_start_time, duration_ms, explicit, clean_version, instrumental, ai_assisted, language, lyrics, created_at, updated_at, release_id")
     .eq("release_id", releaseId)
     .order("track_number", { ascending: true });
 
@@ -767,6 +812,35 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
     return { ok: false, error: issues.map((i) => i.message).join(" ") };
   }
 
+  const providerState = await getProviderConnectionState();
+  if (providerState.connected) {
+    try {
+      const { distributionReference } = await import("@/lib/provider/distribution-reference");
+      if (release.upc) {
+        const checked = await distributionReference.validateUpc(release.upc);
+        if (providerValidationIsInvalid(checked)) {
+          return { ok: false, error: "The connected distribution provider rejected this UPC." };
+        }
+      }
+      for (const track of tracks ?? []) {
+        if (!track.isrc) continue;
+        const checked = await distributionReference.validateIsrc(track.isrc);
+        if (providerValidationIsInvalid(checked)) {
+          return {
+            ok: false,
+            error: `The connected distribution provider rejected the ISRC on track ${track.track_number}.`,
+          };
+        }
+      }
+    } catch {
+      return {
+        ok: false,
+        error:
+          "Nexo could not validate the supplied UPC/ISRC codes with the connected distribution provider. Try again before submitting.",
+      };
+    }
+  }
+
   const transitionCheck = canTransition({
     from: release.status as ReleaseStatus,
     to: "submitted",
@@ -926,8 +1000,14 @@ export async function duplicateRelease(
       title: t.title,
       version: t.version,
       isrc: null,
+      iswc: t.iswc,
+      liner_note: t.liner_note,
+      tiktok_start_time: t.tiktok_start_time,
       duration_ms: t.duration_ms,
       explicit: t.explicit,
+      clean_version: t.clean_version,
+      instrumental: t.instrumental,
+      ai_assisted: t.ai_assisted,
       language: t.language,
       lyrics: t.lyrics,
     });
