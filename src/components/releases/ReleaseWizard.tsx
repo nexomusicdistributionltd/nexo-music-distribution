@@ -155,6 +155,10 @@ export function ReleaseWizard({
       typeof initialDistribution.licenseInfo === "string"
         ? initialDistribution.licenseInfo
         : "",
+    reviewNote:
+      typeof initialDistribution.reviewNote === "string"
+        ? initialDistribution.reviewNote
+        : "",
     releaseTime:
       typeof initialDistribution.releaseTime === "string"
         ? initialDistribution.releaseTime
@@ -324,6 +328,7 @@ export function ReleaseWizard({
         applePreorderDate: providerMeta.applePreorderDate || null,
         licenseType: providerMeta.licenseType || null,
         licenseInfo: providerMeta.licenseInfo || null,
+        reviewNote: providerMeta.reviewNote || null,
         releaseTime: providerMeta.releaseTime || null,
         timeZone: providerMeta.timeZone || null,
         isAiGenerated: providerMeta.isAiGenerated,
@@ -1183,6 +1188,16 @@ export function ReleaseWizard({
                     setProviderMeta((current) => ({ ...current, licenseInfo: e.target.value }))
                   }
                   placeholder="Ownership, cover-license or clearance notes when applicable"
+                />
+              </label>
+              <label className="block space-y-1 sm:col-span-2">
+                <span className="text-caption text-[var(--nexo-text-muted)]">Content review note</span>
+                <Textarea
+                  value={providerMeta.reviewNote}
+                  onChange={(e) =>
+                    setProviderMeta((current) => ({ ...current, reviewNote: e.target.value }))
+                  }
+                  placeholder="Beat licenses, sample clearances, label waivers, capitalization requests, or anything QC should know"
                 />
               </label>
             </div>
