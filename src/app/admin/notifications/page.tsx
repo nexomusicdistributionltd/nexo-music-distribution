@@ -3,6 +3,7 @@ import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/server";
+import { BroadcastAdminClient } from "@/components/notifications/BroadcastAdminClient";
 
 export const metadata: Metadata = {
   title: "Admin notifications",
@@ -12,19 +13,29 @@ export const metadata: Metadata = {
 export default async function AdminNotificationsPage() {
   const ctx = await RequireAdmin();
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("notifications")
-    .select("*")
-    .eq("user_id", ctx.userId)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const [{ data }, { data: broadcasts }] = await Promise.all([
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", ctx.userId)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("notification_broadcasts")
+      .select("id,title,body,audience,created_at,published_at,recipient_count")
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
 
   return (
     <div>
       <PageHeader
         title="Notifications"
-        description="Your staff inbox. System notifications are never forged for other users from the client."
+        description="Staff inbox and server-side realtime broadcasts to Artist and Label accounts."
       />
+      <div className="mt-5">
+        <BroadcastAdminClient broadcasts={broadcasts ?? []} />
+      </div>
       {(data ?? []).length === 0 ? (
         <EmptyState title="No notifications" />
       ) : (
