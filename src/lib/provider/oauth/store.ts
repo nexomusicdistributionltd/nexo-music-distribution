@@ -55,3 +55,13 @@ export async function loadDistributionAccessToken(): Promise<string | null> {
   if (shouldRefresh) return null;
   return decryptDistributionSecret(data.access_token_ciphertext);
 }
+
+export async function hasDistributionCredential(): Promise<boolean> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("distribution_provider_credentials")
+    .select("verified_at")
+    .eq("connection_key", "primary")
+    .maybeSingle();
+  return !error && Boolean(data?.verified_at);
+}
