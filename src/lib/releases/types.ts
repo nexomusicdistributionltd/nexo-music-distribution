@@ -42,7 +42,8 @@ export type NotificationType =
   | "provider_not_connected"
   | "distribution_update"
   | "distribution_failed"
-  | "catalog_migration_update";
+  | "catalog_migration_update"
+  | "broadcast";
 
 export interface ReleaseRow {
   id: string;
