@@ -12,7 +12,7 @@ import {
   updateDdexValidation,
 } from "./persistence";
 import { getDdexTransport } from "./transport";
-import { getDspTarget, listDspTargets } from "./persistence";
+import { listDspTargets } from "./persistence";
 import { configForTarget } from "./targets";
 import { validateErnXml } from "./validate";
 import {
