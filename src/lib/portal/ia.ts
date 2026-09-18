@@ -240,7 +240,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "Meta",
         pageKind: "analytics",
         analyticsKey: "meta",
-        description: "Meta usage from ingested statements, otherwise not connected.",
+        description: "Meta usage from verified ingested analytics and royalty data."
       }),
       item({
         href: "/analytics/youtube-ugc",
@@ -268,7 +268,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "Spotify Discovery Mode",
         pageKind: "analytics",
         analyticsKey: "spotify_discovery",
-        description: "Discovery Mode is not connected unless a real enrollment exists.",
+        description: "Discovery Mode enrollment and verified activity for this account."
       }),
       item({
         href: "/analytics/spotify-engagement",
@@ -517,7 +517,7 @@ export function accountOverlayItems(
       href: "/account/payment-tax",
       label: "Payment & Tax Details",
       pageKind: "payment-tax",
-      description: "Tax profile plus billing. Payment rails stay NOT CONNECTED until a live adapter exists.",
+      description: "Tax profile and payout details used for Nexo royalty payment review.",
     }),
     item({
       href: "/account/members",
