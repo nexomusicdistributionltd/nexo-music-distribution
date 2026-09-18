@@ -197,12 +197,21 @@ export async function middleware(request: NextRequest) {
       }
 
       const requiredPermission = adminPermissionForPath(pathname);
-      if (requiredPermission && !hasAdminPermission(list, requiredPermission)) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/admin";
-        url.search = "";
-        url.searchParams.set("reason", "forbidden");
-        return redirectWithSession(url, getResponse);
+      if (requiredPermission) {
+        let allowed = hasAdminPermission(list, requiredPermission);
+        if (!allowed && list.includes("support")) {
+          const { data: teamPermissions } = await supabase.rpc("current_staff_permissions");
+          allowed =
+            Array.isArray(teamPermissions) &&
+            teamPermissions.some((permission) => permission === requiredPermission);
+        }
+        if (!allowed) {
+          const url = request.nextUrl.clone();
+          url.pathname = "/admin";
+          url.search = "";
+          url.searchParams.set("reason", "forbidden");
+          return redirectWithSession(url, getResponse);
+        }
       }
     }
   }
