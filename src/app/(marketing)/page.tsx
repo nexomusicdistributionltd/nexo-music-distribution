@@ -8,7 +8,7 @@ import { listPublishedPosts } from "@/lib/blog/queries";
 import {
   getWebsiteSetting,
   listFeaturedPublicArtists,
-  listFeaturedPublicReleases,
+  listRecentDistributedReleases,
   listPublishedVideos,
 } from "@/lib/website/queries";
 import { resolveHomepageImageMap } from "@/lib/website/homepage-images";
@@ -119,7 +119,7 @@ export default async function HomePage() {
     publishedPosts,
   ] = await Promise.all([
     listActivePartners(),
-    listFeaturedPublicReleases(8),
+    listRecentDistributedReleases(8),
     listFeaturedPublicArtists(8),
     getWebsiteSetting("homepage"),
     listPublishedVideos({ limit: 6 }),
@@ -137,9 +137,8 @@ export default async function HomePage() {
   );
   const heroCtaLabel = String(home.hero_cta_label || "Get started →");
   const heroCtaHref = String(home.hero_cta_href || "/get-started");
-  const showFeaturedReleases = home.show_featured_releases !== false;
-  const showFeaturedArtists = home.show_featured_artists !== false;
-  const showPartners = home.show_partners !== false;
+  // Published public catalog and active partners are core website content.
+  // Do not let stale homepage visibility flags silently suppress them.
   const showVideos = home.show_videos !== false;
   const showBlog = home.show_blog !== false;
   const images = resolveHomepageImageMap(home);
@@ -252,12 +251,12 @@ export default async function HomePage() {
       <StepCards />
       <PlanTeasers />
 
-      {showPartners ? <PartnerLogoMarquee partners={partners} /> : null}
+      <PartnerLogoMarquee partners={partners} />
       <HomeFeaturedCatalog
         releases={featuredReleases}
         artists={featuredArtists}
-        showReleases={showFeaturedReleases}
-        showArtists={showFeaturedArtists}
+        showReleases
+        showArtists
       />
 
       {showVideos && publishedVideos.length > 0 ? (
