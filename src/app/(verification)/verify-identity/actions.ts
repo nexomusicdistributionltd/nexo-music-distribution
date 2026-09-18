@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { queueIdentityAccountEmail } from "@/lib/email/identity-agreement";
 import { RequireRole } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { IdentityDocumentType } from "@/lib/identity/types";
@@ -385,6 +386,14 @@ export async function submitIdentityVerificationAction(input: {
       }))
     );
   }
+
+  await queueIdentityAccountEmail({
+    supabase: service,
+    userId: ctx.userId,
+    verificationId: input.verificationId,
+    templateKey: "IDENTITY_SUBMITTED",
+    legalName: ctx.profile?.full_name || ctx.profile?.display_name || null,
+  });
 
   revalidatePath("/verify-identity");
   revalidatePath("/dashboard");
