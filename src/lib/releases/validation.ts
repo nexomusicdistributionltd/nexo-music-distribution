@@ -1,3 +1,4 @@
+import { assertArtworkDimensions, DELIVERY_AUDIO_MIME_TYPES } from "@/lib/storage/release-assets";
 import type { ReleaseRow, ReleaseTrackRow, ReleaseAssetRow, ReleaseContributorRow, ReleaseType } from "./types";
 
 export type ValidationIssue = { field: string; message: string };
@@ -47,7 +48,7 @@ export function validateReleaseForSubmit(input: {
     | "territories"
   >;
   tracks: Pick<ReleaseTrackRow, "track_number" | "title" | "isrc" | "id">[];
-  assets: Pick<ReleaseAssetRow, "kind" | "track_id" | "mime_type">[];
+  assets: Pick<ReleaseAssetRow, "kind" | "track_id" | "mime_type" | "width" | "height">[];
   contributors: Pick<ReleaseContributorRow, "name" | "role">[];
 }): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -83,6 +84,12 @@ export function validateReleaseForSubmit(input: {
 
   const upcIssue = validateUpc(release.upc);
   if (upcIssue) issues.push(upcIssue);
+  if (!release.upc?.trim()) {
+    issues.push({
+      field: "upc",
+      message: "UPC is required before submitting a release for distribution.",
+    });
+  }
 
   const { min, max } = expectedTrackCount(release.release_type);
   if (tracks.length < min || tracks.length > max) {
@@ -99,6 +106,12 @@ export function validateReleaseForSubmit(input: {
         message: `Track ${t.track_number} needs a title.`,
       });
     }
+    if (!t.isrc?.trim()) {
+      issues.push({
+        field: `track.${t.track_number}.isrc`,
+        message: `Track ${t.track_number} needs an ISRC before distribution.`,
+      });
+    }
     const isrcIssue = validateIsrc(t.isrc);
     if (isrcIssue) {
       issues.push({
@@ -108,17 +121,22 @@ export function validateReleaseForSubmit(input: {
     }
   }
 
-  const hasArtwork = assets.some((a) => a.kind === "artwork");
-  if (!hasArtwork) {
+  const artwork = assets.find((a) => a.kind === "artwork");
+  if (!artwork) {
     issues.push({ field: "artwork", message: "Cover artwork is required." });
+  } else {
+    const dimensionIssue = assertArtworkDimensions(artwork.width, artwork.height);
+    if (dimensionIssue) issues.push({ field: "artwork", message: dimensionIssue });
   }
 
   const audioAssets = assets.filter((a) => a.kind === "audio");
-  const incompatibleAudio = audioAssets.filter((a) => a.mime_type !== "audio/flac");
+  const incompatibleAudio = audioAssets.filter(
+    (a) => !DELIVERY_AUDIO_MIME_TYPES.includes(a.mime_type as (typeof DELIVERY_AUDIO_MIME_TYPES)[number])
+  );
   if (incompatibleAudio.length > 0) {
     issues.push({
       field: "audio",
-      message: "Distribution delivery requires lossless FLAC audio. Re-upload non-FLAC tracks before submitting.",
+      message: "Distribution delivery requires a lossless WAV, FLAC, or AIFF master. Re-upload compressed audio before submitting.",
     });
   }
   if (audioAssets.length < tracks.length) {
