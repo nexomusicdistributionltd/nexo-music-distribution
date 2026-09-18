@@ -72,19 +72,42 @@ export default async function AdminDashboardPage() {
         </>
       )}
 
-      <section className="flex flex-wrap gap-3 text-small">
-        <Link className="underline-offset-4 hover:underline" href="/admin/qc">
-          QC
-        </Link>
-        <Link className="underline-offset-4 hover:underline" href="/admin/ddex">
-          DDEX
-        </Link>
-        <Link className="underline-offset-4 hover:underline" href="/admin/releases">
-          Catalog
-        </Link>
-        <Link className="underline-offset-4 hover:underline" href="/admin/contact">
-          Inquiries
-        </Link>
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-h4">Operations workspace</h2>
+          <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
+            Direct control of accounts, verification, catalog, distribution, money, communications and the public website.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[
+            ["Artists", "/admin/artists", "Profiles, catalog ownership and website presence"],
+            ["Labels", "/admin/labels", "Label accounts, roster and catalog"],
+            ["Identity verification", "/admin/verifications", "Review KYC submissions and request information"],
+            ["Signed agreements", "/admin/agreements", "Executed distribution contracts and downloads"],
+            ["Catalog & releases", "/admin/releases", "Metadata, QC corrections and release state"],
+            ["Distribution engine", "/admin/distribution", "Queue, provider, webhooks, mappings and delivery"],
+            ["Royalties", "/admin/royalties", "Imports, ledger and royalty operations"],
+            ["Payouts", "/admin/payouts", "Payout requests and payment processing"],
+            ["Payout methods", "/admin/finance/payout-methods", "Approved and manual payout-method controls"],
+            ["Website", "/admin/website", "Homepage, featured artists and releases"],
+            ["Notifications", "/admin/notifications", "Realtime user broadcasts"],
+            ["Support", "/admin/support", "Tickets and account assistance"],
+            ["Email operations", "/admin/emails", "Templates, inbox, sends and delivery activity"],
+            ["Reports", "/admin/reports", "Operational report exports"],
+            ["Publishing", "/admin/publishing", "Nexo Publishing Group records"],
+            ["Settings", "/admin/settings", "Platform administration and configuration"],
+          ].map(([label, href, description]) => (
+            <Link
+              key={href}
+              href={href}
+              className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--nexo-border-strong)]"
+            >
+              <p className="font-medium">{label}</p>
+              <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">{description}</p>
+            </Link>
+          ))}
+        </div>
       </section>
     </div>
   );
