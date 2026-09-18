@@ -15,6 +15,7 @@ import { DdexOwnerStatus } from "@/components/ddex/DdexOwnerStatus";
 import { listOwnerDdexStatus } from "@/lib/ddex/persistence";
 import { DspTargetingPanel } from "@/components/roster/DspTargetingPanel";
 import { createClient } from "@/lib/supabase/server";
+import { distributionMetadataLookups } from "@/lib/provider/distribution-reference";
 
 export const metadata: Metadata = {
   title: "Release",
@@ -54,6 +55,7 @@ export default async function ReleaseDetailPage({
   }
 
   if (edit && editable) {
+    const lookups = await distributionMetadataLookups().catch(() => ({ genres: [], languages: [], platforms: [] }));
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
@@ -70,6 +72,9 @@ export default async function ReleaseDetailPage({
           assets={assets}
           accountRole={isLabel ? "label" : "artist"}
           rosterArtists={rosterArtists}
+          genreOptions={lookups.genres}
+          languageOptions={lookups.languages}
+          platformOptions={lookups.platforms}
         />
       </div>
     );
