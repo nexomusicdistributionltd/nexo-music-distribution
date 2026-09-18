@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
 import { HomeFeaturedCatalog } from "@/components/website/HomeFeaturedCatalog";
 import { PartnerLogoMarquee } from "@/components/website/PartnerLogoMarquee";
 import { VideoCard } from "@/components/website/VideoCard";
 import { listActivePartners } from "@/lib/website/partners";
+import { listPublishedPosts } from "@/lib/blog/queries";
 import {
   getWebsiteSetting,
   listFeaturedPublicArtists,
@@ -110,12 +110,20 @@ const SERVICES = [
 ];
 
 export default async function HomePage() {
-  const [partners, featuredReleases, featuredArtists, homepageSetting, publishedVideos] = await Promise.all([
+  const [
+    partners,
+    featuredReleases,
+    featuredArtists,
+    homepageSetting,
+    publishedVideos,
+    publishedPosts,
+  ] = await Promise.all([
     listActivePartners(),
     listFeaturedPublicReleases(8),
     listFeaturedPublicArtists(8),
     getWebsiteSetting("homepage"),
     listPublishedVideos({ limit: 6 }),
+    listPublishedPosts(3),
   ]);
   const home = (homepageSetting?.value ?? {}) as Record<string, unknown>;
   const heroEyebrow = String(
@@ -132,6 +140,8 @@ export default async function HomePage() {
   const showFeaturedReleases = home.show_featured_releases !== false;
   const showFeaturedArtists = home.show_featured_artists !== false;
   const showPartners = home.show_partners !== false;
+  const showVideos = home.show_videos !== false;
+  const showBlog = home.show_blog !== false;
   const images = resolveHomepageImageMap(home);
 
   const dragCards = [
@@ -171,7 +181,6 @@ export default async function HomePage() {
 
   return (
     <div className="overflow-x-hidden">
-      <PublicCatalogRealtime />
       <HeroStage
         eyebrow={heroEyebrow}
         title={heroTitle}
@@ -251,7 +260,7 @@ export default async function HomePage() {
         showArtists={showFeaturedArtists}
       />
 
-      {publishedVideos.length > 0 ? (
+      {showVideos && publishedVideos.length > 0 ? (
         <section className="pub-section pub-container">
           <div className="mb-8 grid gap-4 lg:grid-cols-[0.7fr_1.3fr] lg:items-end">
             <div>
@@ -270,6 +279,57 @@ export default async function HomePage() {
                 url={video.url}
                 thumbnailUrl={video.thumbnail_url}
               />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+
+      {showBlog && publishedPosts.length > 0 ? (
+        <section className="pub-section pub-container">
+          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <NumberedLabel index="08">From Nexo</NumberedLabel>
+              <DisplayHeading size="lg" className="mt-4">
+                Latest insights.
+              </DisplayHeading>
+            </div>
+            <Link
+              href="/blog"
+              className="text-small text-[var(--nexo-text-secondary)] underline-offset-4 hover:underline"
+            >
+              View all posts
+            </Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {publishedPosts.map((post) => (
+              <Link
+                key={post.id}
+                href={`/blog/${post.slug}`}
+                className="group overflow-hidden border border-[var(--nexo-border)] bg-[var(--nexo-card)]"
+              >
+                {post.cover_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={post.cover_image_url}
+                    alt=""
+                    className="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                  />
+                ) : null}
+                <div className="p-5">
+                  <p className="text-h4">{post.title}</p>
+                  {post.excerpt ? (
+                    <p className="mt-2 line-clamp-3 text-small text-[var(--nexo-text-muted)]">
+                      {post.excerpt}
+                    </p>
+                  ) : null}
+                  {post.published_at ? (
+                    <p className="mt-4 text-caption text-[var(--nexo-text-muted)]">
+                      {new Date(post.published_at).toLocaleDateString()}
+                    </p>
+                  ) : null}
+                </div>
+              </Link>
             ))}
           </div>
         </section>
