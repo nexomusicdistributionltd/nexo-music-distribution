@@ -11,8 +11,24 @@ export type AnalyticsSnapshot = {
   amountMinor: number | null;
   currency: string | null;
   dspCodes: string[];
+  streamTotals: Record<string, number>;
+  trendPercentByDsp: Record<string, number>;
   note: string;
 };
+
+function numericField(row: Record<string, unknown>, key: string): number | null {
+  const raw = row[key];
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function providerPlatform(row: Record<string, unknown>): string {
+  return String(row.platform ?? row.channel ?? row.dsp ?? "").trim().toLowerCase();
+}
 
 function matchesKey(dsp: string | null, key: AnalyticsKey): boolean {
   if (!dsp) return false;
@@ -31,7 +47,21 @@ export async function loadAnalyticsSnapshot(
       ? await ownedAnalytics(ownerUserId)
       : await ownedSales(ownerUserId, "overview");
     if (providerRows.length > 0) {
-      const codes = [...new Set(providerRows.map((r) => String(r.platform ?? r.channel ?? r.dsp ?? "")).filter(Boolean))];
+      const codes = [...new Set(providerRows.map((r) => providerPlatform(r)).filter(Boolean))];
+      const streamTotals: Record<string, number> = {};
+      const trendPercentByDsp: Record<string, number> = {};
+      if (key === "streams") {
+        for (const row of providerRows) {
+          const platform = providerPlatform(row);
+          if (!platform) continue;
+          const streams = numericField(row, "streams");
+          if (streams != null && streams >= 0) {
+            streamTotals[platform] = (streamTotals[platform] ?? 0) + streams;
+          }
+          const trend = numericField(row, "trend_percent");
+          if (trend != null) trendPercentByDsp[platform] = trend;
+        }
+      }
       return {
         key,
         connected: true,
@@ -40,6 +70,8 @@ export async function loadAnalyticsSnapshot(
         amountMinor: null,
         currency: null,
         dspCodes: codes,
+        streamTotals,
+        trendPercentByDsp,
         note: "Live Distribution Engine analytics are connected for releases owned by this account.",
       };
     }
@@ -63,6 +95,8 @@ export async function loadAnalyticsSnapshot(
       amountMinor: null,
       currency: null,
       dspCodes: [],
+      streamTotals: {},
+      trendPercentByDsp: {},
       note: "Analytics are available through Nexo. No verified rows can be displayed for this source right now.",
     };
   }
@@ -81,6 +115,8 @@ export async function loadAnalyticsSnapshot(
       amountMinor: 0,
       currency: null,
       dspCodes: [],
+      streamTotals: {},
+      trendPercentByDsp: {},
       note:
         key === "spotify_discovery"
           ? "Spotify Discovery Mode is available through Nexo. No verified enrollment or activity rows are available for this account yet."
@@ -98,6 +134,8 @@ export async function loadAnalyticsSnapshot(
     amountMinor,
     currency,
     dspCodes: codes,
+    streamTotals: {},
+    trendPercentByDsp: {},
     note: "Figures come from posted ledger rows only.",
   };
 }
