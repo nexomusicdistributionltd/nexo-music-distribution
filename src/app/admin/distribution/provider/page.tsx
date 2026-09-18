@@ -5,6 +5,7 @@ import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import { DistributionNav } from "@/components/distribution/DistributionNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { getProviderConnectionState, readProviderConfig } from "@/lib/provider";
+import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
 
 export const metadata: Metadata = {
   title: "Provider status",
@@ -15,6 +16,7 @@ export default async function ProviderStatusPage() {
   await RequireAdmin();
   const state = getProviderConnectionState();
   const cfg = readProviderConfig();
+  const oauthConfigured = isDistributionOAuthConfigured();
 
   return (
     <div>
@@ -31,7 +33,16 @@ export default async function ProviderStatusPage() {
           <p>API key present: {cfg.apiKeyPresent ? "yes" : "no"}</p>
           <p>API base URL set: {cfg.apiBaseUrl ? "yes" : "no"}</p>
           <p>Webhook secret present: {cfg.webhookSecretPresent ? "yes" : "no"}</p>
+          <p>OAuth configuration: {oauthConfigured ? "ready" : "incomplete"}</p>
           <p className="text-[var(--nexo-text-muted)]">{state.message}</p>
+          {oauthConfigured ? (
+            <a
+              href="/api/admin/distribution/connect"
+              className="inline-flex rounded-md bg-[var(--nexo-accent)] px-4 py-2 font-semibold text-black"
+            >
+              Connect Distribution Engine
+            </a>
+          ) : null}
           {!state.connected ? (
             <p className="text-[var(--nexo-text-muted)]">
               Set PROVIDER_NAME + PROVIDER_API_KEY (server-only) and register a real adapter.
