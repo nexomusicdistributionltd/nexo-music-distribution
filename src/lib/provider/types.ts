@@ -11,6 +11,8 @@ export {
 export type ProviderReleasePayload = {
   releaseId: string;
   title: string;
+  version?: string | null;
+  remixTitle?: string | null;
   type: "single" | "ep" | "album";
   primaryArtistName: string;
   labelName?: string | null;
@@ -20,6 +22,14 @@ export type ProviderReleasePayload = {
   upc?: string | null;
   releaseDate?: string | null;
   originalReleaseDate?: string | null;
+  applePreorder?: boolean;
+  applePreorderDate?: string | null;
+  licenseType?: string | null;
+  licenseInfo?: string | null;
+  releaseTime?: string | null;
+  timeZone?: string | null;
+  isAiGenerated?: boolean;
+  coverSongs?: string[];
   copyrightYear?: number | null;
   copyrightLine?: string | null;
   phonogramLine?: string | null;
