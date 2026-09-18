@@ -6,6 +6,7 @@ import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Alert } from "@/components/ui/Alert";
 import { ServiceRequestForm } from "@/components/portal/ServiceRequestForm";
+import { ServiceRequestRevisionForm } from "@/components/portal/ServiceRequestRevisionForm";
 import {
   AssignmentForm,
   EnrollmentButton,
@@ -19,7 +20,7 @@ import { DspProfileLinksEditor } from "@/components/roster/DspProfileLinksEditor
 import { DspIcon } from "@/components/fanlink/DspIcon";
 import { ArtistBioForm } from "@/components/roster/ArtistBioForm";
 import { findPortalItem, type PortalNavItem } from "@/lib/portal/ia";
-import { knowledgeArticle, allKnowledgeArticles } from "@/lib/portal/knowledge";
+import { knowledgeArticle, allKnowledgeArticles, type KnowledgeArticle } from "@/lib/portal/knowledge";
 import { loadAnalyticsSnapshot } from "@/lib/portal/analytics";
 import { ENROLLABLE_SERVICES, SERVICE_KIND_LABEL, isAnalyticsKey } from "@/lib/portal/service-kinds";
 import { formatMinorUnits } from "@/lib/finance/money";
@@ -30,6 +31,8 @@ import { workspaceKindForRoles } from "@/lib/auth/nav";
 import { getEntitlementsForAuth } from "@/lib/billing/queries";
 import { SplitShareRealtime } from "@/components/portal/SplitShareRealtime";
 import { isFeatureUnlocked, pricingHrefForAccount } from "@/lib/billing/feature-access";
+import { marketingServiceSpec } from "@/lib/marketing/services";
+import { RealtimeRefresh } from "@/components/notifications/RealtimeRefresh";
 
 async function loadReleases(userId: string) {
   const supabase = await createClient();
@@ -51,7 +54,7 @@ export async function PortalFeaturePage({ href }: { href: string }) {
   if (def.visibility && def.visibility !== "all" && def.visibility !== kind) notFound();
 
   if (def.pageKind === "knowledge") {
-    return <KnowledgeView def={def} />;
+    return <KnowledgeView def={def} userId={ctx.userId} />;
   }
   if (def.pageKind === "analytics") {
     if (!def.analyticsKey || !isAnalyticsKey(def.analyticsKey)) notFound();
@@ -191,34 +194,115 @@ export async function PortalFeaturePage({ href }: { href: string }) {
   if (def.pageKind === "service") {
     const supabase = await createClient();
     const releases = await loadReleases(ctx.userId);
-    const { data: rows } = await supabase
-      .from("portal_service_requests")
-      .select("id, title, body, related_url, status, created_at, admin_note")
-      .eq("owner_user_id", ctx.userId)
-      .eq("kind", def.serviceKind)
-      .order("created_at", { ascending: false })
-      .limit(50);
+    const spec = marketingServiceSpec(def.serviceKind);
+    const [{ data: rows }, { data: control }] = await Promise.all([
+      supabase
+        .from("portal_service_requests")
+        .select("id, title, body, related_url, status, created_at, admin_note, provider_state, provider_reference, provider_url")
+        .eq("owner_user_id", ctx.userId)
+        .eq("kind", def.serviceKind)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      spec
+        ? supabase
+            .from("marketing_service_controls")
+            .select("enabled, accepting_requests, requires_release, description")
+            .eq("kind", def.serviceKind)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const acceptingRequests =
+      !spec || !control || (Boolean(control.enabled) && Boolean(control.accepting_requests));
+    const requiresRelease = Boolean(control?.requires_release ?? spec?.requiresRelease ?? false);
+    const pageDescription = control?.description || spec?.guidance || def.description;
+
     return (
       <div className="space-y-6">
-        <PageIntro eyebrow="Request" title={def.label} description={def.description} />
-        <ServiceRequestForm
-          kind={def.serviceKind!}
-          titlePlaceholder={SERVICE_KIND_LABEL[def.serviceKind as keyof typeof SERVICE_KIND_LABEL] ?? def.label}
-          releases={releases}
-        />
+        <RealtimeRefresh userId={ctx.userId} />
+        <PageIntro eyebrow={spec ? "Marketing" : "Request"} title={def.label} description={pageDescription} />
+
+        {spec ? (
+          <Alert
+            variant={acceptingRequests ? "default" : "warning"}
+            title={acceptingRequests ? "Live workflow" : "Requests paused"}
+          >
+            {acceptingRequests
+              ? spec.providerMode === "internal"
+                ? "This workflow is controlled by Nexo operations in real time. Only completed work and verified outcomes are shown."
+                : "This workflow is connected to Nexo operations and the distribution-provider process. Provider status is shown only after a real submission or provider response exists."
+              : "Nexo operations has temporarily stopped accepting new requests for this service. Existing requests continue to show their real status."}
+          </Alert>
+        ) : null}
+
+        {acceptingRequests ? (
+          <ServiceRequestForm
+            kind={def.serviceKind!}
+            titlePlaceholder={SERVICE_KIND_LABEL[def.serviceKind as keyof typeof SERVICE_KIND_LABEL] ?? def.label}
+            releases={releases}
+            requiresRelease={requiresRelease}
+            guidance={spec?.guidance}
+          />
+        ) : null}
+
+        {spec?.kind === "spotify_discovery_mode" ? (
+          <Link
+            href="/analytics/spotify-discovery"
+            className="inline-flex text-small font-medium underline underline-offset-4"
+          >
+            View live Spotify Discovery Mode analytics
+          </Link>
+        ) : null}
+
         {(rows ?? []).length === 0 ? (
-          <EmptyState title="No requests yet" description="Submit a request. Staff review before anything is marked enrolled." />
+          <EmptyState
+            title="No requests yet"
+            description={acceptingRequests ? "Submit a request to start the real operations workflow." : "There are no existing requests for this service."}
+          />
         ) : (
           <ul className="space-y-3">
             {(rows ?? []).map((r) => (
               <li key={r.id} className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4">
-                <p className="font-medium">{r.title}</p>
-                <p className="text-caption text-[var(--nexo-text-muted)]">{r.status}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium">{r.title}</p>
+                  <span className="rounded-full border border-[var(--nexo-border)] px-2 py-1 text-caption uppercase tracking-wide">
+                    {String(r.status).replace(/_/g, " ")}
+                  </span>
+                </div>
+                {r.provider_state ? (
+                  <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
+                    Provider: {String(r.provider_state).replace(/_/g, " ")}
+                  </p>
+                ) : null}
+                {r.provider_reference ? (
+                  <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                    Provider reference: {r.provider_reference}
+                  </p>
+                ) : null}
+                {r.provider_url ? (
+                  <Link
+                    href={r.provider_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex break-all text-caption underline underline-offset-4"
+                  >
+                    Open verified provider reference
+                  </Link>
+                ) : null}
                 {r.body ? <p className="mt-2 text-small">{r.body}</p> : null}
                 {r.related_url ? (
                   <p className="mt-1 break-all text-caption text-[var(--nexo-text-muted)]">{r.related_url}</p>
                 ) : null}
-                {r.admin_note ? <p className="mt-2 text-small text-[var(--nexo-text-muted)]">Staff: {r.admin_note}</p> : null}
+                {r.admin_note ? (
+                  <p className="mt-2 text-small text-[var(--nexo-text-muted)]">Nexo operations: {r.admin_note}</p>
+                ) : null}
+                {r.status === "needs_info" || r.status === "rejected" ? (
+                  <ServiceRequestRevisionForm
+                    requestId={r.id}
+                    defaultBody={r.body}
+                    defaultUrl={r.related_url}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
@@ -343,19 +427,70 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function KnowledgeView({ def }: { def: PortalNavItem }) {
-  const article = def.knowledgeSlug ? knowledgeArticle(def.knowledgeSlug) : undefined;
+async function KnowledgeView({
+  def,
+  userId,
+}: {
+  def: PortalNavItem;
+  userId: string;
+}) {
+  let article = def.knowledgeSlug ? knowledgeArticle(def.knowledgeSlug) : undefined;
+  const realtimeMarketingContent = new Set(["client-offerings", "marketing-best-practices"]);
+
+  if (def.knowledgeSlug && realtimeMarketingContent.has(def.knowledgeSlug)) {
+    const supabase = await createClient();
+    const { data: page } = await supabase
+      .from("marketing_content_pages")
+      .select("slug, title, summary, sections, enabled")
+      .eq("slug", def.knowledgeSlug)
+      .maybeSingle();
+
+    if (page && page.enabled === false) {
+      return (
+        <div className="space-y-4">
+          <RealtimeRefresh userId={userId} />
+          <PageIntro title={page.title || def.label} description="This marketing guide is temporarily unpublished by Nexo operations." />
+          <EmptyState title="Content unavailable" description="Check back after Nexo operations republishes this page." />
+        </div>
+      );
+    }
+
+    if (page) {
+      const sections = Array.isArray(page.sections)
+        ? page.sections
+            .map((value) => {
+              if (!value || typeof value !== "object") return null;
+              const row = value as Record<string, unknown>;
+              const heading = typeof row.heading === "string" ? row.heading : "";
+              const body = typeof row.body === "string" ? row.body : "";
+              return heading && body ? { heading, body } : null;
+            })
+            .filter((value): value is { heading: string; body: string } => Boolean(value))
+        : [];
+
+      article = {
+        slug: page.slug,
+        title: page.title,
+        summary: page.summary,
+        sections,
+      } satisfies KnowledgeArticle;
+    }
+  }
+
   if (!article) {
     return (
       <div className="space-y-4">
+        <RealtimeRefresh userId={userId} />
         <PageIntro title={def.label} description={def.description} />
         <EmptyState title="Article unavailable" />
       </div>
     );
   }
+
   const others = allKnowledgeArticles().filter((a) => a.slug !== article.slug).slice(0, 6);
   return (
     <article className="space-y-6">
+      <RealtimeRefresh userId={userId} />
       <PageIntro eyebrow="Help" title={article.title} description={article.summary} />
       {article.sections.map((s) => (
         <section key={s.heading} className="space-y-2">
