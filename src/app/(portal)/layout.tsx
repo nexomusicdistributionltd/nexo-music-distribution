@@ -9,6 +9,7 @@ import {
   workspaceKindForRoles,
 } from "@/lib/auth/nav";
 import { accountOverlayItems } from "@/lib/portal/ia";
+import { filterPortalSectionsByControls, listPortalFeatureControls } from "@/lib/portal/controls";
 import { countUnreadNotifications } from "@/lib/releases/queries";
 import { getLabelProfileForUser } from "@/lib/roster/queries";
 import { isBlockedStatus } from "@/lib/auth/types";
@@ -34,7 +35,11 @@ export default async function PortalLayout({
   }
 
   const workspaceKind = workspaceKindForRoles(ctx.roles);
-  const sections = navSectionsForRoles(ctx.roles);
+  const baseSections = navSectionsForRoles(ctx.roles);
+  const portalControls = workspaceKindForRoles(ctx.roles) === "admin" ? [] : await listPortalFeatureControls();
+  const sections = workspaceKindForRoles(ctx.roles) === "admin"
+    ? baseSections
+    : filterPortalSectionsByControls(baseSections, portalControls, workspaceKindForRoles(ctx.roles));
   const displayName =
     ctx.profile?.display_name || ctx.profile?.full_name || ctx.email || "Account";
   const accountLabel = ctx.roles.map((r) => r.replace(/_/g, " ")).join(" · ");
