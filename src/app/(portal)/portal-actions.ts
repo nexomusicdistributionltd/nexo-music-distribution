@@ -118,7 +118,48 @@ export async function createPayeeAction(input: {
   if (!rl.ok) return { ok: false, error: "Too many payee requests. Try again later." };
   const parsed = validatePayeeInput(input);
   if (!parsed.ok) return parsed;
+
   const supabase = await createClient();
+  const { data: existing, error: existingError } = await supabase
+    .from("portal_payees")
+    .select("id, status")
+    .eq("owner_user_id", ctx.userId)
+    .ilike("email", parsed.email)
+    .maybeSingle();
+
+  if (existingError) return { ok: false, error: publicErrorMessage(existingError.message) };
+
+  if (existing) {
+    if (existing.status === "approved") {
+      return { ok: false, error: "This payee is already approved on your account." };
+    }
+    if (existing.status === "submitted") {
+      return { ok: false, error: "This payee is already awaiting admin review." };
+    }
+
+    const { data, error } = await supabase
+      .from("portal_payees")
+      .update({
+        name: parsed.name,
+        role_label: parsed.role_label,
+        status: "submitted",
+        admin_note: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        linked_user_id: null,
+      })
+      .eq("id", existing.id)
+      .eq("owner_user_id", ctx.userId)
+      .in("status", ["rejected", "disabled"])
+      .select("id")
+      .single();
+
+    if (error) return { ok: false, error: publicErrorMessage(error.message) };
+    revalidatePath("/splitshare/payees");
+    revalidatePath("/admin/splitshare");
+    return { ok: true, data: { id: data.id } };
+  }
+
   const { data, error } = await supabase
     .from("portal_payees")
     .insert({
@@ -133,12 +174,14 @@ export async function createPayeeAction(input: {
     })
     .select("id")
     .single();
+
   if (error) {
     if (/duplicate|unique/i.test(error.message)) {
       return { ok: false, error: "This payee email already exists on your account." };
     }
     return { ok: false, error: publicErrorMessage(error.message) };
   }
+
   revalidatePath("/splitshare/payees");
   revalidatePath("/admin/splitshare");
   return { ok: true, data: { id: data.id } };
