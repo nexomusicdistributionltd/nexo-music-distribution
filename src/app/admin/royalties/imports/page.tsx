@@ -29,8 +29,8 @@ export default async function RoyaltyImportsPage() {
         description="Idempotent by source + report + row. No sample/demo import data."
       />
       <FinanceNav />
-      <Alert title="Provider reports">
-        When no royalty report provider is connected, imports remain empty / UNAVAILABLE — never invent figures.
+      <Alert title="Provider settlement imports">
+        Live TooLost sales reporting is read separately from settlement posting. Only confirmed report rows with an explicit currency should be matched and posted into the Nexo ledger; estimated sales are never promoted into withdrawable balances.
       </Alert>
       <div className="mt-4">
         <CreateImportBatchForm />
