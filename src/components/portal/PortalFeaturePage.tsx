@@ -28,6 +28,7 @@ import { getArtistProfileForUser, getLabelProfileForUser, listArtistDspLinks, li
 import { listPublishedVideos } from "@/lib/website/queries";
 import { workspaceKindForRoles } from "@/lib/auth/nav";
 import { getEntitlementsForAuth } from "@/lib/billing/queries";
+import { SplitShareRealtime } from "@/components/portal/SplitShareRealtime";
 import { isFeatureUnlocked, pricingHrefForAccount } from "@/lib/billing/feature-access";
 
 async function loadReleases(userId: string) {
@@ -500,29 +501,62 @@ async function TracksView({ userId }: { userId: string }) {
 
 async function PayeesView({ userId }: { userId: string }) {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("portal_payees")
-    .select("id, name, email, role_label, created_at")
-    .eq("owner_user_id", userId)
-    .order("created_at", { ascending: false });
+  const [{ data }, { data: allocations }] = await Promise.all([
+    supabase
+      .from("portal_payees")
+      .select("id, name, email, role_label, status, admin_note, linked_user_id, created_at")
+      .eq("owner_user_id", userId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("splitshare_allocations")
+      .select("payee_id, currency, payable_minor, status")
+      .eq("owner_user_id", userId)
+      .limit(1000),
+  ]);
+
+  const balances = new Map<string, Map<string, number>>();
+  for (const allocation of allocations ?? []) {
+    if (!allocation.payee_id || allocation.status === "owner" || allocation.status === "recouped") continue;
+    const byCurrency = balances.get(allocation.payee_id) ?? new Map<string, number>();
+    byCurrency.set(
+      allocation.currency,
+      (byCurrency.get(allocation.currency) ?? 0) + Number(allocation.payable_minor ?? 0)
+    );
+    balances.set(allocation.payee_id, byCurrency);
+  }
+
   return (
     <div className="space-y-6">
-      <PageIntro title="Payees" description="People or companies who can appear on SplitShare rules. This does not create logins." />
+      <SplitShareRealtime ownerUserId={userId} />
+      <PageIntro
+        title="Payees"
+        description="Create payees by email. Admin review links matching Nexo accounts automatically; external payees can still accrue protected held balances."
+      />
       <PayeeForm />
       {(data ?? []).length === 0 ? (
         <EmptyState title="No payees" />
       ) : (
         <ul className="space-y-2">
-          {(data ?? []).map((p) => (
-            <li key={p.id} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-4 py-3 text-small">
-              <span className="font-medium">{p.name}</span>
-              <span className="text-[var(--nexo-text-muted)]">
-                {" "}
-                · {p.role_label}
-                {p.email ? ` · ${p.email}` : ""}
-              </span>
-            </li>
-          ))}
+          {(data ?? []).map((p) => {
+            const amounts = [...(balances.get(p.id)?.entries() ?? [])];
+            return (
+              <li key={p.id} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-4 py-3 text-small">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">{p.name}</span>
+                  <span className="text-caption uppercase tracking-wide text-[var(--nexo-text-muted)]">{p.status}</span>
+                </div>
+                <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                  {p.role_label} · {p.email} · {p.linked_user_id ? "Linked Nexo account" : "External / awaiting account link"}
+                </p>
+                {amounts.length > 0 ? (
+                  <p className="mt-1 text-caption">
+                    Allocated: {amounts.map(([currency, amount]) => formatMinorUnits(amount, currency)).join(" · ")}
+                  </p>
+                ) : null}
+                {p.admin_note ? <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">Admin: {p.admin_note}</p> : null}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -536,17 +570,30 @@ async function AssignmentsView({ userId }: { userId: string }) {
       .from("release_tracks")
       .select("id, title, releases!inner(owner_user_id)")
       .eq("releases.owner_user_id", userId)
-      .limit(100),
-    supabase.from("royalty_split_rules").select("id, name").eq("owner_user_id", userId).eq("is_active", true),
+      .limit(200),
+    supabase
+      .from("royalty_split_rules")
+      .select("id, name")
+      .eq("owner_user_id", userId)
+      .eq("review_status", "approved")
+      .eq("is_active", true),
     supabase
       .from("split_track_assignments")
-      .select("id, track_id, split_rule_id, created_at")
+      .select("id, track_id, split_rule_id, status, admin_note, created_at")
       .eq("owner_user_id", userId)
       .order("created_at", { ascending: false }),
   ]);
+
+  const trackNames = new Map((tracks ?? []).map((track) => [track.id, track.title || "Untitled track"]));
+  const ruleNames = new Map((rules ?? []).map((rule) => [rule.id, rule.name]));
+
   return (
     <div className="space-y-6">
-      <PageIntro title="Track Assignments" description="Attach an active split rule to a track you own." />
+      <SplitShareRealtime ownerUserId={userId} />
+      <PageIntro
+        title="Track Assignments"
+        description="Attach an approved split rule to a track you own. New assignments go to admin review before they can affect royalty posting."
+      />
       <AssignmentForm
         tracks={(tracks ?? []).map((t) => ({ id: t.id, title: t.title }))}
         rules={(rules ?? []).map((r) => ({ id: r.id, name: r.name }))}
@@ -557,7 +604,11 @@ async function AssignmentsView({ userId }: { userId: string }) {
         <ul className="space-y-2 text-small">
           {(assigns ?? []).map((a) => (
             <li key={a.id} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-4 py-3">
-              Track {a.track_id.slice(0, 8)}… → rule {a.split_rule_id.slice(0, 8)}…
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>{trackNames.get(a.track_id) ?? a.track_id} → {ruleNames.get(a.split_rule_id) ?? a.split_rule_id}</span>
+                <span className="text-caption uppercase text-[var(--nexo-text-muted)]">{a.status}</span>
+              </div>
+              {a.admin_note ? <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">Admin: {a.admin_note}</p> : null}
             </li>
           ))}
         </ul>
@@ -568,22 +619,56 @@ async function AssignmentsView({ userId }: { userId: string }) {
 
 async function RecoupmentsView({ userId }: { userId: string }) {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("portal_recoupments")
-    .select("id, title, amount_minor, currency, status, notes")
-    .eq("owner_user_id", userId)
-    .order("created_at", { ascending: false });
+  const [{ data }, { data: payees }, { data: tracks }] = await Promise.all([
+    supabase
+      .from("portal_recoupments")
+      .select("id, title, amount_minor, recovered_minor, currency, status, notes, payee_id, track_id, admin_note")
+      .eq("owner_user_id", userId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("portal_payees")
+      .select("id, name, email")
+      .eq("owner_user_id", userId)
+      .eq("status", "approved")
+      .order("name"),
+    supabase
+      .from("release_tracks")
+      .select("id, title, releases!inner(owner_user_id)")
+      .eq("releases.owner_user_id", userId)
+      .limit(200),
+  ]);
+
+  const payeeNames = new Map((payees ?? []).map((payee) => [payee.id, payee.name]));
+  const trackNames = new Map((tracks ?? []).map((track) => [track.id, track.title || "Untitled track"]));
+
   return (
     <div className="space-y-6">
-      <PageIntro title="Recoupments" description="Record recoupable amounts you actually agreed. Nothing is estimated." />
-      <RecoupmentForm />
+      <SplitShareRealtime ownerUserId={userId} />
+      <PageIntro
+        title="Recoupments"
+        description="Submit real recoupable advances or costs. Once approved, recovery is applied automatically against that payee’s future SplitShare allocations."
+      />
+      <RecoupmentForm
+        payees={(payees ?? []).map((payee) => ({ id: payee.id, name: payee.name, email: payee.email }))}
+        tracks={(tracks ?? []).map((track) => ({ id: track.id, title: track.title }))}
+      />
       {(data ?? []).length === 0 ? (
         <EmptyState title="No recoupments" />
       ) : (
         <ul className="space-y-2">
           {(data ?? []).map((r) => (
             <li key={r.id} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-4 py-3 text-small">
-              <span className="font-medium">{r.title}</span> · {formatMinorUnits(r.amount_minor, r.currency)} · {r.status}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{r.title}</span>
+                <span className="text-caption uppercase text-[var(--nexo-text-muted)]">{r.status}</span>
+              </div>
+              <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                {payeeNames.get(r.payee_id) ?? "Payee"} · {r.track_id ? trackNames.get(r.track_id) ?? "Track" : "All assigned tracks"}
+              </p>
+              <p className="mt-1 text-caption">
+                Recovered {formatMinorUnits(Number(r.recovered_minor ?? 0), r.currency)} of {formatMinorUnits(r.amount_minor, r.currency)}
+              </p>
+              {r.admin_note ? <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">Admin: {r.admin_note}</p> : null}
             </li>
           ))}
         </ul>
