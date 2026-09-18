@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import {
   queueReleaseAction,
@@ -110,6 +111,7 @@ export function SyncJobButton({
 }
 
 export function RetryJobButton({ jobId }: { jobId: string }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   return (
@@ -120,11 +122,12 @@ export function RetryJobButton({ jobId }: { jobId: string }) {
         onClick={() =>
           start(async () => {
             const r = await retryJobAction(jobId);
-            setMsg(r.ok ? "Retry queued." : r.error);
+            setMsg(r.ok ? "Nexo delivery retry submitted." : r.error);
+            if (r.ok) router.refresh();
           })
         }
       >
-        Retry
+        {pending ? "Retrying…" : "Retry Nexo delivery"}
       </Button>
       <Result msg={msg} />
     </div>
