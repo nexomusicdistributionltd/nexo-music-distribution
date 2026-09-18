@@ -1,5 +1,5 @@
 import type { AppRole } from "@/lib/auth/types";
-import { hasAdminPermission } from "@/lib/admin/permissions";
+import { adminPermissionForPath, hasAdminPermission } from "@/lib/admin/permissions";
 import { portalSectionsForKind } from "@/lib/portal/ia";
 
 export type NavIconId =
@@ -193,10 +193,8 @@ export function navSectionsForRoles(roles: AppRole[]): NavSection[] {
     return ADMIN_SECTIONS.map((section) => ({
       ...section,
       items: section.items.filter((item) => {
-        if (item.href === "/admin/settings") {
-          return hasAdminPermission(roles, "admin:settings");
-        }
-        return true;
+        const permission = adminPermissionForPath(item.href);
+        return !permission || hasAdminPermission(roles, permission);
       }),
     })).filter((section) => section.items.length > 0);
   }

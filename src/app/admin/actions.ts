@@ -224,12 +224,27 @@ export async function inviteStaffUserAction(input: {
   email: string;
   roles: AppRole[];
 }): Promise<ActionResult<{ userId: string }>> {
-  const ctx = await RequireSuperAdmin();
+  const ctx = await RequireAdminPermission("admin:staff_invite");
   const email = input.email.trim().toLowerCase();
-  if (!/^\\S+@\\S+\\.\\S+$/.test(email)) return { ok: false, error: "Enter a valid email address." };
+  if (!/^\\S+@\\S+\\.\\S+$/.test(email)) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+
   const roles = normalizeRoleList(input.roles);
-  if (!roles.length || roles.some((r) => r === "artist" || r === "label")) {
-    return { ok: false, error: "Staff invitations require support, admin, or super admin access." };
+  const allowedStaffRoles = new Set<AppRole>(["support", "admin", "super_admin"]);
+  if (roles.length !== 1 || !allowedStaffRoles.has(roles[0])) {
+    return {
+      ok: false,
+      error: "Choose exactly one staff access level: support, admin, or super admin.",
+    };
+  }
+
+  const role = roles[0];
+  if (role === "super_admin" && !ctx.roles.includes("super_admin")) {
+    return {
+      ok: false,
+      error: "Only a Super Admin can invite another Super Admin.",
+    };
   }
 
   try {
@@ -237,29 +252,70 @@ export async function inviteStaffUserAction(input: {
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://nexomusicdistribution.com"}/login`;
     const { data, error } = await service.auth.admin.inviteUserByEmail(email, {
       redirectTo,
-      data: { invited_by: ctx.userId, nexo_staff_invite: true },
+      data: {
+        invited_by: ctx.userId,
+        nexo_staff_invite: true,
+        nexo_staff_role: role,
+      },
     });
     if (error) return { ok: false, error: error.message };
-    if (!data.user?.id) return { ok: false, error: "Invitation did not return a user." };
+    if (!data.user?.id) {
+      return { ok: false, error: "Invitation did not return a user." };
+    }
+
+    const invitedUserId = data.user.id;
+    const failSetup = async (message: string): Promise<ActionResult<{ userId: string }>> => {
+      try {
+        await service.auth.admin.deleteUser(invitedUserId);
+      } catch {
+        // Best effort cleanup. Never promote a partially configured account.
+      }
+      return { ok: false, error: message };
+    };
 
     const { error: roleError } = await service.from("user_roles").upsert(
-      roles.map((role) => ({ user_id: data.user!.id, role })),
+      [{ user_id: invitedUserId, role }],
       { onConflict: "user_id,role" }
     );
-    if (roleError) return { ok: false, error: roleError.message };
-    await service.from("profiles").update({ account_status: "active" }).eq("id", data.user.id);
+    if (roleError) return failSetup(roleError.message);
+
+    // Staff invitations can create a default public_user row through the auth
+    // trigger. Remove only that harmless default after the staff role exists.
+    const { error: defaultRoleError } = await service
+      .from("user_roles")
+      .delete()
+      .eq("user_id", invitedUserId)
+      .eq("role", "public_user");
+    if (defaultRoleError) return failSetup(defaultRoleError.message);
+
+    const { error: profileError } = await service
+      .from("profiles")
+      .update({ account_status: "active", account_type: role })
+      .eq("id", invitedUserId);
+    if (profileError) return failSetup(profileError.message);
+
     try {
       await service.rpc("write_audit_log", {
         p_action: "staff_invite",
         p_entity_type: "profile",
-        p_entity_id: data.user.id,
-        p_metadata: { actor: ctx.userId, roles },
+        p_entity_id: invitedUserId,
+        p_metadata: {
+          actor: ctx.userId,
+          role,
+          invited_by_role: ctx.roles,
+        },
       });
-    } catch { /* invitation remains valid */ }
-    revalidateAdmin(["/admin/users"]);
-    return { ok: true, data: { userId: data.user.id } };
+    } catch {
+      // Invitation remains authoritative if audit persistence is temporarily unavailable.
+    }
+
+    revalidateAdmin(["/admin/users", "/admin/audit"]);
+    return { ok: true, data: { userId: invitedUserId } };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Could not send invitation." };
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not send invitation.",
+    };
   }
 }
 
