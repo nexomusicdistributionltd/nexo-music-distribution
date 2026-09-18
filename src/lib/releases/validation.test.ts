@@ -139,7 +139,7 @@ describe("validateReleaseForSubmit", () => {
       issues.some(
         (i) =>
           i.field === "track.1.contributors" &&
-          i.message.includes("songwriter/composer")
+          i.message.includes("songwriter or composer")
       )
     ).toBe(true);
   });
