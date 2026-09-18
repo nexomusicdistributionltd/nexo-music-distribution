@@ -11,7 +11,7 @@ import {
 
 function formatNumber(value: number | null): string {
   if (value == null) return "—";
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(value);
 }
 
 function formatMoney(value: number | null, currency: string | null): string {
@@ -43,11 +43,14 @@ function iconKey(channel: string | null): string | null {
   if (value.includes("audiomack")) return "audiomack";
   if (value.includes("soundcloud")) return "soundcloud";
   if (value.includes("tiktok")) return "tiktok";
+  if (value.includes("meta") || value.includes("facebook") || value.includes("instagram")) return "facebook";
   return null;
 }
 
-function RowCard({ row }: { row: SalesDisplayRow }) {
-  const dsp = iconKey(row.channel);
+function RowCard({ row, view }: { row: SalesDisplayRow; view: SalesViewKey }) {
+  const dsp = iconKey(row.channel ?? (view === "channels" || view === "stream_rates" ? row.title : null));
+  const isStreamRate = view === "stream_rates";
+
   return (
     <li className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4">
       <div className="flex items-start justify-between gap-4">
@@ -59,7 +62,7 @@ function RowCard({ row }: { row: SalesDisplayRow }) {
             </p>
           </div>
           <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-            {[row.subtitle, row.channel, row.territory, row.date].filter(Boolean).join(" · ") || "Provider data"}
+            {[row.subtitle, row.channel, row.territory, row.date].filter(Boolean).join(" · ") || "Reported activity"}
           </p>
         </div>
         {row.trendPercent != null ? (
@@ -68,26 +71,68 @@ function RowCard({ row }: { row: SalesDisplayRow }) {
           </span>
         ) : null}
       </div>
-      <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div>
-          <dt className="text-caption text-[var(--nexo-text-muted)]">Streams</dt>
-          <dd className="mt-1 text-small font-medium tabular-nums">{formatNumber(row.streams)}</dd>
-        </div>
-        <div>
-          <dt className="text-caption text-[var(--nexo-text-muted)]">Units</dt>
-          <dd className="mt-1 text-small font-medium tabular-nums">{formatNumber(row.units)}</dd>
-        </div>
-        <div>
-          <dt className="text-caption text-[var(--nexo-text-muted)]">Total</dt>
-          <dd className="mt-1 text-small font-medium tabular-nums">{formatMoney(row.total, row.currency)}</dd>
-        </div>
-        <div>
-          <dt className="text-caption text-[var(--nexo-text-muted)]">Currency</dt>
-          <dd className="mt-1 text-small font-medium">{row.currency?.toUpperCase() || "—"}</dd>
-        </div>
-      </dl>
+
+      {isStreamRate ? (
+        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div>
+            <dt className="text-caption text-[var(--nexo-text-muted)]">Stream rate</dt>
+            <dd className="mt-1 text-small font-medium tabular-nums">
+              {row.streamRate == null ? "—" : formatMoney(row.streamRate, row.currency)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-caption text-[var(--nexo-text-muted)]">Territory</dt>
+            <dd className="mt-1 text-small font-medium">{row.territory || "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-caption text-[var(--nexo-text-muted)]">Period</dt>
+            <dd className="mt-1 text-small font-medium">{row.date || "—"}</dd>
+          </div>
+        </dl>
+      ) : (
+        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div>
+            <dt className="text-caption text-[var(--nexo-text-muted)]">Streams</dt>
+            <dd className="mt-1 text-small font-medium tabular-nums">{formatNumber(row.streams)}</dd>
+          </div>
+          <div>
+            <dt className="text-caption text-[var(--nexo-text-muted)]">Units</dt>
+            <dd className="mt-1 text-small font-medium tabular-nums">{formatNumber(row.units)}</dd>
+          </div>
+          <div>
+            <dt className="text-caption text-[var(--nexo-text-muted)]">Total</dt>
+            <dd className="mt-1 text-small font-medium tabular-nums">{formatMoney(row.total, row.currency)}</dd>
+          </div>
+          <div>
+            <dt className="text-caption text-[var(--nexo-text-muted)]">Currency</dt>
+            <dd className="mt-1 text-small font-medium">{row.currency?.toUpperCase() || "—"}</dd>
+          </div>
+        </dl>
+      )}
     </li>
   );
+}
+
+function emptyCopy(view: SalesViewKey): { title: string; description: string } {
+  if (view === "stream_rates") {
+    return {
+      title: "No stream-rate data yet",
+      description:
+        "Stream-rate rows will appear here as soon as reporting is available for the selected services and territories.",
+    };
+  }
+  if (view === "monthly" || view === "overview") {
+    return {
+      title: "No reported activity yet",
+      description:
+        "Monthly sales and streaming activity will appear here after stores and services report activity for your catalog.",
+    };
+  }
+  return {
+    title: "No reported activity yet",
+    description:
+      "Sales and streaming activity will appear here after stores and services report activity for your catalog.",
+  };
 }
 
 export async function SalesDashboard({
@@ -101,19 +146,23 @@ export async function SalesDashboard({
   const snapshot = await loadSalesSnapshot(ownerUserId, view);
   const rowsWithStreams = snapshot.rows.filter((row) => row.streams != null && row.streams >= 0);
   const maxStreams = rowsWithStreams.reduce((max, row) => Math.max(max, row.streams ?? 0), 0);
+  const empty = emptyCopy(view);
 
   return (
     <div className="space-y-6">
       <PageIntro eyebrow="Sales" title={copy.title} description={copy.description} />
-      <Alert variant={snapshot.connected ? "success" : "warning"} title={snapshot.connected ? "LIVE" : "UNAVAILABLE"}>
-        {snapshot.note}
-      </Alert>
 
-      {rowsWithStreams.length > 0 && maxStreams > 0 ? (
+      {snapshot.status === "unavailable" ? (
+        <Alert variant="warning" title="Reporting temporarily unavailable">
+          {snapshot.note}
+        </Alert>
+      ) : null}
+
+      {snapshot.status === "ready" && rowsWithStreams.length > 0 && maxStreams > 0 ? (
         <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
-          <h2 className="text-h4">Verified stream activity</h2>
+          <h2 className="text-h4">Stream activity</h2>
           <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-            Relative bars use only numeric stream counts returned by the provider.
+            Latest reported stream counts for music in this account.
           </p>
           <div className="mt-5 space-y-3">
             {rowsWithStreams.slice(0, 12).map((row) => (
@@ -134,18 +183,15 @@ export async function SalesDashboard({
         </section>
       ) : null}
 
-      {snapshot.rows.length === 0 ? (
-        <EmptyState
-          title="No sales data yet"
-          description="This page stays empty until the connected provider returns real rows for this account."
-        />
-      ) : (
+      {snapshot.status === "empty" ? (
+        <EmptyState title={empty.title} description={empty.description} />
+      ) : snapshot.status === "ready" ? (
         <ul className="grid gap-3 lg:grid-cols-2">
           {snapshot.rows.slice(0, 200).map((row, index) => (
-            <RowCard key={`${row.id}-${index}`} row={row} />
+            <RowCard key={`${row.id}-${index}`} row={row} view={view} />
           ))}
         </ul>
-      )}
+      ) : null}
     </div>
   );
 }
