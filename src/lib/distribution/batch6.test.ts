@@ -116,9 +116,9 @@ describe("hostile audit: trusted source not client-spoofable (C1)", () => {
 });
 
 describe("hostile audit: webhook verify fail-closed", () => {
-  it("fails closed when secret missing", () => {
+  it("fails closed when secret missing", async () => {
     delete process.env.PROVIDER_WEBHOOK_SECRET;
-    const r = verifyProviderWebhookSignature({ rawBody: "{}", signatureHeader: "abc" });
+    const r = await verifyProviderWebhookSignature({ rawBody: "{}", signatureHeader: "abc" });
     expect(r.ok).toBe(false);
   });
 
