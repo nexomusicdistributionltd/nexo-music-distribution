@@ -6,7 +6,9 @@ import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import { DistributionNav } from "@/components/distribution/DistributionNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { isDistributionOAuthConfigured, readDistributionOAuthConfig } from "@/lib/provider/oauth/config";
-import { hasDistributionCredential } from "@/lib/provider/oauth/store";
+import { hasDistributionCredential, hasDistributionWebhookSecret } from "@/lib/provider/oauth/store";
+import { getProviderWebhookSecret } from "@/lib/provider/config";
+import { saveProviderWebhookSecretAction, removeProviderWebhookSecretAction } from "./actions";
 import { getStoredDistributionIdentityHealth } from "@/lib/provider/oauth/client";
 
 export const metadata: Metadata = {
@@ -26,6 +28,7 @@ export default async function ProviderStatusPage({
   const health = authorized ? await getStoredDistributionIdentityHealth() : null;
   const connected = Boolean(health?.ok);
   const callbackUri = oauthConfigured ? readDistributionOAuthConfig().redirectUri : null;
+  const webhookConfigured = Boolean(getProviderWebhookSecret()) || (await hasDistributionWebhookSecret());
 
   return (
     <div>
@@ -98,6 +101,48 @@ export default async function ProviderStatusPage({
               delivery actions.
             </p>
           ) : null}
+        </CardContent>
+      </Card>
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Webhook security</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-small">
+          <div>
+            <p>
+              Status: <strong>{webhookConfigured ? "Configured" : "Missing — webhooks fail closed"}</strong>
+            </p>
+            <p className="mt-1 text-[var(--nexo-text-muted)]">
+              Paste the webhook signing secret issued/configured for the provider. It is encrypted before storage and is never returned to the browser.
+            </p>
+          </div>
+          <form action={saveProviderWebhookSecretAction} className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="password"
+              name="webhook_secret"
+              minLength={16}
+              required
+              autoComplete="new-password"
+              placeholder={webhookConfigured ? "Replace webhook signing secret" : "Webhook signing secret"}
+              className="h-10 flex-1 rounded-md border border-[var(--nexo-border)] bg-[var(--nexo-bg)] px-3"
+            />
+            <button
+              type="submit"
+              className="h-10 rounded-md bg-[var(--nexo-accent)] px-4 font-semibold text-black"
+            >
+              {webhookConfigured ? "Replace secret" : "Save secret"}
+            </button>
+          </form>
+          {webhookConfigured ? (
+            <form action={removeProviderWebhookSecretAction}>
+              <button type="submit" className="text-caption underline underline-offset-4">
+                Remove stored webhook secret
+              </button>
+            </form>
+          ) : null}
+          <p className="text-caption text-[var(--nexo-text-muted)]">
+            Nexo continues to reject unsigned or invalidly signed webhook payloads.
+          </p>
         </CardContent>
       </Card>
     </div>
