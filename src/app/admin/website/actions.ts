@@ -38,14 +38,13 @@ export async function setReleaseWebsiteAction(input: {
   });
   if (error) return { ok: false, error: error.message };
   if (input.coverUrl !== undefined) {
-    const { error: coverError } = await supabase
-      .from("releases")
-      .update({
-        website_cover_override_url: input.coverUrl?.trim()
-          ? input.coverUrl.trim()
-          : null,
-      })
-      .eq("id", input.releaseId);
+    const { error: coverError } = await supabase.rpc(
+      "admin_set_release_cover_override",
+      {
+        p_release_id: input.releaseId,
+        p_cover_url: input.coverUrl?.trim() || null,
+      }
+    );
     if (coverError) return { ok: false, error: coverError.message };
   }
   revalidatePath("/admin/website");
