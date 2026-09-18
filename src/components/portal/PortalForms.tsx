@@ -109,45 +109,61 @@ export function PayeeForm() {
       }}
     >
       <h2 className="text-h4">Add payee</h2>
+      <p className="text-caption text-[var(--nexo-text-muted)]">
+        Email is required so the payee can be linked to the correct account. External payees can still accrue a held payable balance.
+      </p>
       {s.error ? <Alert variant="warning">{s.error}</Alert> : null}
-      {s.ok ? <Alert variant="success">Payee saved.</Alert> : null}
-      <Input name="name" required placeholder="Name" />
-      <Input name="email" type="email" placeholder="Email (optional)" />
+      {s.ok ? <Alert variant="success">Payee submitted for review.</Alert> : null}
+      <Input name="name" required placeholder="Legal / payee name" />
+      <Input name="email" type="email" required placeholder="Payee email" />
       <Select name="role_label" defaultValue="other">
         <option value="artist">Artist</option>
         <option value="label">Label</option>
         <option value="producer">Producer</option>
         <option value="songwriter">Songwriter</option>
+        <option value="featured">Featured artist</option>
+        <option value="publisher">Publisher</option>
         <option value="other">Other</option>
       </Select>
       <Button type="submit" disabled={s.pending}>
-        {s.pending ? "Saving…" : "Save payee"}
+        {s.pending ? "Submitting…" : "Submit payee"}
       </Button>
     </form>
   );
 }
 
-export function SplitRuleForm() {
+export function SplitRuleForm({
+  payees,
+}: {
+  payees: {
+    id: string;
+    name: string;
+    email: string;
+    roleLabel: SplitShareInput["partyRole"];
+  }[];
+}) {
   const s = usePendingAction();
+  const [rows, setRows] = React.useState([{ payeeId: "", percent: "100.00" }]);
+
   return (
     <form
-      className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
+      className="space-y-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
         const form = e.currentTarget;
-        const bpsA = Math.trunc(Number(fd.get("share_a_bps")));
-        const bpsB = Math.trunc(Number(fd.get("share_b_bps")));
         void s.run(async () => {
-          const shares: SplitShareInput[] = [];
-          const partyA = String(fd.get("party_a") || "").trim();
-          const partyB = String(fd.get("party_b") || "").trim();
-          if (partyA && bpsA > 0) {
-            shares.push({ partyName: partyA, partyRole: "artist", shareBps: bpsA });
-          }
-          if (partyB && bpsB > 0) {
-            shares.push({ partyName: partyB, partyRole: "other", shareBps: bpsB });
-          }
+          const shares: SplitShareInput[] = rows.map((row) => {
+            const payee = payees.find((item) => item.id === row.payeeId);
+            const shareBps = Math.round(Number(row.percent) * 100);
+            return {
+              payeeId: row.payeeId,
+              partyName: payee?.name ?? "",
+              partyRole: payee?.roleLabel ?? "other",
+              partyUserId: null,
+              shareBps,
+            };
+          });
           const r = await createSplitRuleAction({
             name: String(fd.get("name") || ""),
             effectiveFrom: String(fd.get("effective_from") || ""),
@@ -157,18 +173,76 @@ export function SplitRuleForm() {
         }, form);
       }}
     >
-      <h2 className="text-h4">New split rule</h2>
-      <p className="text-caption text-[var(--nexo-text-muted)]">Shares must total 10,000 bps (100%).</p>
+      <div>
+        <h2 className="text-h4">New split rule</h2>
+        <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+          Use approved payees only. All shares must total exactly 100.00%.
+        </p>
+      </div>
       {s.error ? <Alert variant="warning">{s.error}</Alert> : null}
-      {s.ok ? <Alert variant="success">Split saved.</Alert> : null}
+      {s.ok ? <Alert variant="success">Split submitted for admin review.</Alert> : null}
       <Input name="name" required placeholder="Rule name" />
       <Input name="effective_from" type="date" aria-label="Effective from" />
-      <Input name="party_a" required placeholder="Party A name" />
-      <Input name="share_a_bps" type="number" required defaultValue={10000} aria-label="Party A bps" />
-      <Input name="party_b" placeholder="Party B name (optional)" />
-      <Input name="share_b_bps" type="number" defaultValue={0} aria-label="Party B bps" />
-      <Button type="submit" disabled={s.pending}>
-        {s.pending ? "Saving…" : "Save split"}
+
+      {payees.length === 0 ? (
+        <Alert variant="warning">You need at least one approved payee before creating a split.</Alert>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((row, index) => (
+            <div key={index} className="grid gap-2 md:grid-cols-[1fr_9rem_auto]">
+              <Select
+                value={row.payeeId}
+                onChange={(event) =>
+                  setRows((current) =>
+                    current.map((item, i) => (i === index ? { ...item, payeeId: event.target.value } : item))
+                  )
+                }
+                required
+                aria-label={`Payee ${index + 1}`}
+              >
+                <option value="">Select payee</option>
+                {payees.map((payee) => (
+                  <option key={payee.id} value={payee.id}>
+                    {payee.name} · {payee.email}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                value={row.percent}
+                onChange={(event) =>
+                  setRows((current) =>
+                    current.map((item, i) => (i === index ? { ...item, percent: event.target.value } : item))
+                  )
+                }
+                type="number"
+                min="0.01"
+                max="100"
+                step="0.01"
+                required
+                aria-label={`Payee ${index + 1} percentage`}
+              />
+              <button
+                type="button"
+                className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-3 py-2 text-small disabled:opacity-40"
+                disabled={rows.length === 1}
+                onClick={() => setRows((current) => current.filter((_, i) => i !== index))}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="text-small font-medium underline underline-offset-4"
+            onClick={() => setRows((current) => [...current, { payeeId: "", percent: "0.00" }])}
+          >
+            + Add payee share
+          </button>
+        </div>
+      )}
+
+      <Button type="submit" disabled={s.pending || payees.length === 0}>
+        {s.pending ? "Submitting…" : "Submit split"}
       </Button>
     </form>
   );
@@ -206,6 +280,7 @@ export function AssignmentForm({
       }}
     >
       {s.error ? <span className="w-full text-caption text-[var(--nexo-error)]">{s.error}</span> : null}
+      {s.ok ? <span className="w-full text-caption text-[var(--nexo-success)]">Assignment submitted for review.</span> : null}
       <Select name="track_id" required className="min-w-[12rem] flex-1">
         {tracks.map((t) => (
           <option key={t.id} value={t.id}>
@@ -221,13 +296,19 @@ export function AssignmentForm({
         ))}
       </Select>
       <Button type="submit" disabled={s.pending}>
-        {s.pending ? "Saving…" : "Assign"}
+        {s.pending ? "Submitting…" : "Submit assignment"}
       </Button>
     </form>
   );
 }
 
-export function RecoupmentForm() {
+export function RecoupmentForm({
+  payees,
+  tracks,
+}: {
+  payees: { id: string; name: string; email: string }[];
+  tracks: { id: string; title: string | null }[];
+}) {
   const s = usePendingAction();
   return (
     <form
@@ -242,25 +323,41 @@ export function RecoupmentForm() {
             amountMinor: parseMajorUnitsToMinor(String(fd.get("amount_display") || ""), String(fd.get("currency") || "USD")) ?? 0,
             currency: String(fd.get("currency") || "USD"),
             notes: String(fd.get("notes") || ""),
+            payee_id: String(fd.get("payee_id") || ""),
+            track_id: String(fd.get("track_id") || "") || undefined,
           });
           return r.ok ? { ok: true } : r;
         }, form);
       }}
     >
-      <h2 className="text-h4">Record recoupment</h2>
+      <h2 className="text-h4">Submit recoupment</h2>
+      <p className="text-caption text-[var(--nexo-text-muted)]">
+        Approved recoupments are deducted from this payee&apos;s future SplitShare allocation before their payable amount is credited or held.
+      </p>
       {s.error ? <Alert variant="warning">{s.error}</Alert> : null}
-      {s.ok ? <Alert variant="success">Saved.</Alert> : null}
-      <Input name="title" required placeholder="Advance / cost name" />
+      {s.ok ? <Alert variant="success">Recoupment submitted for review.</Alert> : null}
+      <Select name="payee_id" required defaultValue="">
+        <option value="" disabled>Select approved payee</option>
+        {payees.map((payee) => (
+          <option key={payee.id} value={payee.id}>{payee.name} · {payee.email}</option>
+        ))}
+      </Select>
+      <Select name="track_id" defaultValue="">
+        <option value="">All assigned tracks for this payee</option>
+        {tracks.map((track) => (
+          <option key={track.id} value={track.id}>{track.title || "Untitled track"}</option>
+        ))}
+      </Select>
+      <Input name="title" required placeholder="Advance / recoupable cost name" />
       <Input name="amount_display" type="number" required min="0.01" step="0.01" placeholder="Amount" />
       <Input name="currency" defaultValue="USD" maxLength={3} />
-      <Textarea name="notes" placeholder="Notes" />
-      <Button type="submit" disabled={s.pending}>
-        {s.pending ? "Saving…" : "Save recoupment"}
+      <Textarea name="notes" placeholder="Agreement / recoupment notes" />
+      <Button type="submit" disabled={s.pending || payees.length === 0}>
+        {s.pending ? "Submitting…" : "Submit recoupment"}
       </Button>
     </form>
   );
 }
-
 export function MemberInviteForm() {
   const s = usePendingAction();
   return (
