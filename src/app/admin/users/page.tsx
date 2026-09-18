@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { AccountStatusForm } from "@/components/admin/AccountStatusForm";
 import { UserRolesForm } from "@/components/admin/UserRolesForm";
 import { StaffInviteForm } from "@/components/admin/StaffInviteForm";
+import { AccountPlanControl } from "@/components/admin/AccountPlanControl";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
 import { hasAdminPermission } from "@/lib/admin/permissions";
