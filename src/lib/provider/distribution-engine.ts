@@ -473,8 +473,7 @@ export class DistributionEngineProvider implements DistributionProvider {
           acceptTerms: true,
           confirmRights: true,
           confirmYoutubeRights:
-            input.deliverySettings?.confirmYoutubeRights === true ||
-            additionalDeliverySettings(input).youtube === true,
+            input.deliverySettings?.confirmYoutubeRights === true,
           idempotencyKey: `nexo:${input.releaseId}`,
         }),
       }
