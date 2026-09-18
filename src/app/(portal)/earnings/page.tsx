@@ -24,6 +24,11 @@ export default async function EarningsPage() {
   ]);
 
   const hasRows = (ledgerCount ?? 0) > 0;
+  const primaryBalance = (balances ?? [])[0] ?? null;
+  const primaryCurrency = primaryBalance?.currency ?? "USD";
+  const availableMinor = Number(primaryBalance?.available_minor ?? 0);
+  const pendingMinor = Number(primaryBalance?.pending_minor ?? 0);
+  const paidMinor = Number(primaryBalance?.paid_minor ?? 0);
   let upstreamRows: Record<string, unknown>[] = [];
   try { upstreamRows = await ownedSales(user.userId, "overview"); } catch { /* ledger remains authoritative */ }
 
@@ -31,6 +36,19 @@ export default async function EarningsPage() {
     <div className="space-y-4">
       <section className="rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 sm:p-8"><p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--nexo-text-muted)]">Royalties & finance</p><h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">Earnings</h1><p className="mt-2 text-small text-[var(--nexo-text-secondary)]">Track posted royalties, available balances, pending earnings and completed payouts.</p></section>
       <EarningsNav />
+      <section className="overflow-hidden rounded-[1.6rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 shadow-[var(--nexo-shadow-sm)] sm:p-8">
+        <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--nexo-text-muted)]">
+          Available royalties
+        </p>
+        <p className="mt-3 text-5xl font-semibold tracking-[-0.06em] tabular-nums">
+          {formatMinorUnits(availableMinor, primaryCurrency)}
+        </p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div><p className="text-caption text-[var(--nexo-text-muted)]">Pending</p><p className="mt-1 font-medium tabular-nums">{formatMinorUnits(pendingMinor, primaryCurrency)}</p></div>
+          <div><p className="text-caption text-[var(--nexo-text-muted)]">Paid</p><p className="mt-1 font-medium tabular-nums">{formatMinorUnits(paidMinor, primaryCurrency)}</p></div>
+          <div><p className="text-caption text-[var(--nexo-text-muted)]">Source</p><p className="mt-1 font-medium">{hasRows ? "Posted royalty ledger" : "No posted royalties yet"}</p></div>
+        </div>
+      </section>
       <Alert>
         Balances are derived from the royalty ledger (available / pending / paid). They are not
         editable fields.
