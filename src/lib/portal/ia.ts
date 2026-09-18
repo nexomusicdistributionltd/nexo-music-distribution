@@ -27,6 +27,7 @@ export type PortalNavItem = NavItem & {
   analyticsKey?: string;
   knowledgeSlug?: string;
   description: string;
+  requiresAdvancedAnalytics?: boolean;
 };
 
 export type PortalNavSection = NavSection & {
@@ -47,6 +48,41 @@ function item(
       partial.description ??
       `${partial.label} for NEXO MUSIC DISTRIBUTION LTD — live account data only.`,
   };
+}
+
+
+function mainGroups(): PortalNavItem[][] {
+  return [[
+    item({ href: "/dashboard", label: "Dashboard", pageKind: "existing", description: "Your Nexo workspace overview." }),
+    item({ href: "/dashboard/releases", label: "Releases", pageKind: "existing", description: "Your release catalog and QC status." }),
+    item({ href: "/wallet", label: "Wallet", pageKind: "existing", description: "Royalty balance, payout methods, payouts, reports and transaction activity." }),
+  ]];
+}
+
+function salesGroups(): PortalNavItem[][] {
+  return [[
+    item({ href: "/sales", label: "Overview", pageKind: "analytics", analyticsKey: "sales_overview", description: "Distribution sales overview from live provider data with Nexo ledger fallback." }),
+    item({ href: "/sales/releases", label: "Releases", pageKind: "analytics", analyticsKey: "sales_releases", description: "Sales performance grouped by release." }),
+    item({ href: "/sales/tracks", label: "Tracks", pageKind: "analytics", analyticsKey: "sales_tracks", description: "Sales performance grouped by track." }),
+    item({ href: "/sales/stores", label: "Stores/Services", pageKind: "analytics", analyticsKey: "sales_stores", description: "Sales by DSP, store or service." }),
+    item({ href: "/sales/artists", label: "Artists", pageKind: "analytics", analyticsKey: "sales_artists", description: "Sales grouped by artist." }),
+    item({ href: "/sales/territories", label: "Territories", pageKind: "analytics", analyticsKey: "sales_territories", description: "Sales and usage grouped by territory." }),
+    item({ href: "/sales/monthly", label: "Monthly Overviews", pageKind: "analytics", analyticsKey: "sales_monthly", description: "Monthly sales and royalty activity." }),
+    item({ href: "/sales/stream-rate", label: "Stream Rate", pageKind: "analytics", analyticsKey: "stream_rate", description: "Provider stream-rate data where supplied." }),
+  ]];
+}
+
+function reportsGroups(): PortalNavItem[][] {
+  return [[
+    item({ href: "/reports", label: "Overview", pageKind: "analytics", analyticsKey: "reports_overview", description: "Account reporting overview built from live Nexo records." }),
+    item({ href: "/reports/sales", label: "Sales", pageKind: "analytics", analyticsKey: "reports_sales", description: "Sales reporting for your owned catalog." }),
+    item({ href: "/reports/catalog", label: "Catalog", pageKind: "analytics", analyticsKey: "reports_catalog", description: "Catalog report across your releases and tracks." }),
+    item({ href: "/reports/payouts", label: "Payouts", pageKind: "analytics", analyticsKey: "reports_payouts", description: "Payout history and reporting." }),
+    item({ href: "/reports/release-links", label: "Release Links", pageKind: "analytics", analyticsKey: "reports_release_links", description: "Fanlink and release-link reporting." }),
+    item({ href: "/reports/additional", label: "Additional Reports", pageKind: "analytics", analyticsKey: "reports_additional", description: "Additional verified account reporting." }),
+    item({ href: "/reports/stream-data", label: "Stream Data", pageKind: "analytics", analyticsKey: "reports_stream_data", description: "Stream-level analytics where the Distribution Engine provides them." }),
+    item({ href: "/reports/raw-data", label: "Raw Data", pageKind: "analytics", analyticsKey: "reports_raw_data", description: "Raw provider/ledger-backed reporting without invented values." }),
+  ]];
 }
 
 function catalogGroups(kind: Exclude<WorkspaceKind, "admin">): PortalNavItem[][] {
@@ -82,12 +118,6 @@ function catalogGroups(kind: Exclude<WorkspaceKind, "admin">): PortalNavItem[][]
 
   return [
     [
-      item({
-        href: "/dashboard/releases",
-        label: "Releases",
-        pageKind: "existing",
-        description: "Your release catalog and QC status.",
-      }),
       artistsItem,
       ...createArtist,
       item({ href: "/dashboard/fanlinks", label: "Fanlinks", pageKind: "existing", description: "Public Nexo smart links for your live releases, with DSP clicks and preview status." }),
@@ -221,6 +251,14 @@ function marketingGroups(): PortalNavItem[][] {
         external: true,
         description: "Nexo guidance for release marketing.",
       }),
+      item({ href: "/marketing/priority-pitch", label: "Priority Pitch", pageKind: "service", serviceKind: "priority_pitch", description: "Submit a priority pitching request for staff review." }),
+      item({ href: "/marketing/chart-registration", label: "Chart Registration", pageKind: "service", serviceKind: "chart_registration", description: "Request chart-registration support for an eligible release." }),
+      item({ href: "/marketing/audio-recognition", label: "Audio Recognition", pageKind: "service", serviceKind: "audio_recognition", description: "Request audio-recognition/fingerprinting support for eligible recordings." }),
+      item({ href: "/marketing/tiktok-cml", label: "TikTok CML", pageKind: "service", serviceKind: "tiktok_cml", description: "Request TikTok Commercial Music Library review or support." }),
+      item({ href: "/marketing/promotional-assets", label: "Promotional Assets", pageKind: "service", serviceKind: "promotional_assets", description: "Request release promotional assets and campaign materials." }),
+      item({ href: "/marketing/fan-blast", label: "Fan Blast", pageKind: "service", serviceKind: "fan_blast", description: "Request a Nexo fan-outreach campaign." }),
+      item({ href: "/marketing/ai-mastering", label: "AI Mastering", pageKind: "service", serviceKind: "ai_mastering", description: "Request automated mastering review for a track you control." }),
+      item({ href: "/marketing/award-monitoring", label: "Award Monitoring", pageKind: "service", serviceKind: "award_monitoring", description: "Request award-eligibility and monitoring support." }),
     ],
   ];
 }
@@ -228,11 +266,18 @@ function marketingGroups(): PortalNavItem[][] {
 function analyticsGroups(): PortalNavItem[][] {
   return [
     [
+      item({ href: "/analytics/overview", label: "Overview", pageKind: "analytics", analyticsKey: "analytics_overview", description: "Distribution analytics overview for your catalog.", requiresAdvancedAnalytics: true }),
+      item({ href: "/analytics/by-platform", label: "By Platform", pageKind: "analytics", analyticsKey: "by_platform", description: "Analytics grouped by platform or service.", requiresAdvancedAnalytics: true }),
+      item({ href: "/analytics/by-release", label: "By Release", pageKind: "analytics", analyticsKey: "by_release", description: "Analytics grouped by release.", requiresAdvancedAnalytics: true }),
+      item({ href: "/analytics/usage-discovery", label: "Usage Discovery", pageKind: "analytics", analyticsKey: "usage_discovery", description: "Discover verified usage activity across available provider analytics.", requiresAdvancedAnalytics: true }),
+      item({ href: "/analytics/insights", label: "Insights", pageKind: "analytics", analyticsKey: "insights", description: "Catalog performance insights from verified data.", requiresAdvancedAnalytics: true }),
+      item({ href: "/analytics/audience", label: "Audience", pageKind: "analytics", analyticsKey: "audience", description: "Audience signals supplied by the Distribution Engine.", requiresAdvancedAnalytics: true }),
       item({
         href: "/analytics/streams",
         label: "Streams",
         pageKind: "analytics",
         analyticsKey: "streams",
+        requiresAdvancedAnalytics: true,
         description: "Statement-backed stream rows only.",
       }),
       item({
@@ -240,6 +285,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "Meta",
         pageKind: "analytics",
         analyticsKey: "meta",
+        requiresAdvancedAnalytics: true,
         description: "Meta usage from ingested statements, otherwise not connected.",
       }),
       item({
@@ -247,6 +293,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "YouTube UGC",
         pageKind: "analytics",
         analyticsKey: "youtube_ugc",
+        requiresAdvancedAnalytics: true,
         description: "YouTube UGC rows from statements only.",
       }),
       item({
@@ -254,6 +301,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "TikTok",
         pageKind: "analytics",
         analyticsKey: "tiktok",
+        requiresAdvancedAnalytics: true,
         description: "TikTok rows from statements only.",
       }),
       item({
@@ -261,6 +309,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "StreamSafe",
         pageKind: "analytics",
         analyticsKey: "streamsafe",
+        requiresAdvancedAnalytics: true,
         description: "Suspicious-stream flags if ingested. Never invented.",
       }),
       item({
@@ -268,6 +317,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "Spotify Discovery Mode",
         pageKind: "analytics",
         analyticsKey: "spotify_discovery",
+        requiresAdvancedAnalytics: true,
         description: "Discovery Mode is not connected unless a real enrollment exists.",
       }),
       item({
@@ -275,6 +325,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "Spotify Engagement",
         pageKind: "analytics",
         analyticsKey: "spotify_engagement",
+        requiresAdvancedAnalytics: true,
         badge: "NEW",
         description: "Engagement metrics from ingested Spotify statement rows only.",
       }),
@@ -283,6 +334,7 @@ function analyticsGroups(): PortalNavItem[][] {
         label: "Downloads",
         pageKind: "analytics",
         analyticsKey: "downloads",
+        requiresAdvancedAnalytics: true,
         description: "Download rows from statements only.",
       }),
     ],
@@ -367,6 +419,9 @@ function splitShareGroups(): PortalNavItem[][] {
 function rightsGroups(): PortalNavItem[][] {
   return [
     [
+      item({ href: "/rights/greenlist", label: "Greenlist", pageKind: "service", serviceKind: "greenlist", description: "Request allowlisting for approved accounts or channels using your protected music." }),
+      item({ href: "/rights/blocklist", label: "Blocklist", pageKind: "service", serviceKind: "blocklist", description: "Request blocking of unauthorized usage on supported services." }),
+      item({ href: "/rights/profile-defender", label: "Profile Defender", pageKind: "service", serviceKind: "profile_defender", description: "Report suspicious artist-profile activity, impersonation or catalog conflicts." }),
       item({
         href: "/rights/youtube-allowlist",
         label: "YouTube Allowlist",
@@ -460,6 +515,7 @@ function rightsGroups(): PortalNavItem[][] {
         external: true,
         description: "Trust and safety reporting for Nexo accounts.",
       }),
+      item({ href: "/rights/conflict-resolution", label: "Conflict Resolution", pageKind: "service", serviceKind: "conflict_resolution", description: "Submit a catalog, ownership or platform conflict for Nexo review." }),
     ],
   ];
 }
@@ -545,6 +601,30 @@ export function accountOverlayItems(
           : "Label accounts linked to you, if any.",
     }),
     item({
+      href: "/account/agreements",
+      label: "Signed agreements",
+      pageKind: "existing",
+      description: "View and download all distribution agreements signed on this account.",
+    }),
+    item({
+      href: "/account/preferences",
+      label: "Preferences",
+      pageKind: "existing",
+      description: "Portal and account preferences.",
+    }),
+    item({
+      href: "/dashboard/notifications",
+      label: "Notifications",
+      pageKind: "existing",
+      description: "Account notifications and staff messages.",
+    }),
+    item({
+      href: "/support",
+      label: "Support",
+      pageKind: "existing",
+      description: "Open and track support requests.",
+    }),
+    item({
       href: "/dashboard/profile",
       label: "My profile",
       pageKind: "existing",
@@ -556,10 +636,13 @@ export function accountOverlayItems(
 export function portalSectionsForKind(
   kind: Exclude<WorkspaceKind, "admin">
 ): PortalNavSection[] {
-  const defs: { id: string; label: string; groups: PortalNavItem[][] }[] = [
+  const defs: { id: string; label: string; groups: PortalNavItem[][]; collapsible?: boolean }[] = [
+    { id: "main", label: "Main", groups: mainGroups(), collapsible: false },
     { id: "catalog", label: "Catalog", groups: catalogGroups(kind) },
-    { id: "marketing", label: "Marketing", groups: marketingGroups() },
+    { id: "sales", label: "Sales", groups: salesGroups() },
     { id: "analytics", label: "Analytics", groups: analyticsGroups() },
+    { id: "reports", label: "Reports", groups: reportsGroups() },
+    { id: "marketing", label: "Marketing", groups: marketingGroups() },
     { id: "royalties", label: "Royalties", groups: royaltiesGroups() },
     { id: "splitshare", label: "SplitShare", groups: splitShareGroups() },
     { id: "rights", label: "Rights", groups: rightsGroups() },
@@ -572,7 +655,7 @@ export function portalSectionsForKind(
     return {
       id: d.id,
       label: d.label,
-      collapsible: true,
+      collapsible: d.collapsible ?? true,
       groups,
       items: flattenGroups(groups),
     };
