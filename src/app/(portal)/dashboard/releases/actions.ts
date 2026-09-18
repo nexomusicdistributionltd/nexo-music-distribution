@@ -2,12 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  RequireRole,
+  RequireVerifiedPortal,
   assertCanMutateCatalog,
   assertCanSubmitRelease,
 } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { getProviderConnectionState } from "@/lib/provider";
 import {
   canDuplicate,
   canRequestTakedown,
@@ -38,13 +37,14 @@ import {
   buildAssetPath,
 } from "@/lib/storage/release-assets";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
+import { getProviderConnectionState } from "@/lib/provider";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
 async function requireArtistOrLabel() {
-  return RequireRole(["artist", "label"]);
+  return RequireVerifiedPortal();
 }
 
 function revalidateReleasePaths(id?: string) {
@@ -898,11 +898,22 @@ export async function deleteDraftRelease(
 export async function tryProviderSubmit(
   releaseId: string
 ): Promise<ActionResult<{ message: string }>> {
-  void releaseId;
-  await requireArtistOrLabel();
-  const state = await getProviderConnectionState();
-  if (!state.connected) {
-    return { ok: false, error: state.message };
-  }
-  return { ok: false, error: "Provider not connected." };
+  const ctx = await requireArtistOrLabel();
+  const supabase = await createClient();
+  const { data: release } = await supabase
+    .from("releases")
+    .select("id,status")
+    .eq("id", releaseId)
+    .eq("owner_user_id", ctx.userId)
+    .maybeSingle();
+  if (!release) return { ok: false, error: "Release not found." };
+  return {
+    ok: true,
+    data: {
+      message:
+        release.status === "draft" || release.status === "changes_requested"
+          ? "Complete the release and submit it to Nexo QC. Distribution delivery is handled after approval."
+          : "This release is already in the Nexo QC/distribution workflow. Delivery is handled by Nexo after approval.",
+    },
+  };
 }

@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createPayoutAction } from "@/app/admin/finance/actions";
 
 export function CreatePayoutForm() {
+  const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
   return (
@@ -26,7 +28,7 @@ export function CreatePayoutForm() {
         });
         setPending(false);
         if (!r.ok) setError(r.error);
-        else window.location.reload();
+        else router.refresh();
       }}
     >
       <Input name="ownerUserId" placeholder="owner user uuid" required />

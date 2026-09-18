@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { requestReportExportAction } from "@/app/admin/actions";
 
 export function ReportRequestForm() {
+  const router = useRouter();
   const [reportType, setReportType] = React.useState("releases_summary");
   const [msg, setMsg] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
@@ -22,7 +24,7 @@ export function ReportRequestForm() {
         if (!r.ok) setMsg(r.error);
         else {
           setMsg(`Queued export ${r.data.id} (pending — no fake file generated).`);
-          window.location.reload();
+          router.refresh();
         }
       }}
     >

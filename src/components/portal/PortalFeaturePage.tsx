@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { RequireRole } from "@/lib/auth/guards";
+import { RequireVerifiedPortal } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -26,6 +26,8 @@ import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { getArtistProfileForUser, getLabelProfileForUser, listArtistDspLinks, listRosterArtists } from "@/lib/roster/queries";
 import { listPublishedVideos } from "@/lib/website/queries";
 import { workspaceKindForRoles } from "@/lib/auth/nav";
+import { getEntitlementsForAuth } from "@/lib/billing/queries";
+import { isFeatureUnlocked, pricingHrefForAccount } from "@/lib/billing/feature-access";
 
 async function loadReleases(userId: string) {
   const supabase = await createClient();
@@ -41,7 +43,7 @@ async function loadReleases(userId: string) {
 export async function PortalFeaturePage({ href }: { href: string }) {
   const def = findPortalItem(href);
   if (!def) notFound();
-  const ctx = await RequireRole(["artist", "label"]);
+  const ctx = await RequireVerifiedPortal();
   const kind = workspaceKindForRoles(ctx.roles);
   if (kind === "admin") notFound();
   if (def.visibility && def.visibility !== "all" && def.visibility !== kind) notFound();
@@ -51,6 +53,23 @@ export async function PortalFeaturePage({ href }: { href: string }) {
   }
   if (def.pageKind === "analytics") {
     if (!def.analyticsKey || !isAnalyticsKey(def.analyticsKey)) notFound();
+    const entitlements = await getEntitlementsForAuth(ctx);
+    if (!isFeatureUnlocked(entitlements, "advanced_analytics")) {
+      return (
+        <div className="space-y-6">
+          <PageIntro eyebrow="Analytics" title={def.label} description={def.description} />
+          <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6">
+            <h2 className="text-h4">Advanced analytics requires an eligible plan</h2>
+            <p className="mt-2 text-small text-[var(--nexo-text-muted)]">
+              Upgrade to unlock detailed distribution analytics for this account.
+            </p>
+            <Link className="mt-4 inline-flex rounded-full bg-[var(--nexo-text)] px-4 py-2 text-small font-semibold [color:var(--nexo-text-inverse)]" href={pricingHrefForAccount(entitlements.accountType)}>
+              View plans
+            </Link>
+          </section>
+        </div>
+      );
+    }
     const snap = await loadAnalyticsSnapshot(ctx.userId, def.analyticsKey);
     return (
       <div className="space-y-6">
@@ -67,8 +86,8 @@ export async function PortalFeaturePage({ href }: { href: string }) {
           <dl className="grid gap-3 sm:grid-cols-3">
             <Stat label="Posted rows" value={String(snap.rowCount)} />
             <Stat
-              label="Ledger total"
-              value={snap.currency ? formatMinorUnits(snap.amountMinor, snap.currency) : String(snap.amountMinor)}
+              label={snap.amountMinor === null ? "Financial total" : "Ledger total"}
+              value={snap.amountMinor === null ? "Not provided by this analytics feed" : snap.currency ? formatMinorUnits(snap.amountMinor, snap.currency) : String(snap.amountMinor)}
             />
             <Stat label="DSP codes" value={snap.dspCodes.join(", ") || "—"} />
           </dl>

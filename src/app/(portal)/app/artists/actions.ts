@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { RequireRole, assertCanMutateCatalog } from "@/lib/auth/guards";
+import { RequireVerifiedPortal, assertCanMutateCatalog } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { RosterArtistInput } from "@/lib/roster/types";
 import { DSP_PROFILE_SPECS, validateDspProfileUrl, type DspProfileKey } from "@/lib/dsp/profile-links";
@@ -22,7 +22,8 @@ export async function createRosterArtist(
   input: RosterArtistInput,
   dspLinks: Array<{ dspKey: DspProfileKey; url: string; enabled: boolean }> = []
 ): Promise<ActionResult<{ id: string }>> {
-  const ctx = await RequireRole("label");
+  const ctx = await RequireVerifiedPortal();
+  if (!ctx.roles.includes("label")) return { ok: false, error: "Label role required." };
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {
@@ -31,6 +32,29 @@ export async function createRosterArtist(
 
   const stage = input.stage_name?.trim();
   if (!stage) return { ok: false, error: "Stage / display name is required." };
+
+  const validatedDspLinks: Array<{
+    artist_profile_id?: string;
+    dsp_key: DspProfileKey;
+    url: string | null;
+    enabled: boolean;
+    verification_status: "unverified";
+    verified_at: null;
+    fetched_at: null;
+  }> = [];
+  for (const spec of DSP_PROFILE_SPECS) {
+    const row = dspLinks.find((l) => l.dspKey === spec.key);
+    const check = validateDspProfileUrl(spec.key, row?.url ?? "");
+    if (!check.ok) return { ok: false, error: check.error };
+    validatedDspLinks.push({
+      dsp_key: spec.key,
+      url: check.url,
+      enabled: Boolean(row?.enabled && check.url),
+      verification_status: "unverified",
+      verified_at: null,
+      fetched_at: null,
+    });
+  }
 
   const supabase = await createClient();
   const { data: label } = await supabase
@@ -41,35 +65,24 @@ export async function createRosterArtist(
   if (!label) return { ok: false, error: "Label profile not found." };
 
   const genres = (input.genres ?? []).map((g) => g.trim()).filter(Boolean);
-  const { data: artistId, error } = await supabase.rpc("create_label_roster_artist", {
+  const { data: artistId, error } = await supabase.rpc("create_label_roster_artist_with_dsp", {
     p_stage_name: stage,
     p_bio: input.bio?.trim() || null,
     p_country: input.country?.trim() || null,
     p_genres: genres,
     p_avatar_url: input.avatar_url?.trim() || null,
     p_website: input.website?.trim() || null,
+    p_dsp_links: validatedDspLinks.map((row) => ({
+      dsp_key: row.dsp_key,
+      url: row.url,
+      enabled: row.enabled,
+    })),
   });
   if (error || !artistId) {
     return { ok: false, error: error?.message ?? "Could not create roster artist." };
   }
   const artist = { id: String(artistId) };
 
-  // Save DSP targeting metadata in the same create flow so labels do not need a second deployment or edit pass.
-  for (const spec of DSP_PROFILE_SPECS) {
-    const row = dspLinks.find((l) => l.dspKey === spec.key);
-    const check = validateDspProfileUrl(spec.key, row?.url ?? "");
-    if (!check.ok) return { ok: false, error: check.error };
-    const { error: dspError } = await supabase.from("artist_dsp_links").upsert({
-      artist_profile_id: artist.id,
-      dsp_key: spec.key,
-      url: check.url,
-      enabled: Boolean(row?.enabled && check.url),
-      verification_status: "unverified",
-      verified_at: null,
-      fetched_at: null,
-    }, { onConflict: "artist_profile_id,dsp_key" });
-    if (dspError) return { ok: false, error: dspError.message };
-  }
 
   try {
     await supabase.rpc("write_audit_log", {
@@ -94,7 +107,8 @@ export async function updateRosterArtist(
   artistProfileId: string,
   input: Partial<RosterArtistInput>
 ): Promise<ActionResult<{ id: string }>> {
-  const ctx = await RequireRole("label");
+  const ctx = await RequireVerifiedPortal();
+  if (!ctx.roles.includes("label")) return { ok: false, error: "Label role required." };
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {
@@ -167,7 +181,8 @@ export async function updateRosterArtist(
 export async function removeRosterArtist(
   artistProfileId: string
 ): Promise<ActionResult<{ id: string }>> {
-  const ctx = await RequireRole("label");
+  const ctx = await RequireVerifiedPortal();
+  if (!ctx.roles.includes("label")) return { ok: false, error: "Label role required." };
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {

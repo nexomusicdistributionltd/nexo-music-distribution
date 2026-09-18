@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { updatePayoutStatusAction } from "@/app/admin/actions";
 import { processPayoutWithProviderAction } from "@/app/admin/finance/actions";
@@ -13,6 +14,7 @@ export function PayoutStatusControls({
   payoutId: string;
   status: PayoutStatus;
 }) {
+  const router = useRouter();
   const next = allowedPayoutTransitions(status).filter((s) => s !== "paid");
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
@@ -35,7 +37,7 @@ export function PayoutStatusControls({
             const r = await updatePayoutStatusAction({ payoutId, status: s });
             setPending(false);
             if (!r.ok) setError(r.error);
-            else window.location.reload();
+            else router.refresh();
           }}
         >
           Mark {s}
@@ -52,7 +54,7 @@ export function PayoutStatusControls({
             const r = await processPayoutWithProviderAction(payoutId);
             setPending(false);
             if (!r.ok) setError(r.error);
-            else window.location.reload();
+            else router.refresh();
           }}
         >
           Process via provider

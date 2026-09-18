@@ -6,6 +6,8 @@ import { DspProfileLinksEditor } from "@/components/roster/DspProfileLinksEditor
 import { ArtistBioForm } from "@/components/roster/ArtistBioForm";
 import { RequireAuth } from "@/lib/auth/guards";
 import { getArtistProfileForUser, listArtistDspLinks } from "@/lib/roster/queries";
+import { IdentityVerifiedBadge } from "@/components/identity/IdentityVerifiedBadge";
+import { getIdentityVerificationForUser } from "@/lib/identity/queries";
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -23,11 +25,12 @@ export default async function DashboardProfilePage() {
   }
   const artist = ctx.roles.includes("artist") ? await getArtistProfileForUser(ctx.userId) : null;
   const dspLinks = artist ? await listArtistDspLinks(artist.id) : [];
+  const identity = await getIdentityVerificationForUser(ctx.userId);
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-h2">Profile</h1>
+        <div className="flex flex-wrap items-center gap-3"><h1 className="text-h2">Profile</h1>{identity?.status === "verified" ? <IdentityVerifiedBadge /> : null}</div>
         <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
           Account details from your existing profile schema.
         </p>

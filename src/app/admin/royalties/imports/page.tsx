@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/Alert";
 import { createClient } from "@/lib/supabase/server";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import { CreateImportBatchForm } from "@/components/finance/CreateImportBatchForm";
+import { PostRoyaltyBatchButton } from "@/components/finance/PostRoyaltyBatchButton";
 
 export const metadata: Metadata = {
   title: "Royalty imports",
@@ -44,14 +45,17 @@ export default async function RoyaltyImportsPage() {
       ) : (
         <ul className="mt-4 divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
           {(data ?? []).map((b) => (
-            <li key={b.id} className="px-4 py-3 text-small">
-              <p className="font-medium">
-                {b.source_provider} · {b.report_id}
-              </p>
-              <p className="text-caption text-[var(--nexo-text-muted)]">
-                {b.status} · rows {b.row_count} · matched {b.matched_count} · conflicts{" "}
-                {b.conflict_count} · posted {b.posted_count}
-              </p>
+            <li key={b.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3 text-small">
+              <div>
+                <p className="font-medium">
+                  {b.source_provider} · {b.report_id}
+                </p>
+                <p className="text-caption text-[var(--nexo-text-muted)]">
+                  {b.status} · rows {b.row_count} · matched {b.matched_count} · conflicts{" "}
+                  {b.conflict_count} · posted {b.posted_count}
+                </p>
+              </div>
+              <PostRoyaltyBatchButton batchId={b.id} disabled={b.status === "processing"} />
             </li>
           ))}
         </ul>

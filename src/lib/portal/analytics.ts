@@ -8,7 +8,7 @@ export type AnalyticsSnapshot = {
   connected: boolean;
   statusLabel: "LIVE" | "EMPTY" | "AVAILABLE";
   rowCount: number;
-  amountMinor: number;
+  amountMinor: number | null;
   currency: string | null;
   dspCodes: string[];
   note: string;
@@ -37,7 +37,7 @@ export async function loadAnalyticsSnapshot(
         connected: true,
         statusLabel: "LIVE",
         rowCount: providerRows.length,
-        amountMinor: 0,
+        amountMinor: null,
         currency: null,
         dspCodes: codes,
         note: "Live Distribution Engine analytics are connected for releases owned by this account.",
@@ -60,7 +60,7 @@ export async function loadAnalyticsSnapshot(
       connected: false,
       statusLabel: "AVAILABLE",
       rowCount: 0,
-      amountMinor: 0,
+      amountMinor: null,
       currency: null,
       dspCodes: [],
       note: "Analytics are available through Nexo. No verified rows can be displayed for this source right now.",

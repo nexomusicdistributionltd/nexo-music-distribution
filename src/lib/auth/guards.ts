@@ -84,6 +84,20 @@ export async function RequireRole(
   return ctx;
 }
 
+export async function RequireVerifiedPortal(): Promise<AuthUserContext> {
+  const ctx = await RequireRole(["artist", "label"]);
+  const supabase = await (await import("@/lib/supabase/server")).createClient();
+  const { data } = await supabase
+    .from("identity_verifications")
+    .select("status")
+    .eq("user_id", ctx.userId)
+    .maybeSingle();
+  if (data?.status !== "verified") {
+    redirect("/verify-identity");
+  }
+  return ctx;
+}
+
 /** Admin portal: admin, super_admin, support. */
 export async function RequireAdmin(): Promise<AuthUserContext> {
   return RequireRole(["admin", "super_admin", "support"]);

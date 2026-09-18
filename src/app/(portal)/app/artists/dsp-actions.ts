@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { RequireRole, assertCanMutateCatalog } from "@/lib/auth/guards";
+import { RequireVerifiedPortal, assertCanMutateCatalog } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import {
   DSP_PROFILE_SPECS,
@@ -15,7 +15,7 @@ export type ActionResult<T = unknown> =
   | { ok: false; error: string };
 
 async function assertCanEditArtist(artistProfileId: string) {
-  const ctx = await RequireRole(["artist", "label"]);
+  const ctx = await RequireVerifiedPortal();
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {
@@ -54,7 +54,7 @@ export async function previewDspProfileAction(input: {
   dspKey: string;
   url: string;
 }): Promise<ActionResult<{ name: string | null; image: string | null; canonicalUrl: string | null }>> {
-  await RequireRole(["artist", "label"]);
+  await RequireVerifiedPortal();
   const check = validateDspProfileUrl(input.dspKey, input.url);
   if (!check.ok) return { ok: false, error: check.error };
   if (!check.url) return { ok: true, data: { name: null, image: null, canonicalUrl: null } };

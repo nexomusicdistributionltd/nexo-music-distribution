@@ -87,6 +87,16 @@ export function RealtimeRefresh({
           ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
         },
         () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "identity_verifications",
+          ...(staff ? {} : { filter: `user_id=eq.${userId}` }),
+        },
+        () => router.refresh()
       );
 
     if (staff) {

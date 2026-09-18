@@ -11,6 +11,7 @@ import { PortalAccordionNav } from "@/components/portal/PortalAccordionNav";
 import type { NavItem, NavSection, WorkspaceKind } from "@/lib/auth/nav";
 import { titleForPath } from "@/lib/auth/nav";
 import { cn } from "@/lib/utils";
+import { IdentityVerifiedBadge } from "@/components/identity/IdentityVerifiedBadge";
 
 export function PortalChrome({
   sections,
@@ -19,6 +20,7 @@ export function PortalChrome({
   workspaceKind,
   unreadNotifications = 0,
   labelName,
+  identityVerified = false,
 }: {
   sections: NavSection[];
   accountItems: NavItem[];
@@ -26,6 +28,7 @@ export function PortalChrome({
   workspaceKind: Exclude<WorkspaceKind, "admin">;
   unreadNotifications?: number;
   labelName?: string | null;
+  identityVerified?: boolean;
 }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = React.useState(false);
@@ -120,7 +123,7 @@ export function PortalChrome({
             setAccountOpen(true);
           }}
         >
-          {displayName}
+          <span className="inline-flex items-center gap-1.5">{displayName}{identityVerified ? <IdentityVerifiedBadge compact /> : null}</span>
         </button>
         <ThemeToggle />
         <button
@@ -162,7 +165,7 @@ export function PortalChrome({
                 id="portal-account-title"
                 className="mt-3 truncate text-[0.95rem] font-semibold uppercase tracking-[0.08em] text-[var(--nexo-text)]"
               >
-                {displayName}
+                <span className="inline-flex items-center gap-2">{displayName}{identityVerified ? <IdentityVerifiedBadge compact /> : null}</span>
               </h2>
             </div>
             <CloseX onClick={() => setAccountOpen(false)} />

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { RequireRole, assertCanMutateCatalog } from "@/lib/auth/guards";
+import { RequireVerifiedPortal, assertCanMutateCatalog } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { publicErrorMessage } from "@/lib/http/safe-error";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
@@ -22,7 +22,7 @@ export type PortalActionResult<T = unknown> =
   | { ok: false; error: string };
 
 async function requirePortal() {
-  return RequireRole(["artist", "label"]);
+  return RequireVerifiedPortal();
 }
 
 function revalidatePortal() {
@@ -309,28 +309,18 @@ export async function createPayoutRequestAction(input: {
   if (!rl.ok) return { ok: false, error: "Too many payout requests." };
   const parsed = validatePayoutRequestInput(input);
   if (!parsed.ok) return parsed;
+
   const supabase = await createClient();
-  const { data: bal } = await supabase
-    .from("ledger_balances")
-    .select("available_minor, currency")
-    .eq("owner_user_id", ctx.userId)
-    .eq("currency", parsed.currency)
-    .maybeSingle();
-  if (!bal || Number(bal.available_minor) < parsed.amountMinor) {
-    return { ok: false, error: "Insufficient available balance for this request." };
-  }
-  const { data, error } = await supabase
-    .from("payout_requests")
-    .insert({
-      owner_user_id: ctx.userId,
-      amount_minor: parsed.amountMinor,
-      currency: parsed.currency,
-      method_note: input.method_note?.trim() || null,
-      status: "submitted",
-    })
-    .select("id")
-    .single();
+  const idempotencyKey = `portal:${ctx.userId}:${parsed.currency}:${parsed.amountMinor}:${Date.now()}`;
+  const { data, error } = await supabase.rpc("create_payout_request", {
+    p_owner_user_id: ctx.userId,
+    p_amount_minor: parsed.amountMinor,
+    p_currency: parsed.currency,
+    p_method: input.method_note?.trim() || null,
+    p_idempotency_key: idempotencyKey,
+  });
   if (error) return { ok: false, error: publicErrorMessage(error.message) };
   revalidatePath("/earnings/payouts");
+  revalidatePath("/earnings");
   return { ok: true, data: { id: data.id } };
 }

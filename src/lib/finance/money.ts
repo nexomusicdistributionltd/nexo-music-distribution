@@ -40,6 +40,23 @@ export function currencyFractionDigits(currency: string): number {
   return 2;
 }
 
+export function parseMajorUnitsToMinor(value: string | number, currency: string): number | null {
+  const raw = String(value).trim();
+  if (!/^-?\d+(?:\.\d+)?$/.test(raw)) return null;
+  const fraction = currencyFractionDigits(currency);
+  const negative = raw.startsWith("-");
+  const unsigned = negative ? raw.slice(1) : raw;
+  const [wholeRaw, fracRaw = ""] = unsigned.split(".");
+  if (fracRaw.length > fraction) return null;
+  const whole = BigInt(wholeRaw || "0");
+  const frac = BigInt((fracRaw + "0".repeat(fraction)).slice(0, fraction) || "0");
+  const scale = BigInt(10 ** fraction);
+  let minor = whole * scale + frac;
+  if (negative) minor = -minor;
+  const asNumber = Number(minor);
+  return Number.isSafeInteger(asNumber) ? asNumber : null;
+}
+
 /** Basis points: 10000 = 100% */
 export function assertShareBps(bps: unknown): bps is number {
   return typeof bps === "number" && Number.isInteger(bps) && bps >= 0 && bps <= 10000;

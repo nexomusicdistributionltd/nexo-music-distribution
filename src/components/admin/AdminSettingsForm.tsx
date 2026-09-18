@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -8,6 +9,7 @@ import { ADMIN_SETTING_KEYS } from "@/lib/admin/settings";
 import { saveAdminSettingAction } from "@/app/admin/actions";
 
 export function SettingsForm() {
+  const router = useRouter();
   const [key, setKey] = React.useState("qc.default_priority");
   const [value, setValue] = React.useState('{"priority":"normal"}');
   const [msg, setMsg] = React.useState<string | null>(null);
@@ -26,7 +28,7 @@ export function SettingsForm() {
           if (!r.ok) setMsg(r.error);
           else {
             setMsg("Saved");
-            window.location.reload();
+            router.refresh();
           }
         } catch {
           setMsg("Value must be valid JSON object.");

@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { createComplianceCaseAction } from "@/app/admin/actions";
 
 export function CreateComplianceForm() {
+  const router = useRouter();
   const [title, setTitle] = React.useState("");
   const [summary, setSummary] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -22,7 +24,7 @@ export function CreateComplianceForm() {
         const r = await createComplianceCaseAction({ title, summary });
         setPending(false);
         if (!r.ok) setError(r.error);
-        else window.location.reload();
+        else router.refresh();
       }}
     >
       <h2 className="text-h4">New case</h2>
