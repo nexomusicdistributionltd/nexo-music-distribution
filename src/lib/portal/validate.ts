@@ -21,14 +21,66 @@ export function validateServiceRequestInput(input: {
   return { ok: true, kind: input.kind, title, body: body || null, url: urlRaw || null };
 }
 
-export function validateVideoInput(input: { title: string; video_url: string; notes?: string }) {
+export function validateVideoInput(input: {
+  title: string;
+  video_url: string;
+  primary_artist_name?: string;
+  genre?: string;
+  language?: string;
+  release_date?: string;
+  video_type?: string;
+  age_restriction?: string;
+  is_cover_version?: boolean;
+  reference_upc?: string;
+  reference_isrc?: string;
+  deliver_apple_music?: boolean;
+  deliver_vevo?: boolean;
+  confirm_rights?: boolean;
+  notes?: string;
+}) {
   const title = input.title.trim();
-  if (title.length < 2 || title.length > 300) return { ok: false as const, error: "Title must be 2–300 characters." };
+  if (title.length < 2 || title.length > 300) {
+    return { ok: false as const, error: "Title must be 2–300 characters." };
+  }
   const url = input.video_url.trim();
-  if (!parseHttpUrl(url)) return { ok: false as const, error: "Video URL must be http(s)." };
+  const parsedUrl = parseHttpUrl(url);
+  if (!parsedUrl || parsedUrl.protocol !== "https:") {
+    return { ok: false as const, error: "Video URL must be a valid HTTPS URL." };
+  }
+  const primaryArtistName = (input.primary_artist_name ?? "").trim();
+  if (primaryArtistName && primaryArtistName.length > 300) {
+    return { ok: false as const, error: "Primary artist name is too long." };
+  }
+  const referenceUpc = (input.reference_upc ?? "").trim();
+  if (referenceUpc && !/^[0-9]{12,14}$/.test(referenceUpc)) {
+    return { ok: false as const, error: "Reference UPC must be 12–14 digits." };
+  }
+  const referenceIsrc = (input.reference_isrc ?? "").trim().toUpperCase();
+  if (referenceIsrc && !/^[A-Z]{2}[A-Z0-9]{3}[0-9]{7}$/.test(referenceIsrc)) {
+    return { ok: false as const, error: "Reference ISRC is invalid." };
+  }
+  if (input.confirm_rights !== true) {
+    return { ok: false as const, error: "Confirm that you control the rights to distribute this video." };
+  }
   const notes = (input.notes ?? "").trim();
   if (notes.length > 4000) return { ok: false as const, error: "Notes are too long." };
-  return { ok: true as const, title, url, notes: notes || null };
+  return {
+    ok: true as const,
+    title,
+    url,
+    primaryArtistName: primaryArtistName || null,
+    genre: (input.genre ?? "").trim() || null,
+    language: (input.language ?? "").trim() || null,
+    releaseDate: (input.release_date ?? "").trim() || null,
+    videoType: (input.video_type ?? "").trim() || null,
+    ageRestriction: (input.age_restriction ?? "").trim() || null,
+    isCoverVersion: input.is_cover_version === true,
+    referenceUpc: referenceUpc || null,
+    referenceIsrc: referenceIsrc || null,
+    deliverAppleMusic: input.deliver_apple_music !== false,
+    deliverVevo: input.deliver_vevo !== false,
+    notes: notes || null,
+  };
 }
 
 export function validatePayeeInput(input: { name: string; email?: string; role_label?: string }) {
