@@ -38,7 +38,7 @@ export async function queueIdentityAccountEmail(input: {
     payload: {
       FIRST_NAME: firstName,
       REASON: input.reason ?? "",
-      CTA_URL: `${getSiteUrl()}/verify-identity`,
+      CTA_URL: `${getSiteUrl()}${input.templateKey === "IDENTITY_VERIFIED" ? "/distribution-agreement" : "/verify-identity"}`,
     },
     idempotencyKey: `${input.templateKey}:${input.verificationId}:${input.reason ?? ""}`,
   });
