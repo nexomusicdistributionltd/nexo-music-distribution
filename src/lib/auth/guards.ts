@@ -19,6 +19,7 @@ function authNotConfiguredRedirect() {
 
 export async function RequireAuth(options?: {
   redirectTo?: string;
+  allowUnverifiedIdentity?: boolean;
 }): Promise<AuthUserContext> {
   const { configured } = getSupabaseEnv();
   if (!configured) authNotConfiguredRedirect();
@@ -45,6 +46,30 @@ export async function RequireAuth(options?: {
     }
   }
 
+  const isStaff =
+    ctx.roles.includes("support") ||
+    ctx.roles.includes("admin") ||
+    ctx.roles.includes("super_admin");
+  const isArtistOrLabel =
+    ctx.roles.includes("artist") || ctx.roles.includes("label");
+
+  if (
+    !options?.allowUnverifiedIdentity &&
+    !isStaff &&
+    isArtistOrLabel
+  ) {
+    const supabase = await (await import("@/lib/supabase/server")).createClient();
+    const { data, error } = await supabase
+      .from("identity_verifications")
+      .select("status")
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+
+    if (error || data?.status !== "verified") {
+      redirect("/verify-identity");
+    }
+  }
+
   return ctx;
 }
 
@@ -62,7 +87,7 @@ export function assertCanSubmitRelease(ctx: AuthUserContext): void {
 }
 
 export async function RequireVerifiedEmail(
-  options?: { redirectTo?: string }
+  options?: { redirectTo?: string; allowUnverifiedIdentity?: boolean }
 ): Promise<AuthUserContext> {
   const ctx = await RequireAuth(options);
   if (!ctx.emailVerified) {
@@ -73,7 +98,7 @@ export async function RequireVerifiedEmail(
 
 export async function RequireRole(
   allowed: AppRole | AppRole[],
-  options?: { redirectTo?: string }
+  options?: { redirectTo?: string; allowUnverifiedIdentity?: boolean }
 ): Promise<AuthUserContext> {
   const ctx = await RequireVerifiedEmail(options);
   const list = Array.isArray(allowed) ? allowed : [allowed];
@@ -85,17 +110,7 @@ export async function RequireRole(
 }
 
 export async function RequireVerifiedPortal(): Promise<AuthUserContext> {
-  const ctx = await RequireRole(["artist", "label"]);
-  const supabase = await (await import("@/lib/supabase/server")).createClient();
-  const { data } = await supabase
-    .from("identity_verifications")
-    .select("status")
-    .eq("user_id", ctx.userId)
-    .maybeSingle();
-  if (data?.status !== "verified") {
-    redirect("/verify-identity");
-  }
-  return ctx;
+  return RequireRole(["artist", "label"]);
 }
 
 /** Admin portal: admin, super_admin, support. */
