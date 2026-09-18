@@ -15,6 +15,7 @@ import {
   ProviderDeliveryValidationError,
   ProviderUnavailableError,
 } from "./errors";
+import { normalizeProviderDeliveryPayload } from "@/lib/distribution/provider-delivery";
 
 type Json = Record<string, unknown>;
 
@@ -489,11 +490,13 @@ export class DistributionEngineProvider implements DistributionProvider {
   }
 
   async getDeliveryStatus(providerReleaseId: string): Promise<ProviderDeliveryStatus> {
-    const status = await this.getReleaseStatus(providerReleaseId);
+    const raw = await request(`/releases/${encodeURIComponent(providerReleaseId)}`);
+    const normalized = normalizeProviderDeliveryPayload(raw);
     return {
       providerReleaseId,
-      deliveryStatus: status.status,
-      updatedAt: status.updatedAt,
+      deliveryStatus: normalized.releaseStatus,
+      dspStatuses: normalized.dspStatuses,
+      updatedAt: new Date().toISOString(),
     };
   }
 
