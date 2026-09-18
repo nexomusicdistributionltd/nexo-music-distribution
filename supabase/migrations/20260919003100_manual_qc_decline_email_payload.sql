@@ -20,6 +20,7 @@ declare
   review public.qc_reviews;
   tmpl text;
   owner_rec record;
+  owner_first_name text := 'there';
   affected_tracks text := '';
   reason_text text := nullif(btrim(coalesce(p_artist_visible_reason, '')), '');
   is_flac boolean := false;
@@ -115,6 +116,17 @@ begin
   is_flac := position('flac' in lower(coalesce(reason_text, ''))) > 0;
 
   select * into owner_rec from public._email_release_owner(p_release_id);
+  if owner_rec.owner_id is not null then
+    select split_part(
+      coalesce(nullif(p.display_name, ''), nullif(p.full_name, ''), p.email, 'there'),
+      ' ',
+      1
+    )
+    into owner_first_name
+    from public.profiles p
+    where p.id = owner_rec.owner_id;
+  end if;
+
   if owner_rec.owner_id is not null and tmpl is not null then
     perform public.enqueue_email_event(
       'release.qc',
@@ -125,7 +137,7 @@ begin
       'qc_review',
       review.id,
       jsonb_build_object(
-        'FIRST_NAME', split_part(coalesce(owner_rec.owner_email, 'there'), '@', 1),
+        'FIRST_NAME', coalesce(owner_first_name, 'there'),
         'RELEASE_TITLE', coalesce(owner_rec.release_title, ''),
         'ARTIST_NAME', coalesce(owner_rec.artist_name, ''),
         'STATUS', new_status::text,
