@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/Alert";
 import { createClient } from "@/lib/supabase/server";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import { CreateImportBatchForm } from "@/components/finance/CreateImportBatchForm";
+import { PostRoyaltyBatchButton } from "@/components/finance/PostRoyaltyBatchButton";
 
 export const metadata: Metadata = {
   title: "Royalty imports",
@@ -52,6 +53,9 @@ export default async function RoyaltyImportsPage() {
                 {b.status} · rows {b.row_count} · matched {b.matched_count} · conflicts{" "}
                 {b.conflict_count} · posted {b.posted_count}
               </p>
+              <div className="mt-2">
+                <PostRoyaltyBatchButton batchId={b.id} disabled={b.status === "completed"} />
+              </div>
             </li>
           ))}
         </ul>
