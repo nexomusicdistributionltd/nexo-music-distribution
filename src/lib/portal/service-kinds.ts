@@ -93,7 +93,7 @@ export function isAnalyticsKey(value: string): value is AnalyticsKey {
   return (ANALYTICS_KEYS as readonly string[]).includes(value);
 }
 
-/** DSP codes we match on ingested ledger / import rows. Never invent counts. */
+/** Platform/source aliases used to classify live provider analytics rows. */
 export const ANALYTICS_DSP_MATCH: Record<AnalyticsKey, string[]> = {
   streams: ["spotify", "apple", "apple_music", "audiomack", "amazon", "deezer", "tidal", "pandora", "youtube"],
   meta: ["meta", "facebook", "instagram"],
