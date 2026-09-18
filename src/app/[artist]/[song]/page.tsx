@@ -18,8 +18,8 @@ export default async function PublicFanlinkPage({params}:{params:Promise<{artist
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[.035]"><span className="-rotate-12 text-5xl font-black tracking-widest">NEXO MUSIC</span></div>
     {data.artwork_url?<img src={data.artwork_url} alt="" className="mx-auto aspect-square w-full max-w-sm rounded-2xl object-cover" />:null}
     <h1 className="mt-5 text-2xl font-semibold">{data.title}</h1><p className="mt-1 text-white/65">{data.artist_name}</p>
-    {data.release_id?<audio controls preload="metadata" className="mt-5 w-full"><source src={`/api/fanlink/${data.id}/preview`} /></audio>:null}
-    <div className="mt-6 grid gap-3">{links.map(([key,url])=><a key={key} href={\`/api/fanlink/${data.id}/go/${key}\`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-medium transition hover:bg-white/15"><span className="flex items-center gap-3"><DspIcon name={key} className="h-6 w-6" /><span>{LABELS[key]??key.replaceAll("_"," ")}</span></span><span aria-hidden>↗</span></a>)}</div>
+    {data.preview_ready?<audio controls preload="metadata" className="mt-5 w-full"><source src={`/api/fanlink/${data.id}/preview`} /></audio>:null}
+    <div className="mt-6 grid gap-3">{links.map(([key,url])=><a key={key} href={`/api/fanlink/${data.id}/go/${key}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-medium transition hover:bg-white/15"><span className="flex items-center gap-3"><DspIcon name={key} className="h-6 w-6" /><span>{LABELS[key]??key.replaceAll("_"," ")}</span></span><span aria-hidden>↗</span></a>)}</div>
    </section>
    <div className="mt-6 flex items-center justify-center gap-4 text-xs text-white/50"><span>Powered by Nexo Music Distribution LTD</span><span>•</span><button type="button">Share</button></div>
   </div>
