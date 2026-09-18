@@ -315,6 +315,10 @@ export function ReleaseWizard({
     Array<{ value: string; label: string }>
   >([]);
   const [providerPreferencesBusy, setProviderPreferencesBusy] = React.useState(false);
+  const [submissionSuccess, setSubmissionSuccess] = React.useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const timeZones = React.useMemo(() => {
     const intlApi = Intl as typeof Intl & {
@@ -874,7 +878,10 @@ export function ReleaseWizard({
       await saveContributors(id);
       const res = await submitRelease(id);
       if (!res.ok) throw new Error(res.error);
-      router.push(`/dashboard/releases/${id}`);
+      setSubmissionSuccess({
+        id,
+        title: info.title.trim() || res.data.title || "Your release",
+      });
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Submit failed");
@@ -888,6 +895,40 @@ export function ReleaseWizard({
 
   return (
     <div className="space-y-6">
+      {submissionSuccess ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="release-submit-success-title"
+            className="w-full max-w-lg rounded-[2rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-7 text-center shadow-2xl"
+          >
+            <div className="text-5xl" aria-hidden="true">🎊🎉🎈</div>
+            <h2 id="release-submit-success-title" className="mt-4 text-2xl font-semibold">
+              Congratulations!
+            </h2>
+            <p className="mt-3 text-base text-[var(--nexo-text-secondary)]">
+              <strong>{submissionSuccess.title}</strong> has been submitted for distribution.
+            </p>
+            <p className="mt-2 text-small text-[var(--nexo-text-muted)]">
+              Nexo will now review the release and keep you updated on its distribution status.
+            </p>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button
+                onClick={() => router.push(`/dashboard/releases/${submissionSuccess.id}`)}
+              >
+                View submitted release
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push("/dashboard/releases")}
+              >
+                Back to releases
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <section className="rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5 shadow-[var(--nexo-shadow-sm)] sm:p-6">
         <div className="flex items-center justify-between gap-4"><div><p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--nexo-text-muted)]">Release builder</p><p className="mt-1 text-small text-[var(--nexo-text-secondary)]">Complete the release metadata, audio, contributors, rights and delivery settings before QC submission.</p></div><span className="shrink-0 text-caption font-semibold">{step + 1} / {STEPS.length}</span></div>
         <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[var(--nexo-elevated)]"><div className="h-full rounded-full bg-[var(--nexo-text)] transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} /></div>
@@ -1175,24 +1216,33 @@ export function ReleaseWizard({
                     }}
                   />
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Input
-                      placeholder="Version"
-                      value={t.version}
-                      onChange={(e) => {
-                        const next = [...tracks];
-                        next[idx] = { ...t, version: e.target.value };
-                        setTracks(next);
-                      }}
-                    />
-                    <Input
-                      placeholder="ISRC (optional)"
-                      value={t.isrc}
-                      onChange={(e) => {
-                        const next = [...tracks];
-                        next[idx] = { ...t, isrc: e.target.value.toUpperCase() };
-                        setTracks(next);
-                      }}
-                    />
+                    <label className="block space-y-1">
+                      <span className="text-caption text-[var(--nexo-text-muted)]">Version / subtitle</span>
+                      <Input
+                        placeholder="Optional version"
+                        value={t.version}
+                        onChange={(e) => {
+                          const next = [...tracks];
+                          next[idx] = { ...t, version: e.target.value };
+                          setTracks(next);
+                        }}
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-caption font-medium text-[var(--nexo-text)]">ISRC (optional)</span>
+                      <Input
+                        placeholder="e.g. USRC17607839"
+                        value={t.isrc}
+                        onChange={(e) => {
+                          const next = [...tracks];
+                          next[idx] = { ...t, isrc: e.target.value.toUpperCase() };
+                          setTracks(next);
+                        }}
+                      />
+                      <span className="text-caption text-[var(--nexo-text-muted)]">
+                        Leave blank if you do not already have an ISRC.
+                      </span>
+                    </label>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Input
@@ -1995,46 +2045,135 @@ export function ReleaseWizard({
           ) : null}
 
           {step === 7 ? (
-            <div className="space-y-3 text-small">
-              <p>
-                <strong>Type:</strong> {type}
-              </p>
-              <p>
-                <strong>Title:</strong> {info.title || "—"}
-              </p>
-              <p>
-                <strong>Artist:</strong> {info.primary_artist_name || "—"}
-              </p>
-              <p>
-                <strong>Tracks:</strong> {tracks.length}
-              </p>
-              <p>
-                <strong>Artwork:</strong> {artwork ? artwork.filename : "Missing"}
-              </p>
-              <p>
-                <strong>Audio files:</strong> {audioAssets.length}
-              </p>
-              <p>
-                <strong>UPC:</strong> {rights.upc || "Not provided"}
-              </p>
-              <p>
-                <strong>Platforms selected:</strong> {selectedPlatforms.length || "Nexo default"}
-              </p>
-              <p>
-                <strong>Additional deliveries:</strong>{" "}
-                {ADDITIONAL_DELIVERY_OPTIONS
-                  .filter((option) => providerMeta.additional[option.key])
-                  .map((option) => option.label)
-                  .join(", ") || "None"}
-              </p>
-              <p>
-                <strong>Release time:</strong>{" "}
-                {providerMeta.releaseTime
-                  ? `${providerMeta.releaseTime}${providerMeta.timeZone ? ` · ${providerMeta.timeZone}` : ""}`
-                  : "Not specified"}
-              </p>
+            <div className="space-y-6 text-small">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,360px)_1fr]">
+                <div>
+                  {artwork && artworkPreviewUrl ? (
+                    <img
+                      src={artworkPreviewUrl}
+                      alt={`${info.title || "Release"} artwork`}
+                      className="aspect-square w-full rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] object-cover shadow-[var(--nexo-shadow-sm)]"
+                    />
+                  ) : (
+                    <div className="flex aspect-square w-full items-center justify-center rounded-[var(--nexo-radius-xl)] border border-dashed border-[var(--nexo-border)] bg-[var(--nexo-elevated)] text-[var(--nexo-text-muted)]">
+                      Artwork missing
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-caption uppercase tracking-[0.14em] text-[var(--nexo-text-muted)]">Release review</p>
+                    <h3 className="mt-1 text-xl font-semibold">{info.title || "Untitled release"}</h3>
+                    <p className="text-small text-[var(--nexo-text-muted)]">{info.primary_artist_name || "Artist not set"}</p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3">
+                      <p className="text-caption text-[var(--nexo-text-muted)]">Release date</p>
+                      <p className="mt-1 font-medium">{info.release_date || "Not set"}</p>
+                    </div>
+                    <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3">
+                      <p className="text-caption text-[var(--nexo-text-muted)]">Release time</p>
+                      <p className="mt-1 font-medium">
+                        {providerMeta.releaseTime || "Store default"}
+                        {providerMeta.timeZone ? ` · ${providerMeta.timeZone}` : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3">
+                    <p className="text-caption text-[var(--nexo-text-muted)]">Delivery platforms</p>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {(selectedPlatforms.length
+                        ? selectedPlatforms
+                        : providerPlatforms.map((platform) => platform.value)
+                      ).map((value) => {
+                        const platform = providerPlatforms.find((item) => item.value === value);
+                        const label = platform?.label || value;
+                        return (
+                          <span
+                            key={value}
+                            title={label}
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--nexo-border)] bg-[var(--nexo-elevated)]"
+                          >
+                            <DeliveryBrandIcon name={label} className="h-6 w-6" />
+                            <span className="sr-only">{label}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {ADDITIONAL_DELIVERY_OPTIONS.some(
+                    (option) => providerMeta.additional[option.key]
+                  ) ? (
+                    <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3">
+                      <p className="text-caption text-[var(--nexo-text-muted)]">Additional deliveries</p>
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        {ADDITIONAL_DELIVERY_OPTIONS
+                          .filter((option) => providerMeta.additional[option.key])
+                          .map((option) => (
+                            <span
+                              key={option.key}
+                              title={option.label}
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--nexo-border)] bg-[var(--nexo-elevated)]"
+                            >
+                              <DeliveryBrandIcon name={option.label} className="h-6 w-6" />
+                              <span className="sr-only">{option.label}</span>
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold">Songs</h4>
+                {tracks.map((track, index) => {
+                  const preview =
+                    (track.id && audioPreviewUrls[track.id]) ||
+                    (tracks.length === 1 ? audioPreviewUrls.__single__ : undefined);
+                  return (
+                    <div
+                      key={track.id ?? index}
+                      className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">
+                            {index + 1}. {track.title || `Track ${index + 1}`}
+                          </p>
+                          <p className="text-caption text-[var(--nexo-text-muted)]">
+                            ISRC: {track.isrc || "Not provided"}
+                          </p>
+                        </div>
+                        <span className="text-caption text-[var(--nexo-text-muted)]">
+                          TikTok {track.tiktok_start_time || "0:00"}
+                        </span>
+                      </div>
+                      {preview ? (
+                        <audio className="mt-3 w-full" controls preload="metadata" src={preview} />
+                      ) : (
+                        <p className="mt-3 text-caption text-[var(--nexo-text-muted)]">
+                          Audio preview unavailable.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <p><strong>Type:</strong> {type}</p>
+                <p><strong>UPC:</strong> {rights.upc || "Not provided"}</p>
+                <p><strong>Territories:</strong> {worldwideTerritories ? "Worldwide" : selectedTerritoryCodes.join(", ") || "None"}</p>
+                <p><strong>Contributors:</strong> {contributors.filter((item) => item.name.trim()).length}</p>
+              </div>
+
               <Alert title="Submit to QC">
-                Submitting locks this release. You cannot self-approve or mark it delivered/live.
+                Submitting locks this release for review before delivery.
               </Alert>
             </div>
           ) : null}
