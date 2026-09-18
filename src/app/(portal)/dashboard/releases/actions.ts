@@ -35,6 +35,7 @@ import {
   assertAudioFile,
   assertOwnedAssetPath,
   buildAssetPath,
+  isAcceptedArtworkDimensions,
 } from "@/lib/storage/release-assets";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 import { getProviderConnectionState } from "@/lib/provider";
@@ -521,6 +522,14 @@ export async function registerUploadedAsset(input: {
     }
   } catch {
     // leave nulls — readiness will surface missing tech meta
+  }
+
+  if (input.kind === "artwork" && !isAcceptedArtworkDimensions(width, height)) {
+    await supabase.storage.from(bucket).remove([input.storagePath]);
+    return {
+      ok: false,
+      error: "Artwork must be a square JPEG, PNG, or WebP at exactly 1400×1400, 3000×3000, or 4000×4000 pixels.",
+    };
   }
 
   const { data, error } = await supabase
