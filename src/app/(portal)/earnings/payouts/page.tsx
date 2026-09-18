@@ -8,6 +8,7 @@ import { PayoutRequestForm } from "@/components/portal/PortalForms";
 import {
   PayoutMethodsManager,
   type PayoutMethodSafeRow,
+  type PayoutMethodOptionSafeRow,
 } from "@/components/finance/PayoutMethodsManager";
 
 export const metadata: Metadata = {
@@ -19,7 +20,7 @@ export default async function EarningsPayoutsPage() {
   const user = await RequireVerifiedPortal();
   const supabase = await createClient();
 
-  const [{ data: payouts }, { data: balances }, { data: payoutMethods }] =
+  const [{ data: payouts }, { data: balances }, { data: payoutMethods }, { data: payoutOptions }] =
     await Promise.all([
       supabase
         .from("payouts")
@@ -36,12 +37,20 @@ export default async function EarningsPayoutsPage() {
       supabase
         .from("payout_methods")
         .select(
-          "id,method_type,display_name,country_code,currency,beneficiary_name,details,is_preferred,status,created_at"
+          "id,option_id,method_type,display_name,country_code,currency,beneficiary_name,details,is_preferred,status,created_at"
         )
         .eq("user_id", user.userId)
         .neq("status", "disabled")
         .order("is_preferred", { ascending: false })
         .order("created_at", { ascending: false }),
+      supabase
+        .from("payout_method_options")
+        .select(
+          "id,code,display_name,method_type,destination_label,instructions,requires_institution,requires_country,requires_currency,requires_review,allowed_countries,allowed_currencies"
+        )
+        .eq("is_enabled", true)
+        .order("sort_order", { ascending: true })
+        .order("display_name", { ascending: true }),
     ]);
 
   const primary = (balances ?? [])[0];
@@ -55,6 +64,7 @@ export default async function EarningsPayoutsPage() {
         : {};
     return {
       id: row.id,
+      option_id: row.option_id,
       method_type: row.method_type,
       display_name: row.display_name,
       country_code: row.country_code,
@@ -70,6 +80,20 @@ export default async function EarningsPayoutsPage() {
   });
 
   const activeMethods = safeMethods.filter((row) => row.status === "active");
+  const safeOptions: PayoutMethodOptionSafeRow[] = (payoutOptions ?? []).map((row) => ({
+    id: row.id,
+    code: row.code,
+    display_name: row.display_name,
+    method_type: row.method_type,
+    destination_label: row.destination_label,
+    instructions: row.instructions,
+    requires_institution: row.requires_institution,
+    requires_country: row.requires_country,
+    requires_currency: row.requires_currency,
+    requires_review: row.requires_review,
+    allowed_countries: row.allowed_countries,
+    allowed_currencies: row.allowed_currencies,
+  }));
 
   return (
     <div className="space-y-4">
@@ -85,7 +109,7 @@ export default async function EarningsPayoutsPage() {
       </section>
 
       <EarningsNav />
-      <PayoutMethodsManager methods={safeMethods} />
+      <PayoutMethodsManager methods={safeMethods} options={safeOptions} />
       <PayoutRequestForm
         availableMinor={availableMinor}
         currency={currency}
