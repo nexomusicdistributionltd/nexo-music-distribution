@@ -35,9 +35,13 @@ export function validatePayeeInput(input: { name: string; email?: string; role_l
   const name = input.name.trim();
   if (name.length < 1 || name.length > 200) return { ok: false as const, error: "Name is required." };
   const email = (input.email ?? "").trim().toLowerCase();
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false as const, error: "Invalid email." };
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false as const, error: "A valid payee email is required." };
+  }
+  const allowedRoles = new Set(["artist", "label", "producer", "songwriter", "featured", "publisher", "other"]);
   const role_label = (input.role_label ?? "other").trim() || "other";
-  return { ok: true as const, name, email: email || null, role_label };
+  if (!allowedRoles.has(role_label)) return { ok: false as const, error: "Invalid payee role." };
+  return { ok: true as const, name, email, role_label };
 }
 
 export function validateMemberInput(input: { email: string; display_name?: string; role_label?: string }) {
@@ -67,6 +71,9 @@ export function validateSplitCreateInput(input: {
   if (name.length < 1 || name.length > 200) return { ok: false as const, error: "Split name is required." };
   const check = validateSplitShares(input.shares);
   if (!check.ok) return { ok: false as const, error: check.reason ?? "Invalid shares." };
+  if (input.shares.some((share) => !share.payeeId || !/^[0-9a-f-]{36}$/i.test(share.payeeId))) {
+    return { ok: false as const, error: "Every split share must use an approved payee." };
+  }
   const effectiveFrom = (input.effectiveFrom ?? "").trim() || new Date().toISOString().slice(0, 10);
   return { ok: true as const, name, shares: input.shares, effectiveFrom };
 }
