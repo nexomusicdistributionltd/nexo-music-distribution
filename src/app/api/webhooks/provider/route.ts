@@ -13,6 +13,7 @@ import {
   extractProviderStatus,
 } from "@/lib/distribution/webhook";
 import { mapProviderStatusToRelease } from "@/lib/distribution/types";
+import { normalizeProviderDeliveryPayload } from "@/lib/distribution/provider-delivery";
 import {
   RATE_LIMITS,
   checkRateLimit,
@@ -173,6 +174,37 @@ export async function POST(req: Request) {
       { ok: false, error: verification.reason, event: data },
       { status: 401 }
     );
+  }
+
+  if (releaseId) {
+    const normalized = normalizeProviderDeliveryPayload(payload, rawProviderStatus);
+    const { data: latestJob } = await supabase
+      .from("distribution_jobs")
+      .select("id,provider_release_id,provider_name")
+      .eq("release_id", releaseId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { error: snapshotError } = await supabase
+      .from("provider_delivery_snapshots")
+      .insert({
+        job_id: latestJob?.id ?? null,
+        release_id: releaseId,
+        provider_name: latestJob?.provider_name ?? providerName,
+        provider_release_id:
+          latestJob?.provider_release_id ?? releaseReference ?? null,
+        release_status: normalized.releaseStatus,
+        dsp_statuses: normalized.dspStatuses,
+        source: "webhook",
+        event_id: eventId,
+      });
+
+    // A duplicate webhook can race the idempotent event handler. Snapshot dedupe
+    // must never turn an otherwise valid provider callback into a 500.
+    if (snapshotError && snapshotError.code !== "23505") {
+      console.error("provider delivery snapshot insert failed", snapshotError.message);
+    }
   }
 
   return NextResponse.json({
