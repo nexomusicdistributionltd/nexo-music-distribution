@@ -18,6 +18,7 @@ export type AdminPermission =
   | "admin:distribution"
   | "admin:ddex"
   | "admin:compliance"
+  | "admin:verification"
   | "admin:support"
   | "admin:contact"
   | "admin:newsletter"
@@ -61,8 +62,8 @@ const ROLE_ADMIN_PERMS: Record<AppRole, AdminPermission[]> = {
   artist: [],
   label: [],
   support: [...STAFF_BASE],
-  admin: [...STAFF_BASE, "admin:users", "admin:settings"],
-  super_admin: [...STAFF_BASE, "admin:users", "admin:settings", "admin:roles"],
+  admin: [...STAFF_BASE, "admin:users", "admin:settings", "admin:verification"],
+  super_admin: [...STAFF_BASE, "admin:users", "admin:settings", "admin:roles", "admin:verification"],
 };
 
 export const ADMIN_PORTAL_ROLES: AppRole[] = ["admin", "super_admin", "support"];
