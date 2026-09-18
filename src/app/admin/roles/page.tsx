@@ -71,7 +71,9 @@ export default async function AdminRolesPage() {
       profile: profileById.get(row.user_id) ?? null,
     }))
     .sort((left, right) => {
-      const roleDiff = STAFF_ROLE_ORDER[left.role] - STAFF_ROLE_ORDER[right.role];
+      const roleDiff =
+        STAFF_ROLE_ORDER[left.role as StaffRole] -
+        STAFF_ROLE_ORDER[right.role as StaffRole];
       if (roleDiff !== 0) return roleDiff;
       return (left.profile?.email ?? "").localeCompare(right.profile?.email ?? "");
     });
@@ -145,7 +147,7 @@ export default async function AdminRolesPage() {
                       </p>
                     </div>
                     <span className="rounded-full border border-[var(--nexo-border)] px-2.5 py-1 text-caption font-medium">
-                      {ROLE_COPY[row.role].label}
+                      {ROLE_COPY[row.role as StaffRole].label}
                     </span>
                   </div>
 
@@ -161,7 +163,7 @@ export default async function AdminRolesPage() {
                   </dl>
 
                   {canManageRoles ? (
-                    <StaffRoleForm userId={row.user_id} currentRole={row.role} />
+                    <StaffRoleForm userId={row.user_id} currentRole={row.role as StaffRole} />
                   ) : (
                     <p className="mt-4 text-caption text-[var(--nexo-text-muted)]">
                       Role changes require Super Admin access.
