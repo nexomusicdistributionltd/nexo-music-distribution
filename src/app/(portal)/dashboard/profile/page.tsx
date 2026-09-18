@@ -35,6 +35,20 @@ export default async function DashboardProfilePage() {
           Account details from your existing profile schema.
         </p>
       </div>
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href="/account/agreements"
+          className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-4 text-small font-medium hover:bg-[var(--nexo-ghost-hover)]"
+        >
+          Signed agreements
+        </Link>
+        <Link
+          href="/earnings/payouts#payment-methods"
+          className="inline-flex h-10 items-center rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-4 text-small font-medium hover:bg-[var(--nexo-ghost-hover)]"
+        >
+          Payment methods
+        </Link>
+      </div>
       <ProfileForm profile={ctx.profile} roles={ctx.roles} email={ctx.email} />
       {ctx.roles.includes("label") && !artist ? (
         <Alert>
