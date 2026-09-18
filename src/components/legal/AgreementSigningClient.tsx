@@ -26,6 +26,7 @@ export function AgreementSigningClient({
   const [hasDrawing, setHasDrawing] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [signedId, setSignedId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -113,7 +114,7 @@ export function AgreementSigningClient({
         setError(result.error);
         return;
       }
-      router.replace("/dashboard");
+      setSignedId(result.data.id);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not sign the agreement.");
@@ -209,8 +210,20 @@ export function AgreementSigningClient({
         </Alert>
       ) : null}
 
-      <Button type="button" disabled={!canSubmit || busy} onClick={submit}>
-        {busy ? "Signing securely…" : "Sign agreement and continue"}
+      {signedId ? (
+        <Alert variant="success" title="Agreement signed and stored">
+          <span>Your signed agreement is available immediately. </span>
+          <a
+            href={`/api/agreements/${signedId}/download`}
+            className="font-medium underline underline-offset-4"
+          >
+            Download signed agreement
+          </a>
+        </Alert>
+      ) : null}
+
+      <Button type="button" disabled={!canSubmit || busy || Boolean(signedId)} onClick={submit}>
+        {busy ? "Signing securely…" : signedId ? "Agreement signed" : "Sign agreement"}
       </Button>
     </section>
   );
