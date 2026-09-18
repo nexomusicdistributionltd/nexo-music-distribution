@@ -38,7 +38,7 @@ function isUuid(value: string): boolean {
 }
 
 async function resolveInternalReleaseId(
-  supabase: ReturnType<typeof createClient>,
+  supabase: NonNullable<ReturnType<typeof serviceClient>>,
   releaseReference: string | null
 ): Promise<string | null> {
   if (!releaseReference) return null;
