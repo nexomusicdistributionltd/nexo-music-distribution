@@ -25,7 +25,7 @@ export async function exchangeDistributionAuthorizationCode(
     redirect_uri: cfg.redirectUri,
   });
   const basic = Buffer.from(`${cfg.clientId}:${cfg.clientSecret}`).toString("base64");
-  const response = await fetch(cfg.tokenUrl, {
+  let response = await fetch(cfg.tokenUrl, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -35,6 +35,22 @@ export async function exchangeDistributionAuthorizationCode(
     body,
     cache: "no-store",
   });
+
+  // Some OAuth servers expect confidential-client credentials in the form body.
+  // Retry only an authentication-style failure; never log either credential.
+  if (response.status === 400 || response.status === 401) {
+    body.set("client_id", cfg.clientId);
+    body.set("client_secret", cfg.clientSecret);
+    response = await fetch(cfg.tokenUrl, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+      cache: "no-store",
+    });
+  }
   if (!response.ok) {
     throw new Error(`Distribution authorization failed (HTTP ${response.status}).`);
   }
