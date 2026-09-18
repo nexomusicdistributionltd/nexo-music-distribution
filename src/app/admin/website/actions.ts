@@ -64,6 +64,13 @@ export async function setReleaseWebsiteAction(input: {
     p_embed_youtube: input.embedYoutube ?? null,
   });
   if (error) return { ok: false, error: error.message };
+  if (input.entzopediaUrl !== undefined) {
+    const { error: linkError } = await supabase
+      .from("artist_profiles")
+      .update({ entzopedia_url: normalizeExternalUrl(input.entzopediaUrl) })
+      .eq("id", input.artistProfileId);
+    if (linkError) return { ok: false, error: linkError.message };
+  }
   revalidatePath("/admin/website");
   revalidatePath("/music");
   revalidatePath("/");
@@ -85,6 +92,7 @@ export async function setArtistWebsiteAction(input: {
   avatarUrl?: string | null;
   coverUrl?: string | null;
   socialLinks?: Record<string, string> | null;
+  entzopediaUrl?: string | null;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:artists");
   const supabase = await createClient();
