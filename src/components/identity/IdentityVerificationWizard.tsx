@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Camera, CheckCircle2, FileCheck2, ShieldCheck } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +36,7 @@ export function IdentityVerificationWizard({
   email: string;
   current: IdentityVerification | null;
 }) {
+  const router = useRouter();
   const [countryCode, setCountryCode] = React.useState(current?.country_code ?? "");
   const [legalName, setLegalName] = React.useState(current?.legal_name ?? "");
   const [dateOfBirth, setDateOfBirth] = React.useState(current?.date_of_birth ?? "");
@@ -58,6 +60,39 @@ export function IdentityVerificationWizard({
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
+  const [liveStatus, setLiveStatus] = React.useState<IdentityVerification["status"] | null>(
+    current?.status ?? null
+  );
+  const [liveReason, setLiveReason] = React.useState<string | null>(current?.reason ?? null);
+
+  React.useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`identity-verification-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "identity_verifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const row = payload.new as Partial<IdentityVerification>;
+          if (row.status) setLiveStatus(row.status);
+          if ("reason" in row) setLiveReason(row.reason ?? null);
+          if (row.status === "verified") {
+            router.replace("/dashboard");
+            router.refresh();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [router, userId]);
 
   const countries = React.useMemo(() => {
     const names = new Intl.DisplayNames(["en"], { type: "region" });
@@ -67,10 +102,12 @@ export function IdentityVerificationWizard({
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
+  const status = liveStatus ?? current?.status ?? null;
+  const reason = liveReason ?? current?.reason ?? null;
   const locked =
-    current?.status === "submitted" ||
-    current?.status === "under_review" ||
-    current?.status === "verified";
+    status === "submitted" ||
+    status === "under_review" ||
+    status === "verified";
 
   async function startAttempt() {
     setBusy(true);
@@ -88,6 +125,8 @@ export function IdentityVerificationWizard({
       }
       setVerificationId(result.data.verificationId);
       setSubmissionId(result.data.submissionId);
+      setLiveStatus("draft");
+      setLiveReason(null);
       setStep("document");
     } finally {
       setBusy(false);
@@ -148,13 +187,14 @@ export function IdentityVerificationWizard({
         setError(result.error);
         return;
       }
+      setLiveStatus("submitted");
       setDone(true);
     } finally {
       setBusy(false);
     }
   }
 
-  if (current?.status === "verified") {
+  if (status === "verified") {
     return (
       <div className="mx-auto max-w-xl space-y-5 rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-black text-white">
@@ -175,7 +215,7 @@ export function IdentityVerificationWizard({
   }
 
   if (done || locked) {
-    const label = current?.status === "under_review" ? "Under review" : "Submitted";
+    const label = status === "under_review" ? "Under review" : "Submitted";
     return (
       <div className="mx-auto max-w-xl space-y-4 rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-6">
         <CheckCircle2 className="h-10 w-10" />
@@ -198,9 +238,9 @@ export function IdentityVerificationWizard({
         </p>
       </div>
 
-      {current?.status === "declined" || current?.status === "additional_info_required" ? (
-        <Alert variant="warning" title={current.status === "declined" ? "Verification declined" : "Additional information required"}>
-          {current.reason || "Please submit a new live verification attempt."}
+      {status === "declined" || status === "additional_info_required" ? (
+        <Alert variant="warning" title={status === "declined" ? "Verification declined" : "Additional information required"}>
+          {reason || "Please submit a new live verification attempt."}
         </Alert>
       ) : null}
       {error ? <Alert variant="error">{error}</Alert> : null}

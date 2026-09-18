@@ -38,6 +38,20 @@ export default async function VerificationDetailPage({
         .maybeSingle()
     : { data: null };
 
+  const [{ data: riskSignals }, { data: events }] = await Promise.all([
+    service
+      .from("identity_verification_risk_signals")
+      .select("id,signal_type,severity,metadata,created_at")
+      .eq("verification_id", verification.id)
+      .order("created_at", { ascending: false }),
+    service
+      .from("identity_verification_events")
+      .select("id,event_type,metadata,created_at,actor_user_id,submission_id")
+      .eq("verification_id", verification.id)
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
+
   const paths = submission
     ? [submission.document_front_path, submission.document_back_path, submission.selfie_path].filter(Boolean) as string[]
     : [];
@@ -71,6 +85,22 @@ export default async function VerificationDetailPage({
           {verification.reason}
         </Alert>
       ) : null}
+
+      {(riskSignals ?? []).length > 0 ? (
+        <Alert variant="error" title="Automated fraud review flags">
+          <ul className="space-y-1">
+            {(riskSignals ?? []).map((signal) => (
+              <li key={signal.id}>
+                {String(signal.signal_type).replace(/_/g, " ")} · {String(signal.severity).toUpperCase()}
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      ) : (
+        <Alert variant="success" title="Automated duplicate-evidence check">
+          No duplicate capture hash or same-image reuse signal is currently recorded for this verification.
+        </Alert>
+      )}
 
       <section className="grid gap-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4 sm:grid-cols-2 lg:grid-cols-4">
         <Fact label="Status" value={String(verification.status).replace(/_/g, " ")} />
@@ -107,6 +137,24 @@ export default async function VerificationDetailPage({
           <p className="mt-2 text-small">{verification.admin_note}</p>
         </section>
       ) : null}
+
+      <section className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4">
+        <h2 className="text-h4">Verification history</h2>
+        {(events ?? []).length === 0 ? (
+          <p className="text-small text-[var(--nexo-text-muted)]">No verification events recorded.</p>
+        ) : (
+          <ol className="space-y-3">
+            {(events ?? []).map((event) => (
+              <li key={event.id} className="border-l-2 border-[var(--nexo-border)] pl-3">
+                <p className="text-small font-medium">{String(event.event_type).replace(/_/g, " ")}</p>
+                <p className="text-caption text-[var(--nexo-text-muted)]">
+                  {new Date(event.created_at).toLocaleString()}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { RequireRole } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -148,6 +149,27 @@ export async function beginIdentityVerificationAction(input: {
   return { ok: true, data: { verificationId: resolvedVerificationId, submissionId: submission.id } };
 }
 
+async function hashStoredCapture(
+  service: ReturnType<typeof createServiceClient>,
+  path: string
+): Promise<{ sha256: string; size: number; contentType: string }> {
+  const { data, error } = await service.storage
+    .from("identity-verification")
+    .download(path);
+  if (error || !data) {
+    throw new Error("Could not read captured identity evidence.");
+  }
+  const bytes = Buffer.from(await data.arrayBuffer());
+  if (bytes.length < 1024 || bytes.length > 10 * 1024 * 1024) {
+    throw new Error("Captured identity evidence has an invalid file size.");
+  }
+  return {
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    size: bytes.length,
+    contentType: data.type || "image/jpeg",
+  };
+}
+
 export async function submitIdentityVerificationAction(input: {
   verificationId: string;
   submissionId: string;
@@ -157,9 +179,17 @@ export async function submitIdentityVerificationAction(input: {
 }): Promise<ActionResult<{ status: "submitted" }>> {
   const ctx = await RequireRole(["artist", "label"]);
   const expectedPrefix = `${ctx.userId}/${input.submissionId}/`;
-  const paths = [input.documentFrontPath, input.documentBackPath, input.selfiePath];
+  const expectedPaths = {
+    documentFrontPath: `${expectedPrefix}document-front.jpg`,
+    documentBackPath: `${expectedPrefix}document-back.jpg`,
+    selfiePath: `${expectedPrefix}selfie.jpg`,
+  };
 
-  if (paths.some((path) => !path.startsWith(expectedPrefix))) {
+  if (
+    input.documentFrontPath !== expectedPaths.documentFrontPath ||
+    input.documentBackPath !== expectedPaths.documentBackPath ||
+    input.selfiePath !== expectedPaths.selfiePath
+  ) {
     return { ok: false, error: "Identity evidence path is invalid." };
   }
 
@@ -190,6 +220,79 @@ export async function submitIdentityVerificationAction(input: {
     }
   }
 
+  let front: { sha256: string; size: number; contentType: string };
+  let back: { sha256: string; size: number; contentType: string };
+  let selfie: { sha256: string; size: number; contentType: string };
+  try {
+    [front, back, selfie] = await Promise.all([
+      hashStoredCapture(service, input.documentFrontPath),
+      hashStoredCapture(service, input.documentBackPath),
+      hashStoredCapture(service, input.selfiePath),
+    ]);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not validate captured identity evidence.",
+    };
+  }
+
+  const riskSignals: Array<{
+    signal_type: string;
+    severity: "medium" | "high";
+    metadata: Record<string, unknown>;
+  }> = [];
+
+  if (front.sha256 === back.sha256) {
+    riskSignals.push({
+      signal_type: "same_document_image_reused",
+      severity: "high",
+      metadata: { captures: ["document-front", "document-back"] },
+    });
+  }
+  if (selfie.sha256 === front.sha256 || selfie.sha256 === back.sha256) {
+    riskSignals.push({
+      signal_type: "selfie_matches_document_capture",
+      severity: "high",
+      metadata: {},
+    });
+  }
+
+  const { data: duplicateRows } = await service
+    .from("identity_verification_submissions")
+    .select("id,user_id,document_front_sha256,document_back_sha256,selfie_sha256")
+    .neq("user_id", ctx.userId)
+    .or(
+      `document_front_sha256.eq.${front.sha256},document_back_sha256.eq.${back.sha256},selfie_sha256.eq.${selfie.sha256}`
+    )
+    .limit(25);
+
+  const duplicates = duplicateRows ?? [];
+  const duplicateFront = duplicates.filter((row) => row.document_front_sha256 === front.sha256);
+  const duplicateBack = duplicates.filter((row) => row.document_back_sha256 === back.sha256);
+  const duplicateSelfie = duplicates.filter((row) => row.selfie_sha256 === selfie.sha256);
+
+  if (duplicateFront.length > 0) {
+    riskSignals.push({
+      signal_type: "document_front_seen_on_other_account",
+      severity: "high",
+      metadata: { match_count: duplicateFront.length },
+    });
+  }
+  if (duplicateBack.length > 0) {
+    riskSignals.push({
+      signal_type: "document_back_seen_on_other_account",
+      severity: "high",
+      metadata: { match_count: duplicateBack.length },
+    });
+  }
+  if (duplicateSelfie.length > 0) {
+    riskSignals.push({
+      signal_type: "selfie_seen_on_other_account",
+      severity: "high",
+      metadata: { match_count: duplicateSelfie.length },
+    });
+  }
+
   const now = new Date().toISOString();
   const { error: updateSubmissionError } = await service
     .from("identity_verification_submissions")
@@ -197,6 +300,16 @@ export async function submitIdentityVerificationAction(input: {
       document_front_path: input.documentFrontPath,
       document_back_path: input.documentBackPath,
       selfie_path: input.selfiePath,
+      document_front_sha256: front.sha256,
+      document_back_sha256: back.sha256,
+      selfie_sha256: selfie.sha256,
+      capture_metadata: {
+        source: "live_camera",
+        server_validated_at: now,
+        document_front: { size: front.size, content_type: front.contentType },
+        document_back: { size: back.size, content_type: back.contentType },
+        selfie: { size: selfie.size, content_type: selfie.contentType },
+      },
       status: "submitted",
       submitted_at: now,
       reason: null,
@@ -225,13 +338,29 @@ export async function submitIdentityVerificationAction(input: {
     return { ok: false, error: "Could not finalize identity verification." };
   }
 
+  if (riskSignals.length > 0) {
+    await service.from("identity_verification_risk_signals").upsert(
+      riskSignals.map((signal) => ({
+        verification_id: input.verificationId,
+        submission_id: input.submissionId,
+        signal_type: signal.signal_type,
+        severity: signal.severity,
+        metadata: signal.metadata,
+      })),
+      { onConflict: "submission_id,signal_type" }
+    );
+  }
+
   await service.from("identity_verification_events").insert({
     verification_id: input.verificationId,
     submission_id: input.submissionId,
     user_id: ctx.userId,
     actor_user_id: ctx.userId,
     event_type: "verification_submitted",
-    metadata: {},
+    metadata: {
+      capture_source: "live_camera",
+      risk_signal_count: riskSignals.length,
+    },
   });
 
   const { data: staffRows } = await service
@@ -245,8 +374,12 @@ export async function submitIdentityVerificationAction(input: {
       staffIds.map((userId) => ({
         user_id: userId,
         type: "verification_update",
-        title: "Identity verification submitted",
-        body: "An artist or label submitted live identity evidence for review.",
+        title: riskSignals.length > 0
+          ? "Identity verification submitted — review flags"
+          : "Identity verification submitted",
+        body: riskSignals.length > 0
+          ? "An artist or label submitted live identity evidence with automated review flags."
+          : "An artist or label submitted live identity evidence for review.",
         entity_type: "identity_verification",
         entity_id: input.verificationId,
       }))
