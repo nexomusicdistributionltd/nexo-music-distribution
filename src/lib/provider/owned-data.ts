@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import {
   distributionReference,
+  providerAnalyticsRows,
   providerRows,
   type ProviderSalesPageQuery,
 } from "@/lib/provider/distribution-reference";
@@ -53,17 +54,19 @@ function isrcFromRow(row: Row): string {
   return String(row.isrc ?? row.ISRC ?? row.track_isrc ?? "").trim().toUpperCase();
 }
 
-function annotate(rows: Row[], extra: Row): Row[] {
-  return rows.map((row) => ({ ...row, ...extra }));
+function analyticsReleaseIdFromRow(row: Row): string {
+  return String(
+    row.release_id ??
+      row.releaseId ??
+      row.provider_release_id ??
+      row.providerReleaseId ??
+      ""
+  ).trim();
 }
 
-function isFatalProviderFailure(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  return (
-    /authorization is unavailable/i.test(message) ||
-    /HTTP\s+(401|403|429)\b/i.test(message) ||
-    /quota remaining:\s*0/i.test(message)
-  );
+
+function annotate(rows: Row[], extra: Row): Row[] {
+  return rows.map((row) => ({ ...row, ...extra }));
 }
 
 async function settleRows(
@@ -91,12 +94,21 @@ async function settleRows(
     if (fatal) throw fatal;
   }
 
-  // Never turn a completely failed upstream request set into a truthful-looking empty state.
+  // A completely failed request set is an upstream error, not an empty sales report.
   if (taskFactories.length > 0 && fulfilled === 0 && failures.length > 0) {
     throw failures[0];
   }
 
   return out;
+}
+
+function isFatalProviderFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    /authorization is unavailable/i.test(message) ||
+    /HTTP\s+(401|403|429)\b/i.test(message) ||
+    /quota remaining:\s*0/i.test(message)
+  );
 }
 
 async function paginated(
@@ -166,10 +178,18 @@ function aggregateBy(
   return [...grouped.entries()].map(([key, values]) => {
     const first = values[0] ?? {};
     const total = sumTotals(values);
-    const streams = values.reduce((sum, row) => sum + (numberValue(row, ["streams", "plays"]) ?? 0), 0);
-    const units = values.reduce((sum, row) => sum + (numberValue(row, ["units", "quantity", "count"]) ?? 0), 0);
+    const streams = values.reduce(
+      (sum, row) => sum + (numberValue(row, ["streams", "plays"]) ?? 0),
+      0
+    );
+    const units = values.reduce(
+      (sum, row) => sum + (numberValue(row, ["units", "quantity", "count"]) ?? 0),
+      0
+    );
     const hasStreams = values.some((row) => numberValue(row, ["streams", "plays"]) != null);
-    const hasUnits = values.some((row) => numberValue(row, ["units", "quantity", "count"]) != null);
+    const hasUnits = values.some(
+      (row) => numberValue(row, ["units", "quantity", "count"]) != null
+    );
 
     return {
       ...first,
@@ -221,7 +241,9 @@ export async function ownedDistributionScope(userId: string) {
       providerIds.add(providerId);
       releaseByProviderId.set(providerId, release);
     }
-    if (release.primary_artist_name?.trim()) artistNames.add(release.primary_artist_name.trim());
+    if (release.primary_artist_name?.trim()) {
+      artistNames.add(release.primary_artist_name.trim());
+    }
     for (const track of release.release_tracks ?? []) {
       if (!track.isrc) continue;
       const isrc = track.isrc.trim().toUpperCase();
@@ -258,8 +280,8 @@ export type OwnedSalesKind =
 export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<Row[]> {
   const scope = await ownedDistributionScope(userId);
 
-  // The API has burst limits. Cap one interactive view to 50 release-scoped calls and
-  // process them in small batches. Sales/analytics requests themselves are no-store.
+  // Keep interactive calls bounded for TooLost burst/quota limits while using direct
+  // owned-catalog endpoints so a user's rows cannot disappear behind provider-wide pagination.
   const providerIds = [...scope.providerIds].slice(0, 50);
 
   if (kind === "overview" || kind === "monthlyOverview") {
@@ -290,9 +312,7 @@ export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<
     return aggregateBy(
       rows,
       (row) =>
-        String(
-          row.channel ?? row.platform ?? row.service ?? row.store ?? row.name ?? ""
-        ).trim(),
+        String(row.channel ?? row.platform ?? row.service ?? row.store ?? row.name ?? "").trim(),
       (channel, first) => ({
         channel,
         name: channel,
@@ -423,47 +443,100 @@ export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<
   return [];
 }
 
-export async function ownedAnalytics(userId: string): Promise<Row[]> {
+export type OwnedAnalyticsResult = {
+  rows: Row[];
+  connected: boolean;
+  hasCatalogScope: boolean;
+  providerErrors: number;
+};
+
+/**
+ * Returns live provider analytics that can be proven to belong to the signed-in
+ * Nexo account. Aggregate provider-wide rows are never exposed unless they carry
+ * an owned release id or ISRC. Track-detail calls are made only for locally-owned
+ * ISRCs and are annotated with that ISRC before normalization.
+ */
+export async function ownedAnalytics(userId: string): Promise<OwnedAnalyticsResult> {
   const scope = await ownedDistributionScope(userId);
-  if (!scope.isrcs.size && !scope.providerIds.size) return [];
+  const hasCatalogScope = scope.isrcs.size > 0 || scope.providerIds.size > 0;
 
-  const settled = await Promise.allSettled([
-    distributionReference.analyticsOverview(),
-    distributionReference.analyticsTracks(),
-    distributionReference.analyticsPlatformData(),
-  ]);
+  const aggregateRequests: Array<{
+    source: string;
+    run: () => Promise<unknown>;
+  }> = [
+    { source: "overview", run: () => distributionReference.analyticsOverview() },
+    { source: "tracks", run: () => distributionReference.analyticsTracks() },
+    { source: "track_charts", run: () => distributionReference.analyticsTrackCharts() },
+    { source: "platform_data", run: () => distributionReference.analyticsPlatformData() },
+  ];
 
-  const fatal = settled
-    .filter((result): result is PromiseRejectedResult => result.status === "rejected")
-    .map((result) => result.reason)
-    .find(isFatalProviderFailure);
-  if (fatal) throw fatal;
+  const aggregateSettled = await Promise.allSettled(
+    aggregateRequests.map((request) => request.run())
+  );
 
-  const fulfilled = settled.filter((result) => result.status === "fulfilled").length;
-  if (fulfilled === 0) {
-    const firstFailure = settled.find(
-      (result): result is PromiseRejectedResult => result.status === "rejected"
-    );
-    if (firstFailure) throw firstFailure.reason;
-  }
+  let connected = aggregateSettled.some((result) => result.status === "fulfilled");
+  let providerErrors = aggregateSettled.filter((result) => result.status === "rejected").length;
 
-  const seen = new Set<string>();
-  const rows = settled
-    .flatMap((result) => (result.status === "fulfilled" ? providerRows(result.value) : []))
-    .filter((row) => {
-      const releaseId = releaseIdFromRow(row);
+  const ownedAggregateRows = aggregateSettled.flatMap((result, index) => {
+    if (result.status !== "fulfilled") return [];
+    const source = aggregateRequests[index]?.source ?? "analytics";
+    return providerAnalyticsRows(result.value, { _analytics_source: source }).filter((row) => {
+      const releaseId = analyticsReleaseIdFromRow(row);
       const isrc = isrcFromRow(row);
       return (
         (Boolean(releaseId) && scope.providerIds.has(releaseId)) ||
         (Boolean(isrc) && scope.isrcs.has(isrc))
       );
-    })
-    .filter((row) => {
-      const key = JSON.stringify(row);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
     });
+  });
 
-  return rows;
+  const representedIsrcs = new Set(
+    ownedAggregateRows.map((row) => isrcFromRow(row)).filter(Boolean)
+  );
+
+  // Detail endpoints are the safest way to expose nested platform metrics because
+  // the request itself is scoped to an ISRC owned by this Nexo user. Limit one
+  // interactive render to 50 detail calls to stay inside provider burst/quota limits.
+  const detailIsrcs = [...scope.isrcs]
+    .filter((isrc) => !representedIsrcs.has(isrc))
+    .slice(0, 50);
+
+  const detailRows: Row[] = [];
+  for (let startIndex = 0; startIndex < detailIsrcs.length; startIndex += 5) {
+    const batch = detailIsrcs.slice(startIndex, startIndex + 5);
+    const settled = await Promise.allSettled(
+      batch.map(async (isrc) => {
+        const raw = await distributionReference.analyticsTrack(isrc);
+        return providerAnalyticsRows(raw, {
+          isrc,
+          _analytics_source: "track_detail",
+        });
+      })
+    );
+
+    for (const result of settled) {
+      if (result.status === "fulfilled") {
+        connected = true;
+        detailRows.push(...result.value);
+      } else {
+        providerErrors += 1;
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  const rows = [...detailRows, ...ownedAggregateRows].filter((row) => {
+    const key = JSON.stringify(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return {
+    rows,
+    connected,
+    hasCatalogScope,
+    providerErrors,
+  };
 }
+
