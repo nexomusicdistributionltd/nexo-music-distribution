@@ -66,9 +66,11 @@ export function assertOwnedAssetPath(
 
 export function assertAudioFile(file: { type: string; size: number; name?: string }): string | null {
   const filename = file.name?.toLowerCase() ?? "";
+  const mime = file.type.toLowerCase();
+  const extensionFallbackAllowed = !mime || mime === "application/octet-stream";
   const isFlac =
-    AUDIO_MIME_TYPES.includes(file.type as (typeof AUDIO_MIME_TYPES)[number]) ||
-    filename.endsWith(".flac");
+    AUDIO_MIME_TYPES.includes(mime as (typeof AUDIO_MIME_TYPES)[number]) ||
+    (extensionFallbackAllowed && filename.endsWith(".flac"));
   if (!isFlac) {
     return "TooLost API delivery requires a lossless FLAC master. Upload a .flac file.";
   }
@@ -79,15 +81,17 @@ export function assertAudioFile(file: { type: string; size: number; name?: strin
 
 export function assertArtworkFile(file: { type: string; size: number; name?: string }): string | null {
   const filename = file.name?.toLowerCase() ?? "";
+  const mime = file.type.toLowerCase();
   const supportedByExtension =
     filename.endsWith(".jpg") ||
     filename.endsWith(".jpeg") ||
     filename.endsWith(".png") ||
     filename.endsWith(".tif") ||
     filename.endsWith(".tiff");
+  const extensionFallbackAllowed = !mime || mime === "application/octet-stream";
   if (
-    !ARTWORK_MIME_TYPES.includes(file.type as (typeof ARTWORK_MIME_TYPES)[number]) &&
-    !supportedByExtension
+    !ARTWORK_MIME_TYPES.includes(mime as (typeof ARTWORK_MIME_TYPES)[number]) &&
+    !(extensionFallbackAllowed && supportedByExtension)
   ) {
     return "Artwork must be JPG, PNG, or TIFF.";
   }
