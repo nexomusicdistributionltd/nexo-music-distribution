@@ -10,10 +10,10 @@ describe("TooLost sales portal contract", () => {
   it("uses no-store realtime reads for sales and analytics resources", () => {
     const source = read("src/lib/provider/distribution-reference.ts");
     expect(source).toContain('cache: "no-store"');
-    expect(source).toContain('realtimeApi(withQuery("/sales/overview"');
-    expect(source).toContain('realtimeApi(withQuery("/sales/stream-rates"');
-    expect(source).toContain('analyticsOverview: () => realtimeApi("/analytics/overview")');
-    expect(source).toContain('analyticsPlatformData: () => realtimeApi("/analytics/platforms/data")');
+    expect(source).toContain('apiLive(withQuery("/sales/overview"');
+    expect(source).toContain('apiLive(withQuery("/sales/stream-rates"');
+    expect(source).toContain('analyticsOverview: () => apiLive("/analytics/overview")');
+    expect(source).toContain('analyticsPlatformData: () => apiLive("/analytics/platforms/data")');
   });
 
   it("scopes release, track and artist sales with direct owned-catalog lookups", () => {
