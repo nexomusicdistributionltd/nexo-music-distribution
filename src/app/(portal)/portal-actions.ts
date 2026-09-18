@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { RequireRole, assertCanMutateCatalog } from "@/lib/auth/guards";
+import { RequireVerifiedPortal, assertCanMutateCatalog } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { publicErrorMessage } from "@/lib/http/safe-error";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
@@ -22,7 +22,7 @@ export type PortalActionResult<T = unknown> =
   | { ok: false; error: string };
 
 async function requirePortal() {
-  return RequireRole(["artist", "label"]);
+  return RequireVerifiedPortal();
 }
 
 function revalidatePortal() {
