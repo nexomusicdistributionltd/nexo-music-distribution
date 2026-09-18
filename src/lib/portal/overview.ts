@@ -18,6 +18,8 @@ export type StreamOverviewRow = {
   label: string;
   status: StreamOverviewStatus;
   statementRows: number;
+  streams: number | null;
+  trendPercent: number | null;
 };
 
 function codeMatches(dspCode: string, needles: readonly string[]): boolean {
@@ -37,7 +39,9 @@ export function countByMatchedDsp(dspCodes: string[]): Record<string, number> {
 
 export function streamOverviewRows(
   liveDspCodes: string[],
-  idleStatus: StreamOverviewStatus = "EMPTY"
+  idleStatus: StreamOverviewStatus = "EMPTY",
+  streamTotals: Record<string, number> = {},
+  trendPercentByDsp: Record<string, number> = {}
 ): StreamOverviewRow[] {
   const counts = countByMatchedDsp(liveDspCodes);
   const used = new Set<string>();
@@ -49,11 +53,25 @@ export function streamOverviewRows(
         used.add(code);
       }
     }
+    let streams = 0;
+    let hasStreams = false;
+    let trendPercent: number | null = null;
+    for (const [code, value] of Object.entries(streamTotals)) {
+      if (codeMatches(code, dsp.match) && Number.isFinite(value)) {
+        streams += value;
+        hasStreams = true;
+      }
+    }
+    for (const [code, value] of Object.entries(trendPercentByDsp)) {
+      if (codeMatches(code, dsp.match) && Number.isFinite(value)) trendPercent = value;
+    }
     return {
       id: dsp.id,
       label: dsp.label,
-      status: statementRows > 0 ? "LIVE" : idleStatus,
+      status: statementRows > 0 || hasStreams ? "LIVE" : idleStatus,
       statementRows,
+      streams: hasStreams ? streams : null,
+      trendPercent,
     };
   });
 
@@ -64,6 +82,8 @@ export function streamOverviewRows(
       label: code,
       status: "LIVE",
       statementRows: n,
+      streams: Number.isFinite(streamTotals[code]) ? streamTotals[code] : null,
+      trendPercent: Number.isFinite(trendPercentByDsp[code]) ? trendPercentByDsp[code] : null,
     });
   }
   return rows;
