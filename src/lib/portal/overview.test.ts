@@ -30,10 +30,10 @@ describe("portal overview streams", () => {
     expect(rows.some((r) => r.id === "unknown_dsp" && r.status === "LIVE")).toBe(true);
   });
 
-  it("uses NOT CONNECTED copy when nothing is ingested", () => {
+  it("uses AVAILABLE copy when nothing is ingested", () => {
     const empty = streamOverviewHeadline({ connected: false, rowCount: 0 });
-    expect(empty.status).toBe("NOT CONNECTED");
-    expect(empty.chartNote).toMatch(/NOT CONNECTED/);
+    expect(empty.status).toBe("AVAILABLE");
+    expect(empty.chartNote).toMatch(/available in Nexo/i);
     expect(empty.chartNote).not.toMatch(/\b\d{2,}\b/);
     const live = streamOverviewHeadline({ connected: true, rowCount: 3 });
     expect(live.status).toBe("LIVE");
@@ -83,7 +83,7 @@ describe("portal overview enrollments and routes", () => {
   it("counts unenrolled services from real rows only", () => {
     expect(unenrolledServiceCount(ENROLLABLE_SERVICES.length, [])).toBe(ENROLLABLE_SERVICES.length);
     expect(unenrolledServiceCount(6, ["ad_box", "sync"])).toBe(4);
-    expect(streamOverviewRows([], "NOT CONNECTED").every((r) => r.status === "NOT CONNECTED")).toBe(true);
+    expect(streamOverviewRows([], "AVAILABLE").every((r) => r.status === "AVAILABLE")).toBe(true);
   });
 
   it("wires home CTAs to existing IA routes", () => {
