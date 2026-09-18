@@ -15,6 +15,11 @@ import type { AppRole } from "@/lib/auth/types";
 import { isAllowedAdminSettingKey } from "@/lib/admin/settings";
 import { evaluateRoleAssignment, normalizeRoleList } from "@/lib/admin/roles";
 import { createServiceClient } from "@/lib/supabase/admin";
+import {
+  queueApprovedRelease,
+  submitQueuedRelease,
+  syncReleaseStatus,
+} from "@/lib/distribution/actions";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -58,13 +63,23 @@ export async function setQcPriority(
   return { ok: true, data: true };
 }
 
+export type QcDecisionActionData = {
+  qc: unknown;
+  distribution?: {
+    queued: unknown;
+    submitted?: unknown;
+    synced?: unknown;
+  };
+  distributionWarning?: string;
+};
+
 export async function performQcDecisionAction(input: {
   releaseId: string;
   decision: QcDecision;
   checklist: QcChecklist;
   artistVisibleReason?: string;
   internalNote?: string;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<QcDecisionActionData>> {
   await RequireAdminPermission("admin:qc");
   const check = validateQcDecision({
     decision: input.decision,
@@ -87,20 +102,90 @@ export async function performQcDecisionAction(input: {
     p_internal_note: input.internalNote ?? null,
   });
   if (error) return { ok: false, error: error.message };
-  // QC notifications are time-sensitive: drain the queued catalog email before returning
-  // so approval / changes / rejection mail is attempted immediately, not left to a later request.
+
+  let distribution: QcDecisionActionData["distribution"];
+  let distributionWarning: string | undefined;
+
+  // Approval is the hand-off boundary: once Nexo QC approves a release, immediately
+  // create/reuse its distribution job and submit it to the authenticated TooLost API.
+  // TooLost selects all stores/services by default when no manual platform exclusions
+  // are present, while explicit platform selections in release settings remain honored.
+  if (input.decision === "approve") {
+    const queued = await queueApprovedRelease(
+      input.releaseId,
+      "Automatically queued after Nexo QC approval"
+    );
+
+    if (!queued.ok) {
+      distributionWarning =
+        `Release approved, but automatic distribution queueing needs attention: ${queued.error}`;
+    } else {
+      distribution = { queued: queued.data };
+      const jobId =
+        queued.data &&
+        typeof queued.data === "object" &&
+        "id" in queued.data &&
+        typeof (queued.data as { id?: unknown }).id === "string"
+          ? (queued.data as { id: string }).id
+          : null;
+
+      if (!jobId) {
+        distributionWarning =
+          "Release approved and queued, but Nexo could not resolve the distribution job ID for automatic submission.";
+      } else {
+        const submitted = await submitQueuedRelease(
+          jobId,
+          `qc-approval:${input.releaseId}`
+        );
+
+        if (!submitted.ok) {
+          distributionWarning =
+            `Release approved and queued, but TooLost submission needs attention: ${submitted.error}`;
+        } else {
+          distribution.submitted = submitted.data;
+
+          // The submit call is authoritative. This immediate sync only shortens the
+          // time to first provider status; webhooks/background sync remain authoritative
+          // for subsequent Pending/Delivered/Live transitions.
+          const synced = await syncReleaseStatus(jobId);
+          if (synced.ok) {
+            distribution.synced = synced.data;
+          } else {
+            distributionWarning =
+              `TooLost accepted the release, but the immediate status sync did not complete: ${synced.error}`;
+          }
+        }
+      }
+    }
+  }
+
+  // QC/distribution notifications are time-sensitive: drain after the delivery hand-off
+  // so approval, queue and submission emails can all be attempted in the same request.
   try {
     const { drainQueuedOutbox } = await import("@/lib/email/hooks");
-    await drainQueuedOutbox(10);
+    await drainQueuedOutbox(20);
   } catch {
-    // QC state remains authoritative even if SMTP is temporarily unavailable.
+    // QC/distribution state remains authoritative even if SMTP is temporarily unavailable.
   }
+
   revalidateAdmin([
     "/admin/qc",
     "/admin/releases",
     `/admin/releases/${input.releaseId}`,
+    "/admin/distribution",
+    "/admin/distribution/queue",
+    "/admin/distribution/submissions",
+    "/admin/distribution/delivery",
   ]);
-  return { ok: true, data };
+
+  return {
+    ok: true,
+    data: {
+      qc: data,
+      ...(distribution ? { distribution } : {}),
+      ...(distributionWarning ? { distributionWarning } : {}),
+    },
+  };
 }
 
 export async function bulkClaimQc(itemIds: string[]): Promise<ActionResult<{ claimed: number; failed: string[] }>> {
