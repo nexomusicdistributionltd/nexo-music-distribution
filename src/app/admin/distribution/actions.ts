@@ -1,5 +1,6 @@
 "use server";
 
+import { createHmac, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
@@ -12,6 +13,13 @@ import {
   retryFailedJob,
 } from "@/lib/distribution/actions";
 import { defaultUnavailableCatalog, discoverExternalCatalog } from "@/lib/migration/external-catalog";
+import {
+  ensureProviderWebhookSigningSecret,
+  loadProviderWebhookSigningSecret,
+  rotateProviderWebhookSigningSecret,
+  setProviderWebhookSigningSecret,
+} from "@/lib/provider/webhook-secret";
+import { getSiteUrl } from "@/lib/site-url";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -147,4 +155,122 @@ export async function offerOldTakedownAction(migrationId: string): Promise<Actio
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/distribution/migration");
   return { ok: true, data };
+}
+
+
+export async function saveProviderWebhookSecretAction(
+  secret: string
+): Promise<ActionResult<{ configured: true }>> {
+  await RequireAdminPermission("admin:distribution");
+  try {
+    await setProviderWebhookSigningSecret(secret);
+    revalidateDist();
+    return { ok: true, data: { configured: true } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not save webhook signing secret.",
+    };
+  }
+}
+
+export async function rotateProviderWebhookSecretAction(): Promise<
+  ActionResult<{ secret: string }>
+> {
+  await RequireAdminPermission("admin:distribution");
+  try {
+    const secret = await rotateProviderWebhookSigningSecret();
+    revalidateDist();
+    return { ok: true, data: { secret } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not rotate webhook signing secret.",
+    };
+  }
+}
+
+export async function ensureProviderWebhookSecretAction(): Promise<
+  ActionResult<{ configured: boolean; created: boolean; secret: string | null; source: string }>
+> {
+  await RequireAdminPermission("admin:distribution");
+  try {
+    const state = await ensureProviderWebhookSigningSecret();
+    revalidateDist();
+    return {
+      ok: true,
+      data: {
+        configured: state.configured,
+        created: state.created,
+        secret: state.revealSecret,
+        source: state.source,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not initialize webhook signing.",
+    };
+  }
+}
+
+export async function testProviderWebhookAction(): Promise<
+  ActionResult<{ eventId: string; matchedRelease: boolean; mappedStatus: string | null }>
+> {
+  await RequireAdminPermission("admin:distribution");
+
+  try {
+    const state = await ensureProviderWebhookSigningSecret();
+    const secret = state.revealSecret ?? (await loadProviderWebhookSigningSecret());
+    if (!secret) {
+      return { ok: false, error: "Webhook signing secret is unavailable." };
+    }
+
+    const eventId = `nexo_test_${randomUUID()}`;
+    const rawBody = JSON.stringify({
+      event_id: eventId,
+      event_type: "nexo.webhook.test",
+      status: "test",
+      source: "nexo_admin",
+    });
+    const signature = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+    const response = await fetch(`${getSiteUrl()}/api/webhooks/provider`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-provider-signature": `sha256=${signature}`,
+        "user-agent": "Nexo-Webhook-Self-Test/1.0",
+      },
+      body: rawBody,
+      cache: "no-store",
+    });
+
+    const body = (await response.json().catch(() => null)) as
+      | { ok?: boolean; matchedRelease?: boolean; mappedStatus?: string | null; error?: string }
+      | null;
+
+    if (!response.ok || !body?.ok) {
+      return {
+        ok: false,
+        error: body?.error || `Webhook self-test failed (HTTP ${response.status}).`,
+      };
+    }
+
+    revalidatePath("/admin/distribution/webhooks");
+    revalidatePath("/admin/distribution");
+
+    return {
+      ok: true,
+      data: {
+        eventId,
+        matchedRelease: Boolean(body.matchedRelease),
+        mappedStatus: body.mappedStatus ?? null,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Webhook self-test failed.",
+    };
+  }
 }
