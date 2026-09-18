@@ -1,69 +1,10 @@
 import type { AppRole } from "@/lib/auth/types";
 
-/**
- * Server-enforced permissions for the Nexo admin portal.
- *
- * Keep these permissions independent from the database role enum. The database
- * intentionally stays on support/admin/super_admin while this layer controls
- * what each staff class can actually see and do.
- */
-export type AdminPermission =
-  | "admin:access"
-  | "admin:dashboard"
-  | "admin:operations"
-  | "admin:releases"
-  | "admin:qc"
-  | "admin:artists"
-  | "admin:labels"
-  | "admin:users"
-  | "admin:staff_invite"
-  | "admin:finance"
-  | "admin:billing_tools"
-  | "admin:royalties"
-  | "admin:splitshare"
-  | "admin:payouts"
-  | "admin:publishing"
-  | "admin:statements"
-  | "admin:analytics"
-  | "admin:distribution"
-  | "admin:ddex"
-  | "admin:compliance"
-  | "admin:support"
-  | "admin:contact"
-  | "admin:newsletter"
-  | "admin:emails"
-  | "admin:notifications"
-  | "admin:website"
-  | "admin:audit"
-  | "admin:reports"
-  | "admin:settings"
-  | "admin:search"
-  | "admin:roles" // super_admin only
-  | "admin:payouts:mark_paid"; // blocked without real payment op
-
-/**
- * Support is deliberately least-privilege. It can work tickets and the catalog
- * review queue, but it cannot read finance/royalties, operate TooLost delivery,
- * change settings, manage staff, or access privileged operations.
- */
-const SUPPORT_PERMS: AdminPermission[] = [
-  "admin:access",
-  "admin:dashboard",
-  "admin:releases",
-  "admin:qc",
-  "admin:artists",
-  "admin:labels",
-  "admin:support",
-  "admin:contact",
-  "admin:notifications",
-  "admin:search",
-];
-
-/** Full day-to-day administration, excluding super-admin role mutation. */
-const ADMIN_PERMS: AdminPermission[] = [
+export const ADMIN_PERMISSION_VALUES = [
   "admin:access",
   "admin:dashboard",
   "admin:operations",
+  "admin:directory",
   "admin:releases",
   "admin:qc",
   "admin:artists",
@@ -80,6 +21,7 @@ const ADMIN_PERMS: AdminPermission[] = [
   "admin:analytics",
   "admin:distribution",
   "admin:ddex",
+  "admin:marketing",
   "admin:compliance",
   "admin:support",
   "admin:contact",
@@ -91,13 +33,39 @@ const ADMIN_PERMS: AdminPermission[] = [
   "admin:reports",
   "admin:settings",
   "admin:search",
+  "admin:roles",
+  "admin:payouts:mark_paid",
+] as const;
+
+export type AdminPermission = (typeof ADMIN_PERMISSION_VALUES)[number];
+
+const ADMIN_PERMISSION_SET = new Set<string>(ADMIN_PERMISSION_VALUES);
+
+export function isAdminPermission(value: unknown): value is AdminPermission {
+  return typeof value === "string" && ADMIN_PERMISSION_SET.has(value);
+}
+
+/**
+ * The base support role is only a staff-portal identity gate.
+ * Functional permissions come from staff_role_assignments in Supabase.
+ */
+const SUPPORT_BASE_PERMS: AdminPermission[] = [
+  "admin:access",
+  "admin:dashboard",
 ];
+
+/** Full day-to-day administration, excluding Super Admin role mutation. */
+const ADMIN_PERMS: AdminPermission[] = ADMIN_PERMISSION_VALUES.filter(
+  (permission) =>
+    permission !== "admin:roles" &&
+    permission !== "admin:payouts:mark_paid"
+);
 
 const ROLE_ADMIN_PERMS: Record<AppRole, AdminPermission[]> = {
   public_user: [],
   artist: [],
   label: [],
-  support: SUPPORT_PERMS,
+  support: SUPPORT_BASE_PERMS,
   admin: ADMIN_PERMS,
   super_admin: [...ADMIN_PERMS, "admin:roles"],
 };
@@ -116,23 +84,31 @@ export function adminPermissionsForRoles(roles: AppRole[]): Set<AdminPermission>
   return set;
 }
 
+/**
+ * Static role check. Use getEffectiveAdminPermissions/RequireAdminPermission
+ * for support users because their functional permissions live in Supabase.
+ */
 export function hasAdminPermission(roles: AppRole[], permission: AdminPermission): boolean {
   return adminPermissionsForRoles(roles).has(permission);
 }
 
+export function permissionSetHas(
+  permissions: ReadonlySet<AdminPermission>,
+  permission: AdminPermission
+): boolean {
+  return permissions.has(permission);
+}
+
 /**
- * Canonical route -> permission map. Middleware and navigation both use this,
- * so hiding a menu item never becomes the only authorization control.
- *
- * Order matters for nested prefixes. Unknown /admin/* routes fail to
- * admin:operations, which is admin/super_admin only.
+ * Canonical route -> permission map. Middleware and navigation both consume it,
+ * preventing menu hiding from becoming the only authorization layer.
  */
 const ADMIN_PATH_PERMISSIONS: Array<{
   prefix: string;
   permission: AdminPermission;
 }> = [
   { prefix: "/admin/tools/billing", permission: "admin:billing_tools" },
-  { prefix: "/admin/finance/billing", permission: "admin:finance" },
+  { prefix: "/admin/finance/billing", permission: "admin:billing_tools" },
   { prefix: "/admin/releases", permission: "admin:releases" },
   { prefix: "/admin/qc", permission: "admin:qc" },
   { prefix: "/admin/artists", permission: "admin:artists" },
@@ -143,7 +119,8 @@ const ADMIN_PATH_PERMISSIONS: Array<{
   { prefix: "/admin/agreements", permission: "admin:compliance" },
   { prefix: "/admin/distribution", permission: "admin:distribution" },
   { prefix: "/admin/ddex", permission: "admin:ddex" },
-  { prefix: "/admin/playlist-pitches", permission: "admin:distribution" },
+  { prefix: "/admin/playlist-pitches", permission: "admin:marketing" },
+  { prefix: "/admin/marketing", permission: "admin:marketing" },
   { prefix: "/admin/portal-requests", permission: "admin:support" },
   { prefix: "/admin/publishing", permission: "admin:publishing" },
   { prefix: "/admin/finance", permission: "admin:finance" },
@@ -187,17 +164,12 @@ export function canMarkPayoutPaid(roles: AppRole[]): boolean {
   return false;
 }
 
-/** Strict administrator roles for /nexo-admin (excludes support). */
 export const ADMINISTRATOR_ROLES: AppRole[] = ["admin", "super_admin"];
 
 export function isAdministratorRole(roles: AppRole[]): boolean {
   return roles.some((r) => ADMINISTRATOR_ROLES.includes(r));
 }
 
-/**
- * Post-password gate for administrator login.
- * Does not name denied roles in the user-facing message.
- */
 export function evaluateAdministratorLogin(roles: AppRole[]): {
   ok: boolean;
   message?: string;
