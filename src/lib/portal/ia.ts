@@ -286,7 +286,7 @@ function analyticsGroups(): PortalNavItem[][] {
         pageKind: "analytics",
         analyticsKey: "meta",
         requiresAdvancedAnalytics: true,
-        description: "Meta usage from ingested statements, otherwise not connected.",
+        description: "Meta usage from verified provider or ledger rows when available.",
       }),
       item({
         href: "/analytics/youtube-ugc",
@@ -318,7 +318,7 @@ function analyticsGroups(): PortalNavItem[][] {
         pageKind: "analytics",
         analyticsKey: "spotify_discovery",
         requiresAdvancedAnalytics: true,
-        description: "Discovery Mode is not connected unless a real enrollment exists.",
+        description: "Discovery Mode activity appears when a verified enrollment or provider row exists.",
       }),
       item({
         href: "/analytics/spotify-engagement",
@@ -573,7 +573,7 @@ export function accountOverlayItems(
       href: "/account/payment-tax",
       label: "Payment & Tax Details",
       pageKind: "payment-tax",
-      description: "Tax profile plus billing. Payment rails stay NOT CONNECTED until a live adapter exists.",
+      description: "Tax profile, billing, and links to your configured payout destinations.",
     }),
     item({
       href: "/account/members",
