@@ -1,26 +1,27 @@
 import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getProviderWebhookSecret } from "@/lib/provider/config";
+import { getProviderWebhookRuntimeSettings } from "@/lib/provider/webhook-settings";
 import { ProviderWebhookRejectedError } from "@/lib/provider/errors";
 
 /**
  * Verify provider webhook signature.
- * Fails closed when PROVIDER_WEBHOOK_SECRET is missing.
+ * Fails closed when no provider-issued signing secret is configured.
  */
-export function verifyProviderWebhookSignature(options: {
+export async function verifyProviderWebhookSignature(options: {
   rawBody: string;
   signatureHeader: string | null;
-}): { ok: true } | { ok: false; reason: string } {
-  const secret = getProviderWebhookSecret();
-  if (!secret) {
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const settings = await getProviderWebhookRuntimeSettings();
+  const secret = settings.secret;
+  if (!settings.enabled || !secret) {
     return {
       ok: false,
-      reason: "PROVIDER_WEBHOOK_SECRET is not configured — webhook rejected (fail closed).",
+      reason: "Provider webhook signing is not configured.",
     };
   }
   if (!options.signatureHeader || !options.signatureHeader.trim()) {
-    return { ok: false, reason: "Missing signature header." };
+    return { ok: false, reason: "Missing webhook signature." };
   }
 
   const provided = options.signatureHeader.trim().replace(/^sha256=/i, "");
@@ -30,23 +31,21 @@ export function verifyProviderWebhookSignature(options: {
     const a = Buffer.from(provided, "hex");
     const b = Buffer.from(expected, "hex");
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      return { ok: false, reason: "Signature mismatch." };
+      return { ok: false, reason: "Webhook signature mismatch." };
     }
   } catch {
-    return { ok: false, reason: "Invalid signature encoding." };
+    return { ok: false, reason: "Invalid webhook signature encoding." };
   }
 
   return { ok: true };
 }
 
-export function assertWebhookVerified(options: {
+export async function assertWebhookVerified(options: {
   rawBody: string;
   signatureHeader: string | null;
-}): void {
-  const result = verifyProviderWebhookSignature(options);
-  if (!result.ok) {
-    throw new ProviderWebhookRejectedError(result.reason);
-  }
+}): Promise<void> {
+  const result = await verifyProviderWebhookSignature(options);
+  if (!result.ok) throw new ProviderWebhookRejectedError(result.reason);
 }
 
 export function extractWebhookEventId(payload: Record<string, unknown>): string | null {
@@ -57,13 +56,13 @@ export function extractWebhookEventId(payload: Record<string, unknown>): string 
     payload.uuid,
     (payload.data as Record<string, unknown> | undefined)?.id,
   ];
-  for (const c of candidates) {
-    if (typeof c === "string" && c.trim()) return c.trim();
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim()) return value.trim();
   }
   return null;
 }
 
 export function extractWebhookEventType(payload: Record<string, unknown>): string {
-  const t = payload.type ?? payload.event_type ?? payload.eventType ?? "unknown";
-  return typeof t === "string" && t.trim() ? t.trim() : "unknown";
+  const value = payload.type ?? payload.event_type ?? payload.eventType ?? "unknown";
+  return typeof value === "string" && value.trim() ? value.trim() : "unknown";
 }
