@@ -5,7 +5,7 @@ import { getServiceRoleKey } from "@/lib/supabase/admin";
 import { getConfiguredProviderName } from "@/lib/provider/config";
 import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
 import {
-  verifyProviderWebhookSignature,
+  verifyProviderWebhookSignatureAsync,
   extractWebhookEventId,
   extractWebhookEventType,
   extractProviderReleaseReference,
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     req.headers.get("x-signature") ||
     req.headers.get("x-hub-signature-256");
 
-  const verification = verifyProviderWebhookSignature({
+  const verification = await verifyProviderWebhookSignatureAsync({
     rawBody,
     signatureHeader: signature,
   });
