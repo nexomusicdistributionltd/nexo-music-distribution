@@ -289,6 +289,116 @@ function analyticsGroups(): PortalNavItem[][] {
   ];
 }
 
+function salesGroups(): PortalNavItem[][] {
+  return [
+    [
+      item({
+        href: "/sales",
+        label: "Overview",
+        pageKind: "existing",
+        description: "Live provider sales overview scoped to this account's catalog.",
+      }),
+      item({
+        href: "/sales/releases",
+        label: "Releases",
+        pageKind: "existing",
+        description: "Sales reporting matched to your Nexo releases.",
+      }),
+      item({
+        href: "/sales/tracks",
+        label: "Tracks",
+        pageKind: "existing",
+        description: "Sales reporting matched to your catalog ISRCs.",
+      }),
+      item({
+        href: "/sales/stores-services",
+        label: "Stores/Services",
+        pageKind: "existing",
+        description: "Store and service performance returned for your releases.",
+      }),
+      item({
+        href: "/sales/artists",
+        label: "Artists",
+        pageKind: "existing",
+        description: "Provider sales rows matched to your artists.",
+      }),
+      item({
+        href: "/sales/territories",
+        label: "Territories",
+        pageKind: "existing",
+        description: "Territory reporting returned for your releases.",
+      }),
+      item({
+        href: "/sales/monthly-overviews",
+        label: "Monthly Overviews",
+        pageKind: "existing",
+        description: "Monthly totals built only from provider rows for your releases.",
+      }),
+      item({
+        href: "/sales/stream-rate",
+        label: "Stream Rate",
+        pageKind: "existing",
+        description: "Provider stream-rate reference data without estimated royalties.",
+      }),
+    ],
+  ];
+}
+
+function reportsGroups(): PortalNavItem[][] {
+  return [
+    [
+      item({
+        href: "/reports",
+        label: "Overview",
+        pageKind: "existing",
+        description: "Account reporting hub backed by live provider and Nexo records.",
+      }),
+      item({
+        href: "/reports/sales",
+        label: "Sales",
+        pageKind: "existing",
+        description: "Open live sales reporting.",
+      }),
+      item({
+        href: "/reports/catalog",
+        label: "Catalog",
+        pageKind: "existing",
+        description: "Open your authoritative Nexo catalog.",
+      }),
+      item({
+        href: "/reports/payouts",
+        label: "Payouts",
+        pageKind: "existing",
+        description: "Payout requests and completed payments.",
+      }),
+      item({
+        href: "/reports/release-links",
+        label: "Release Links",
+        pageKind: "existing",
+        description: "Public Nexo release links and fanlinks.",
+      }),
+      item({
+        href: "/reports/additional",
+        label: "Additional Reports",
+        pageKind: "existing",
+        description: "Additional reporting sources available to this account.",
+      }),
+      item({
+        href: "/reports/stream-data",
+        label: "Stream Data",
+        pageKind: "existing",
+        description: "Verified stream analytics only.",
+      }),
+      item({
+        href: "/reports/raw-data",
+        label: "Raw Data",
+        pageKind: "existing",
+        description: "Read-only provider rows scoped to your catalog.",
+      }),
+    ],
+  ];
+}
+
 function royaltiesGroups(): PortalNavItem[][] {
   return [
     [
@@ -559,7 +669,9 @@ export function portalSectionsForKind(
   const defs: { id: string; label: string; groups: PortalNavItem[][] }[] = [
     { id: "catalog", label: "Catalog", groups: catalogGroups(kind) },
     { id: "marketing", label: "Marketing", groups: marketingGroups() },
+    { id: "sales", label: "Sales", groups: salesGroups() },
     { id: "analytics", label: "Analytics", groups: analyticsGroups() },
+    { id: "reports", label: "Reports", groups: reportsGroups() },
     { id: "royalties", label: "Royalties", groups: royaltiesGroups() },
     { id: "splitshare", label: "SplitShare", groups: splitShareGroups() },
     { id: "rights", label: "Rights", groups: rightsGroups() },
