@@ -863,6 +863,9 @@ export function ReleaseWizard({
     setError(null);
     setBusy(true);
     try {
+      if (providerMeta.applePreorder && !providerMeta.applePreorderDate) {
+        throw new Error("Choose an Apple Music pre-order date or turn off Apple Music pre-order before submitting.");
+      }
       const usesExclusiveRightsDelivery =
         providerMeta.additional.youtube ||
         providerMeta.additional.facebook ||
