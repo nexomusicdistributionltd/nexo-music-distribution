@@ -355,12 +355,11 @@ export function EnrollmentButton({ serviceKey, enrolled }: { serviceKey: string;
 export function PayoutRequestForm({
   availableMinor,
   currency,
-  paymentMessage,
   payoutMethods,
 }: {
   availableMinor: number;
   currency: string;
-  paymentMessage: string;
+
   payoutMethods: Array<{
     id: string;
     label: string;
@@ -395,7 +394,7 @@ export function PayoutRequestForm({
       }}
     >
       <h2 className="text-h4">Request payment</h2>
-      <Alert>{paymentMessage}</Alert>
+
       {s.error ? <Alert variant="error">{s.error}</Alert> : null}
       {s.ok ? <Alert variant="success">Payout request submitted.</Alert> : null}
       <p className="text-caption text-[var(--nexo-text-muted)]">
