@@ -140,6 +140,7 @@ function leftoverBatch6Enqueue(templateKey: string): null {
 describe("SQL: canonical enqueue path (latest migrations)", () => {
   const catalogHooks = readMigration("20260915700006_release_catalog_email_hooks.sql");
   const noop = readMigration("20260915700007_enqueue_distribution_email_noop.sql");
+  const recipientIntegrity = readMigration("20260918235950_transactional_email_recipient_integrity.sql");
   const enqueueSql = latestFunctionSql("enqueue_email_event");
   const transitionSql = latestFunctionSql("transition_release_status");
   const catalogSql = latestFunctionSql("enqueue_release_catalog_email");
@@ -181,6 +182,42 @@ describe("SQL: canonical enqueue path (latest migrations)", () => {
     expect(catalogSql).toContain("'webhook'");
     expect(catalogSql).toContain("'sync_release_status'");
     expect(catalogSql).toContain("'apply_provider_sync_status'");
+  });
+
+
+  it("pins transactional email to one canonical affected user", () => {
+    expect(enqueueSql).toContain("join public.profiles p on p.id = r.owner_user_id");
+    expect(enqueueSql).toContain("p_recipient_user_id <> resolved_user_id");
+    expect(enqueueSql).toContain("Transactional email requires exactly one recipient address");
+    expect(enqueueSql).toContain("Cannot enqueue transactional email for another user");
+    expect(enqueueSql).toContain("public.is_staff(auth.uid())");
+    expect(recipientIntegrity).toContain("Release lifecycle/QC email can never trust a caller-supplied address");
+  });
+
+  it("release approval payload and template contain exact release metadata", () => {
+    for (const key of [
+      "'RELEASE_ID'",
+      "'RELEASE_TYPE'",
+      "'ARTIST_NAME'",
+      "'LABEL_NAME'",
+      "'UPC'",
+      "'RELEASE_DATE'",
+      "'ORIGINAL_RELEASE_DATE'",
+      "'GENRE'",
+      "'LANGUAGE'",
+      "'TERRITORIES'",
+      "'COPYRIGHT_LINE'",
+      "'PHONOGRAM_LINE'",
+      "'TRACK_COUNT'",
+      "'TRACKS_SUMMARY'",
+      "'REASON'",
+    ]) {
+      expect(catalogSql).toContain(key);
+    }
+    const approved = readFileSync(join(ROOT, "emails/templates/RELEASE_APPROVED.html"), "utf8");
+    expect(approved).toContain("{{RELEASE_ID}}");
+    expect(approved).toContain("{{TRACKS_SUMMARY}}");
+    expect(approved).toContain("{{DECISION_SUMMARY}}");
   });
 });
 
