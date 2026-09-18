@@ -3,6 +3,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - fix/final-platform-reconcile-20260918
 jobs:
   verify:
     runs-on: ubuntu-latest
