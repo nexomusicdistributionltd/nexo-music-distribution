@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
-import { ArrowUpRight, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronUp, LayoutDashboard, Disc3, WalletCards } from "lucide-react";
 import { isNavActive, type NavSection } from "@/lib/auth/nav";
 import { cn } from "@/lib/utils";
 
@@ -18,15 +18,51 @@ export function PortalAccordionNav({
 
   return (
     <nav aria-label="Portal" className="flex flex-col">
-      {sections.map((section) => (
-        <AccordionSection
-          key={section.id}
-          section={section}
-          pathname={pathname}
-          onNavigate={onNavigate}
-        />
-      ))}
+      {sections.map((section) =>
+        section.collapsible === false ? (
+          <DirectSection key={section.id} section={section} pathname={pathname} onNavigate={onNavigate} />
+        ) : (
+          <AccordionSection key={section.id} section={section} pathname={pathname} onNavigate={onNavigate} />
+        )
+      )}
     </nav>
+  );
+}
+
+
+function DirectSection({
+  section,
+  pathname,
+  onNavigate,
+}: {
+  section: NavSection;
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <div className="border-b border-[var(--nexo-border)] px-3 py-3">
+      <div className="space-y-1">
+        {section.items.map((item) => {
+          const active = isNavActive(pathname, item.href);
+          const Icon = item.href === "/dashboard" ? LayoutDashboard : item.href === "/wallet" ? WalletCards : Disc3;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.9rem] font-medium text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)] hover:text-[var(--nexo-text)]",
+                active && "bg-[var(--nexo-ghost-hover)] text-[var(--nexo-text)]"
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
