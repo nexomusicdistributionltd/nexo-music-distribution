@@ -36,6 +36,12 @@ export async function beginIdentityVerificationAction(input: {
   const ctx = await RequireRole(["artist", "label"]);
   const countryCode = input.countryCode.trim().toUpperCase();
   const legalName = input.legalName.trim();
+  const isArtist = ctx.roles.includes("artist");
+  const isLabel = ctx.roles.includes("label");
+  if (isArtist === isLabel) {
+    return { ok: false, error: "Identity verification requires one artist or label account type." };
+  }
+  const accountType = isLabel ? "label" : "artist";
 
   if (!(IDENTITY_COUNTRY_CODES as readonly string[]).includes(countryCode)) {
     return { ok: false, error: "Select a valid country." };
@@ -71,8 +77,12 @@ export async function beginIdentityVerificationAction(input: {
       .from("identity_verifications")
       .insert({
         user_id: ctx.userId,
+        account_type: accountType,
+        account_type: accountType,
         country_code: countryCode,
         legal_name: legalName,
+        legal_full_name: legalName,
+        legal_full_name: legalName,
         date_of_birth: input.dateOfBirth,
         document_type: input.documentType,
         status: "draft",
