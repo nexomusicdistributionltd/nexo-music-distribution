@@ -156,6 +156,8 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
       typeof settings.licenseType === "string" ? settings.licenseType : null,
     licenseInfo:
       typeof settings.licenseInfo === "string" ? settings.licenseInfo : null,
+    reviewNote:
+      typeof settings.reviewNote === "string" ? settings.reviewNote : null,
     releaseTime:
       typeof settings.releaseTime === "string" ? settings.releaseTime : null,
     timeZone:
