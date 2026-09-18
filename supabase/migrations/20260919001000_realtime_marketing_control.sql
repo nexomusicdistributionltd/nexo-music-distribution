@@ -184,7 +184,7 @@ values
   )
 on conflict (slug) do nothing;
 
-do $
+do $$
 begin
   begin
     alter publication supabase_realtime add table public.marketing_service_controls;
@@ -194,4 +194,4 @@ begin
     alter publication supabase_realtime add table public.marketing_content_pages;
   exception when duplicate_object then null;
   end;
-end $;
+end $$;
