@@ -38,10 +38,10 @@ create index if not exists portal_service_status_idx
 create or replace function public.guard_marketing_request_admin_update()
 returns trigger
 language plpgsql
-security definer
 set search_path = public
-as $
+as $marketing$
 begin
+  -- Service-role/internal writes do not carry an auth user and remain allowed.
   if auth.uid() is null then
     return new;
   end if;
@@ -59,22 +59,62 @@ begin
     'influencers',
     'labs',
     'luminate'
-  ) and not (
-    public.has_role(auth.uid(), 'admin')
-    or public.has_role(auth.uid(), 'super_admin')
   ) then
+    if (
+      public.has_role(auth.uid(), 'admin')
+      or public.has_role(auth.uid(), 'super_admin')
+    ) then
+      return new;
+    end if;
+
+    -- Artists/labels may only revise a request explicitly returned for more
+    -- information (or rejected) and resubmit it. Provider/admin fields stay immutable.
+    if (
+      old.owner_user_id = auth.uid()
+      and old.status in ('needs_info', 'rejected')
+      and new.status = 'submitted'
+      and new.owner_user_id is not distinct from old.owner_user_id
+      and new.kind is not distinct from old.kind
+      and new.title is not distinct from old.title
+      and new.release_id is not distinct from old.release_id
+      and new.track_id is not distinct from old.track_id
+      and new.priority is not distinct from old.priority
+      and new.assigned_to is not distinct from old.assigned_to
+      and new.provider_state is not distinct from old.provider_state
+      and new.provider_reference is not distinct from old.provider_reference
+      and new.provider_url is not distinct from old.provider_url
+      and new.provider_response is not distinct from old.provider_response
+      and new.submitted_payload is not distinct from old.submitted_payload
+      and new.completed_at is not distinct from old.completed_at
+    ) then
+      return new;
+    end if;
+
     raise exception 'Marketing request updates require administrator access'
       using errcode = '42501';
   end if;
 
   return new;
 end;
-$;
+$marketing$;
 
 drop trigger if exists guard_marketing_request_admin_update on public.portal_service_requests;
 create trigger guard_marketing_request_admin_update
   before update on public.portal_service_requests
   for each row execute function public.guard_marketing_request_admin_update();
+
+drop policy if exists "portal_service_owner_update" on public.portal_service_requests;
+create policy "portal_service_owner_update" on public.portal_service_requests
+  for update to authenticated
+  using (
+    owner_user_id = (select auth.uid())
+    and status in ('draft', 'needs_info', 'rejected')
+  )
+  with check (
+    owner_user_id = (select auth.uid())
+    and status in ('draft', 'submitted')
+    and reviewed_by is null
+  );
 
 
 create table if not exists public.marketing_service_controls (
@@ -116,6 +156,8 @@ create policy "marketing_service_controls_staff_write" on public.marketing_servi
     public.has_role(auth.uid(), 'admin')
     or public.has_role(auth.uid(), 'super_admin')
   );
+
+grant select, insert, update, delete on public.marketing_service_controls to authenticated;
 
 insert into public.marketing_service_controls
   (kind, label, enabled, accepting_requests, requires_release, provider_mode, provider_feature, description, admin_instructions)
@@ -199,6 +241,8 @@ create policy "marketing_content_pages_staff_write" on public.marketing_content_
     public.has_role(auth.uid(), 'admin')
     or public.has_role(auth.uid(), 'super_admin')
   );
+
+grant select, insert, update, delete on public.marketing_content_pages to authenticated;
 
 insert into public.marketing_content_pages (slug, title, summary, sections)
 values
