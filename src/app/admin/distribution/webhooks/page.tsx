@@ -46,6 +46,7 @@ export default async function WebhooksPage() {
         endpoint={endpoint}
         configured={provider.webhookConfigured}
         source={provider.webhookConfigured ? secretSource : "none"}
+        canManageSecret={ctx.roles.includes("super_admin")}
       />
 
       <div className="mt-4">
