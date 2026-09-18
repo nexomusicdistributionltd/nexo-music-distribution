@@ -20,13 +20,15 @@ import {
 import { PORTAL_SERVICE_KINDS } from "@/lib/portal/service-kinds";
 
 describe("portal IA", () => {
-  it("exposes seven accordion sections for artist and label", () => {
+  it("exposes complete portal accordion sections for artist and label", () => {
     for (const kind of ["artist", "label"] as const) {
       const sections = portalSectionsForKind(kind);
       expect(sections.map((s) => s.id)).toEqual([
         "catalog",
         "marketing",
+        "sales",
         "analytics",
+        "reports",
         "royalties",
         "splitshare",
         "rights",
@@ -35,7 +37,9 @@ describe("portal IA", () => {
       expect(sections.map((s) => s.label)).toEqual([
         "Catalog",
         "Marketing",
+        "Sales",
         "Analytics",
+        "Reports",
         "Royalties",
         "SplitShare",
         "Rights",
@@ -64,6 +68,10 @@ describe("portal IA", () => {
     expect(hrefs).toContain("/dashboard/playlist-pitch");
     expect(hrefs).toContain("/earnings");
     expect(hrefs).toContain("/earnings/payouts");
+    expect(hrefs).toContain("/sales");
+    expect(hrefs).toContain("/sales/monthly-overviews");
+    expect(hrefs).toContain("/reports");
+    expect(hrefs).toContain("/reports/raw-data");
     expect(hrefs).toContain("/support");
   });
 

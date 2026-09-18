@@ -19,6 +19,7 @@ const DEFAULT_SCOPE = [
   "write:releases",
   "read:catalog",
   "read:analytics",
+  "read:sales",
   "read:earnings",
   "read:preferences",
   "write:preferences",

@@ -19,14 +19,20 @@ type StoredSecret = {
 export async function hasRuntimeProviderWebhookSecret(): Promise<boolean> {
   if (getProviderWebhookSecret()) return true;
 
-  const db = createServiceClient();
-  const { data, error } = await db
-    .from("distribution_provider_secrets")
-    .select("secret_ciphertext")
-    .eq("secret_key", WEBHOOK_SECRET_KEY)
-    .maybeSingle<StoredSecret>();
+  try {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("distribution_provider_secrets")
+      .select("secret_ciphertext")
+      .eq("secret_key", WEBHOOK_SECRET_KEY)
+      .maybeSingle<StoredSecret>();
 
-  return !error && Boolean(data?.secret_ciphertext);
+    return !error && Boolean(data?.secret_ciphertext);
+  } catch {
+    // Missing service-role runtime must never crash provider status or webhook guards.
+    // Returning false keeps the endpoint fail-closed until a secret can be loaded.
+    return false;
+  }
 }
 
 export async function loadRuntimeProviderWebhookSecret(): Promise<{

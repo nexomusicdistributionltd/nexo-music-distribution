@@ -114,8 +114,9 @@ describe("dashboard copy is truthful", () => {
 
   it("admin overview is attention-first without fabricated DSP connections", () => {
     const src = readFileSync(join(__dirname, "../../app/admin/page.tsx"), "utf8");
-    expect(src).toContain("What needs attention");
+    expect(src).toContain("Administration command center");
     expect(src).not.toMatch(/DSP Connected/);
     expect(src).toContain("getAdminAttention");
+    expect(src).toContain("Authoritative database counts.");
   });
 });

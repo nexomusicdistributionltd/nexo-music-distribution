@@ -16,6 +16,7 @@ import {
   TaxDetailsForm,
 } from "@/components/portal/PortalForms";
 import { DspProfileLinksEditor } from "@/components/roster/DspProfileLinksEditor";
+import { DspIcon } from "@/components/fanlink/DspIcon";
 import { ArtistBioForm } from "@/components/roster/ArtistBioForm";
 import { findPortalItem, type PortalNavItem } from "@/lib/portal/ia";
 import { knowledgeArticle, allKnowledgeArticles } from "@/lib/portal/knowledge";
@@ -83,14 +84,51 @@ export async function PortalFeaturePage({ href }: { href: string }) {
             description="Nexo does not invent stream counts or DSP credentials."
           />
         ) : (
-          <dl className="grid gap-3 sm:grid-cols-3">
-            <Stat label="Posted rows" value={String(snap.rowCount)} />
-            <Stat
-              label={snap.amountMinor === null ? "Financial total" : "Ledger total"}
-              value={snap.amountMinor === null ? "Not provided by this analytics feed" : snap.currency ? formatMinorUnits(snap.amountMinor, snap.currency) : String(snap.amountMinor)}
-            />
-            <Stat label="DSP codes" value={snap.dspCodes.join(", ") || "—"} />
-          </dl>
+          <div className="space-y-4">
+            <dl className="grid gap-3 sm:grid-cols-3">
+              <Stat label="Posted rows" value={String(snap.rowCount)} />
+              <Stat
+                label={snap.amountMinor === null ? "Financial total" : "Ledger total"}
+                value={snap.amountMinor === null ? "Not provided by this analytics feed" : snap.currency ? formatMinorUnits(snap.amountMinor, snap.currency) : String(snap.amountMinor)}
+              />
+              <Stat label="DSP codes" value={snap.dspCodes.join(", ") || "—"} />
+            </dl>
+
+            {Object.keys(snap.streamCounts).length > 0 ? (
+              <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
+                <h2 className="text-h4">Verified DSP streams</h2>
+                <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                  Counts and trends appear only when returned by the connected provider.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {Object.entries(snap.streamCounts).map(([dsp, streams]) => {
+                    const iconName = analyticsDspIcon(dsp);
+                    const trend = snap.trendPercentByDsp[dsp];
+                    return (
+                      <div
+                        key={dsp}
+                        className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
+                      >
+                        <div className="flex items-center gap-2">
+                          {iconName ? <DspIcon name={iconName} className="h-5 w-5" /> : null}
+                          <p className="truncate text-small font-medium">{analyticsDspLabel(dsp)}</p>
+                        </div>
+                        <p className="mt-3 text-2xl font-semibold tabular-nums">
+                          {new Intl.NumberFormat("en-US").format(streams)}
+                        </p>
+                        <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                          streams
+                          {Number.isFinite(trend)
+                            ? ` · ${trend > 0 ? "+" : ""}${trend.toFixed(2)}%`
+                            : ""}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+          </div>
         )}
       </div>
     );
@@ -145,6 +183,27 @@ export async function PortalFeaturePage({ href }: { href: string }) {
   if (def.pageKind === "artist-self") return <ArtistSelfView userId={ctx.userId} />;
 
   notFound();
+}
+
+function analyticsDspIcon(value: string): string | null {
+  const dsp = value.toLowerCase();
+  if (dsp.includes("spotify")) return "spotify";
+  if (dsp.includes("apple")) return "apple_music";
+  if (dsp.includes("youtube")) return "youtube";
+  if (dsp.includes("amazon")) return "amazon_music";
+  if (dsp.includes("deezer")) return "deezer";
+  if (dsp.includes("tidal")) return "tidal";
+  if (dsp.includes("pandora")) return "pandora";
+  if (dsp.includes("audiomack")) return "audiomack";
+  if (dsp.includes("soundcloud")) return "soundcloud";
+  if (dsp.includes("tiktok")) return "tiktok";
+  return null;
+}
+
+function analyticsDspLabel(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -269,9 +328,9 @@ async function TracksView({ userId }: { userId: string }) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("release_tracks")
-    .select("id, title, isrc, track_no, releases!inner(id, title, owner_user_id)")
+    .select("id, title, isrc, track_number, releases!inner(id, title, owner_user_id)")
     .eq("releases.owner_user_id", userId)
-    .order("track_no", { ascending: true })
+    .order("track_number", { ascending: true })
     .limit(200);
   return (
     <div className="space-y-6">

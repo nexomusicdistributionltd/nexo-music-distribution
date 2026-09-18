@@ -71,6 +71,7 @@ export function ReleaseWizard({
   mode = "create",
   accountRole = "artist",
   rosterArtists = [],
+  initialArtistProfileId = "",
 }: {
   initial?: ReleaseRow | null;
   tracks?: ReleaseTrackRow[];
@@ -79,18 +80,30 @@ export function ReleaseWizard({
   mode?: "create" | "edit";
   accountRole?: "artist" | "label";
   rosterArtists?: RosterOption[];
+  initialArtistProfileId?: string;
 }) {
   const router = useRouter();
+  const initialDistribution =
+    initial?.distribution_settings && typeof initial.distribution_settings === "object"
+      ? initial.distribution_settings
+      : {};
+  const seededRosterArtistId = initial?.artist_profile_id ?? initialArtistProfileId;
+  const seededRosterArtist = rosterArtists.find((artist) => artist.id === seededRosterArtistId);
+
   const [step, setStep] = React.useState(0);
   const [releaseId, setReleaseId] = React.useState<string | null>(initial?.id ?? null);
   const [type, setType] = React.useState<ReleaseType>(initial?.release_type ?? "single");
   const [rosterArtistId, setRosterArtistId] = React.useState<string>(
-    initial?.artist_profile_id ?? ""
+    seededRosterArtistId ?? ""
   );
   const [info, setInfo] = React.useState({
     title: initial?.title ?? "",
     version: initial?.version ?? "",
-    primary_artist_name: initial?.primary_artist_name ?? "",
+    primary_artist_name:
+      initial?.primary_artist_name ??
+      (accountRole === "label"
+        ? seededRosterArtist?.artist_name || seededRosterArtist?.stage_name || ""
+        : ""),
     genre: initial?.genre ?? "",
     subgenre: initial?.subgenre ?? "",
     language: initial?.language ?? "en",
@@ -109,6 +122,40 @@ export function ReleaseWizard({
   const [territories, setTerritories] = React.useState(
     (initial?.territories ?? ["WW"]).join(", ")
   );
+  const [selectedPlatforms, setSelectedPlatforms] = React.useState<string[]>(
+    Array.isArray(initialDistribution.platforms)
+      ? initialDistribution.platforms.filter((value): value is string => typeof value === "string")
+      : []
+  );
+  const [providerMeta, setProviderMeta] = React.useState({
+    applePreorder: initialDistribution.applePreorder === true,
+    applePreorderDate:
+      typeof initialDistribution.applePreorderDate === "string"
+        ? initialDistribution.applePreorderDate
+        : "",
+    licenseType:
+      typeof initialDistribution.licenseType === "string"
+        ? initialDistribution.licenseType
+        : "Copyright",
+    licenseInfo:
+      typeof initialDistribution.licenseInfo === "string"
+        ? initialDistribution.licenseInfo
+        : "",
+    releaseTime:
+      typeof initialDistribution.releaseTime === "string"
+        ? initialDistribution.releaseTime
+        : "",
+    timeZone:
+      typeof initialDistribution.timeZone === "string"
+        ? initialDistribution.timeZone
+        : "",
+    isAiGenerated: initialDistribution.isAiGenerated === true,
+    coverSongs: Array.isArray(initialDistribution.coverSongs)
+      ? initialDistribution.coverSongs
+          .filter((value): value is string => typeof value === "string")
+          .join(", ")
+      : "",
+  });
   const [tracks, setTracks] = React.useState<TrackDraft[]>(
     initialTracks?.length
       ? initialTracks.map((t) => ({
@@ -148,6 +195,8 @@ export function ReleaseWizard({
   const [uploadProgress, setUploadProgress] = React.useState<string | null>(null);
   const [providerGenres, setProviderGenres] = React.useState<Array<{ value: string; label: string }>>([]);
   const [providerLanguages, setProviderLanguages] = React.useState<Array<{ value: string; label: string }>>([]);
+  const [providerPlatforms, setProviderPlatforms] = React.useState<Array<{ value: string; label: string }>>([]);
+  const [providerCountries, setProviderCountries] = React.useState<Array<{ value: string; label: string }>>([]);
 
   React.useEffect(() => {
     let active = true;
@@ -155,6 +204,8 @@ export function ReleaseWizard({
       if (!active || !result.ok) return;
       setProviderGenres(result.data.genres);
       setProviderLanguages(result.data.languages);
+      setProviderPlatforms(result.data.platforms);
+      setProviderCountries(result.data.countries);
     });
     return () => {
       active = false;
@@ -203,7 +254,20 @@ export function ReleaseWizard({
         .map((t) => t.trim())
         .filter(Boolean),
       distribution_settings: {
+        ...initialDistribution,
         worldwide: territories.toUpperCase().includes("WW"),
+        platforms: selectedPlatforms,
+        applePreorder: providerMeta.applePreorder,
+        applePreorderDate: providerMeta.applePreorderDate || null,
+        licenseType: providerMeta.licenseType || null,
+        licenseInfo: providerMeta.licenseInfo || null,
+        releaseTime: providerMeta.releaseTime || null,
+        timeZone: providerMeta.timeZone || null,
+        isAiGenerated: providerMeta.isAiGenerated,
+        coverSongs: providerMeta.coverSongs
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
       },
     });
     if (!res.ok) throw new Error(res.error);
@@ -588,7 +652,7 @@ export function ReleaseWizard({
           {step === 2 ? (
             <div className="space-y-4">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                Enter complete DSP metadata for every track. ISRC is never fabricated. Upload a lossless WAV or FLAC master whenever possible; MP3/AIFF/M4A remain accepted for catalog intake but may require a lossless master before provider delivery.
+                Enter complete DSP metadata for every track. ISRC is never fabricated. Nexo can retain WAV, FLAC, AIFF, MP3, or M4A intake files, but the connected Distribution Engine currently requires a lossless FLAC master before live provider delivery.
               </p>
               {tracks.map((t, idx) => (
                 <div key={idx} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-4 space-y-3">
@@ -838,6 +902,18 @@ export function ReleaseWizard({
               ) : (
                 <p className="text-small text-[var(--nexo-text-muted)]">No artwork uploaded yet.</p>
               )}
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={providerMeta.isAiGenerated}
+                  onChange={(e) =>
+                    setProviderMeta((current) => ({ ...current, isAiGenerated: e.target.checked }))
+                  }
+                />
+                <span className="text-small">
+                  This cover artwork was generated with AI
+                </span>
+              </label>
             </div>
           ) : null}
 
@@ -874,20 +950,140 @@ export function ReleaseWizard({
                   placeholder="℗ 2026 Artist Name"
                 />
               </label>
+              <label className="block space-y-1">
+                <span className="text-caption text-[var(--nexo-text-muted)]">License type</span>
+                <Input
+                  value={providerMeta.licenseType}
+                  onChange={(e) =>
+                    setProviderMeta((current) => ({ ...current, licenseType: e.target.value }))
+                  }
+                  placeholder="Copyright"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-caption text-[var(--nexo-text-muted)]">Cover song titles (comma-separated)</span>
+                <Input
+                  value={providerMeta.coverSongs}
+                  onChange={(e) =>
+                    setProviderMeta((current) => ({ ...current, coverSongs: e.target.value }))
+                  }
+                  placeholder="Leave blank when not applicable"
+                />
+              </label>
+              <label className="block space-y-1 sm:col-span-2">
+                <span className="text-caption text-[var(--nexo-text-muted)]">License / clearance information</span>
+                <Textarea
+                  value={providerMeta.licenseInfo}
+                  onChange={(e) =>
+                    setProviderMeta((current) => ({ ...current, licenseInfo: e.target.value }))
+                  }
+                  placeholder="Ownership, cover-license or clearance notes when applicable"
+                />
+              </label>
             </div>
           ) : null}
 
           {step === 6 ? (
-            <div className="space-y-3">
+            <div className="space-y-5">
               <Alert title="Distribution">
-                Nexo manages delivery after your release passes quality control.
+                Nexo manages delivery after your release passes quality control. Platform, country, genre and language choices below are loaded from the connected provider when available.
               </Alert>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1">
+                  <span className="text-caption text-[var(--nexo-text-muted)]">Release time</span>
+                  <Input
+                    type="time"
+                    value={providerMeta.releaseTime}
+                    onChange={(e) =>
+                      setProviderMeta((current) => ({ ...current, releaseTime: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-caption text-[var(--nexo-text-muted)]">Time zone</span>
+                  <Input
+                    value={providerMeta.timeZone}
+                    onChange={(e) =>
+                      setProviderMeta((current) => ({ ...current, timeZone: e.target.value }))
+                    }
+                    placeholder="e.g. Africa/Lagos"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={providerMeta.applePreorder}
+                    onChange={(e) =>
+                      setProviderMeta((current) => ({ ...current, applePreorder: e.target.checked }))
+                    }
+                  />
+                  <span className="text-small">Apple Music pre-order</span>
+                </label>
+                {providerMeta.applePreorder ? (
+                  <label className="block space-y-1">
+                    <span className="text-caption text-[var(--nexo-text-muted)]">Pre-order date</span>
+                    <Input
+                      type="date"
+                      value={providerMeta.applePreorderDate}
+                      onChange={(e) =>
+                        setProviderMeta((current) => ({
+                          ...current,
+                          applePreorderDate: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                ) : null}
+              </div>
+
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">
                   Territories (comma-separated ISO codes, or WW)
                 </span>
-                <Input value={territories} onChange={(e) => setTerritories(e.target.value)} />
+                <Input
+                  list="nexo-provider-countries"
+                  value={territories}
+                  onChange={(e) => setTerritories(e.target.value)}
+                />
+                <datalist id="nexo-provider-countries">
+                  {providerCountries.map((country) => (
+                    <option key={country.value} value={country.value}>{country.label}</option>
+                  ))}
+                </datalist>
               </label>
+
+              {providerPlatforms.length > 0 ? (
+                <fieldset className="space-y-2">
+                  <legend className="text-caption text-[var(--nexo-text-muted)]">
+                    Delivery platforms
+                  </legend>
+                  <p className="text-caption text-[var(--nexo-text-muted)]">
+                    Leave all unchecked to use the default destination set returned by the provider.
+                  </p>
+                  <div className="grid max-h-64 gap-2 overflow-y-auto rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {providerPlatforms.map((platform) => (
+                      <label key={platform.value} className="flex items-center gap-2 text-small">
+                        <input
+                          type="checkbox"
+                          checked={selectedPlatforms.includes(platform.value)}
+                          onChange={(e) =>
+                            setSelectedPlatforms((current) =>
+                              e.target.checked
+                                ? [...new Set([...current, platform.value])]
+                                : current.filter((value) => value !== platform.value)
+                            )
+                          }
+                        />
+                        <span>{platform.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              ) : null}
             </div>
           ) : null}
 
@@ -913,6 +1109,15 @@ export function ReleaseWizard({
               </p>
               <p>
                 <strong>UPC:</strong> {rights.upc || "Not provided"}
+              </p>
+              <p>
+                <strong>Platforms selected:</strong> {selectedPlatforms.length || "Provider default"}
+              </p>
+              <p>
+                <strong>Release time:</strong>{" "}
+                {providerMeta.releaseTime
+                  ? `${providerMeta.releaseTime}${providerMeta.timeZone ? ` · ${providerMeta.timeZone}` : ""}`
+                  : "Not specified"}
               </p>
               <Alert title="Submit to QC">
                 Submitting locks this release. You cannot self-approve or mark it delivered/live.

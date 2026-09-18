@@ -165,6 +165,41 @@ function marketingGroups(): PortalNavItem[][] {
         description: "Outline a release campaign for staff review.",
       }),
       item({
+        href: "/marketing/priority-pitch",
+        label: "Priority Pitch",
+        pageKind: "service",
+        serviceKind: "priority_pitch",
+        description: "Submit a priority pitching request for staff review. Placement is never guaranteed.",
+      }),
+      item({
+        href: "/marketing/spotify-discovery-mode",
+        label: "Spotify Discovery Mode",
+        pageKind: "service",
+        serviceKind: "spotify_discovery_mode",
+        description: "Request eligibility review for Spotify Discovery Mode. Nexo does not invent enrollment.",
+      }),
+      item({
+        href: "/marketing/promotional-assets",
+        label: "Promotional Assets",
+        pageKind: "service",
+        serviceKind: "promotional_assets",
+        description: "Request release artwork, motion, social or campaign asset support.",
+      }),
+      item({
+        href: "/marketing/fan-blast",
+        label: "Fan Blast",
+        pageKind: "service",
+        serviceKind: "fan_blast",
+        description: "Request a fan communication campaign for staff review.",
+      }),
+      item({
+        href: "/marketing/award-monitoring",
+        label: "Award Monitoring",
+        pageKind: "service",
+        serviceKind: "award_monitoring",
+        description: "Request award and eligibility monitoring for catalog owned by this account.",
+      }),
+      item({
         href: "/marketing/third-party-playlisting",
         label: "Third Party Playlisting",
         pageKind: "service",
@@ -289,6 +324,116 @@ function analyticsGroups(): PortalNavItem[][] {
   ];
 }
 
+function salesGroups(): PortalNavItem[][] {
+  return [
+    [
+      item({
+        href: "/sales",
+        label: "Overview",
+        pageKind: "existing",
+        description: "Live provider sales overview scoped to this account's catalog.",
+      }),
+      item({
+        href: "/sales/releases",
+        label: "Releases",
+        pageKind: "existing",
+        description: "Sales reporting matched to your Nexo releases.",
+      }),
+      item({
+        href: "/sales/tracks",
+        label: "Tracks",
+        pageKind: "existing",
+        description: "Sales reporting matched to your catalog ISRCs.",
+      }),
+      item({
+        href: "/sales/stores-services",
+        label: "Stores/Services",
+        pageKind: "existing",
+        description: "Store and service performance returned for your releases.",
+      }),
+      item({
+        href: "/sales/artists",
+        label: "Artists",
+        pageKind: "existing",
+        description: "Provider sales rows matched to your artists.",
+      }),
+      item({
+        href: "/sales/territories",
+        label: "Territories",
+        pageKind: "existing",
+        description: "Territory reporting returned for your releases.",
+      }),
+      item({
+        href: "/sales/monthly-overviews",
+        label: "Monthly Overviews",
+        pageKind: "existing",
+        description: "Monthly totals built only from provider rows for your releases.",
+      }),
+      item({
+        href: "/sales/stream-rate",
+        label: "Stream Rate",
+        pageKind: "existing",
+        description: "Provider stream-rate reference data without estimated royalties.",
+      }),
+    ],
+  ];
+}
+
+function reportsGroups(): PortalNavItem[][] {
+  return [
+    [
+      item({
+        href: "/reports",
+        label: "Overview",
+        pageKind: "existing",
+        description: "Account reporting hub backed by live provider and Nexo records.",
+      }),
+      item({
+        href: "/reports/sales",
+        label: "Sales",
+        pageKind: "existing",
+        description: "Open live sales reporting.",
+      }),
+      item({
+        href: "/reports/catalog",
+        label: "Catalog",
+        pageKind: "existing",
+        description: "Open your authoritative Nexo catalog.",
+      }),
+      item({
+        href: "/reports/payouts",
+        label: "Payouts",
+        pageKind: "existing",
+        description: "Payout requests and completed payments.",
+      }),
+      item({
+        href: "/reports/release-links",
+        label: "Release Links",
+        pageKind: "existing",
+        description: "Public Nexo release links and fanlinks.",
+      }),
+      item({
+        href: "/reports/additional",
+        label: "Additional Reports",
+        pageKind: "existing",
+        description: "Additional reporting sources available to this account.",
+      }),
+      item({
+        href: "/reports/stream-data",
+        label: "Stream Data",
+        pageKind: "existing",
+        description: "Verified stream analytics only.",
+      }),
+      item({
+        href: "/reports/raw-data",
+        label: "Raw Data",
+        pageKind: "existing",
+        description: "Read-only provider rows scoped to your catalog.",
+      }),
+    ],
+  ];
+}
+
 function royaltiesGroups(): PortalNavItem[][] {
   return [
     [
@@ -367,6 +512,55 @@ function splitShareGroups(): PortalNavItem[][] {
 function rightsGroups(): PortalNavItem[][] {
   return [
     [
+      item({
+        href: "/rights/profile-defender",
+        label: "Profile Defender",
+        pageKind: "service",
+        serviceKind: "profile_defender",
+        description: "Request review of impersonation, profile conflicts or catalog identity issues.",
+      }),
+      item({
+        href: "/rights/usage-discovery",
+        label: "Usage Discovery",
+        pageKind: "service",
+        serviceKind: "usage_discovery",
+        description: "Request a usage-discovery review using available Nexo and provider data.",
+      }),
+      item({
+        href: "/rights/chart-registration",
+        label: "Chart Registration",
+        pageKind: "service",
+        serviceKind: "chart_registration",
+        description: "Request chart-registration review for an eligible release.",
+      }),
+      item({
+        href: "/rights/cover-song-licensing",
+        label: "Cover Song Licensing",
+        pageKind: "service",
+        serviceKind: "cover_song_licensing",
+        description: "Request cover-song licensing review before distribution.",
+      }),
+      item({
+        href: "/rights/audio-recognition",
+        label: "Audio Recognition",
+        pageKind: "service",
+        serviceKind: "audio_recognition",
+        description: "Request fingerprinting or audio-recognition support where available.",
+      }),
+      item({
+        href: "/rights/tiktok-cml",
+        label: "TikTok CML",
+        pageKind: "service",
+        serviceKind: "tiktok_cml",
+        description: "Request TikTok Commercial Music Library review where eligible.",
+      }),
+      item({
+        href: "/rights/conflict-resolution",
+        label: "Conflict Resolution",
+        pageKind: "service",
+        serviceKind: "conflict_resolution",
+        description: "Open a catalog, ownership, duplicate or DSP conflict-resolution request.",
+      }),
       item({
         href: "/rights/youtube-allowlist",
         label: "YouTube Allowlist",
@@ -559,7 +753,9 @@ export function portalSectionsForKind(
   const defs: { id: string; label: string; groups: PortalNavItem[][] }[] = [
     { id: "catalog", label: "Catalog", groups: catalogGroups(kind) },
     { id: "marketing", label: "Marketing", groups: marketingGroups() },
+    { id: "sales", label: "Sales", groups: salesGroups() },
     { id: "analytics", label: "Analytics", groups: analyticsGroups() },
+    { id: "reports", label: "Reports", groups: reportsGroups() },
     { id: "royalties", label: "Royalties", groups: royaltiesGroups() },
     { id: "splitshare", label: "SplitShare", groups: splitShareGroups() },
     { id: "rights", label: "Rights", groups: rightsGroups() },

@@ -54,6 +54,7 @@ type DistributionReleaseTrack = {
 type DistributionReleaseRecord = {
   id: string;
   title: string;
+  version: string | null;
   release_type: "single" | "ep" | "album";
   primary_artist_name: string;
   label_name: string | null;
@@ -83,9 +84,15 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
     (left, right) => left.track_number - right.track_number
   );
 
+  const settings = release.distribution_settings ?? {};
+  const coverSongs = Array.isArray(settings.coverSongs)
+    ? settings.coverSongs.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : [];
+
   return {
     releaseId: release.id,
     title: release.title,
+    version: release.version,
     type: release.release_type,
     primaryArtistName: release.primary_artist_name,
     labelName: release.label_name,
@@ -95,6 +102,19 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
     upc: release.upc,
     releaseDate: release.release_date,
     originalReleaseDate: release.original_release_date,
+    applePreorder: settings.applePreorder === true,
+    applePreorderDate:
+      typeof settings.applePreorderDate === "string" ? settings.applePreorderDate : null,
+    licenseType:
+      typeof settings.licenseType === "string" ? settings.licenseType : null,
+    licenseInfo:
+      typeof settings.licenseInfo === "string" ? settings.licenseInfo : null,
+    releaseTime:
+      typeof settings.releaseTime === "string" ? settings.releaseTime : null,
+    timeZone:
+      typeof settings.timeZone === "string" ? settings.timeZone : null,
+    isAiGenerated: settings.isAiGenerated === true,
+    coverSongs,
     copyrightYear: release.copyright_year,
     copyrightLine: release.copyright_line,
     phonogramLine: release.phonogram_line,

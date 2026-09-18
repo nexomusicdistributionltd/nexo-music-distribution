@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PlanFeaturesPanel } from "@/components/billing/PlanFeaturesPanel";
 import { PortalOverview } from "@/components/portal/PortalOverview";
+import { LabelOverviewPanel } from "@/components/portal/LabelOverviewPanel";
 import { RequireRole } from "@/lib/auth/guards";
 import { artistNameOf } from "@/lib/auth/types";
 import { safeGetEntitlementsForAuth } from "@/lib/billing/queries";
@@ -15,12 +16,15 @@ import { ENROLLABLE_SERVICES } from "@/lib/portal/service-kinds";
 import { mapArtworkUrls } from "@/lib/releases/artwork";
 import {
   countUnreadNotifications,
+  getReleaseCounts,
   listActionNeededReleases,
   listRecentReleases,
 } from "@/lib/releases/queries";
 import {
+  countReleasesForArtists,
   getArtistProfileForUser,
   getLabelProfileForUser,
+  listRosterArtists,
 } from "@/lib/roster/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -55,6 +59,18 @@ export default async function DashboardPage() {
     adjustments_minor: number | null;
     payouts_minor: number | null;
     closing_minor: number | null;
+  } | null = null;
+
+  let labelOverview: {
+    labelName: string;
+    roster: Array<{
+      id: string;
+      name: string;
+      country: string | null;
+      releaseCount: number;
+    }>;
+    counts: Awaited<ReturnType<typeof getReleaseCounts>>;
+    memberCount: number;
   } | null = null;
 
   const streamSnap = await loadAnalyticsSnapshot(ctx.userId, "streams").catch(() => null);
@@ -107,6 +123,34 @@ export default async function DashboardPage() {
   if (isLabel) {
     const label = await getLabelProfileForUser(ctx.userId).catch(() => null);
     welcomeName = label?.label_name || fallbackName;
+
+    if (label) {
+      try {
+        const roster = await listRosterArtists(label.id);
+        const labelDb = await createClient();
+        const [counts, releaseCounts, members] = await Promise.all([
+          getReleaseCounts(ctx.userId),
+          countReleasesForArtists(roster.map((artist) => artist.id)),
+          labelDb
+            .from("account_members")
+            .select("id", { count: "exact", head: true })
+            .eq("owner_user_id", ctx.userId),
+        ]);
+        labelOverview = {
+          labelName: label.label_name || fallbackName,
+          roster: roster.map((artist) => ({
+            id: artist.id,
+            name: artist.artist_name || artist.stage_name || "Artist",
+            country: artist.country ?? null,
+            releaseCount: releaseCounts[artist.id] ?? 0,
+          })),
+          counts,
+          memberCount: Number(members.count ?? 0),
+        };
+      } catch {
+        // The generic dashboard remains usable if one label-only summary query is unavailable.
+      }
+    }
   } else {
     const artist = await getArtistProfileForUser(ctx.userId).catch(() => null);
     welcomeName = artist ? artistNameOf(artist) : fallbackName;
@@ -120,7 +164,8 @@ export default async function DashboardPage() {
   const streamRows = streamOverviewRows(
     streamSnap?.dspCodes ?? [],
     headline.status === "LIVE" ? "EMPTY" : headline.status,
-    streamSnap?.streamCounts ?? {}
+    streamSnap?.streamCounts ?? {},
+    streamSnap?.trendPercentByDsp ?? {}
   );
   const balance = buildBalanceOverview({ statement, ledger });
 
@@ -143,6 +188,11 @@ export default async function DashboardPage() {
         actionNeeded={actionNeeded.map((r) => ({ id: r.id, title: r.title || "Untitled" }))}
         loadError={loadError}
       />
+      {labelOverview ? (
+        <div className="mt-4">
+          <LabelOverviewPanel {...labelOverview} />
+        </div>
+      ) : null}
       <div className="mt-4 pb-8">
         <PlanFeaturesPanel entitlements={entitlements} />
       </div>

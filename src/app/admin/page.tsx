@@ -16,17 +16,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-type CountResult = { count: number | null; error: unknown };
-
-async function liveCount(
-  table: string,
-  apply?: (query: any) => any
-): Promise<number> {
+async function liveCount(table: string): Promise<number> {
   const db = createServiceClient();
-  let query = db.from(table).select("*", { count: "exact", head: true });
-  if (apply) query = apply(query);
-  const result = (await query) as CountResult;
-  return result.error ? 0 : Number(result.count ?? 0);
+  const { count, error } = await db.from(table).select("*", { count: "exact", head: true });
+  return error ? 0 : Number(count ?? 0);
 }
 
 export default async function AdminDashboardPage() {
@@ -40,12 +33,40 @@ export default async function AdminDashboardPage() {
       liveCount("artist_profiles"),
       liveCount("label_profiles"),
       liveCount("releases"),
-      liveCount("identity_verifications", (q) => q.in("status", ["submitted", "pending_review", "additional_info_required"])),
+      (async () => {
+        const db = createServiceClient();
+        const { count, error } = await db
+          .from("identity_verifications")
+          .select("*", { count: "exact", head: true })
+          .in("status", ["submitted", "under_review", "additional_info_required"]);
+        return error ? 0 : Number(count ?? 0);
+      })(),
       liveCount("distribution_agreement_executions"),
-      liveCount("payout_requests", (q) => q.in("status", ["requested", "approved", "processing"])),
+      (async () => {
+        const db = createServiceClient();
+        const { count, error } = await db
+          .from("payout_requests")
+          .select("*", { count: "exact", head: true })
+          .in("status", ["submitted", "reviewing", "approved"]);
+        return error ? 0 : Number(count ?? 0);
+      })(),
       liveCount("notification_broadcasts"),
-      liveCount("website_partners", (q) => q.eq("is_active", true)),
-      liveCount("blog_posts", (q) => q.eq("status", "published")),
+      (async () => {
+        const db = createServiceClient();
+        const { count, error } = await db
+          .from("website_partners")
+          .select("*", { count: "exact", head: true })
+          .eq("is_active", true);
+        return error ? 0 : Number(count ?? 0);
+      })(),
+      (async () => {
+        const db = createServiceClient();
+        const { count, error } = await db
+          .from("blog_posts")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "published");
+        return error ? 0 : Number(count ?? 0);
+      })(),
     ]),
   ]);
   const ddex = ddexConfigPublicStatus();
@@ -83,7 +104,7 @@ export default async function AdminDashboardPage() {
     { label: "Catalog releases", value: releases, href: "/admin/releases" },
     { label: "Identity review", value: verificationQueue, href: "/admin/verifications" },
     { label: "Signed agreements", value: agreements, href: "/admin/agreements" },
-    { label: "Payout operations", value: payoutQueue, href: "/admin/finance/payouts" },
+    { label: "Payout operations", value: payoutQueue, href: "/admin/payouts" },
     { label: "Broadcasts sent", value: broadcasts, href: "/admin/notifications" },
   ];
 

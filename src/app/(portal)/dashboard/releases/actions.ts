@@ -89,15 +89,23 @@ function normalizeProviderLookup(payload: unknown, keys: string[]): ProviderLook
 }
 
 export async function getDistributionMetadataLookups(): Promise<
-  ActionResult<{ genres: ProviderLookupOption[]; languages: ProviderLookupOption[] }>
+  ActionResult<{
+    genres: ProviderLookupOption[];
+    languages: ProviderLookupOption[];
+    platforms: ProviderLookupOption[];
+    countries: ProviderLookupOption[];
+  }>
 > {
   await requireArtistOrLabel();
   try {
     const { distributionReference } = await import("@/lib/provider/distribution-reference");
-    const [genresResult, languagesResult] = await Promise.allSettled([
-      distributionReference.genres(),
-      distributionReference.languages(),
-    ]);
+    const [genresResult, languagesResult, platformsResult, countriesResult] =
+      await Promise.allSettled([
+        distributionReference.genres(),
+        distributionReference.languages(),
+        distributionReference.platforms(),
+        distributionReference.countries(),
+      ]);
     return {
       ok: true,
       data: {
@@ -109,10 +117,18 @@ export async function getDistributionMetadataLookups(): Promise<
           languagesResult.status === "fulfilled"
             ? normalizeProviderLookup(languagesResult.value, ["languages", "items", "data"])
             : [],
+        platforms:
+          platformsResult.status === "fulfilled"
+            ? normalizeProviderLookup(platformsResult.value, ["platforms", "items", "data"])
+            : [],
+        countries:
+          countriesResult.status === "fulfilled"
+            ? normalizeProviderLookup(countriesResult.value, ["countries", "items", "data"])
+            : [],
       },
     };
   } catch {
-    return { ok: true, data: { genres: [], languages: [] } };
+    return { ok: true, data: { genres: [], languages: [], platforms: [], countries: [] } };
   }
 }
 

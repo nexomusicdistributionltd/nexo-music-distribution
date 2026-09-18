@@ -188,6 +188,22 @@ export function PortalOverview({
                   <span className="text-small tabular-nums text-[var(--nexo-text-secondary)]">
                     {row.streamCount != null ? new Intl.NumberFormat("en-US").format(row.streamCount) : row.status}
                   </span>
+                  {row.trendPercent != null ? (
+                    <span
+                      className={cn(
+                        "block text-[0.65rem] font-medium tabular-nums",
+                        row.trendPercent > 0
+                          ? "text-[var(--nexo-success)]"
+                          : row.trendPercent < 0
+                            ? "text-[var(--nexo-error)]"
+                            : "text-[var(--nexo-text-muted)]"
+                      )}
+                      title="Trend reported by the connected distribution analytics source"
+                    >
+                      {row.trendPercent > 0 ? "+" : ""}
+                      {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(row.trendPercent)}%
+                    </span>
+                  ) : null}
                 </span>
               </li>
             ))}
