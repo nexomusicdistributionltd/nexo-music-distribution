@@ -47,12 +47,19 @@ function usePendingAction() {
 export function MusicVideoForm({
   releases,
 }: {
-  releases: { id: string; title: string | null }[];
+  releases: Array<{
+    id: string;
+    title: string | null;
+    primary_artist_name?: string | null;
+  }>;
 }) {
   const s = usePendingAction();
+  const [releaseId, setReleaseId] = React.useState("");
+  const [primaryArtistName, setPrimaryArtistName] = React.useState("");
+
   return (
     <form
-      className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
+      className="space-y-5 rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-5"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -61,6 +68,18 @@ export function MusicVideoForm({
           const r = await createMusicVideoAction({
             title: String(fd.get("title") || ""),
             video_url: String(fd.get("video_url") || ""),
+            primary_artist_name: String(fd.get("primary_artist_name") || ""),
+            genre: String(fd.get("genre") || ""),
+            language: String(fd.get("language") || ""),
+            release_date: String(fd.get("release_date") || ""),
+            video_type: String(fd.get("video_type") || ""),
+            age_restriction: String(fd.get("age_restriction") || ""),
+            is_cover_version: fd.get("is_cover_version") === "on",
+            reference_upc: String(fd.get("reference_upc") || ""),
+            reference_isrc: String(fd.get("reference_isrc") || ""),
+            deliver_apple_music: fd.get("deliver_apple_music") === "on",
+            deliver_vevo: fd.get("deliver_vevo") === "on",
+            confirm_rights: fd.get("confirm_rights") === "on",
             notes: String(fd.get("notes") || ""),
             release_id: String(fd.get("release_id") || "") || undefined,
           });
@@ -68,22 +87,102 @@ export function MusicVideoForm({
         }, form);
       }}
     >
-      <h2 className="text-h4">Submit music video</h2>
+      <div>
+        <h2 className="text-h4">Music video distribution</h2>
+        <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+          Submit complete video metadata for Nexo review. Provider delivery starts only after staff approval.
+        </p>
+      </div>
       {s.error ? <Alert variant="warning">{s.error}</Alert> : null}
-      {s.ok ? <Alert variant="success">Submitted for review.</Alert> : null}
-      <Input name="title" required placeholder="Video title" />
-      <Input name="video_url" required placeholder="https://…" aria-label="Video URL" />
-      <Select name="release_id">
-        <option value="">Unlinked release</option>
-        {releases.map((r) => (
-          <option key={r.id} value={r.id}>
-            {r.title || "Untitled"}
-          </option>
-        ))}
-      </Select>
-      <Textarea name="notes" placeholder="Notes" />
+      {s.ok ? (
+        <Alert variant="success">
+          Submitted for Nexo review. You can track provider submission on this page after approval.
+        </Alert>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block space-y-1 sm:col-span-2">
+          <span className="text-caption text-[var(--nexo-text-muted)]">Video title *</span>
+          <Input name="title" required placeholder="Official video title" />
+        </label>
+        <label className="block space-y-1 sm:col-span-2">
+          <span className="text-caption text-[var(--nexo-text-muted)]">HTTPS video source URL *</span>
+          <Input name="video_url" type="url" required placeholder="https://…" />
+        </label>
+        <label className="block space-y-1 sm:col-span-2">
+          <span className="text-caption text-[var(--nexo-text-muted)]">Link to an existing release</span>
+          <Select
+            name="release_id"
+            value={releaseId}
+            onChange={(e) => {
+              const id = e.target.value;
+              setReleaseId(id);
+              const release = releases.find((item) => item.id === id);
+              if (release?.primary_artist_name) setPrimaryArtistName(release.primary_artist_name);
+            }}
+          >
+            <option value="">Standalone music video</option>
+            {releases.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.title || "Untitled"}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-caption text-[var(--nexo-text-muted)]">Primary artist *</span>
+          <Input
+            name="primary_artist_name"
+            required
+            value={primaryArtistName}
+            onChange={(e) => setPrimaryArtistName(e.target.value)}
+            placeholder="Artist name"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-caption text-[var(--nexo-text-muted)]">Release date</span>
+          <Input name="release_date" type="date" />
+        </label>
+        <Input name="genre" placeholder="Primary genre" />
+        <Input name="language" placeholder="Language" />
+        <Input name="video_type" placeholder="Video type (e.g. Music Video)" />
+        <Input name="age_restriction" placeholder="Age restriction (if applicable)" />
+        <Input name="reference_upc" inputMode="numeric" placeholder="Reference UPC (optional)" />
+        <Input
+          name="reference_isrc"
+          placeholder="Reference ISRC (optional)"
+          onInput={(e) => {
+            e.currentTarget.value = e.currentTarget.value.toUpperCase();
+          }}
+        />
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="flex items-center gap-2 text-small">
+          <input name="deliver_apple_music" type="checkbox" defaultChecked />
+          <span>Deliver to Apple Music when provider access allows</span>
+        </label>
+        <label className="flex items-center gap-2 text-small">
+          <input name="deliver_vevo" type="checkbox" defaultChecked />
+          <span>Deliver to VEVO when provider access allows</span>
+        </label>
+        <label className="flex items-center gap-2 text-small">
+          <input name="is_cover_version" type="checkbox" />
+          <span>This video is a cover version</span>
+        </label>
+      </div>
+
+      <Textarea name="notes" placeholder="Clearance, delivery, or review notes" />
+
+      <label className="flex items-start gap-2 rounded-[var(--nexo-radius)] bg-[var(--nexo-elevated)] p-3">
+        <input className="mt-1" name="confirm_rights" type="checkbox" required />
+        <span className="text-small">
+          I confirm I control the rights necessary to distribute this music video and authorize Nexo to deliver it.
+        </span>
+      </label>
+
       <Button type="submit" disabled={s.pending}>
-        {s.pending ? "Submitting…" : "Submit video"}
+        {s.pending ? "Submitting…" : "Submit video for review"}
       </Button>
     </form>
   );

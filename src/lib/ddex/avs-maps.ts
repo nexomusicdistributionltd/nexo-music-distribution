@@ -83,11 +83,12 @@ export function mapImageCodec(raw: string | null | undefined, mime?: string | nu
   return ext ? IMAGE_CODEC[ext] ?? null : null;
 }
 
-export function mapReleaseTypeToAvs(type: ReleaseType | string): "Single" | "EP" | "Album" | null {
+export function mapReleaseTypeToAvs(type: ReleaseType | string): "Single" | "EP" | "Album" | "Compilation" | null {
   const t = String(type).trim().toLowerCase();
   if (t === "single") return "Single";
   if (t === "ep") return "EP";
   if (t === "album") return "Album";
+  if (t === "compilation") return "Compilation";
   return null;
 }
 

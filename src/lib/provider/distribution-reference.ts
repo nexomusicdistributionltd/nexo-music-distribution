@@ -111,6 +111,31 @@ async function apiLive(path: string): Promise<unknown> {
   return apiUncached(path);
 }
 
+async function apiPost(path: string, body: Record<string, unknown>): Promise<unknown> {
+  const token = await loadDistributionAccessToken();
+  if (!token) {
+    throw new ProviderUnavailableError("Distribution Engine authorization is unavailable.");
+  }
+  const cfg = readDistributionOAuthConfig();
+  const response = await fetch(`${cfg.apiBaseUrl.replace(/\/$/, "")}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new ProviderUnavailableError(
+      `Distribution Engine validation request failed (HTTP ${response.status}).`
+    );
+  }
+  if (response.status === 204) return null;
+  return response.json();
+}
+
 function rows(value: unknown): Json[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is Json => Boolean(item && typeof item === "object"));
@@ -227,6 +252,19 @@ export const distributionReference = {
   analytics: () => apiLive("/analytics/overview"),
 
   preferences: () => api("/preferences"),
+  artistPreference: () => api("/preferences/artist"),
+  artistPreferences: () => api("/preferences/artists"),
+  labelPreference: () => api("/preferences/label"),
+  labelArtistPreference: (artistId: string | number) =>
+    api(`/preferences/label/artist/${id(artistId)}`),
+
+  validateUpc: (upc: string, releaseId?: string | number) =>
+    apiPost("/releases/validate/upc", {
+      upc,
+      ...(releaseId != null ? { releaseId: Number(releaseId) } : {}),
+    }),
+  validateIsrc: (isrc: string) =>
+    apiPost("/releases/validate/isrc", { isrc }),
 };
 
 export async function distributionDashboardData() {

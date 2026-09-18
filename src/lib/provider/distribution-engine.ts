@@ -85,9 +85,12 @@ function releaseId(value: unknown): string {
   return id;
 }
 
-function providerReleaseType(type: ProviderReleasePayload["type"]): "Single" | "EP" | "Album" {
+function providerReleaseType(
+  type: ProviderReleasePayload["type"]
+): "Single" | "EP" | "Album" | "Compilation" {
   if (type === "ep") return "EP";
   if (type === "album") return "Album";
+  if (type === "compilation") return "Compilation";
   return "Single";
 }
 
@@ -106,6 +109,24 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
     : [];
+}
+
+function releaseParticipants(input: ProviderReleasePayload) {
+  if (input.participants?.length) return input.participants;
+  return [
+    compactObject({
+      name: input.primaryArtistName,
+      role: ["primary"],
+      artistId: input.primaryArtistProviderId ?? undefined,
+    }),
+  ];
+}
+
+function additionalDeliverySettings(input: ProviderReleasePayload): Json {
+  const additional = input.deliverySettings?.additional;
+  return additional && typeof additional === "object" && !Array.isArray(additional)
+    ? (additional as Json)
+    : {};
 }
 
 async function existingProviderDraft(releaseIdValue: string): Promise<string | null> {
@@ -265,7 +286,7 @@ async function createOrResumeDraft(input: ProviderReleasePayload): Promise<strin
   const created = await request("/releases", {
     method: "POST",
     body: JSON.stringify({
-      participants: [{ name: input.primaryArtistName, role: ["primary"] }],
+      participants: releaseParticipants(input),
       title: input.title,
       type: providerReleaseType(input.type),
       ...(nonEmpty(input.labelName) ? { label: input.labelName } : {}),
@@ -297,6 +318,14 @@ async function prepareProviderRelease(
     applePreorderDate: input.applePreorder ? nonEmpty(input.applePreorderDate) : undefined,
     licenseType: nonEmpty(input.licenseType),
     licenseInfo: nonEmpty(input.licenseInfo),
+    review: nonEmpty(input.reviewNote)
+      ? {
+          note: nonEmpty(input.reviewNote),
+          fileName: null,
+          fileUrl: null,
+          fileType: null,
+        }
+      : undefined,
     upc: nonEmpty(input.upc),
     cYear: input.copyrightYear ?? undefined,
     cLine: nonEmpty(input.copyrightLine),
@@ -307,7 +336,7 @@ async function prepareProviderRelease(
     releaseTime: nonEmpty(input.releaseTime),
     timeZone: nonEmpty(input.timeZone),
     coverSongs: input.coverSongs?.length ? input.coverSongs : undefined,
-    participants: [{ name: input.primaryArtistName, role: ["primary"] }],
+    participants: releaseParticipants(input),
   });
 
   await request(
@@ -319,7 +348,12 @@ async function prepareProviderRelease(
   const configuredTerritories = (input.territories ?? []).filter(
     (territory) => territory && territory.toUpperCase() !== "WW"
   );
-  if (configuredPlatforms.length > 0 || configuredTerritories.length > 0) {
+  const additional = additionalDeliverySettings(input);
+  if (
+    configuredPlatforms.length > 0 ||
+    configuredTerritories.length > 0 ||
+    Object.keys(additional).length > 0
+  ) {
     await request(
       `/releases/${encodeURIComponent(providerReleaseId)}/delivery`,
       {
@@ -328,6 +362,7 @@ async function prepareProviderRelease(
           delivery: compactObject({
             platforms: configuredPlatforms.length ? configuredPlatforms : undefined,
             territories: configuredTerritories.length ? configuredTerritories : undefined,
+            additional: Object.keys(additional).length ? additional : undefined,
           }),
         }),
       }
@@ -341,10 +376,26 @@ async function prepareProviderRelease(
       compactObject({
         title: track.title,
         version: nonEmpty(track.version),
+        linerNote: nonEmpty(track.linerNote),
         isrc: nonEmpty(track.isrc),
+        iswc: nonEmpty(track.iswc),
         language: nonEmpty(track.language) ?? nonEmpty(input.language),
         audioFileKey,
-        artists: [{ name: input.primaryArtistName, role: ["primary"] }],
+        tiktokStartTime: nonEmpty(track.tiktokStartTime),
+        lyrics: track.lyrics
+          ? {
+              content: track.lyrics,
+              explicit: track.explicit === true,
+              cleanVersion: track.cleanVersion === true,
+            }
+          : undefined,
+        aiAssisted: track.aiAssisted === true,
+        artists:
+          track.artists?.length
+            ? track.artists
+            : releaseParticipants(input),
+        writers: track.writers?.length ? track.writers : undefined,
+        credits: track.credits?.length ? track.credits : undefined,
       })
     );
   }
@@ -421,6 +472,8 @@ export class DistributionEngineProvider implements DistributionProvider {
         body: JSON.stringify({
           acceptTerms: true,
           confirmRights: true,
+          confirmYoutubeRights:
+            input.deliverySettings?.confirmYoutubeRights === true,
           idempotencyKey: `nexo:${input.releaseId}`,
         }),
       }
@@ -448,6 +501,14 @@ export class DistributionEngineProvider implements DistributionProvider {
       applePreorderDate: input.applePreorder ? nonEmpty(input.applePreorderDate) : undefined,
       licenseType: nonEmpty(input.licenseType),
       licenseInfo: nonEmpty(input.licenseInfo),
+      review: nonEmpty(input.reviewNote)
+        ? {
+            note: nonEmpty(input.reviewNote),
+            fileName: null,
+            fileUrl: null,
+            fileType: null,
+          }
+        : undefined,
       upc: nonEmpty(input.upc),
       cYear: input.copyrightYear ?? undefined,
       cLine: nonEmpty(input.copyrightLine),

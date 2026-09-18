@@ -13,8 +13,10 @@ export type ProviderReleasePayload = {
   title: string;
   version?: string | null;
   remixTitle?: string | null;
-  type: "single" | "ep" | "album";
+  type: "single" | "ep" | "album" | "compilation";
   primaryArtistName: string;
+  primaryArtistProviderId?: number | null;
+  participants?: Array<{ name: string; role: string[]; artistId?: number }>;
   labelName?: string | null;
   genre?: string | null;
   subgenre?: string | null;
@@ -26,6 +28,7 @@ export type ProviderReleasePayload = {
   applePreorderDate?: string | null;
   licenseType?: string | null;
   licenseInfo?: string | null;
+  reviewNote?: string | null;
   releaseTime?: string | null;
   timeZone?: string | null;
   isAiGenerated?: boolean;
@@ -39,8 +42,18 @@ export type ProviderReleasePayload = {
     title: string;
     version?: string | null;
     isrc?: string | null;
+    iswc?: string | null;
+    linerNote?: string | null;
+    tiktokStartTime?: string | null;
     language?: string | null;
     explicit?: boolean;
+    cleanVersion?: boolean;
+    instrumental?: boolean;
+    lyrics?: string | null;
+    aiAssisted?: boolean;
+    artists?: Array<{ name: string; role: string[]; artistId?: number }>;
+    writers?: Array<{ name: string; role: string[] }>;
+    credits?: Array<{ name: string; role: string[] }>;
     audioStorageBucket?: string | null;
     audioStoragePath?: string | null;
     audioFilename?: string | null;

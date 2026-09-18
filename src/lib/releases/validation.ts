@@ -26,9 +26,11 @@ export function expectedTrackCount(type: ReleaseType): { min: number; max: numbe
     case "single":
       return { min: 1, max: 3 };
     case "ep":
-      return { min: 2, max: 6 };
+      return { min: 1, max: 6 };
     case "album":
-      return { min: 7, max: 100 };
+      return { min: 1, max: 100 };
+    case "compilation":
+      return { min: 1, max: 100 };
   }
 }
 
@@ -46,7 +48,10 @@ export function validateReleaseForSubmit(input: {
     | "upc"
     | "territories"
   >;
-  tracks: Pick<ReleaseTrackRow, "track_number" | "title" | "isrc" | "id">[];
+  tracks: Pick<
+    ReleaseTrackRow,
+    "track_number" | "title" | "isrc" | "id" | "duration_ms"
+  >[];
   assets: Pick<ReleaseAssetRow, "kind" | "track_id" | "mime_type">[];
   contributors: Pick<ReleaseContributorRow, "name" | "role">[];
 }): ValidationIssue[] {
@@ -89,6 +94,58 @@ export function validateReleaseForSubmit(input: {
     issues.push({
       field: "tracks",
       message: `${release.release_type} requires ${min}–${max} tracks (found ${tracks.length}).`,
+    });
+  }
+
+  const knownDurations = tracks
+    .map((track) => track.duration_ms)
+    .filter((duration): duration is number => typeof duration === "number" && duration >= 0);
+  const totalDurationMs = knownDurations.reduce((sum, duration) => sum + duration, 0);
+  const allDurationsKnown = knownDurations.length === tracks.length;
+  const tenMinutesMs = 10 * 60 * 1000;
+  const thirtyMinutesMs = 30 * 60 * 1000;
+
+  if (
+    release.release_type === "single" &&
+    allDurationsKnown &&
+    tracks.some((track) => (track.duration_ms ?? 0) >= tenMinutesMs)
+  ) {
+    issues.push({
+      field: "tracks",
+      message:
+        "A Single can contain 1–3 tracks only when each track is under 10 minutes. Use EP when a 1–3 track release contains a 10+ minute track.",
+    });
+  }
+
+  if (release.release_type === "ep" && allDurationsKnown) {
+    const standardEp =
+      tracks.length >= 4 &&
+      tracks.length <= 6 &&
+      totalDurationMs <= thirtyMinutesMs;
+    const longTrackEp =
+      tracks.length >= 1 &&
+      tracks.length <= 3 &&
+      tracks.some((track) => (track.duration_ms ?? 0) >= tenMinutesMs) &&
+      totalDurationMs <= thirtyMinutesMs;
+    if (!standardEp && !longTrackEp) {
+      issues.push({
+        field: "tracks",
+        message:
+          "EP classification requires 4–6 tracks up to 30 minutes, or 1–3 tracks with at least one 10+ minute track and a total of 30 minutes or less.",
+      });
+    }
+  }
+
+  if (
+    release.release_type === "album" &&
+    allDurationsKnown &&
+    tracks.length < 7 &&
+    totalDurationMs <= thirtyMinutesMs
+  ) {
+    issues.push({
+      field: "tracks",
+      message:
+        "Album classification requires 7+ tracks or a total runtime over 30 minutes.",
     });
   }
 

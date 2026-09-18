@@ -150,6 +150,7 @@ export function AdminReleaseMetadataForm({ release }: { release: EditableRelease
             <option value="single">Single</option>
             <option value="ep">EP</option>
             <option value="album">Album</option>
+            <option value="compilation">Compilation</option>
           </select>
         </label>
         {field("Title", "title")}

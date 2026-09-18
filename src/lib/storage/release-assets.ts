@@ -1,22 +1,12 @@
 export const AUDIO_BUCKET = "release-audio";
 export const ARTWORK_BUCKET = "release-artwork";
 
-export const AUDIO_MIME_TYPES = [
-  "audio/wav",
-  "audio/x-wav",
-  "audio/flac",
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/aiff",
-  "audio/x-aiff",
-  "audio/mp4",
-  "audio/x-m4a",
-] as const;
+export const AUDIO_MIME_TYPES = ["audio/flac", "audio/x-flac"] as const;
 
-export const ARTWORK_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const ARTWORK_MIME_TYPES = ["image/jpeg", "image/png", "image/tiff"] as const;
 
 export const MAX_AUDIO_BYTES = 500 * 1024 * 1024;
-export const MAX_ARTWORK_BYTES = 50 * 1024 * 1024;
+export const MAX_ARTWORK_BYTES = 36 * 1024 * 1024;
 
 /** Storage path: {userId}/{releaseId}/{kind}-{uuid}-{safeFilename} */
 export function buildAssetPath(options: {
@@ -74,20 +64,38 @@ export function assertOwnedAssetPath(
   return null;
 }
 
-export function assertAudioFile(file: { type: string; size: number }): string | null {
-  if (!AUDIO_MIME_TYPES.includes(file.type as (typeof AUDIO_MIME_TYPES)[number])) {
-    return "Unsupported audio type. Use WAV, FLAC, MP3, AIFF, or M4A.";
+export function assertAudioFile(file: { type: string; size: number; name?: string }): string | null {
+  const filename = file.name?.toLowerCase() ?? "";
+  const mime = file.type.toLowerCase();
+  const extensionFallbackAllowed = !mime || mime === "application/octet-stream";
+  const isFlac =
+    AUDIO_MIME_TYPES.includes(mime as (typeof AUDIO_MIME_TYPES)[number]) ||
+    (extensionFallbackAllowed && filename.endsWith(".flac"));
+  if (!isFlac) {
+    return "TooLost API delivery requires a lossless FLAC master. Upload a .flac file.";
   }
   if (file.size > MAX_AUDIO_BYTES) return "Audio file exceeds 500MB limit.";
   if (file.size <= 0) return "Audio file is empty.";
   return null;
 }
 
-export function assertArtworkFile(file: { type: string; size: number }): string | null {
-  if (!ARTWORK_MIME_TYPES.includes(file.type as (typeof ARTWORK_MIME_TYPES)[number])) {
-    return "Artwork must be JPEG, PNG, or WebP.";
+export function assertArtworkFile(file: { type: string; size: number; name?: string }): string | null {
+  const filename = file.name?.toLowerCase() ?? "";
+  const mime = file.type.toLowerCase();
+  const supportedByExtension =
+    filename.endsWith(".jpg") ||
+    filename.endsWith(".jpeg") ||
+    filename.endsWith(".png") ||
+    filename.endsWith(".tif") ||
+    filename.endsWith(".tiff");
+  const extensionFallbackAllowed = !mime || mime === "application/octet-stream";
+  if (
+    !ARTWORK_MIME_TYPES.includes(mime as (typeof ARTWORK_MIME_TYPES)[number]) &&
+    !(extensionFallbackAllowed && supportedByExtension)
+  ) {
+    return "Artwork must be JPG, PNG, or TIFF.";
   }
-  if (file.size > MAX_ARTWORK_BYTES) return "Artwork exceeds 50MB limit.";
+  if (file.size > MAX_ARTWORK_BYTES) return "Artwork exceeds TooLost's 36MB limit.";
   if (file.size <= 0) return "Artwork file is empty.";
   return null;
 }

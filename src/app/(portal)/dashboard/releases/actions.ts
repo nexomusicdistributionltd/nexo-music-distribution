@@ -45,6 +45,16 @@ export type ActionResult<T = unknown> =
 
 type ProviderLookupOption = { value: string; label: string };
 
+function providerValidationIsInvalid(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const outer = payload as Record<string, unknown>;
+  const data =
+    outer.data && typeof outer.data === "object" && !Array.isArray(outer.data)
+      ? (outer.data as Record<string, unknown>)
+      : outer;
+  return data.valid === false;
+}
+
 function normalizeProviderLookup(payload: unknown, keys: string[]): ProviderLookupOption[] {
   const outer =
     payload && typeof payload === "object" && !Array.isArray(payload)
@@ -76,8 +86,19 @@ function normalizeProviderLookup(payload: unknown, keys: string[]): ProviderLook
     }
     if (!row || typeof row !== "object") continue;
     const r = row as Record<string, unknown>;
-    const rawValue = r.value ?? r.code ?? r.slug ?? r.id ?? r.name ?? r.label;
-    const rawLabel = r.label ?? r.name ?? rawValue;
+    const rawValue =
+      r.value ??
+      r.code ??
+      r.slug ??
+      r.id ??
+      r.artist_id ??
+      r.artistId ??
+      r.artist_name ??
+      r.artistName ??
+      r.name ??
+      r.label;
+    const rawLabel =
+      r.label ?? r.artist_name ?? r.artistName ?? r.name ?? rawValue;
     if (rawValue == null || rawLabel == null) continue;
     const value = String(rawValue).trim();
     const label = String(rawLabel).trim();
@@ -94,18 +115,27 @@ export async function getDistributionMetadataLookups(): Promise<
     languages: ProviderLookupOption[];
     platforms: ProviderLookupOption[];
     countries: ProviderLookupOption[];
+    preferenceArtists: ProviderLookupOption[];
   }>
 > {
   await requireArtistOrLabel();
   try {
     const { distributionReference } = await import("@/lib/provider/distribution-reference");
-    const [genresResult, languagesResult, platformsResult, countriesResult] =
-      await Promise.allSettled([
-        distributionReference.genres(),
-        distributionReference.languages(),
-        distributionReference.platforms(),
-        distributionReference.countries(),
-      ]);
+    const [
+      genresResult,
+      languagesResult,
+      platformsResult,
+      countriesResult,
+      preferenceArtistsResult,
+      labelPreferencesResult,
+    ] = await Promise.allSettled([
+      distributionReference.genres(),
+      distributionReference.languages(),
+      distributionReference.platforms(),
+      distributionReference.countries(),
+      distributionReference.artistPreferences(),
+      distributionReference.labelPreference(),
+    ]);
     return {
       ok: true,
       data: {
@@ -125,10 +155,40 @@ export async function getDistributionMetadataLookups(): Promise<
           countriesResult.status === "fulfilled"
             ? normalizeProviderLookup(countriesResult.value, ["countries", "items", "data"])
             : [],
+        preferenceArtists: (() => {
+          const artistOptions =
+            preferenceArtistsResult.status === "fulfilled"
+              ? normalizeProviderLookup(
+                  preferenceArtistsResult.value,
+                  ["artists", "preferences", "items", "data"]
+                )
+              : [];
+          const labelArtistOptions =
+            labelPreferencesResult.status === "fulfilled"
+              ? normalizeProviderLookup(
+                  labelPreferencesResult.value,
+                  ["artists", "preferences", "items", "data"]
+                )
+              : [];
+          const merged = new Map<string, ProviderLookupOption>();
+          for (const option of [...artistOptions, ...labelArtistOptions]) {
+            merged.set(option.value, option);
+          }
+          return [...merged.values()];
+        })(),
       },
     };
   } catch {
-    return { ok: true, data: { genres: [], languages: [], platforms: [], countries: [] } };
+    return {
+      ok: true,
+      data: {
+        genres: [],
+        languages: [],
+        platforms: [],
+        countries: [],
+        preferenceArtists: [],
+      },
+    };
   }
 }
 
@@ -365,8 +425,14 @@ export async function replaceTracks(
     title: string;
     version?: string | null;
     isrc?: string | null;
+    iswc?: string | null;
+    liner_note?: string | null;
+    tiktok_start_time?: string | null;
     duration_ms?: number | null;
     explicit?: boolean;
+    clean_version?: boolean;
+    instrumental?: boolean;
+    ai_assisted?: boolean;
     language?: string | null;
     lyrics?: string | null;
   }>
@@ -425,8 +491,14 @@ export async function replaceTracks(
       title: t.title.trim(),
       version: t.version ?? null,
       isrc: t.isrc ?? null,
+      iswc: t.iswc?.trim() || null,
+      liner_note: t.liner_note?.trim() || null,
+      tiktok_start_time: t.tiktok_start_time?.trim() || null,
       duration_ms: t.duration_ms ?? null,
       explicit: t.explicit ?? false,
+      clean_version: t.clean_version ?? false,
+      instrumental: t.instrumental ?? false,
+      ai_assisted: t.ai_assisted ?? false,
       language: t.language ?? null,
       lyrics: t.lyrics ?? null,
     };
@@ -445,7 +517,7 @@ export async function replaceTracks(
 
   const { data: persisted } = await supabase
     .from("release_tracks")
-    .select("id, track_number, title, version, isrc, duration_ms, explicit, language, lyrics, created_at, updated_at, release_id")
+    .select("id, track_number, title, version, isrc, iswc, liner_note, tiktok_start_time, duration_ms, explicit, clean_version, instrumental, ai_assisted, language, lyrics, created_at, updated_at, release_id")
     .eq("release_id", releaseId)
     .order("track_number", { ascending: true });
 
@@ -542,10 +614,11 @@ export async function registerUploadedAsset(input: {
 
   const fileCheck =
     input.kind === "audio"
-      ? assertAudioFile({ type: input.mimeType, size: input.sizeBytes })
-      : assertArtworkFile({ type: input.mimeType, size: input.sizeBytes });
+      ? assertAudioFile({ type: input.mimeType, size: input.sizeBytes, name: input.filename })
+      : assertArtworkFile({ type: input.mimeType, size: input.sizeBytes, name: input.filename });
   if (fileCheck) return { ok: false, error: fileCheck };
 
+  const normalizedMimeType = input.kind === "audio" ? "audio/flac" : input.mimeType;
   const bucket = input.kind === "audio" ? AUDIO_BUCKET : ARTWORK_BUCKET;
   const pathErr = assertOwnedAssetPath(input.storagePath, ctx.userId, input.releaseId);
   if (pathErr) return { ok: false, error: pathErr };
@@ -594,7 +667,7 @@ export async function registerUploadedAsset(input: {
       const ab = await blob.arrayBuffer();
       const buf = Buffer.from(ab);
       if (input.kind === "audio") {
-        const meta = await extractAudioTechMeta(buf, input.mimeType);
+        const meta = await extractAudioTechMeta(buf, normalizedMimeType);
         codec = meta.codec;
         container = meta.container;
         sample_rate_hz = meta.sample_rate_hz;
@@ -615,20 +688,43 @@ export async function registerUploadedAsset(input: {
     // leave nulls — readiness will surface missing tech meta
   }
 
+  if (input.kind === "audio") {
+    const audioIssue =
+      duration_ms == null ||
+      sample_rate_hz == null ||
+      bit_depth == null ||
+      channels == null
+        ? "Nexo could not verify the FLAC technical metadata. Re-export the master and upload it again."
+        : duration_ms < 5000
+          ? "TooLost requires audio tracks to be at least 5 seconds long."
+          : bit_depth < 16
+            ? "Audio must be at least 16-bit."
+            : sample_rate_hz < 44100
+              ? "Audio sample rate must be at least 44.1 kHz."
+              : channels !== 2
+                ? "Audio must be stereo."
+                : null;
+    if (audioIssue) {
+      await supabase.storage.from(bucket).remove([input.storagePath]);
+      return { ok: false, error: audioIssue };
+    }
+  }
+
   if (input.kind === "artwork") {
     const acceptedArtworkSize =
       width != null &&
       height != null &&
       width === height &&
-      [1400, 3000, 4000].includes(width);
+      width >= 3000 &&
+      width <= 5000;
     if (!acceptedArtworkSize) {
       await supabase.storage.from(bucket).remove([input.storagePath]);
       return {
         ok: false,
         error:
           width != null && height != null
-            ? `Artwork is ${width}×${height}px. Use exactly 1400×1400, 3000×3000, or 4000×4000px.`
-            : "Artwork dimensions could not be verified. Upload a valid JPEG, PNG, or WebP image.",
+            ? `Artwork is ${width}×${height}px. TooLost requires square artwork between 3000×3000 and 5000×5000px.`
+            : "Artwork dimensions could not be verified. Upload a valid JPG, PNG, or TIFF image.",
       };
     }
   }
@@ -642,7 +738,7 @@ export async function registerUploadedAsset(input: {
       storage_bucket: bucket,
       storage_path: input.storagePath,
       filename: input.filename,
-      mime_type: input.mimeType,
+      mime_type: normalizedMimeType,
       size_bytes: input.sizeBytes,
       width,
       height,
@@ -765,6 +861,35 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
   });
   if (issues.length) {
     return { ok: false, error: issues.map((i) => i.message).join(" ") };
+  }
+
+  const providerState = await getProviderConnectionState();
+  if (providerState.connected) {
+    try {
+      const { distributionReference } = await import("@/lib/provider/distribution-reference");
+      if (release.upc) {
+        const checked = await distributionReference.validateUpc(release.upc);
+        if (providerValidationIsInvalid(checked)) {
+          return { ok: false, error: "The connected distribution provider rejected this UPC." };
+        }
+      }
+      for (const track of tracks ?? []) {
+        if (!track.isrc) continue;
+        const checked = await distributionReference.validateIsrc(track.isrc);
+        if (providerValidationIsInvalid(checked)) {
+          return {
+            ok: false,
+            error: `The connected distribution provider rejected the ISRC on track ${track.track_number}.`,
+          };
+        }
+      }
+    } catch {
+      return {
+        ok: false,
+        error:
+          "Nexo could not validate the supplied UPC/ISRC codes with the connected distribution provider. Try again before submitting.",
+      };
+    }
   }
 
   const transitionCheck = canTransition({
@@ -926,8 +1051,14 @@ export async function duplicateRelease(
       title: t.title,
       version: t.version,
       isrc: null,
+      iswc: t.iswc,
+      liner_note: t.liner_note,
+      tiktok_start_time: t.tiktok_start_time,
       duration_ms: t.duration_ms,
       explicit: t.explicit,
+      clean_version: t.clean_version,
+      instrumental: t.instrumental,
+      ai_assisted: t.ai_assisted,
       language: t.language,
       lyrics: t.lyrics,
     });

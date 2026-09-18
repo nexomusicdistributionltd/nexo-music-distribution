@@ -187,7 +187,7 @@ export type ErnMessageModel = {
   image: ErnImage;
   mainRelease: {
     releaseReference: string;
-    releaseType: "Single" | "EP" | "Album";
+    releaseType: "Single" | "EP" | "Album" | "Compilation";
     icpn: string;
     title: string;
     subtitle?: string | null;

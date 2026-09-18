@@ -29,13 +29,17 @@ describe("storage auth concepts", () => {
   it("rejects bad mime / oversized files", () => {
     expect(assertAudioFile({ type: "application/pdf", size: 10 })).toMatch(/Unsupported/);
     expect(assertArtworkFile({ type: "image/gif", size: 10 })).toMatch(/Artwork must/);
-    expect(assertAudioFile({ type: "audio/wav", size: 0 })).toMatch(/empty/);
+    expect(assertArtworkFile({ type: "image/tiff", size: 10 })).toBeNull();
+    expect(assertAudioFile({ type: "audio/flac", size: 0 })).toMatch(/empty/);
+    expect(assertAudioFile({ type: "audio/wav", size: 100 })).toMatch(/FLAC/);
+    expect(assertAudioFile({ type: "text/html", size: 100, name: "fake.flac" })).toMatch(/FLAC/);
+    expect(assertArtworkFile({ type: "text/html", size: 100, name: "fake.jpg" })).toMatch(/Artwork must/);
   });
 
   it("rejects path traversal and cross-user paths", () => {
     const uid = "11111111-1111-1111-1111-111111111111";
     const rid = "22222222-2222-2222-2222-222222222222";
-    expect(assertOwnedAssetPath(`${uid}/${rid}/audio-x-file.wav`, uid, rid)).toBeNull();
+    expect(assertOwnedAssetPath(`${uid}/${rid}/audio-x-file.flac`, uid, rid)).toBeNull();
     expect(
       assertOwnedAssetPath(`${uid}/${rid}/../other/secret.wav`, uid, rid)
     ).toMatch(/Invalid/);
@@ -43,7 +47,7 @@ describe("storage auth concepts", () => {
       assertOwnedAssetPath(`${uid}/${rid}/nested/evil.wav`, uid, rid)
     ).toMatch(/Invalid/);
     expect(
-      assertOwnedAssetPath(`other-user/${rid}/audio-x.wav`, uid, rid)
+      assertOwnedAssetPath(`other-user/${rid}/audio-x.flac`, uid, rid)
     ).toMatch(/Invalid/);
     expect(assertOwnedAssetPath(`/${uid}/${rid}/a.wav`, uid, rid)).toMatch(/Invalid/);
     expect(assertOwnedAssetPath(`${uid}/${rid}/a\\b.wav`, uid, rid)).toMatch(/Invalid/);

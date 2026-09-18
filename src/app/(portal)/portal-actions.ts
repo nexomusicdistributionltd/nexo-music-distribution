@@ -77,6 +77,18 @@ export async function createServiceRequestAction(input: {
 export async function createMusicVideoAction(input: {
   title: string;
   video_url: string;
+  primary_artist_name?: string;
+  genre?: string;
+  language?: string;
+  release_date?: string;
+  video_type?: string;
+  age_restriction?: string;
+  is_cover_version?: boolean;
+  reference_upc?: string;
+  reference_isrc?: string;
+  deliver_apple_music?: boolean;
+  deliver_vevo?: boolean;
+  confirm_rights?: boolean;
   notes?: string;
   release_id?: string;
 }): Promise<PortalActionResult<{ id: string }>> {
@@ -91,6 +103,37 @@ export async function createMusicVideoAction(input: {
   const parsed = validateVideoInput(input);
   if (!parsed.ok) return parsed;
   const supabase = await createClient();
+
+  type LinkedRelease = {
+    id: string;
+    primary_artist_name: string;
+    label_name: string | null;
+    genre: string | null;
+    language: string | null;
+    release_date: string | null;
+    distribution_settings: Record<string, unknown> | null;
+  };
+
+  let linkedRelease: LinkedRelease | null = null;
+
+  if (input.release_id) {
+    const { data: release } = await supabase
+      .from("releases")
+      .select("id, primary_artist_name, label_name, genre, language, release_date, distribution_settings")
+      .eq("id", input.release_id)
+      .eq("owner_user_id", ctx.userId)
+      .maybeSingle();
+    if (!release) return { ok: false, error: "Linked release was not found on this account." };
+    linkedRelease = release as LinkedRelease;
+  }
+
+  const primaryArtistName =
+    linkedRelease?.primary_artist_name?.trim() || parsed.primaryArtistName;
+  if (!primaryArtistName) {
+    return { ok: false, error: "Primary artist is required for music-video distribution." };
+  }
+
+  const linkedSettings = linkedRelease?.distribution_settings ?? {};
   const { data, error } = await supabase
     .from("music_video_submissions")
     .insert({
@@ -98,7 +141,27 @@ export async function createMusicVideoAction(input: {
       title: parsed.title,
       video_url: parsed.url,
       notes: parsed.notes,
-      release_id: input.release_id || null,
+      release_id: linkedRelease?.id ?? null,
+      primary_artist_name: primaryArtistName,
+      label_name: linkedRelease?.label_name ?? null,
+      genre: parsed.genre ?? linkedRelease?.genre ?? null,
+      language: parsed.language ?? linkedRelease?.language ?? null,
+      release_date: parsed.releaseDate ?? linkedRelease?.release_date ?? null,
+      video_type: parsed.videoType,
+      age_restriction: parsed.ageRestriction,
+      is_cover_version: parsed.isCoverVersion,
+      reference_upc: parsed.referenceUpc,
+      reference_isrc: parsed.referenceIsrc,
+      deliver_apple_music: parsed.deliverAppleMusic,
+      deliver_vevo: parsed.deliverVevo,
+      distribution_settings: {
+        providerArtistId:
+          typeof linkedSettings.providerArtistId === "string" ||
+          typeof linkedSettings.providerArtistId === "number"
+            ? linkedSettings.providerArtistId
+            : null,
+        rightsConfirmed: true,
+      },
       status: "submitted",
     })
     .select("id")
