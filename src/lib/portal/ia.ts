@@ -623,4 +623,7 @@ export const FORBIDDEN_PORTAL_COPY = [
   "SymphonicMS",
   "Get on Symphonic's Playlists",
   "Symphonic",
+  "Too Lost",
+  "TooLost",
+  "toolost",
 ] as const;
