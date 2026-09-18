@@ -17,6 +17,13 @@ export const ARTWORK_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as c
 
 export const MAX_AUDIO_BYTES = 500 * 1024 * 1024;
 export const MAX_ARTWORK_BYTES = 50 * 1024 * 1024;
+export const ACCEPTED_ARTWORK_SIZES = [1400, 3000, 4000] as const;
+
+export function isAcceptedArtworkDimensions(width: number | null | undefined, height: number | null | undefined): boolean {
+  if (!width || !height || width !== height) return false;
+  return (ACCEPTED_ARTWORK_SIZES as readonly number[]).includes(width);
+}
+
 
 /** Storage path: {userId}/{releaseId}/{kind}-{uuid}-{safeFilename} */
 export function buildAssetPath(options: {
@@ -76,7 +83,7 @@ export function assertOwnedAssetPath(
 
 export function assertAudioFile(file: { type: string; size: number }): string | null {
   if (!AUDIO_MIME_TYPES.includes(file.type as (typeof AUDIO_MIME_TYPES)[number])) {
-    return "Unsupported audio type. Use WAV, FLAC, MP3, AIFF, or M4A.";
+    return "Unsupported audio type. Use lossless WAV, FLAC, or AIFF for music distribution.";
   }
   if (file.size > MAX_AUDIO_BYTES) return "Audio file exceeds 500MB limit.";
   if (file.size <= 0) return "Audio file is empty.";
