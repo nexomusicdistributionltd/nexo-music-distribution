@@ -253,6 +253,84 @@ $$;
 revoke all on function public.current_staff_permissions() from public;
 grant execute on function public.current_staff_permissions() to authenticated;
 
+create or replace function public.set_staff_team_roles(
+  p_target uuid,
+  p_role_keys text[]
+)
+returns integer
+language plpgsql
+security definer
+set search_path=public
+as $
+declare
+  actor uuid := auth.uid();
+  normalized text[];
+  expected integer := 0;
+  actual integer := 0;
+begin
+  if actor is null or not (
+    public.has_role(actor,'admin')
+    or public.has_role(actor,'super_admin')
+  ) then
+    raise exception 'Administrator permission required' using errcode='42501';
+  end if;
+
+  if p_target is null then
+    raise exception 'Target user required' using errcode='22023';
+  end if;
+
+  if not exists (
+    select 1 from public.user_roles
+    where user_id=p_target and role='support'
+  ) or exists (
+    select 1 from public.user_roles
+    where user_id=p_target and role in ('admin','super_admin')
+  ) then
+    raise exception 'Functional team roles apply to support staff accounts only'
+      using errcode='42501';
+  end if;
+
+  select coalesce(array_agg(distinct trim(value) order by trim(value)),array[]::text[])
+  into normalized
+  from unnest(coalesce(p_role_keys,array[]::text[])) value
+  where nullif(trim(value),'') is not null;
+
+  expected := cardinality(normalized);
+
+  if expected > 0 then
+    select count(*) into actual
+    from public.staff_roles
+    where role_key=any(normalized) and is_active=true;
+
+    if actual <> expected then
+      raise exception 'One or more staff team roles are invalid or inactive'
+        using errcode='22023';
+    end if;
+  end if;
+
+  delete from public.staff_role_assignments where user_id=p_target;
+
+  insert into public.staff_role_assignments(user_id,role_key,assigned_by)
+  select p_target,role_key,actor
+  from unnest(normalized) role_key
+  on conflict do nothing;
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (
+    actor,
+    'role_change',
+    'staff_team_roles',
+    p_target,
+    jsonb_build_object('team_roles',normalized)
+  );
+
+  return expected;
+end;
+$;
+
+revoke all on function public.set_staff_team_roles(uuid,text[]) from public;
+grant execute on function public.set_staff_team_roles(uuid,text[]) to authenticated;
+
 -- Restrict staff-role metadata mutation to Super Admin. Team assignments are
 -- intentionally writable by Admin and Super Admin so Admin can manage staff.
 drop policy if exists staff_roles_super_admin_write on public.staff_roles;
