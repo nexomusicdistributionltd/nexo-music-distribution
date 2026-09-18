@@ -6,7 +6,7 @@ import { ownedAnalytics, ownedSales } from "@/lib/provider/owned-data";
 export type AnalyticsSnapshot = {
   key: AnalyticsKey;
   connected: boolean;
-  statusLabel: "LIVE" | "EMPTY" | "NOT CONNECTED";
+  statusLabel: "LIVE" | "EMPTY" | "AVAILABLE";
   rowCount: number;
   amountMinor: number;
   currency: string | null;
@@ -58,12 +58,12 @@ export async function loadAnalyticsSnapshot(
     return {
       key,
       connected: false,
-      statusLabel: "NOT CONNECTED",
+      statusLabel: "AVAILABLE",
       rowCount: 0,
       amountMinor: 0,
       currency: null,
       dspCodes: [],
-      note: "Could not read ledger rows. Nothing is estimated.",
+      note: "Analytics are available through Nexo. No verified rows can be displayed for this source right now.",
     };
   }
 
@@ -75,16 +75,18 @@ export async function loadAnalyticsSnapshot(
   if (rows.length === 0) {
     return {
       key,
-      connected: key !== "spotify_discovery" && key !== "streamsafe",
-      statusLabel: key === "spotify_discovery" || key === "streamsafe" ? "NOT CONNECTED" : "EMPTY",
+      connected: true,
+      statusLabel: "EMPTY",
       rowCount: 0,
       amountMinor: 0,
       currency: null,
       dspCodes: [],
       note:
         key === "spotify_discovery"
-          ? "Spotify Discovery Mode is not enrolled on this account."
-          : "Distribution analytics are connected. No rows are available for this source yet.",
+          ? "Spotify Discovery Mode is available through Nexo. No verified enrollment or activity rows are available for this account yet."
+          : key === "streamsafe"
+            ? "StreamSafe is available through Nexo. No verified suspicious-stream flags are available for this account."
+            : "No verified analytics rows are available for this source yet.",
     };
   }
 
