@@ -92,6 +92,7 @@ export type PublicArtistCard = {
   social_links: Record<string, string> | null;
   genres?: string[] | null;
   country?: string | null;
+  identity_verified?: boolean;
 };
 
 export async function listPublicArtists(limit = 48): Promise<PublicArtistCard[]> {
@@ -99,7 +100,7 @@ export async function listPublicArtists(limit = 48): Promise<PublicArtistCard[]>
   const { data, error } = await supabase
     .from("artist_profiles")
     .select(
-      "id, artist_name, stage_name, public_slug, public_tagline, public_bio_html, avatar_url, cover_url, website_featured, website_sort_order, social_links, genres, country"
+      "id, artist_name, stage_name, public_slug, public_tagline, public_bio_html, avatar_url, cover_url, website_featured, website_sort_order, social_links, genres, country, identity_verified"
     )
     .eq("website_published", true)
     .order("website_featured", { ascending: false })
@@ -123,7 +124,7 @@ export async function getPublicArtistBySlug(slug: string) {
   const { data, error } = await supabase
     .from("artist_profiles")
     .select(
-      "id, artist_name, stage_name, public_slug, public_tagline, public_bio_html, avatar_url, cover_url, social_links, website_featured, genres, country"
+      "id, artist_name, stage_name, public_slug, public_tagline, public_bio_html, avatar_url, cover_url, social_links, website_featured, genres, country, identity_verified"
     )
     .eq("public_slug", slug)
     .eq("website_published", true)
