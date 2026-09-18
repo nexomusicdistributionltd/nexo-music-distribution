@@ -22,6 +22,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+async function hasCurrentDistributionAgreement(userId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(
+    "has_current_distribution_agreement",
+    { p_user_id: userId }
+  );
+  return !error && data === true;
+}
+
 export default async function PortalLayout({
   children,
 }: {
@@ -38,36 +47,34 @@ export default async function PortalLayout({
   const displayName =
     ctx.profile?.display_name || ctx.profile?.full_name || ctx.email || "Account";
   const accountLabel = ctx.roles.map((r) => r.replace(/_/g, " ")).join(" · ");
-  const unread = await countUnreadNotifications(ctx.userId).catch(() => 0);
+  const isPortalWorkspace = workspaceKind === "artist" || workspaceKind === "label";
+
+  const [unread, label, identityVerification, agreementReady] = await Promise.all([
+    countUnreadNotifications(ctx.userId).catch(() => 0),
+    workspaceKind === "label"
+      ? getLabelProfileForUser(ctx.userId)
+      : Promise.resolve(null),
+    isPortalWorkspace
+      ? getIdentityVerificationForUser(ctx.userId)
+      : Promise.resolve(null),
+    isPortalWorkspace
+      ? hasCurrentDistributionAgreement(ctx.userId)
+      : Promise.resolve(true),
+  ]);
 
   let headerName = displayName;
   let labelName: string | null = null;
-  if (workspaceKind === "label") {
-    const label = await getLabelProfileForUser(ctx.userId);
-    if (label?.label_name) {
-      headerName = label.label_name;
-      labelName = label.label_name;
-    }
+  if (label?.label_name) {
+    headerName = label.label_name;
+    labelName = label.label_name;
   }
-
-  const isPortalWorkspace = workspaceKind === "artist" || workspaceKind === "label";
-  const identityVerification = isPortalWorkspace
-    ? await getIdentityVerificationForUser(ctx.userId)
-    : null;
 
   if (isPortalWorkspace && identityVerification?.status !== "verified") {
     redirect("/verify-identity");
   }
 
-  if (isPortalWorkspace) {
-    const supabase = await createClient();
-    const { data: agreementReady, error: agreementError } = await supabase.rpc(
-      "has_current_distribution_agreement",
-      { p_user_id: ctx.userId }
-    );
-    if (agreementError || !agreementReady) {
-      redirect("/distribution-agreement");
-    }
+  if (isPortalWorkspace && !agreementReady) {
+    redirect("/distribution-agreement");
   }
 
   if (isPortalWorkspace) {

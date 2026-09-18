@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
 import { isCurrentSessionOtpVerified } from "@/lib/auth/login-otp/status";
 import { LOGIN_OTP_VERIFY_PATH } from "@/lib/auth/login-otp/constants";
+import { getIdentityVerificationForUser } from "@/lib/identity/queries";
 import {
   homePathForRoles,
   isLoginRestricted,
@@ -58,14 +59,8 @@ export async function RequireAuth(options?: {
     !isStaff &&
     isArtistOrLabel
   ) {
-    const supabase = await (await import("@/lib/supabase/server")).createClient();
-    const { data, error } = await supabase
-      .from("identity_verifications")
-      .select("status")
-      .eq("user_id", ctx.userId)
-      .maybeSingle();
-
-    if (error || data?.status !== "verified") {
+    const verification = await getIdentityVerificationForUser(ctx.userId);
+    if (verification?.status !== "verified") {
       redirect("/verify-identity");
     }
   }

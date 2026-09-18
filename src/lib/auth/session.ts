@@ -1,8 +1,9 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { AppRole, AuthUserContext, Profile } from "@/lib/auth/types";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-export async function getAuthContext(): Promise<AuthUserContext | null> {
+const readAuthContext = cache(async (): Promise<AuthUserContext | null> => {
   const { configured } = getSupabaseEnv();
   if (!configured) return null;
 
@@ -36,6 +37,16 @@ export async function getAuthContext(): Promise<AuthUserContext | null> {
     roles,
     primaryRole,
   };
+});
+
+/**
+ * Request-scoped auth context.
+ *
+ * React cache prevents layouts/pages rendered in the same RSC request from
+ * repeating auth.getUser + profile + role queries.
+ */
+export async function getAuthContext(): Promise<AuthUserContext | null> {
+  return readAuthContext();
 }
 
 export async function writeAudit(

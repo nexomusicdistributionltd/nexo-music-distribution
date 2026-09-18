@@ -32,12 +32,20 @@ export default async function ReportsOverviewPage() {
       .eq("owner_user_id", ctx.userId),
   ]);
 
+  const salesAvailable = sales.status !== "unavailable";
+  const salesNote =
+    sales.status === "ready"
+      ? "Live provider reporting"
+      : sales.status === "empty"
+        ? "No reported activity yet"
+        : "Provider temporarily unavailable";
+
   const cards = [
     {
       label: "Sales rows",
-      value: sales.connected ? sales.rows.length : 0,
+      value: salesAvailable ? sales.rows.length : 0,
       href: "/sales",
-      note: sales.connected ? "Live provider reporting" : "Provider temporarily unavailable",
+      note: salesNote,
     },
     {
       label: "Catalog releases",

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { ArrowUpRight, ChevronDown, ChevronUp } from "lucide-react";
 import { isNavActive, type NavSection } from "@/lib/auth/nav";
@@ -15,6 +15,14 @@ export function PortalAccordionNav({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const prefetchOnIntent = React.useCallback(
+    (href: string) => {
+      if (href.startsWith("/")) router.prefetch(href);
+    },
+    [router]
+  );
 
   return (
     <nav aria-label="Portal" className="flex flex-col">
@@ -24,6 +32,7 @@ export function PortalAccordionNav({
           section={section}
           pathname={pathname}
           onNavigate={onNavigate}
+          onIntent={prefetchOnIntent}
         />
       ))}
     </nav>
@@ -34,10 +43,12 @@ function AccordionSection({
   section,
   pathname,
   onNavigate,
+  onIntent,
 }: {
   section: NavSection;
   pathname: string;
   onNavigate?: () => void;
+  onIntent?: (href: string) => void;
 }) {
   const groups = section.groups?.length ? section.groups : [section.items];
   const hasActive = groups.flat().some((item) => isNavActive(pathname, item.href));
@@ -76,6 +87,9 @@ function AccordionSection({
                     <Link
                       key={item.href}
                       href={item.href}
+                      prefetch={false}
+                      onPointerEnter={() => onIntent?.(item.href)}
+                      onFocus={() => onIntent?.(item.href)}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(

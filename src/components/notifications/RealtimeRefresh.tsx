@@ -4,6 +4,10 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
 
+const REALTIME_REFRESH_DELAY_MS = 300;
+const MIN_REFRESH_INTERVAL_MS = 1_000;
+const FOCUS_STALE_AFTER_MS = 30_000;
+
 /** RLS-filtered realtime refresh for portal and staff operations. */
 export function RealtimeRefresh({
   userId,
@@ -13,30 +17,60 @@ export function RealtimeRefresh({
   staff?: boolean;
 }) {
   const router = useRouter();
+  const lastRefreshAt = React.useRef(Date.now());
 
   React.useEffect(() => {
     const supabase = createClient();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let refreshPendingWhileHidden = false;
+
+    const refreshNow = () => {
+      timer = null;
+      if (document.visibilityState === "hidden") {
+        refreshPendingWhileHidden = true;
+        return;
+      }
+
+      refreshPendingWhileHidden = false;
+      lastRefreshAt.current = Date.now();
+      router.refresh();
+    };
+
+    const scheduleRefresh = (delay = REALTIME_REFRESH_DELAY_MS) => {
+      if (document.visibilityState === "hidden") {
+        refreshPendingWhileHidden = true;
+        return;
+      }
+
+      // Coalesce bursts of related database changes into one RSC refresh.
+      if (timer) return;
+
+      const sinceLastRefresh = Date.now() - lastRefreshAt.current;
+      const throttleDelay = Math.max(0, MIN_REFRESH_INTERVAL_MS - sinceLastRefresh);
+      timer = setTimeout(refreshNow, Math.max(delay, throttleDelay));
+    };
+
     let channel = supabase
       .channel(`${staff ? "staff" : "portal"}-${userId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "releases", ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }) },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "support_tickets", ...(staff ? {} : { filter: `requester_user_id=eq.${userId}` }) },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "support_messages" },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
@@ -46,7 +80,7 @@ export function RealtimeRefresh({
           table: "playlist_pitch_requests",
           ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
         },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
@@ -56,7 +90,7 @@ export function RealtimeRefresh({
           table: "billing_subscriptions",
           ...(staff ? {} : { filter: `user_id=eq.${userId}` }),
         },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
@@ -66,7 +100,7 @@ export function RealtimeRefresh({
           table: "portal_service_requests",
           ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
         },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
@@ -76,7 +110,7 @@ export function RealtimeRefresh({
           table: "music_video_submissions",
           ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
         },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
@@ -86,7 +120,7 @@ export function RealtimeRefresh({
           table: "payout_requests",
           ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
         },
-        () => router.refresh()
+        () => scheduleRefresh()
       )
       .on(
         "postgres_changes",
@@ -96,7 +130,7 @@ export function RealtimeRefresh({
           table: "identity_verifications",
           ...(staff ? {} : { filter: `user_id=eq.${userId}` }),
         },
-        () => router.refresh()
+        () => scheduleRefresh()
       );
 
     if (staff) {
@@ -104,46 +138,56 @@ export function RealtimeRefresh({
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "qc_queue_items" },
-          () => router.refresh()
+          () => scheduleRefresh()
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "contact_messages" },
-          () => router.refresh()
+          () => scheduleRefresh()
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "newsletter_subscribers" },
-          () => router.refresh()
+          () => scheduleRefresh()
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "provider_webhook_events" },
-          () => router.refresh()
+          () => scheduleRefresh()
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "profiles" },
-          () => router.refresh()
+          () => scheduleRefresh()
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "user_roles" },
-          () => router.refresh()
+          () => scheduleRefresh()
         );
     }
 
     channel.subscribe();
 
-    const refresh = () => router.refresh();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") refresh();
+    const refreshIfStale = () => {
+      if (
+        refreshPendingWhileHidden ||
+        Date.now() - lastRefreshAt.current >= FOCUS_STALE_AFTER_MS
+      ) {
+        scheduleRefresh(0);
+      }
     };
-    window.addEventListener("focus", refresh);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshIfStale();
+    };
+
+    window.addEventListener("focus", refreshIfStale);
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      window.removeEventListener("focus", refresh);
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("focus", refreshIfStale);
       document.removeEventListener("visibilitychange", onVisibility);
       void supabase.removeChannel(channel);
     };

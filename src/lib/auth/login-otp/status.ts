@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { sessionIdFromAccessToken } from "@/lib/auth/login-otp/jwt";
 import type { AppRole } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
@@ -39,7 +40,7 @@ export async function getPasswordSessionIdentity(): Promise<AuthSessionIdentity 
   };
 }
 
-export async function isCurrentSessionOtpVerified(): Promise<boolean> {
+const readCurrentSessionOtpVerified = cache(async (): Promise<boolean> => {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.rpc("nexo_login_otp_verified");
@@ -48,4 +49,8 @@ export async function isCurrentSessionOtpVerified(): Promise<boolean> {
   } catch {
     return false;
   }
+});
+
+export async function isCurrentSessionOtpVerified(): Promise<boolean> {
+  return readCurrentSessionOtpVerified();
 }
