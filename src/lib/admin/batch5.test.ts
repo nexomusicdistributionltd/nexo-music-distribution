@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ADMIN_PORTAL_ROLES,
+  adminPermissionForPath,
   canMarkPayoutPaid,
   hasAdminPermission,
   isAdminPortalRole,
@@ -38,13 +39,26 @@ describe("Batch 5 admin route protection / roles", () => {
     expect(homePathForRoles(["support"])).toBe("/admin");
   });
 
-  it("permission helpers are granular", () => {
-    expect(hasAdminPermission(["support"], "admin:ddex")).toBe(true);
+  it("permission helpers are least-privilege and granular", () => {
+    expect(hasAdminPermission(["support"], "admin:support")).toBe(true);
+    expect(hasAdminPermission(["support"], "admin:qc")).toBe(true);
+    expect(hasAdminPermission(["support"], "admin:finance")).toBe(false);
+    expect(hasAdminPermission(["support"], "admin:distribution")).toBe(false);
+    expect(hasAdminPermission(["support"], "admin:ddex")).toBe(false);
     expect(hasAdminPermission(["support"], "admin:settings")).toBe(false);
     expect(hasAdminPermission(["admin"], "admin:settings")).toBe(true);
+    expect(hasAdminPermission(["admin"], "admin:staff_invite")).toBe(true);
     expect(hasAdminPermission(["super_admin"], "admin:roles")).toBe(true);
     expect(hasAdminPermission(["admin"], "admin:roles")).toBe(false);
     expect(hasPermission(["support"], "admin:access")).toBe(true);
+  });
+
+  it("maps sensitive admin routes to server permissions", () => {
+    expect(adminPermissionForPath("/admin/distribution/queue")).toBe("admin:distribution");
+    expect(adminPermissionForPath("/admin/finance/billing")).toBe("admin:finance");
+    expect(adminPermissionForPath("/admin/users")).toBe("admin:users");
+    expect(adminPermissionForPath("/admin/support/tickets")).toBe("admin:support");
+    expect(adminPermissionForPath("/admin/unknown-sensitive-tool")).toBe("admin:operations");
   });
 
   it("admin nav covers ops center destinations", () => {
@@ -72,7 +86,14 @@ describe("Batch 5 admin route protection / roles", () => {
     ]) {
       expect(hrefs).toContain(h);
     }
-    expect(navForRoles(["support"]).map((n) => n.href)).not.toContain("/admin/settings");
+    const supportHrefs = navForRoles(["support"]).map((n) => n.href);
+    expect(supportHrefs).toContain("/admin/support");
+    expect(supportHrefs).toContain("/admin/qc");
+    expect(supportHrefs).not.toContain("/admin/settings");
+    expect(supportHrefs).not.toContain("/admin/users");
+    expect(supportHrefs).not.toContain("/admin/finance");
+    expect(supportHrefs).not.toContain("/admin/distribution");
+    expect(supportHrefs).not.toContain("/admin/ddex");
   });
 });
 
@@ -229,11 +250,16 @@ describe("Batch 5 verification hardening regressions", () => {
     ).toBe(true);
   });
 
-  it("support cannot change settings or roles", () => {
+  it("support cannot manage privileged areas while admins can invite staff", () => {
     expect(hasAdminPermission(["support"], "admin:settings")).toBe(false);
     expect(hasAdminPermission(["support"], "admin:roles")).toBe(false);
     expect(hasAdminPermission(["support"], "admin:users")).toBe(false);
+    expect(hasAdminPermission(["support"], "admin:staff_invite")).toBe(false);
+    expect(hasAdminPermission(["support"], "admin:finance")).toBe(false);
+    expect(hasAdminPermission(["support"], "admin:distribution")).toBe(false);
     expect(hasAdminPermission(["admin"], "admin:users")).toBe(true);
+    expect(hasAdminPermission(["admin"], "admin:staff_invite")).toBe(true);
+    expect(hasAdminPermission(["admin"], "admin:roles")).toBe(false);
   });
 });
 
