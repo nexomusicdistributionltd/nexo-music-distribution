@@ -274,12 +274,20 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
     .maybeSingle();
 
   if (!job?.provider_release_id) {
-    await supabase.rpc("record_provider_sync_run", {
-      p_job_id: jobId,
-      p_status: "failed",
-      p_error_message: "No provider_release_id on job — nothing to sync.",
-    });
-    return { ok: false, error: "No provider release id" };
+    if (job?.status === "queued") {
+      return {
+        ok: false,
+        error:
+          "This release is queued but has not been submitted to the Distribution Engine yet. Submit it first; status sync begins after a real provider release ID is returned.",
+        code: "PROVIDER_RELEASE_NOT_CREATED",
+      };
+    }
+    return {
+      ok: false,
+      error:
+        "No provider release ID is linked to this job, so there is no remote release to synchronize.",
+      code: "PROVIDER_RELEASE_NOT_CREATED",
+    };
   }
 
   const provider = getProvider();
