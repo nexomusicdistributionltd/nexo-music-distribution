@@ -38,9 +38,11 @@ export function PostApprovalReviewForm({ releaseId }: { releaseId: string }) {
         </p>
       </div>
 
-      <Alert variant="warning" title="Pre-delivery correction">
-        This is a pre-delivery correction action. Once TooLost submission has started or a TooLost
-        release ID exists, this action is blocked and the provider edit/takedown workflow must be used.
+      <Alert variant="warning" title="Return only when the release needs artist changes">
+        Use this when the artist or label must correct metadata or assets. A failed Nexo delivery
+        attempt can be retried by an administrator after an internal/provider-format issue is fixed.
+        Provider drafts are resumed safely; after final provider submission is accepted, use the
+        provider edit/takedown workflow instead.
       </Alert>
 
       <label className="block space-y-1.5">
