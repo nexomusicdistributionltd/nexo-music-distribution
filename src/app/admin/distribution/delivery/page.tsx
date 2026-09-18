@@ -182,12 +182,21 @@ export default async function DeliveryPage() {
     !["taken_down", "cancelled"].includes(job.status)
   );
 
-  const latestRows = trackedJobs.map((job) => latest.get(job.release_id));
-  const pendingCount = latestRows.filter((row) => providerStage(row?.release_status) === 1).length;
-  const deliveredCount = latestRows.filter((row) => providerStage(row?.release_status) === 2).length;
-  const liveCount = latestRows.filter((row) => providerStage(row?.release_status) === 3).length;
-  const attentionCount = latestRows.filter((row) => {
-    const key = statusKey(row?.release_status);
+  const effectiveProviderStatus = (job: DistributionJobRow & { releases: unknown }) => {
+    const release = (job.releases ?? {}) as ReleaseSummary;
+    const snapshot = latest.get(job.release_id);
+    if (snapshot?.release_status) return snapshot.release_status;
+    if (job.status === "delivered" || job.status === "live" || job.status === "failed") {
+      return job.status;
+    }
+    return release.provider_status ?? (job.status === "submitted" ? "pending" : job.status);
+  };
+
+  const pendingCount = trackedJobs.filter((job) => providerStage(effectiveProviderStatus(job)) === 1).length;
+  const deliveredCount = trackedJobs.filter((job) => providerStage(effectiveProviderStatus(job)) === 2).length;
+  const liveCount = trackedJobs.filter((job) => providerStage(effectiveProviderStatus(job)) === 3).length;
+  const attentionCount = trackedJobs.filter((job) => {
+    const key = statusKey(effectiveProviderStatus(job));
     return key === "needs_evidence" || key.includes("failed") || key.includes("reject") || key.includes("error");
   }).length;
 
@@ -231,10 +240,7 @@ export default async function DeliveryPage() {
             const release = (job.releases ?? {}) as ReleaseSummary;
             const snapshot = latest.get(job.release_id);
             const history = (historyByRelease.get(job.release_id) ?? []).slice(0, 6);
-            const providerStatus =
-              snapshot?.release_status ??
-              release.provider_status ??
-              (job.status === "submitted" ? "pending" : job.status);
+            const providerStatus = effectiveProviderStatus(job);
             const dspRows = snapshot?.dsp_statuses ?? [];
             const providerReleaseId =
               snapshot?.provider_release_id ??
