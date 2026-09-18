@@ -42,6 +42,8 @@ export async function saveDistributionToken(token: DistributionOAuthToken): Prom
   if (error) throw new Error("Could not securely save Distribution Engine credentials.");
 }
 
+let refreshInFlight: Promise<string | null> | null = null;
+
 async function refreshStoredCredential(data: StoredCredential): Promise<string | null> {
   if (!data.refresh_token_ciphertext) return null;
   const refreshToken = decryptDistributionSecret(data.refresh_token_ciphertext);
@@ -51,6 +53,15 @@ async function refreshStoredCredential(data: StoredCredential): Promise<string |
   if (!refreshed.scope && data.scope) refreshed.scope = data.scope;
   await saveDistributionToken(refreshed);
   return refreshed.access_token;
+}
+
+function refreshStoredCredentialOnce(data: StoredCredential): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = refreshStoredCredential(data).finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
 }
 
 export async function loadDistributionAccessToken(): Promise<string | null> {
@@ -63,7 +74,7 @@ export async function loadDistributionAccessToken(): Promise<string | null> {
   if (error || !data) return null;
   const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : null;
   const shouldRefresh = expiresAt !== null && expiresAt <= Date.now() + 60_000;
-  if (shouldRefresh) return refreshStoredCredential(data);
+  if (shouldRefresh) return refreshStoredCredentialOnce(data);
   return decryptDistributionSecret(data.access_token_ciphertext);
 }
 
@@ -75,7 +86,7 @@ export async function forceRefreshDistributionAccessToken(): Promise<string | nu
     .eq("connection_key", "primary")
     .maybeSingle<StoredCredential>();
   if (error || !data) return null;
-  return refreshStoredCredential(data);
+  return refreshStoredCredentialOnce(data);
 }
 
 export async function getDistributionCredentialMetadata(): Promise<DistributionCredentialMetadata | null> {
