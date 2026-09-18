@@ -61,19 +61,35 @@ export default async function AdminRolesPage() {
     : { data: [], error: null };
 
   const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
-  const staff = (roleRows ?? [])
-    .filter(
-      (row): row is typeof row & { role: StaffRole } =>
-        row.role === "support" || row.role === "admin" || row.role === "super_admin"
-    )
+  const staffByUser = new Map<
+    string,
+    { user_id: string; role: StaffRole; roles: StaffRole[]; created_at: string | null }
+  >();
+
+  for (const row of roleRows ?? []) {
+    if (row.role !== "support" && row.role !== "admin" && row.role !== "super_admin") continue;
+    const role = row.role as StaffRole;
+    const existing = staffByUser.get(row.user_id);
+    if (!existing) {
+      staffByUser.set(row.user_id, {
+        user_id: row.user_id,
+        role,
+        roles: [role],
+        created_at: row.created_at ?? null,
+      });
+      continue;
+    }
+    if (!existing.roles.includes(role)) existing.roles.push(role);
+    if (STAFF_ROLE_ORDER[role] < STAFF_ROLE_ORDER[existing.role]) existing.role = role;
+  }
+
+  const staff = [...staffByUser.values()]
     .map((row) => ({
       ...row,
       profile: profileById.get(row.user_id) ?? null,
     }))
     .sort((left, right) => {
-      const roleDiff =
-        STAFF_ROLE_ORDER[left.role as StaffRole] -
-        STAFF_ROLE_ORDER[right.role as StaffRole];
+      const roleDiff = STAFF_ROLE_ORDER[left.role] - STAFF_ROLE_ORDER[right.role];
       if (roleDiff !== 0) return roleDiff;
       return (left.profile?.email ?? "").localeCompare(right.profile?.email ?? "");
     });
@@ -146,9 +162,16 @@ export default async function AdminRolesPage() {
                         {profile?.email || "Email unavailable"}
                       </p>
                     </div>
-                    <span className="rounded-full border border-[var(--nexo-border)] px-2.5 py-1 text-caption font-medium">
-                      {ROLE_COPY[row.role as StaffRole].label}
-                    </span>
+                    <div className="text-right">
+                      <span className="rounded-full border border-[var(--nexo-border)] px-2.5 py-1 text-caption font-medium">
+                        {ROLE_COPY[row.role].label}
+                      </span>
+                      {row.roles.length > 1 ? (
+                        <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
+                          Legacy roles: {row.roles.map((role) => ROLE_COPY[role].label).join(", ")}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
 
                   <dl className="mt-4 grid grid-cols-2 gap-3 text-caption">
@@ -163,7 +186,7 @@ export default async function AdminRolesPage() {
                   </dl>
 
                   {canManageRoles ? (
-                    <StaffRoleForm userId={row.user_id} currentRole={row.role as StaffRole} />
+                    <StaffRoleForm userId={row.user_id} currentRole={row.role} />
                   ) : (
                     <p className="mt-4 text-caption text-[var(--nexo-text-muted)]">
                       Role changes require Super Admin access.
