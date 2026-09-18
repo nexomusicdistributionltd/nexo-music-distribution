@@ -733,7 +733,7 @@ export async function requestTakedown(
     return { ok: false, error: "Takedown is not available for this status." };
   }
 
-  void getProviderConnectionState();
+  void await getProviderConnectionState();
 
   const { data, error } = await supabase.rpc("transition_release_status", {
     p_release_id: releaseId,
@@ -900,7 +900,7 @@ export async function tryProviderSubmit(
 ): Promise<ActionResult<{ message: string }>> {
   void releaseId;
   await requireArtistOrLabel();
-  const state = getProviderConnectionState();
+  const state = await getProviderConnectionState();
   if (!state.connected) {
     return { ok: false, error: state.message };
   }
