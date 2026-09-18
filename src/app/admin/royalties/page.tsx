@@ -10,7 +10,10 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMinorUnits } from "@/lib/finance/money";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import { unwrapAdminList } from "@/lib/db/admin-query";
-import { distributionReference } from "@/lib/provider/distribution-reference";
+import {
+  distributionReference,
+  isDistributionAuthorizationError,
+} from "@/lib/provider/distribution-reference";
 
 export const metadata: Metadata = {
   title: "Royalties",
@@ -19,6 +22,9 @@ export const metadata: Metadata = {
 
 function errorMessage(result: PromiseSettledResult<unknown>): string | null {
   if (result.status === "fulfilled") return null;
+  if (isDistributionAuthorizationError(result.reason, "read:sales")) {
+    return "TooLost sales access needs reauthorization. Reconnect the provider and grant read:sales.";
+  }
   return result.reason instanceof Error ? result.reason.message : "Provider request failed.";
 }
 
@@ -52,6 +58,11 @@ export default async function RoyaltiesPage() {
     salesOverview.status === "fulfilled" ||
     salesReleases.status === "fulfilled" ||
     salesTracks.status === "fulfilled";
+  const salesAuthorizationDenied = [salesOverview, salesReleases, salesTracks].some(
+    (result) =>
+      result.status === "rejected" &&
+      isDistributionAuthorizationError(result.reason, "read:sales")
+  );
 
   return (
     <div>
@@ -62,9 +73,19 @@ export default async function RoyaltiesPage() {
       <FinanceNav />
 
       <Alert variant={providerSalesReady ? "success" : "warning"} title="TooLost sales feed">
-        {providerSalesReady
-          ? "Live provider sales endpoints are responding. These rows are upstream reporting; Nexo ledger balances remain authoritative for amounts available to users."
-          : "TooLost sales reporting is unavailable. Check the provider connection and confirm the OAuth token includes read:sales."}
+        {providerSalesReady ? (
+          "Live provider sales endpoints are responding. These rows are upstream reporting; Nexo ledger balances remain authoritative for amounts available to users."
+        ) : salesAuthorizationDenied ? (
+          <>
+            The live TooLost sales endpoint rejected the stored authorization after an automatic token refresh.{" "}
+            <Link href="/api/admin/distribution/connect" className="font-medium underline">
+              Reauthorize TooLost with read:sales
+            </Link>
+            .
+          </>
+        ) : (
+          "TooLost sales reporting is temporarily unavailable. The provider connection will be retried on the next request."
+        )}
       </Alert>
 
       <div className="mb-6 mt-4 flex flex-wrap gap-3 text-small">
@@ -107,8 +128,14 @@ export default async function RoyaltiesPage() {
           <ErrorState title="Royalties unavailable" description={loadError} retryHref="/admin/royalties" />
         ) : statements.items.length === 0 ? (
           <EmptyState
-            title="No Nexo royalty statements yet"
-            description="Statements appear after real provider reports are reconciled into the append-only Nexo ledger."
+            title="No reconciled Nexo statements yet"
+            description={
+              providerSalesReady
+                ? "Live TooLost sales are available above. Nexo statements are published only after confirmed settlement rows with explicit currency are reconciled into the ledger; estimated or unconfirmed provider sales are never made withdrawable."
+                : salesAuthorizationDenied
+                  ? "Reconnect TooLost with read:sales to restore live reporting. Existing Nexo ledger entries and published statements remain unchanged."
+                  : "Statements appear after confirmed provider settlement rows are reconciled into the append-only Nexo ledger."
+            }
           />
         ) : (
           <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
