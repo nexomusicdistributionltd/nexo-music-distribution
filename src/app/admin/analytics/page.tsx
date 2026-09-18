@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { StatCard } from "@/components/releases/StatCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Alert } from "@/components/ui/Alert";
+import { ProviderDataTable } from "@/components/admin/ProviderDataTable";
 import { getAdminOperationalCounts } from "@/lib/admin/queries";
 import {
   distributionReference,
@@ -131,6 +133,36 @@ export default async function AnalyticsPage() {
           )}
         </div>
       </section>
+
+      <div className="mt-8 space-y-8">
+        <ProviderDataTable
+          title="Live provider analytics"
+          description="Rows returned by the protected TooLost analytics resource. No generated stream counts."
+          payload={analyticsRows}
+        />
+        <ProviderDataTable
+          title="Sales overview"
+          description="Live provider sales rows. Access requires read:sales."
+          payload={salesRows}
+        />
+        <ProviderDataTable
+          title="Sales by release"
+          description="Live release-level provider reporting."
+          payload={releaseRows}
+        />
+        <ProviderDataTable
+          title="Territory reporting"
+          description="Live provider territory rows."
+          payload={territoryRows}
+        />
+      </div>
+
+      <p className="mt-8 text-small text-[var(--nexo-text-muted)]">
+        Provider authorization and live endpoint diagnostics are available in{" "}
+        <Link href="/admin/distribution/account" className="underline">
+          Distribution → TooLost account
+        </Link>.
+      </p>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
         <section className="rounded-[1.25rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">

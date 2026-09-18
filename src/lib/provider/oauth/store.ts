@@ -11,6 +11,13 @@ type StoredCredential = {
   scope: string | null;
 };
 
+export type DistributionCredentialMetadata = {
+  scope: string | null;
+  expiresAt: string | null;
+  verifiedAt: string | null;
+  tokenType: string | null;
+};
+
 export async function saveDistributionToken(token: DistributionOAuthToken): Promise<void> {
   const db = createServiceClient();
   const expiresAt =
@@ -54,6 +61,22 @@ export async function loadDistributionAccessToken(): Promise<string | null> {
   }
   if (shouldRefresh) return null;
   return decryptDistributionSecret(data.access_token_ciphertext);
+}
+
+export async function getDistributionCredentialMetadata(): Promise<DistributionCredentialMetadata | null> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("distribution_provider_credentials")
+    .select("scope,expires_at,verified_at,token_type")
+    .eq("connection_key", "primary")
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    scope: typeof data.scope === "string" ? data.scope : null,
+    expiresAt: typeof data.expires_at === "string" ? data.expires_at : null,
+    verifiedAt: typeof data.verified_at === "string" ? data.verified_at : null,
+    tokenType: typeof data.token_type === "string" ? data.token_type : null,
+  };
 }
 
 export async function markDistributionCredentialVerified(): Promise<void> {
