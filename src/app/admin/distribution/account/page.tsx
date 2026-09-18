@@ -54,7 +54,11 @@ export default async function DistributionAccountPage() {
       <DistributionNav current="/admin/distribution/account" />
       <ProviderBanner connected={provider.connected} />
 
-      {missing.length ? (
+      {!reportedScope ? (
+        <Alert variant="default" title="Provider scope list not reported">
+          The token did not report its granted scope list. The live protected endpoint checks below are the authoritative capability test.
+        </Alert>
+      ) : missing.length ? (
         <Alert variant="warning" title="Provider permissions need attention">
           Missing required scope{missing.length === 1 ? "" : "s"}: {missing.join(", ")}. Reconnect TooLost to request the current Nexo scope set.
         </Alert>
@@ -96,7 +100,7 @@ export default async function DistributionAccountPage() {
             </div>
           ))}
         </div>
-        {missing.length ? (
+        {reportedScope && missing.length ? (
           <Link href="/api/admin/distribution/connect" className="mt-4 inline-flex rounded-md bg-[var(--nexo-accent)] px-4 py-2 text-small font-semibold text-black">
             Reconnect TooLost
           </Link>
