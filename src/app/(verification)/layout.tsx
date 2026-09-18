@@ -11,7 +11,7 @@ export default function VerificationLayout({ children }: { children: React.React
       <header className="border-b border-[var(--nexo-border)] px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <Logo height={24} href="/dashboard" />
-          <span className="text-caption text-[var(--nexo-text-muted)]">Secure identity verification</span>
+          <span className="text-caption text-[var(--nexo-text-muted)]">Secure account setup</span>
         </div>
       </header>
       <main className="px-4 py-8 sm:px-6">{children}</main>
