@@ -37,7 +37,6 @@ export function isDistributionOAuthConfigured(): boolean {
     "DISTRIBUTION_TOKEN_URL",
     "DISTRIBUTION_CLIENT_ID",
     "DISTRIBUTION_CLIENT_SECRET",
-    "DISTRIBUTION_REDIRECT_URI",
     "DISTRIBUTION_OAUTH_STATE_SECRET",
     "DISTRIBUTION_TOKEN_ENCRYPTION_KEY",
   ].every((key) => Boolean((process.env[key] ?? "").trim()));
