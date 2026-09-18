@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { RequireAdmin, RequireAdminPermission, RequireSuperAdmin } from "@/lib/auth/guards";
+import { RequireAdmin, RequireAdministrator, RequireAdminPermission, RequireSuperAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import {
   QC_CHECKLIST_KEYS,
@@ -99,6 +99,40 @@ export async function performQcDecisionAction(input: {
     "/admin/qc",
     "/admin/releases",
     `/admin/releases/${input.releaseId}`,
+  ]);
+  return { ok: true, data };
+}
+
+export async function reopenReleaseForCorrectionsAction(input: {
+  releaseId: string;
+  reason: string;
+}): Promise<ActionResult> {
+  await RequireAdministrator();
+  const reason = input.reason.trim();
+  if (reason.length < 4) {
+    return { ok: false, error: "Enter a clear correction reason for the artist or label." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_reopen_release_for_corrections", {
+    p_release_id: input.releaseId,
+    p_reason: reason,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  try {
+    const { drainQueuedOutbox } = await import("@/lib/email/hooks");
+    await drainQueuedOutbox(10);
+  } catch {
+    // The release correction is authoritative even if email delivery is temporarily unavailable.
+  }
+
+  revalidateAdmin([
+    "/admin/releases",
+    "/admin/qc",
+    `/admin/releases/${input.releaseId}`,
+    "/dashboard/releases",
+    `/dashboard/releases/${input.releaseId}`,
   ]);
   return { ok: true, data };
 }
