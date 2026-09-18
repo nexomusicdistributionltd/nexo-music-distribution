@@ -11,6 +11,14 @@ export async function GET() {
       { status: 503 }
     );
   }
-  const { url } = createDistributionAuthorizationUrl();
-  return NextResponse.redirect(url);
+  const { url, state } = createDistributionAuthorizationUrl();
+  const response = NextResponse.redirect(url);
+  response.cookies.set("nexo_distribution_oauth_state", state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/auth/callback",
+    maxAge: 10 * 60,
+  });
+  return response;
 }
