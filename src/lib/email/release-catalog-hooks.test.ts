@@ -369,3 +369,36 @@ describe("QC mapping still one catalog key per decision", () => {
     );
   });
 });
+
+
+describe("release decline owner email hardening", () => {
+  it("normalizes artist-visible decline reasons into the rendered REASON field", () => {
+    const outbox = readFileSync(join(ROOT, "src/lib/email/outbox.ts"), "utf8");
+    expect(outbox).toContain("vars.ARTIST_VISIBLE_REASON");
+    expect(outbox).toContain("Audio File Requires Attention");
+    expect(outbox).toContain("FLAC (lossless audio)");
+  });
+
+  it("post-approval correction emails the owner and suppresses stale approval mail", () => {
+    const migration = readMigration("20260919003000_release_decline_owner_email.sql");
+    expect(migration).toContain("'RELEASE_CHANGES_REQUIRED'");
+    expect(migration).toContain("v_release.owner_user_id");
+    expect(migration).toContain("Superseded by changes required before approval email dispatch");
+    expect(migration).toContain("'AFFECTED_TRACKS'");
+    expect(migration).toContain("'REQUIRED_FORMAT'");
+    expect(migration).toContain("'RESUBMIT_INSTRUCTION'");
+  });
+
+  it("changes-required template exposes complete correction details", () => {
+    const html = readFileSync(
+      join(ROOT, "emails/templates/RELEASE_CHANGES_REQUIRED.html"),
+      "utf8"
+    );
+    expect(html).toContain("{{CORRECTION_TITLE}}");
+    expect(html).toContain("{{REASON}}");
+    expect(html).toContain("{{AFFECTED_TRACKS}}");
+    expect(html).toContain("{{REQUIRED_FORMAT}}");
+    expect(html).toContain("{{ACTION_REQUIRED}}");
+    expect(html).toContain("{{RESUBMIT_INSTRUCTION}}");
+  });
+});
