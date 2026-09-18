@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { RequireAdministrator } from "@/lib/auth/guards";
+import { RequireAdminPermission } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { RealtimeRefresh } from "@/components/notifications/RealtimeRefresh";
@@ -70,7 +70,7 @@ function providerModeLabel(mode: string): string {
 }
 
 export default async function AdminMarketingPage() {
-  const ctx = await RequireAdministrator();
+  const ctx = await RequireAdminPermission("admin:marketing");
   const supabase = await createClient();
   const kinds = MARKETING_SERVICE_SPECS.map((service) => service.kind);
 
