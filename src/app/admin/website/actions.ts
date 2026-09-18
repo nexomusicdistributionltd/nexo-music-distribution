@@ -9,6 +9,34 @@ export type ActionResult<T = unknown> =
   | { ok: true; data?: T }
   | { ok: false; error: string };
 
+function normalizeExternalUrl(value?: string | null): string | null {
+  const raw = value?.trim();
+  if (!raw) return null;
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(withScheme);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeImageUrl(value?: string | null): string | null {
+  const normalized = normalizeExternalUrl(value);
+  if (!normalized) return null;
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.hostname === "drive.google.com") {
+      const match = parsed.pathname.match(/\/file\/d\/([^/]+)/);
+      if (match?.[1]) return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    }
+  } catch {
+    return normalized;
+  }
+  return normalized;
+}
+
 export async function setReleaseWebsiteAction(input: {
   releaseId: string;
   published?: boolean;
@@ -143,8 +171,8 @@ export async function upsertPartnerAction(input: {
   const supabase = await createClient();
   const row = {
     name: input.name.trim(),
-    logo_url: input.logoUrl?.trim() || null,
-    website_url: input.websiteUrl?.trim() || null,
+    logo_url: normalizeImageUrl(input.logoUrl),
+    website_url: normalizeExternalUrl(input.websiteUrl),
     sort_order: input.sortOrder ?? 0,
     is_active: input.isActive ?? true,
     slug: slugify(input.name),
@@ -167,6 +195,7 @@ export async function deletePartnerAction(id: string): Promise<ActionResult> {
   const { error } = await supabase.from("website_partners").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/partners");
+  revalidatePath("/");
   return { ok: true };
 }
 
