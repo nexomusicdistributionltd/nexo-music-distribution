@@ -331,17 +331,16 @@ export async function updateAdminReleaseMetadataAction(
 
 export async function postApprovalReviewAction(input: {
   releaseId: string;
-  decision: "request_changes" | "reject";
   reason: string;
 }): Promise<AdminReleaseActionResult<unknown>> {
   await RequireAdminPermission("admin:qc");
   const reason = input.reason.trim();
-  if (!reason) return { ok: false, error: "Artist-visible reason is required." };
+  if (!reason) return { ok: false, error: "Artist / label visible correction reason is required." };
 
   const supabase = await createClient();
   const { data: release, error: readError } = await supabase
     .from("releases")
-    .select("id,status")
+    .select("id,status,provider_release_id")
     .eq("id", input.releaseId)
     .maybeSingle();
   if (readError) return { ok: false, error: readError.message };
@@ -349,19 +348,22 @@ export async function postApprovalReviewAction(input: {
   if (release.status !== "approved") {
     return {
       ok: false,
-      error: "Post-approval review is available only while the release is approved and not yet queued for delivery.",
+      error:
+        "Only an approved release that has not entered delivery can be returned to the artist or label for changes.",
+    };
+  }
+  if (release.provider_release_id) {
+    return {
+      ok: false,
+      error:
+        "This release already exists at TooLost. Use the provider edit/takedown workflow instead of reopening the pre-delivery release.",
     };
   }
 
-  const target = input.decision === "reject" ? "rejected" : "changes_requested";
-  const { data, error } = await supabase.rpc("transition_release_status", {
+  const { data, error } = await supabase.rpc("return_approved_release_for_changes", {
     p_release_id: input.releaseId,
-    p_new_status: target,
-    p_reason: reason,
-    p_metadata: {
-      source: "admin_post_approval_review",
-      decision: input.decision,
-    },
+    p_artist_visible_reason: reason,
+    p_internal_note: null,
   });
   if (error) return { ok: false, error: error.message };
 
@@ -373,12 +375,13 @@ export async function postApprovalReviewAction(input: {
       p_metadata: {
         source: "admin_post_approval_review",
         from: "approved",
-        to: target,
+        to: "changes_requested",
         reason,
+        owner_can_edit_and_resubmit: true,
       },
     });
   } catch {
-    // transition_release_status already writes status history.
+    // The atomic RPC already writes status history + QC review.
   }
 
   try {
@@ -389,5 +392,8 @@ export async function postApprovalReviewAction(input: {
   }
 
   revalidateRelease(input.releaseId);
+  revalidatePath("/dashboard/releases");
+  revalidatePath(`/dashboard/releases/${input.releaseId}`);
+  revalidatePath("/dashboard/notifications");
   return { ok: true, data };
 }
