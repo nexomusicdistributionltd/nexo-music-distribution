@@ -16,6 +16,15 @@ import {
   ProviderUnavailableError,
 } from "./errors";
 import { normalizeProviderDeliveryPayload } from "@/lib/distribution/provider-delivery";
+import {
+  normalizeProviderDate,
+  normalizeProviderLanguage,
+  normalizeProviderLicenseType,
+  normalizeProviderReleaseTime,
+  normalizeProviderText,
+  normalizeProviderTimeZone,
+  normalizeRightsText,
+} from "./metadata-normalization";
 
 type Json = Record<string, unknown>;
 
@@ -43,9 +52,53 @@ async function request(path: string, init: RequestInit = {}): Promise<unknown> {
   });
 
   if (!response.ok) {
-    throw new ProviderUnavailableError(
-      `Distribution Engine request failed (HTTP ${response.status}).`
-    );
+    const raw = await response.text();
+    let detail = "";
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        const candidate =
+          typeof parsed.message === "string"
+            ? parsed.message
+            : typeof parsed.error === "string"
+              ? parsed.error
+              : Array.isArray(parsed.errors)
+                ? parsed.errors
+                    .map((item) =>
+                      typeof item === "string"
+                        ? item
+                        : item && typeof item === "object" && "message" in item
+                          ? String((item as { message?: unknown }).message ?? "")
+                          : ""
+                    )
+                    .filter(Boolean)
+                    .join("; ")
+                : "";
+        detail = candidate.trim();
+      } catch {
+        detail = raw.trim();
+      }
+    }
+    if (detail.length > 500) detail = `${detail.slice(0, 500)}…`;
+
+    const stage =
+      path.endsWith("/metadata")
+        ? "release metadata"
+        : path.endsWith("/delivery")
+          ? "delivery settings"
+          : path.includes("/tracks/upload-url")
+            ? "track audio upload"
+            : path.endsWith("/tracks")
+              ? "track metadata"
+              : path.endsWith("/submit")
+                ? "final submission"
+                : "provider request";
+
+    const message = `Nexo delivery validation failed at ${stage} (HTTP ${response.status})${detail ? `: ${detail}` : "."}`;
+    if ([400, 409, 422].includes(response.status)) {
+      throw new ProviderDeliveryValidationError(message);
+    }
+    throw new ProviderUnavailableError(message);
   }
   if (response.status === 204) return null;
   return response.json();
@@ -112,14 +165,24 @@ function stringArray(value: unknown): string[] {
 }
 
 function releaseParticipants(input: ProviderReleasePayload) {
-  if (input.participants?.length) return input.participants;
-  return [
-    compactObject({
-      name: input.primaryArtistName,
-      role: ["primary"],
-      artistId: input.primaryArtistProviderId ?? undefined,
-    }),
-  ];
+  const participants =
+    input.participants?.length
+      ? input.participants
+      : [
+          compactObject({
+            name: input.primaryArtistName,
+            role: ["primary"],
+            artistId: input.primaryArtistProviderId ?? undefined,
+          }),
+        ];
+
+  return participants
+    .map((participant) => ({
+      ...participant,
+      name: normalizeProviderText(participant.name) ?? "",
+      role: participant.role.map((role) => normalizeProviderText(role)?.toLowerCase()).filter(Boolean),
+    }))
+    .filter((participant) => participant.name && participant.role.length > 0);
 }
 
 function additionalDeliverySettings(input: ProviderReleasePayload): Json {
@@ -303,39 +366,68 @@ async function prepareProviderRelease(
   input: ProviderReleasePayload
 ): Promise<void> {
   const coverUrl = await signedArtworkUrl(input);
+  const normalizedLanguage = normalizeProviderLanguage(input.language);
+  if (input.language && !normalizedLanguage) {
+    throw new ProviderDeliveryValidationError(
+      `Release language "${normalizeProviderText(input.language) ?? input.language}" is not a supported ISO language value.`
+    );
+  }
+  const normalizedLicenseType = normalizeProviderLicenseType(input.licenseType);
+  if (input.licenseType && !normalizedLicenseType) {
+    throw new ProviderDeliveryValidationError(
+      "Release license type is not supported. Choose Copyright or Creative Commons."
+    );
+  }
+  const normalizedTimeZone = normalizeProviderTimeZone(input.timeZone);
+  if (input.timeZone && !normalizedTimeZone) {
+    throw new ProviderDeliveryValidationError(
+      `Release time zone "${normalizeProviderText(input.timeZone) ?? input.timeZone}" is invalid.`
+    );
+  }
+  const normalizedReleaseTime = normalizeProviderReleaseTime(input.releaseTime);
+  if (input.releaseTime && !normalizedReleaseTime) {
+    throw new ProviderDeliveryValidationError(
+      "Release time must use 24-hour HH:MM format."
+    );
+  }
+  const preorderDate = normalizeProviderDate(input.applePreorderDate);
+  const preorderEnabled = input.applePreorder === true && Boolean(preorderDate);
+
   const metadata = compactObject({
     type: providerReleaseType(input.type),
-    title: input.title,
-    version: nonEmpty(input.version),
-    remixTitle: nonEmpty(input.remixTitle),
-    label: nonEmpty(input.labelName),
-    primaryGenre: nonEmpty(input.genre),
-    secondaryGenre: nonEmpty(input.subgenre),
-    language: nonEmpty(input.language),
-    releaseDate: nonEmpty(input.releaseDate),
-    originalReleaseDate: nonEmpty(input.originalReleaseDate),
-    applePreorder: input.applePreorder === true,
-    applePreorderDate: input.applePreorder ? nonEmpty(input.applePreorderDate) : undefined,
-    licenseType: nonEmpty(input.licenseType),
-    licenseInfo: nonEmpty(input.licenseInfo),
-    review: nonEmpty(input.reviewNote)
+    title: normalizeProviderText(input.title) ?? input.title,
+    version: normalizeProviderText(input.version),
+    remixTitle: normalizeProviderText(input.remixTitle),
+    label: normalizeProviderText(input.labelName),
+    primaryGenre: normalizeProviderText(input.genre),
+    secondaryGenre: normalizeProviderText(input.subgenre),
+    language: normalizedLanguage,
+    releaseDate: normalizeProviderDate(input.releaseDate),
+    originalReleaseDate: normalizeProviderDate(input.originalReleaseDate),
+    applePreorder: preorderEnabled,
+    applePreorderDate: preorderEnabled ? preorderDate : undefined,
+    licenseType: normalizedLicenseType,
+    licenseInfo: normalizeProviderText(input.licenseInfo),
+    review: normalizeProviderText(input.reviewNote)
       ? {
-          note: nonEmpty(input.reviewNote),
+          note: normalizeProviderText(input.reviewNote),
           fileName: null,
           fileUrl: null,
           fileType: null,
         }
       : undefined,
-    upc: nonEmpty(input.upc),
+    upc: normalizeProviderText(input.upc),
     cYear: input.copyrightYear ?? undefined,
-    cLine: nonEmpty(input.copyrightLine),
+    cLine: normalizeRightsText(input.copyrightLine),
     pYear: input.copyrightYear ?? undefined,
-    pLine: nonEmpty(input.phonogramLine),
+    pLine: normalizeRightsText(input.phonogramLine),
     coverUrl,
     isAiGenerated: input.isAiGenerated === true,
-    releaseTime: nonEmpty(input.releaseTime),
-    timeZone: nonEmpty(input.timeZone),
-    coverSongs: input.coverSongs?.length ? input.coverSongs : undefined,
+    releaseTime: normalizedReleaseTime,
+    timeZone: normalizedTimeZone,
+    coverSongs: input.coverSongs?.length
+      ? input.coverSongs.map((song) => normalizeProviderText(song)).filter(Boolean)
+      : undefined,
     participants: releaseParticipants(input),
   });
 
@@ -379,7 +471,9 @@ async function prepareProviderRelease(
         linerNote: nonEmpty(track.linerNote),
         isrc: nonEmpty(track.isrc),
         iswc: nonEmpty(track.iswc),
-        language: nonEmpty(track.language) ?? nonEmpty(input.language),
+        language:
+          normalizeProviderLanguage(track.language) ??
+          normalizeProviderLanguage(input.language),
         audioFileKey,
         tiktokStartTime: nonEmpty(track.tiktokStartTime),
         lyrics: track.lyrics
@@ -392,10 +486,28 @@ async function prepareProviderRelease(
         aiAssisted: track.aiAssisted === true,
         artists:
           track.artists?.length
-            ? track.artists
+            ? track.artists.map((artist) => ({
+                ...artist,
+                name: normalizeProviderText(artist.name) ?? artist.name,
+                role: artist.role.map((role) => role.toLowerCase()),
+              }))
             : releaseParticipants(input),
-        writers: track.writers?.length ? track.writers : undefined,
-        credits: track.credits?.length ? track.credits : undefined,
+        writers:
+          track.writers?.length
+            ? track.writers.map((writer) => ({
+                ...writer,
+                name: normalizeProviderText(writer.name) ?? writer.name,
+                role: writer.role.map((role) => role.toLowerCase()),
+              }))
+            : undefined,
+        credits:
+          track.credits?.length
+            ? track.credits.map((credit) => ({
+                ...credit,
+                name: normalizeProviderText(credit.name) ?? credit.name,
+                role: credit.role.map((role) => role.toLowerCase()),
+              }))
+            : undefined,
       })
     );
   }
@@ -487,37 +599,41 @@ export class DistributionEngineProvider implements DistributionProvider {
     providerReleaseId: string,
     input: Partial<ProviderReleasePayload>
   ): Promise<void> {
+    const preorderDate = normalizeProviderDate(input.applePreorderDate);
+    const preorderEnabled = input.applePreorder === true && Boolean(preorderDate);
     const metadata = compactObject({
-      title: nonEmpty(input.title),
-      version: nonEmpty(input.version),
-      remixTitle: nonEmpty(input.remixTitle),
-      label: nonEmpty(input.labelName),
-      primaryGenre: nonEmpty(input.genre),
-      secondaryGenre: nonEmpty(input.subgenre),
-      language: nonEmpty(input.language),
-      releaseDate: nonEmpty(input.releaseDate),
-      originalReleaseDate: nonEmpty(input.originalReleaseDate),
-      applePreorder: input.applePreorder,
-      applePreorderDate: input.applePreorder ? nonEmpty(input.applePreorderDate) : undefined,
-      licenseType: nonEmpty(input.licenseType),
-      licenseInfo: nonEmpty(input.licenseInfo),
-      review: nonEmpty(input.reviewNote)
+      title: normalizeProviderText(input.title),
+      version: normalizeProviderText(input.version),
+      remixTitle: normalizeProviderText(input.remixTitle),
+      label: normalizeProviderText(input.labelName),
+      primaryGenre: normalizeProviderText(input.genre),
+      secondaryGenre: normalizeProviderText(input.subgenre),
+      language: normalizeProviderLanguage(input.language),
+      releaseDate: normalizeProviderDate(input.releaseDate),
+      originalReleaseDate: normalizeProviderDate(input.originalReleaseDate),
+      applePreorder: input.applePreorder === undefined ? undefined : preorderEnabled,
+      applePreorderDate: preorderEnabled ? preorderDate : undefined,
+      licenseType: normalizeProviderLicenseType(input.licenseType),
+      licenseInfo: normalizeProviderText(input.licenseInfo),
+      review: normalizeProviderText(input.reviewNote)
         ? {
-            note: nonEmpty(input.reviewNote),
+            note: normalizeProviderText(input.reviewNote),
             fileName: null,
             fileUrl: null,
             fileType: null,
           }
         : undefined,
-      upc: nonEmpty(input.upc),
+      upc: normalizeProviderText(input.upc),
       cYear: input.copyrightYear ?? undefined,
-      cLine: nonEmpty(input.copyrightLine),
+      cLine: normalizeRightsText(input.copyrightLine),
       pYear: input.copyrightYear ?? undefined,
-      pLine: nonEmpty(input.phonogramLine),
+      pLine: normalizeRightsText(input.phonogramLine),
       isAiGenerated: input.isAiGenerated,
-      releaseTime: nonEmpty(input.releaseTime),
-      timeZone: nonEmpty(input.timeZone),
-      coverSongs: input.coverSongs?.length ? input.coverSongs : undefined,
+      releaseTime: normalizeProviderReleaseTime(input.releaseTime),
+      timeZone: normalizeProviderTimeZone(input.timeZone),
+      coverSongs: input.coverSongs?.length
+        ? input.coverSongs.map((song) => normalizeProviderText(song)).filter(Boolean)
+        : undefined,
     });
     if (Object.keys(metadata).length === 0) return;
     await request(
