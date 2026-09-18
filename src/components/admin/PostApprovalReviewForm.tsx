@@ -13,14 +13,15 @@ export function PostApprovalReviewForm({ releaseId }: { releaseId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function run(decision: "request_changes" | "reject") {
+  function returnForChanges() {
     setError(null);
     startTransition(async () => {
-      const result = await postApprovalReviewAction({ releaseId, decision, reason });
+      const result = await postApprovalReviewAction({ releaseId, reason });
       if (!result.ok) {
         setError(result.error);
         return;
       }
+      setReason("");
       router.refresh();
     });
   }
@@ -28,28 +29,38 @@ export function PostApprovalReviewForm({ releaseId }: { releaseId: string }) {
   return (
     <section className="space-y-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
       <div>
-        <h2 className="text-h4">Post-approval review</h2>
+        <h2 className="text-h4">Return approved release for correction</h2>
         <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-          Before delivery is queued, send an approved release back for corrections or reject it.
-          The account owner receives the normal release-status notification/email.
+          Use this before TooLost delivery is queued. The release becomes editable again in the
+          artist or label dashboard, your reason is shown to the account owner, and they can correct
+          the release and resubmit it to QC.
         </p>
       </div>
+
+      <Alert variant="warning" title="Pre-delivery correction">
+        This does not send a rejection to TooLost. If the release already exists at TooLost or has
+        entered delivery, use the provider edit/takedown workflow instead.
+      </Alert>
+
       <label className="block space-y-1.5">
-        <span className="text-label">Artist / label visible reason</span>
+        <span className="text-label">Reason shown to artist / label</span>
         <Textarea
           value={reason}
           onChange={(event) => setReason(event.target.value)}
-          rows={3}
-          placeholder="Explain exactly what needs to be corrected or why the release is rejected."
+          rows={4}
+          placeholder="Explain exactly what must be corrected, replaced, or clarified before approval."
         />
       </label>
-      {error ? <Alert variant="warning" title="Cannot update release">{error}</Alert> : null}
+
+      {error ? <Alert variant="warning" title="Cannot return release">{error}</Alert> : null}
+
       <div className="flex flex-wrap gap-2">
-        <Button disabled={pending} variant="secondary" onClick={() => run("request_changes")}>
-          {pending ? "Processing…" : "Request additional information"}
-        </Button>
-        <Button disabled={pending} variant="secondary" onClick={() => run("reject")}>
-          Reject release
+        <Button
+          disabled={pending || !reason.trim()}
+          variant="secondary"
+          onClick={returnForChanges}
+        >
+          {pending ? "Returning release…" : "Decline & return for changes"}
         </Button>
       </div>
     </section>
