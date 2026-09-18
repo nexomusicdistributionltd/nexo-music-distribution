@@ -27,13 +27,14 @@ import type {
   ReleaseTrackRow,
   ReleaseType,
 } from "@/lib/releases/types";
-import { assertArtworkFile, assertAudioFile } from "@/lib/storage/release-assets";
+import { assertArtworkFile, assertAudioFile, isAcceptedArtworkDimensions } from "@/lib/storage/release-assets";
 
 const STEPS = [
   "Type",
   "Info",
   "Tracks",
   "Contributors",
+  "Lyrics",
   "Artwork",
   "Rights",
   "Distribution",
@@ -47,6 +48,8 @@ type TrackDraft = {
   version: string;
   isrc: string;
   explicit: boolean;
+  language: string;
+  lyrics: string;
 };
 
 type ContribDraft = {
@@ -59,6 +62,30 @@ type ContribDraft = {
 };
 
 export type RosterOption = { id: string; artist_name: string; stage_name: string };
+
+async function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(file);
+    try {
+      return { width: bitmap.width, height: bitmap.height };
+    } finally {
+      bitmap.close();
+    }
+  }
+  return await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Invalid image"));
+    };
+    image.src = url;
+  });
+}
 
 export function ReleaseWizard({
   initial,
@@ -115,8 +142,10 @@ export function ReleaseWizard({
           version: t.version ?? "",
           isrc: t.isrc ?? "",
           explicit: t.explicit,
+          language: t.language ?? "en",
+          lyrics: t.lyrics ?? "",
         }))
-      : [{ track_number: 1, title: "", version: "", isrc: "", explicit: false }]
+      : [{ track_number: 1, title: "", version: "", isrc: "", explicit: false, language: "en", lyrics: "" }]
   );
   const [contributors, setContributors] = React.useState<ContribDraft[]>(
     initialContributors?.length
@@ -200,6 +229,8 @@ export function ReleaseWizard({
         version: t.version || null,
         isrc: t.isrc || null,
         explicit: t.explicit,
+        language: t.language || null,
+        lyrics: t.lyrics || null,
       }))
     );
     if (!res.ok) throw new Error(res.error);
@@ -212,6 +243,8 @@ export function ReleaseWizard({
           version: t.version ?? "",
           isrc: t.isrc ?? "",
           explicit: t.explicit,
+          language: t.language ?? "en",
+          lyrics: t.lyrics ?? "",
         }))
       );
     }
@@ -251,7 +284,10 @@ export function ReleaseWizard({
       } else if (step === 3) {
         const id = await ensureDraft();
         await saveContributors(id);
-      } else if (step === 5 || step === 6) {
+      } else if (step === 4) {
+        const id = await ensureDraft();
+        await saveTracks(id);
+      } else if (step === 6 || step === 7) {
         const id = await ensureDraft();
         await saveInfo(id);
       }
@@ -271,6 +307,19 @@ export function ReleaseWizard({
       setError(check);
       return;
     }
+    let artworkDimensions: { width: number; height: number } | null = null;
+    if (kind === "artwork") {
+      try {
+        artworkDimensions = await readImageDimensions(file);
+      } catch {
+        setError("Could not read artwork dimensions. Use a valid JPEG, PNG, or WebP file.");
+        return;
+      }
+      if (!isAcceptedArtworkDimensions(artworkDimensions.width, artworkDimensions.height)) {
+        setError("Artwork must be square and exactly 1400×1400, 3000×3000, or 4000×4000 pixels.");
+        return;
+      }
+    }
     const id = await ensureDraft();
     setUploadProgress(`Uploading ${file.name}…`);
     try {
@@ -289,6 +338,8 @@ export function ReleaseWizard({
         filename: file.name,
         mimeType: file.type,
         sizeBytes: file.size,
+        width: artworkDimensions?.width ?? null,
+        height: artworkDimensions?.height ?? null,
       });
       if (!reg.ok) throw new Error(reg.error);
       setAssets((prev) => [
@@ -304,8 +355,8 @@ export function ReleaseWizard({
           mime_type: file.type,
           size_bytes: file.size,
           checksum: null,
-          width: null,
-          height: null,
+          width: artworkDimensions?.width ?? null,
+          height: artworkDimensions?.height ?? null,
           codec: null,
           container: null,
           sample_rate_hz: null,
@@ -519,7 +570,7 @@ export function ReleaseWizard({
           {step === 2 ? (
             <div className="space-y-4">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                ISRC is optional and never auto-generated. Upload audio per track.
+                ISRC is optional and never auto-generated. Upload lossless WAV, FLAC, or AIFF audio per track. FLAC is preferred for the current delivery workflow.
               </p>
               {tracks.map((t, idx) => (
                 <div key={idx} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-4 space-y-3">
@@ -580,7 +631,7 @@ export function ReleaseWizard({
                     <label className="text-caption text-[var(--nexo-text-muted)]">Audio file</label>
                     <Input
                       type="file"
-                      accept="audio/*,.wav,.flac,.mp3,.aiff,.m4a"
+                      accept="audio/wav,audio/x-wav,audio/flac,audio/aiff,audio/x-aiff,.wav,.flac,.aiff,.aif"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (f) void onUpload("audio", f, t.id);
@@ -606,6 +657,8 @@ export function ReleaseWizard({
                       version: "",
                       isrc: "",
                       explicit: false,
+                      language: "en",
+                      lyrics: "",
                     },
                   ])
                 }
@@ -718,9 +771,47 @@ export function ReleaseWizard({
           ) : null}
 
           {step === 4 ? (
+            <div className="space-y-4">
+              <p className="text-small text-[var(--nexo-text-muted)]">
+                Add the correct language and lyrics for each track. Lyrics are delivered only from the text you provide; Nexo never fabricates them.
+              </p>
+              {tracks.map((t, idx) => (
+                <div key={t.id ?? idx} className="space-y-3 rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-4">
+                  <p className="text-small font-medium">Track {idx + 1}{t.title ? `: ${t.title}` : ""}</p>
+                  <label className="block space-y-1">
+                    <span className="text-caption text-[var(--nexo-text-muted)]">Lyrics language (ISO code)</span>
+                    <Input
+                      value={t.language}
+                      onChange={(e) => {
+                        const next = [...tracks];
+                        next[idx] = { ...t, language: e.target.value.trim().slice(0, 12) };
+                        setTracks(next);
+                      }}
+                      placeholder="en"
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-caption text-[var(--nexo-text-muted)]">Lyrics</span>
+                    <Textarea
+                      value={t.lyrics}
+                      onChange={(e) => {
+                        const next = [...tracks];
+                        next[idx] = { ...t, lyrics: e.target.value };
+                        setTracks(next);
+                      }}
+                      rows={10}
+                      placeholder="Enter the complete lyrics exactly as performed. Leave blank for instrumental tracks."
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {step === 5 ? (
             <div className="space-y-3">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                Cover art (JPEG/PNG/WebP). Stored in private bucket; DB keeps the file reference.
+                Cover art must be square JPEG/PNG/WebP at exactly 1400×1400, 3000×3000, or 4000×4000 pixels. Invalid dimensions are rejected before upload.
               </p>
               <Input
                 type="file"
@@ -741,7 +832,7 @@ export function ReleaseWizard({
             </div>
           ) : null}
 
-          {step === 5 ? (
+          {step === 6 ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Copyright year</span>
@@ -777,7 +868,7 @@ export function ReleaseWizard({
             </div>
           ) : null}
 
-          {step === 6 ? (
+          {step === 7 ? (
             <div className="space-y-3">
               <Alert title="Distribution">
                 Nexo manages delivery after your release passes quality control.
@@ -791,7 +882,7 @@ export function ReleaseWizard({
             </div>
           ) : null}
 
-          {step === 7 ? (
+          {step === 8 ? (
             <div className="space-y-3 text-small">
               <p>
                 <strong>Type:</strong> {type}
