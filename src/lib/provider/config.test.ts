@@ -12,6 +12,13 @@ describe("provider config", () => {
     "PROVIDER_API_KEY",
     "PROVIDER_API_BASE_URL",
     "PROVIDER_WEBHOOK_SECRET",
+    "DISTRIBUTION_API_BASE_URL",
+    "DISTRIBUTION_AUTHORIZE_URL",
+    "DISTRIBUTION_TOKEN_URL",
+    "DISTRIBUTION_CLIENT_ID",
+    "DISTRIBUTION_CLIENT_SECRET",
+    "DISTRIBUTION_OAUTH_STATE_SECRET",
+    "DISTRIBUTION_TOKEN_ENCRYPTION_KEY",
   ];
   const backup: Record<string, string | undefined> = {};
 
@@ -39,6 +46,13 @@ describe("provider config", () => {
       PROVIDER_NAME: undefined,
       PROVIDER_API_KEY: undefined,
       PROVIDER_WEBHOOK_SECRET: undefined,
+      DISTRIBUTION_API_BASE_URL: undefined,
+      DISTRIBUTION_AUTHORIZE_URL: undefined,
+      DISTRIBUTION_TOKEN_URL: undefined,
+      DISTRIBUTION_CLIENT_ID: undefined,
+      DISTRIBUTION_CLIENT_SECRET: undefined,
+      DISTRIBUTION_OAUTH_STATE_SECRET: undefined,
+      DISTRIBUTION_TOKEN_ENCRYPTION_KEY: undefined,
     });
     expect(isDistributionProviderConfigured()).toBe(false);
     expect(getConfiguredProviderName()).toBeNull();
@@ -56,7 +70,17 @@ describe("provider config", () => {
   });
 
   it("still returns NotConnected adapter until real adapter registered", async () => {
-    setEnv({ PROVIDER_NAME: "fuga", PROVIDER_API_KEY: "secret-test" });
+    setEnv({
+      PROVIDER_NAME: "fuga",
+      PROVIDER_API_KEY: "secret-test",
+      DISTRIBUTION_API_BASE_URL: undefined,
+      DISTRIBUTION_AUTHORIZE_URL: undefined,
+      DISTRIBUTION_TOKEN_URL: undefined,
+      DISTRIBUTION_CLIENT_ID: undefined,
+      DISTRIBUTION_CLIENT_SECRET: undefined,
+      DISTRIBUTION_OAUTH_STATE_SECRET: undefined,
+      DISTRIBUTION_TOKEN_ENCRYPTION_KEY: undefined,
+    });
     expect(isDistributionProviderConfigured()).toBe(true);
     const p = getProvider();
     // No live adapter registered — factory refuses fake success

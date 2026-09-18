@@ -105,7 +105,7 @@ describe("dashboard copy is truthful", () => {
     const helpers = readFileSync(join(__dirname, "../portal/overview.ts"), "utf8");
     const src = `${page}\n${ui}\n${helpers}`;
     expect(src).not.toMatch(/fake (stream|kpi|revenue)/i);
-    expect(src).toContain("Welcome,");
+    expect(src).toContain("Welcome back,");
     expect(src).toContain("Create release");
     expect(src).toContain("NOT CONNECTED");
     expect(src).toContain("Outstanding $0.00 is not estimated earnings");

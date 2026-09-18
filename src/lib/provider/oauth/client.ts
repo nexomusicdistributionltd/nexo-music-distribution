@@ -1,6 +1,6 @@
 import "server-only";
 import { readDistributionOAuthConfig } from "./config";
-import { loadDistributionAccessToken } from "./store";
+import { loadDistributionAccessToken, markDistributionCredentialVerified } from "./store";
 
 export class DistributionApiHttpError extends Error {
   constructor(public readonly status:number){
@@ -34,6 +34,7 @@ export async function getStoredDistributionIdentityHealth():Promise<{
   if(!token) return {ok:false,status:null,message:"Distribution Engine authorization is not stored."};
   try{
     await verifyDistributionIdentity(token);
+    await markDistributionCredentialVerified();
     return {ok:true,status:200,message:"Distribution Engine API access verified."};
   }catch(e){
     if(e instanceof DistributionApiHttpError){

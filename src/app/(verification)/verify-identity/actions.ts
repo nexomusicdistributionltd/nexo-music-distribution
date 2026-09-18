@@ -34,7 +34,7 @@ export async function beginIdentityVerificationAction(input: {
   dateOfBirth: string;
   documentType: IdentityDocumentType;
 }): Promise<ActionResult<{ verificationId: string; submissionId: string }>> {
-  const ctx = await RequireRole(["artist", "label"]);
+  const ctx = await RequireRole(["artist", "label"], { allowUnverifiedIdentity: true });
   const countryCode = input.countryCode.trim().toUpperCase();
   const legalName = input.legalName.trim();
   const isArtist = ctx.roles.includes("artist");
@@ -177,7 +177,7 @@ export async function submitIdentityVerificationAction(input: {
   documentBackPath: string;
   selfiePath: string;
 }): Promise<ActionResult<{ status: "submitted" }>> {
-  const ctx = await RequireRole(["artist", "label"]);
+  const ctx = await RequireRole(["artist", "label"], { allowUnverifiedIdentity: true });
   const expectedPrefix = `${ctx.userId}/${input.submissionId}/`;
   const expectedPaths = {
     documentFrontPath: `${expectedPrefix}document-front.jpg`,

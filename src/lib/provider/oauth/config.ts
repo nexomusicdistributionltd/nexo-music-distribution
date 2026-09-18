@@ -11,11 +11,47 @@ export type DistributionOAuthConfig = {
 };
 
 export const DISTRIBUTION_OAUTH_CALLBACK_PATH = "/api/admin/distribution/oauth/callback";
+export const LEGACY_DISTRIBUTION_OAUTH_CALLBACK_PATH = "/auth/callback";
+
+const DEFAULT_SCOPE = [
+  "read:profile",
+  "read:releases",
+  "write:releases",
+  "read:catalog",
+  "read:analytics",
+  "read:earnings",
+  "read:preferences",
+  "write:preferences",
+].join(" ");
 
 function required(name: string): string {
   const value = (process.env[name] ?? "").trim();
   if (!value) throw new Error(`Missing required server environment variable: ${name}`);
   return value;
+}
+
+function distributionRedirectUri(): string {
+  const raw =
+    (process.env.DISTRIBUTION_REDIRECT_URI ?? "").trim() ||
+    `https://nexomusicdistribution.com${DISTRIBUTION_OAUTH_CALLBACK_PATH}`;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("DISTRIBUTION_REDIRECT_URI must be a valid absolute URL.");
+  }
+  if (parsed.origin !== "https://nexomusicdistribution.com") {
+    throw new Error("Distribution OAuth redirect must use the canonical Nexo production origin.");
+  }
+  if (
+    parsed.pathname !== DISTRIBUTION_OAUTH_CALLBACK_PATH &&
+    parsed.pathname !== LEGACY_DISTRIBUTION_OAUTH_CALLBACK_PATH
+  ) {
+    throw new Error("Distribution OAuth redirect path is not supported.");
+  }
+  parsed.search = "";
+  parsed.hash = "";
+  return parsed.toString();
 }
 
 export function readDistributionOAuthConfig(): DistributionOAuthConfig {
@@ -25,10 +61,8 @@ export function readDistributionOAuthConfig(): DistributionOAuthConfig {
     tokenUrl: required("DISTRIBUTION_TOKEN_URL"),
     clientId: required("DISTRIBUTION_CLIENT_ID"),
     clientSecret: required("DISTRIBUTION_CLIENT_SECRET"),
-    // The provider callback is an application invariant. Do not let stale host config
-    // silently send reconnects back through the Supabase auth callback.
-    redirectUri: `https://nexomusicdistribution.com${DISTRIBUTION_OAUTH_CALLBACK_PATH}`,
-    scope: (process.env.DISTRIBUTION_OAUTH_SCOPE ?? "").trim() || null,
+    redirectUri: distributionRedirectUri(),
+    scope: (process.env.DISTRIBUTION_OAUTH_SCOPE ?? "").trim() || DEFAULT_SCOPE,
   };
 }
 

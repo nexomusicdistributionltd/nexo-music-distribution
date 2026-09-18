@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function VerifyIdentityPage() {
-  const ctx = await RequireRole(["artist", "label"]);
+  const ctx = await RequireRole(["artist", "label"], { allowUnverifiedIdentity: true });
   const current = await getIdentityVerificationForUser(ctx.userId);
 
   if (current?.status === "verified") {
