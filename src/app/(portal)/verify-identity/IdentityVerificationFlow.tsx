@@ -24,6 +24,14 @@ export function IdentityVerificationFlow({userId,initial}:{userId:string;initial
  const videoRef=React.useRef<HTMLVideoElement>(null); const streamRef=React.useRef<MediaStream|null>(null);
 
  React.useEffect(()=>()=>streamRef.current?.getTracks().forEach(t=>t.stop()),[]);
+ React.useEffect(()=>{
+   if(!verificationId)return;
+   const channel=supabase.channel(`identity-verification-${verificationId}`).on("postgres_changes",{event:"UPDATE",schema:"public",table:"identity_verifications",filter:`id=eq.${verificationId}`},payload=>{
+     const next=String((payload.new as {status?:string}).status??"");
+     if(next){setStatus(next);router.refresh();}
+   }).subscribe();
+   return ()=>{void supabase.removeChannel(channel);};
+ },[verificationId,router,supabase]);
  React.useEffect(()=>{if(!capture)return; navigator.mediaDevices?.getUserMedia({video:{facingMode:capture==="selfie"?"user":{ideal:"environment"}},audio:false}).then(stream=>{streamRef.current=stream;if(videoRef.current)videoRef.current.srcObject=stream;}).catch(()=>{setMessage("Camera access is required. Allow camera permission and try again.");setCapture(null);});},[capture]);
 
  async function saveIdentity(){setBusy(true);setMessage("");const r=await saveVerificationIdentityAction({countryCode:country,legalFullName:name,dateOfBirth:dob,documentType:doc});setBusy(false);if(!r.ok){setMessage(r.error);return;}setVerificationId(r.id);setStep(2);}
@@ -62,4 +70,4 @@ export function IdentityVerificationFlow({userId,initial}:{userId:string;initial
    {capture?<div className="fixed inset-0 z-[100] flex flex-col bg-black p-4 text-white"><div className="mx-auto flex w-full max-w-2xl flex-1 flex-col"><div className="flex items-center justify-between py-3"><strong>{capture==="selfie"?"Face verification":"Document capture"}</strong><button onClick={()=>{streamRef.current?.getTracks().forEach(t=>t.stop());setCapture(null)}}>Cancel</button></div><video ref={videoRef} autoPlay playsInline muted className="min-h-0 flex-1 rounded-xl object-cover"/><button disabled={busy} onClick={takePhoto} className="my-4 rounded-full bg-white p-4 font-semibold text-black">{busy?"Uploading…":"Take photo"}</button></div></div>:null}
  </div>
 }
-function StatusPanel({status}:{status:string}){return <div className="mx-auto max-w-xl rounded-xl border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-8 text-center"><ShieldCheck className="mx-auto h-10 w-10"/><h1 className="mt-4 text-h3">{status==="verified"?"Identity verified":"Verification submitted"}</h1><p className="mt-2 text-small text-[var(--nexo-text-secondary)]">{status==="verified"?"Your Nexo account is verified.":"Your live identity evidence is securely stored and awaiting admin review. You’ll be notified when the review changes."}</p></div>}
+function StatusPanel({status}:{status:string}){return <div className="mx-auto max-w-xl rounded-xl border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-8 text-center"><ShieldCheck className="mx-auto h-10 w-10"/><h1 className="mt-4 text-h3">{status==="verified"?"Identity verified":"Verification submitted"}</h1><p className="mt-2 text-small text-[var(--nexo-text-secondary)]">{status==="verified"?"Your Nexo account is verified. The verified badge is now active on your account.":"Your live identity evidence is securely stored and awaiting admin review. You’ll be notified when the review changes."}</p>{status==="verified"?<a href="/dashboard" className="mt-5 inline-flex rounded-lg bg-black px-4 py-2 text-small font-semibold text-white">Continue to dashboard</a>:null}</div>}
