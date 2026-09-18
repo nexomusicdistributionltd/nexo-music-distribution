@@ -4,6 +4,7 @@ import { verifyDistributionOAuthState } from "@/lib/provider/oauth/state";
 import { exchangeDistributionAuthorizationCode } from "@/lib/provider/oauth/token";
 import { verifyDistributionIdentity } from "@/lib/provider/oauth/client";
 import { saveDistributionToken } from "@/lib/provider/oauth/store";
+import { getSiteUrl } from "@/lib/site-url";
 
 /**
  * Shared callback URL.
@@ -15,6 +16,7 @@ import { saveDistributionToken } from "@/lib/provider/oauth/store";
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
+  const appOrigin = getSiteUrl();
   const state = url.searchParams.get("state");
 
   const stateCookie = request.cookies.get("nexo_distribution_oauth_state")?.value ?? null;
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
   const distributionState = verifyDistributionOAuthState(state);
   if (distributionState && stateCookie !== state) {
     const response = NextResponse.redirect(
-      new URL("/admin/distribution/provider?connection=failed", url.origin)
+      new URL("/admin/distribution/provider?connection=failed", appOrigin)
     );
     response.cookies.delete("nexo_distribution_oauth_state");
     return response;
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
     const code = url.searchParams.get("code");
     if (!code) {
       return NextResponse.redirect(
-        new URL("/admin/distribution/provider?connection=failed", url.origin)
+        new URL("/admin/distribution/provider?connection=failed", appOrigin)
       );
     }
     try {
@@ -40,13 +42,13 @@ export async function GET(request: NextRequest) {
       await verifyDistributionIdentity(token.access_token);
       await saveDistributionToken(token);
       const response = NextResponse.redirect(
-        new URL("/admin/distribution/provider?connection=connected", url.origin)
+        new URL("/admin/distribution/provider?connection=connected", appOrigin)
       );
       response.cookies.delete("nexo_distribution_oauth_state");
       return response;
     } catch {
       const response = NextResponse.redirect(
-        new URL("/admin/distribution/provider?connection=failed", url.origin)
+        new URL("/admin/distribution/provider?connection=failed", appOrigin)
       );
       response.cookies.delete("nexo_distribution_oauth_state");
       return response;
