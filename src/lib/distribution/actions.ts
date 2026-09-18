@@ -32,16 +32,55 @@ export async function queueApprovedRelease(
  * Idempotent submit of a queued job. Never invents provider success.
  * When provider not connected → records failed/unavailable truthfully.
  */
-function providerPayloadFromRelease(release: Record<string, any>): ProviderReleasePayload {
+type DistributionReleaseAsset = {
+  kind: string;
+  track_id: string | null;
+  storage_bucket: string;
+  storage_path: string;
+  filename: string;
+  mime_type: string;
+};
+
+type DistributionReleaseTrack = {
+  id: string;
+  track_number: number;
+  title: string;
+  version: string | null;
+  isrc: string | null;
+  language: string | null;
+  explicit: boolean;
+};
+
+type DistributionReleaseRecord = {
+  id: string;
+  title: string;
+  release_type: "single" | "ep" | "album";
+  primary_artist_name: string;
+  label_name: string | null;
+  genre: string | null;
+  subgenre: string | null;
+  language: string | null;
+  upc: string | null;
+  release_date: string | null;
+  original_release_date: string | null;
+  copyright_year: number | null;
+  copyright_line: string | null;
+  phonogram_line: string | null;
+  territories: string[] | null;
+  distribution_settings: Record<string, unknown> | null;
+  release_tracks: DistributionReleaseTrack[];
+  release_assets: DistributionReleaseAsset[];
+};
+
+function providerPayloadFromRelease(release: DistributionReleaseRecord): ProviderReleasePayload {
   const audioAssets = (release.release_assets ?? []).filter(
-    (asset: { kind: string }) => asset.kind === "audio"
+    (asset) => asset.kind === "audio"
   );
   const artwork = (release.release_assets ?? []).find(
-    (asset: { kind: string }) => asset.kind === "artwork"
+    (asset) => asset.kind === "artwork"
   );
   const tracks = [...(release.release_tracks ?? [])].sort(
-    (a: { track_number: number }, b: { track_number: number }) =>
-      a.track_number - b.track_number
+    (left, right) => left.track_number - right.track_number
   );
 
   return {
@@ -59,47 +98,32 @@ function providerPayloadFromRelease(release: Record<string, any>): ProviderRelea
     copyrightYear: release.copyright_year,
     copyrightLine: release.copyright_line,
     phonogramLine: release.phonogram_line,
-    tracks: tracks.map(
-      (t: {
-        id: string;
-        track_number: number;
-        title: string;
-        version: string | null;
-        isrc: string | null;
-        language: string | null;
-        explicit: boolean;
-      }) => {
-        const linked = audioAssets.find(
-          (asset: { track_id?: string | null }) => asset.track_id === t.id
-        );
-        const audio =
-          linked ??
-          (tracks.length === 1 && audioAssets.length === 1 ? audioAssets[0] : null);
+    tracks: tracks.map((track) => {
+      const linked = audioAssets.find((asset) => asset.track_id === track.id);
+      const audio =
+        linked ??
+        (tracks.length === 1 && audioAssets.length === 1 ? audioAssets[0] : null);
 
-        return {
-          trackId: t.id,
-          trackNumber: t.track_number,
-          title: t.title,
-          version: t.version,
-          isrc: t.isrc,
-          language: t.language,
-          explicit: t.explicit,
-          audioStorageBucket: audio?.storage_bucket ?? null,
-          audioStoragePath: audio?.storage_path ?? null,
-          audioFilename: audio?.filename ?? null,
-          audioMimeType: audio?.mime_type ?? null,
-        };
-      }
-    ),
+      return {
+        trackId: track.id,
+        trackNumber: track.track_number,
+        title: track.title,
+        version: track.version,
+        isrc: track.isrc,
+        language: track.language,
+        explicit: track.explicit,
+        audioStorageBucket: audio?.storage_bucket ?? null,
+        audioStoragePath: audio?.storage_path ?? null,
+        audioFilename: audio?.filename ?? null,
+        audioMimeType: audio?.mime_type ?? null,
+      };
+    }),
     artworkStorageBucket: artwork?.storage_bucket ?? null,
     artworkStoragePath: artwork?.storage_path ?? null,
     artworkFilename: artwork?.filename ?? null,
     artworkMimeType: artwork?.mime_type ?? null,
     territories: release.territories ?? [],
-    deliverySettings:
-      release.distribution_settings && typeof release.distribution_settings === "object"
-        ? release.distribution_settings
-        : {},
+    deliverySettings: release.distribution_settings ?? {},
   };
 }
 
@@ -158,7 +182,7 @@ export async function submitQueuedRelease(
   if (releaseError) return { ok: false, error: releaseError.message };
   if (!release) return { ok: false, error: "Release not found." };
 
-  const providerPayload = providerPayloadFromRelease(release as Record<string, any>);
+  const providerPayload = providerPayloadFromRelease(release as unknown as DistributionReleaseRecord);
   const preflightError = validateProviderPayloadBeforeAttempt(providerPayload);
   if (preflightError) {
     return {
