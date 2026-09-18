@@ -36,10 +36,10 @@ export default async function PortalLayout({
 
   const workspaceKind = workspaceKindForRoles(ctx.roles);
   const baseSections = navSectionsForRoles(ctx.roles);
-  const portalControls = workspaceKindForRoles(ctx.roles) === "admin" ? [] : await listPortalFeatureControls();
-  const sections = workspaceKindForRoles(ctx.roles) === "admin"
+  const portalControls = workspaceKind === "admin" ? [] : await listPortalFeatureControls();
+  const sections = workspaceKind === "admin"
     ? baseSections
-    : filterPortalSectionsByControls(baseSections, portalControls, workspaceKindForRoles(ctx.roles));
+    : filterPortalSectionsByControls(baseSections, portalControls, workspaceKind);
   const displayName =
     ctx.profile?.display_name || ctx.profile?.full_name || ctx.email || "Account";
   const accountLabel = ctx.roles.map((r) => r.replace(/_/g, " ")).join(" · ");
