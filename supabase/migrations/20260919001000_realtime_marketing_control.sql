@@ -1,0 +1,295 @@
+-- Realtime marketing operations control plane.
+-- No external provider success is fabricated: provider_state/provider_reference are
+-- operator/provider-backed facts and remain null until a real workflow updates them.
+
+alter table public.portal_service_requests
+  drop constraint if exists portal_service_requests_status_check;
+
+alter table public.portal_service_requests
+  add constraint portal_service_requests_status_check
+  check (status in (
+    'draft',
+    'submitted',
+    'reviewing',
+    'needs_info',
+    'accepted',
+    'approved',
+    'processing',
+    'live',
+    'completed',
+    'rejected',
+    'cancelled'
+  ));
+
+alter table public.portal_service_requests
+  add column if not exists priority text not null default 'normal'
+    check (priority in ('low', 'normal', 'high', 'urgent')),
+  add column if not exists assigned_to uuid references public.profiles (id) on delete set null,
+  add column if not exists provider_state text,
+  add column if not exists provider_reference text,
+  add column if not exists provider_url text,
+  add column if not exists provider_response jsonb not null default '{}'::jsonb,
+  add column if not exists submitted_payload jsonb not null default '{}'::jsonb,
+  add column if not exists completed_at timestamptz;
+
+create index if not exists portal_service_status_idx
+  on public.portal_service_requests (kind, status, created_at desc);
+
+create or replace function public.guard_marketing_request_admin_update()
+returns trigger
+language plpgsql
+set search_path = public
+as $marketing$
+begin
+  -- Service-role/internal writes do not carry an auth user and remain allowed.
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  if old.kind in (
+    'dsp_pitching',
+    'campaign',
+    'priority_pitch',
+    'spotify_discovery_mode',
+    'promotional_assets',
+    'fan_blast',
+    'award_monitoring',
+    'third_party_playlisting',
+    'ad_box',
+    'influencers',
+    'labs',
+    'luminate'
+  ) then
+    if (
+      public.has_role(auth.uid(), 'admin')
+      or public.has_role(auth.uid(), 'super_admin')
+    ) then
+      return new;
+    end if;
+
+    -- Artists/labels may only revise a request explicitly returned for more
+    -- information (or rejected) and resubmit it. Provider/admin fields stay immutable.
+    if (
+      old.owner_user_id = auth.uid()
+      and old.status in ('needs_info', 'rejected')
+      and new.status = 'submitted'
+      and new.owner_user_id is not distinct from old.owner_user_id
+      and new.kind is not distinct from old.kind
+      and new.title is not distinct from old.title
+      and new.release_id is not distinct from old.release_id
+      and new.track_id is not distinct from old.track_id
+      and new.priority is not distinct from old.priority
+      and new.assigned_to is not distinct from old.assigned_to
+      and new.provider_state is not distinct from old.provider_state
+      and new.provider_reference is not distinct from old.provider_reference
+      and new.provider_url is not distinct from old.provider_url
+      and new.provider_response is not distinct from old.provider_response
+      and new.submitted_payload is not distinct from old.submitted_payload
+      and new.completed_at is not distinct from old.completed_at
+    ) then
+      return new;
+    end if;
+
+    raise exception 'Marketing request updates require administrator access'
+      using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$marketing$;
+
+drop trigger if exists guard_marketing_request_admin_update on public.portal_service_requests;
+create trigger guard_marketing_request_admin_update
+  before update on public.portal_service_requests
+  for each row execute function public.guard_marketing_request_admin_update();
+
+drop policy if exists "portal_service_owner_update" on public.portal_service_requests;
+create policy "portal_service_owner_update" on public.portal_service_requests
+  for update to authenticated
+  using (
+    owner_user_id = (select auth.uid())
+    and status in ('draft', 'needs_info', 'rejected')
+  )
+  with check (
+    owner_user_id = (select auth.uid())
+    and status in ('draft', 'submitted')
+    and reviewed_by is null
+  );
+
+
+create table if not exists public.marketing_service_controls (
+  kind text primary key,
+  label text not null,
+  enabled boolean not null default true,
+  accepting_requests boolean not null default true,
+  requires_release boolean not null default false,
+  provider_mode text not null default 'internal'
+    check (provider_mode in ('internal', 'toolost_manual', 'toolost_api')),
+  provider_feature text,
+  description text,
+  admin_instructions text,
+  updated_by uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists marketing_service_controls_set_updated_at on public.marketing_service_controls;
+create trigger marketing_service_controls_set_updated_at
+  before update on public.marketing_service_controls
+  for each row execute function public.set_updated_at();
+
+alter table public.marketing_service_controls enable row level security;
+
+drop policy if exists "marketing_service_controls_select" on public.marketing_service_controls;
+create policy "marketing_service_controls_select" on public.marketing_service_controls
+  for select to authenticated
+  using (true);
+
+drop policy if exists "marketing_service_controls_staff_write" on public.marketing_service_controls;
+create policy "marketing_service_controls_staff_write" on public.marketing_service_controls
+  for all to authenticated
+  using (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  )
+  with check (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  );
+
+grant select, insert, update, delete on public.marketing_service_controls to authenticated;
+
+insert into public.marketing_service_controls
+  (kind, label, enabled, accepting_requests, requires_release, provider_mode, provider_feature, description, admin_instructions)
+values
+  ('dsp_pitching', 'DSP Pitching', true, true, true, 'toolost_manual', 'pitch_portal',
+   'Editorial and promotional pitching intake for eligible unreleased music.',
+   'Verify the release is provider-delivered and upcoming. Submit only through a documented provider workflow; record the real provider reference/status here.'),
+  ('campaign', 'Release Campaign Builder', true, true, true, 'internal', null,
+   'Build and operate a release campaign plan using real release metadata and approved marketing actions.',
+   'Review objectives, dates, budget and assets. Keep execution states tied to completed work only.'),
+  ('priority_pitch', 'Priority Pitch', true, true, true, 'toolost_manual', 'priority_pitch',
+   'Priority pitching intake for eligible upcoming releases.',
+   'TooLost documents one song per unreleased TooLost-distributed release and recommends 3–4 weeks lead time. Record provider submission/reference only after the real submission exists.'),
+  ('spotify_discovery_mode', 'Spotify Discovery Mode', true, true, true, 'toolost_manual', 'spotify_discovery_mode',
+   'Eligibility and enrollment workflow for Spotify Discovery Mode.',
+   'Verify Spotify eligibility and the release/track status before provider submission. Do not mark enrolled until a real provider/Spotify state confirms it.'),
+  ('promotional_assets', 'Promotional Assets', true, true, true, 'toolost_manual', 'promotional_assets',
+   'Promotional creative asset workflow linked to a real release.',
+   'Use the documented provider asset workflow when available. Save only real delivered asset URLs/references.'),
+  ('fan_blast', 'Fan Blast', true, true, false, 'toolost_manual', 'fan_blast',
+   'Fan communication campaign intake and execution tracking.',
+   'Confirm the audience source and consent before sending. Provider delivery/open/click data must come from the real campaign response, never generated values.'),
+  ('award_monitoring', 'Award Monitoring', true, true, false, 'toolost_manual', 'award_monitoring',
+   'Monitor certification/award progress using provider-reported or verified external data.',
+   'Record only verified award/certification progress and source references.'),
+  ('third_party_playlisting', 'Third Party Playlisting', true, true, true, 'internal', null,
+   'Human-reviewed third-party playlist outreach workflow.',
+   'No guaranteed placement and no pay-for-placement representation. Track outreach and confirmed outcomes only.'),
+  ('ad_box', 'Nexo Ad Box', true, true, true, 'internal', null,
+   'Nexo-managed advertising campaign intake.',
+   'Require approved budget, destination, audience and creative before launch. Store real platform campaign IDs/results when executed.'),
+  ('influencers', 'Influencers', true, true, true, 'internal', null,
+   'Influencer campaign sourcing and outreach workflow.',
+   'Record creator selection, approval and confirmed post URLs/results only.'),
+  ('labs', 'Nexo Labs', true, true, false, 'internal', null,
+   'Opt-in queue for Nexo experimental tools.',
+   'Enable only features that are actually available to the account.'),
+  ('luminate', 'Luminate Registration', true, true, true, 'toolost_manual', 'chart_registration',
+   'Release registration workflow for Luminate/industry chart tracking.',
+   'TooLost documents chart registration through its Chart Registration workflow. Record the actual registration reference/state after submission.')
+on conflict (kind) do update set
+  label = excluded.label,
+  requires_release = excluded.requires_release,
+  provider_mode = excluded.provider_mode,
+  provider_feature = excluded.provider_feature,
+  description = excluded.description,
+  admin_instructions = excluded.admin_instructions;
+
+create table if not exists public.marketing_content_pages (
+  slug text primary key,
+  title text not null,
+  summary text not null,
+  sections jsonb not null default '[]'::jsonb,
+  enabled boolean not null default true,
+  updated_by uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint marketing_content_sections_array check (jsonb_typeof(sections) = 'array')
+);
+
+drop trigger if exists marketing_content_pages_set_updated_at on public.marketing_content_pages;
+create trigger marketing_content_pages_set_updated_at
+  before update on public.marketing_content_pages
+  for each row execute function public.set_updated_at();
+
+alter table public.marketing_content_pages enable row level security;
+
+drop policy if exists "marketing_content_pages_select" on public.marketing_content_pages;
+create policy "marketing_content_pages_select" on public.marketing_content_pages
+  for select to authenticated
+  using (true);
+
+drop policy if exists "marketing_content_pages_staff_write" on public.marketing_content_pages;
+create policy "marketing_content_pages_staff_write" on public.marketing_content_pages
+  for all to authenticated
+  using (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  )
+  with check (
+    public.has_role(auth.uid(), 'admin')
+    or public.has_role(auth.uid(), 'super_admin')
+  );
+
+grant select, insert, update, delete on public.marketing_content_pages to authenticated;
+
+insert into public.marketing_content_pages (slug, title, summary, sections)
+values
+  (
+    'client-offerings',
+    'Client Offerings',
+    'Current Nexo marketing and catalog services available to this account.',
+    jsonb_build_array(
+      jsonb_build_object(
+        'heading', 'Distribution and account services',
+        'body', 'Your Nexo account provides the distribution, catalog, royalty, reporting and support features enabled for your plan. Marketing services are operated only when the relevant request is accepted and completed.'
+      ),
+      jsonb_build_object(
+        'heading', 'Marketing requests',
+        'body', 'DSP Pitching, Priority Pitch, Spotify Discovery Mode, Promotional Assets, Fan Blast, Award Monitoring, Third Party Playlisting, Nexo Ad Box, Influencers, Nexo Labs and Luminate Registration use live request states. A submitted request is not a placement, enrollment, campaign launch or provider confirmation.'
+      )
+    )
+  ),
+  (
+    'marketing-best-practices',
+    'Marketing Best Practices',
+    'Practical release marketing guidance based on real release and campaign states.',
+    jsonb_build_array(
+      jsonb_build_object(
+        'heading', 'Prepare before release',
+        'body', 'Complete release metadata, artwork, audio, artist profiles and delivery early. For provider pitching workflows, leave enough lead time for review and do not treat submission as guaranteed editorial placement.'
+      ),
+      jsonb_build_object(
+        'heading', 'Use verified outcomes',
+        'body', 'Base campaign decisions on real Nexo and provider analytics. Missing data stays pending or unavailable; it is never replaced with invented streams, reach, clicks or conversions.'
+      ),
+      jsonb_build_object(
+        'heading', 'Protect the catalog',
+        'body', 'Avoid artificial streaming, guaranteed-playlist schemes and unverified promotional claims. Keep campaign links, budgets, creator posts and provider references attached to the real request that produced them.'
+      )
+    )
+  )
+on conflict (slug) do nothing;
+
+do $$
+begin
+  begin
+    alter publication supabase_realtime add table public.marketing_service_controls;
+  exception when duplicate_object then null;
+  end;
+  begin
+    alter publication supabase_realtime add table public.marketing_content_pages;
+  exception when duplicate_object then null;
+  end;
+end $$;
