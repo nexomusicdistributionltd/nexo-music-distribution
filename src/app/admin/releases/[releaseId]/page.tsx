@@ -15,6 +15,8 @@ import { isQcableStatus } from "@/lib/admin/qc";
 import { evaluateReleaseReadiness } from "@/lib/ddex/readiness";
 import { DdexReadinessPanel } from "@/components/ddex/DdexReadinessPanel";
 import { DspTargetingPanel } from "@/components/roster/DspTargetingPanel";
+import { RetryJobButton } from "@/components/distribution/DistributionActionForms";
+import { Alert } from "@/components/ui/Alert";
 
 export const metadata: Metadata = {
   title: "Release review",
@@ -71,6 +73,14 @@ export default async function AdminReleaseDetailPage({
     .select("*")
     .eq("release_id", releaseId)
     .order("created_at", { ascending: false });
+
+  const { data: latestDistributionJob } = await supabase
+    .from("distribution_jobs")
+    .select("id, status, last_error, provider_release_id, updated_at")
+    .eq("release_id", releaseId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const { data: deals } = await supabase
     .from("release_deals")
@@ -133,6 +143,24 @@ export default async function AdminReleaseDetailPage({
       extra={
         <div className="space-y-8">
           {adminMetadataEditable ? <AdminReleaseMetadataForm release={release} /> : null}
+          {canOperateDistribution &&
+          release.status === "failed" &&
+          latestDistributionJob?.status === "failed" ? (
+            <section className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
+              <h2 className="text-h4">Delivery needs attention</h2>
+              <Alert variant="warning" title="QC approval is already recorded">
+                The release passed Nexo QC, but its delivery attempt failed. Fix any Nexo/provider-format
+                issue shown below, then retry delivery. Do not return the release to the artist unless
+                the artist actually needs to change metadata or assets.
+              </Alert>
+              {latestDistributionJob.last_error ? (
+                <p className="whitespace-pre-wrap text-small text-[var(--nexo-text-muted)]">
+                  {latestDistributionJob.last_error}
+                </p>
+              ) : null}
+              <RetryJobButton jobId={latestDistributionJob.id} />
+            </section>
+          ) : null}
           {canOperateDistribution &&
           ["approved", "scheduled", "failed"].includes(release.status) ? (
             <PostApprovalReviewForm releaseId={release.id} />
