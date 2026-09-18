@@ -88,8 +88,18 @@ type DistributionReleaseRecord = {
 };
 
 function providerPayloadFromRelease(release: DistributionReleaseRecord): ProviderReleasePayload {
+  const isFlacAsset = (asset: DistributionReleaseAsset) => {
+    const mime = asset.mime_type.toLowerCase();
+    const filename = asset.filename.toLowerCase();
+    return (
+      mime === "audio/flac" ||
+      mime === "audio/x-flac" ||
+      mime === "application/flac" ||
+      filename.endsWith(".flac")
+    );
+  };
   const audioAssets = (release.release_assets ?? []).filter(
-    (asset) => asset.kind === "audio"
+    (asset) => asset.kind === "audio" && isFlacAsset(asset)
   );
   const artwork = (release.release_assets ?? []).find(
     (asset) => asset.kind === "artwork"
@@ -169,9 +179,11 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
     phonogramLine: release.phonogram_line,
     tracks: tracks.map((track) => {
       const linked = audioAssets.find((asset) => asset.track_id === track.id);
-      const audio =
-        linked ??
-        (tracks.length === 1 && audioAssets.length === 1 ? audioAssets[0] : null);
+      const legacySingleTrackAudio =
+        tracks.length === 1
+          ? audioAssets.find((asset) => asset.track_id == null)
+          : undefined;
+      const audio = linked ?? legacySingleTrackAudio ?? null;
 
       const scoped = releaseContributors.filter(
         (contributor) => !contributor.track_id || contributor.track_id === track.id
@@ -229,7 +241,7 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
         audioStorageBucket: audio?.storage_bucket ?? null,
         audioStoragePath: audio?.storage_path ?? null,
         audioFilename: audio?.filename ?? null,
-        audioMimeType: audio?.mime_type ?? null,
+        audioMimeType: audio ? "audio/flac" : null,
       };
     }),
     artworkStorageBucket: artwork?.storage_bucket ?? null,
