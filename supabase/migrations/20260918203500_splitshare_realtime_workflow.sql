@@ -147,16 +147,20 @@ create table if not exists public.splitshare_allocations (
   payee_id uuid references public.portal_payees(id) on delete set null,
   beneficiary_user_id uuid references public.profiles(id) on delete set null,
   currency char(3) not null,
-  gross_share_minor bigint not null check (gross_share_minor >= 0),
+  gross_share_minor bigint not null,
   recouped_minor bigint not null default 0 check (recouped_minor >= 0),
-  payable_minor bigint not null check (payable_minor >= 0),
+  payable_minor bigint not null,
   status text not null check (status in ('owner','credited','held','recouped')),
-  owner_debit_ledger_entry_id uuid references public.ledger_entries(id) on delete set null,
-  beneficiary_credit_ledger_entry_id uuid references public.ledger_entries(id) on delete set null,
+  owner_transfer_ledger_entry_id uuid references public.ledger_entries(id) on delete set null,
+  beneficiary_transfer_ledger_entry_id uuid references public.ledger_entries(id) on delete set null,
   held_ledger_entry_id uuid references public.ledger_entries(id) on delete set null,
   created_at timestamptz not null default now(),
   unique(import_row_id, split_share_id),
-  constraint splitshare_allocation_math check (gross_share_minor = recouped_minor + payable_minor)
+  constraint splitshare_allocation_math check (
+    (gross_share_minor >= 0 and payable_minor >= 0 and gross_share_minor = recouped_minor + payable_minor)
+    or
+    (gross_share_minor < 0 and recouped_minor = 0 and payable_minor = gross_share_minor)
+  )
 );
 
 create index if not exists splitshare_allocations_owner_idx
@@ -630,9 +634,12 @@ declare
   total_bps integer;
   floor_total bigint;
   remainder bigint;
+  source_abs bigint;
+  direction integer;
   first_share boolean := true;
   share_row public.royalty_split_shares;
   rec public.portal_recoupments;
+  gross_share_abs bigint;
   gross_share bigint;
   recouped bigint;
   recoup_take bigint;
@@ -642,13 +649,13 @@ declare
   payee_status text;
   beneficiary_account uuid;
   allocation_id uuid;
-  owner_debit_id uuid;
-  beneficiary_credit_id uuid;
-  held_credit_id uuid;
+  owner_transfer_id uuid;
+  beneficiary_transfer_id uuid;
+  held_transfer_id uuid;
   effective_date date;
 begin
-  if new.kind <> 'royalty_credit'
-     or new.amount_minor <= 0
+  if new.kind not in ('royalty_credit', 'royalty_debit')
+     or new.amount_minor = 0
      or new.import_row_id is null
      or new.track_id is null
      or new.split_rule_id is not null then
@@ -656,6 +663,8 @@ begin
   end if;
 
   effective_date := coalesce(new.period_end, new.created_at::date);
+  source_abs := abs(new.amount_minor);
+  direction := case when new.amount_minor > 0 then 1 else -1 end;
 
   select assignment.split_rule_id
   into applied_rule_id
@@ -675,14 +684,18 @@ begin
     return new;
   end if;
 
+  -- Legacy name-only rules are intentionally not posted through the automated
+  -- engine. Every automated share must point at an approved Nexo payee.
   if exists (
-    select 1 from public.royalty_split_shares
-    where rule_id = applied_rule_id and payee_id is null
+    select 1
+    from public.royalty_split_shares
+    where rule_id = applied_rule_id
+      and payee_id is null
   ) then
     return new;
   end if;
 
-  select coalesce(sum(share_bps),0)
+  select coalesce(sum(share_bps), 0)
   into total_bps
   from public.royalty_split_shares
   where rule_id = applied_rule_id;
@@ -691,12 +704,12 @@ begin
     return new;
   end if;
 
-  select coalesce(sum(floor((new.amount_minor::numeric * share_bps::numeric) / 10000)::bigint),0)
+  select coalesce(sum(floor((source_abs::numeric * share_bps::numeric) / 10000)::bigint), 0)
   into floor_total
   from public.royalty_split_shares
   where rule_id = applied_rule_id;
 
-  remainder := new.amount_minor - floor_total;
+  remainder := source_abs - floor_total;
 
   for share_row in
     select *
@@ -704,11 +717,12 @@ begin
     where rule_id = applied_rule_id
     order by id
   loop
-    gross_share := floor((new.amount_minor::numeric * share_row.share_bps::numeric) / 10000)::bigint;
+    gross_share_abs := floor((source_abs::numeric * share_row.share_bps::numeric) / 10000)::bigint;
     if first_share then
-      gross_share := gross_share + remainder;
+      gross_share_abs := gross_share_abs + remainder;
       first_share := false;
     end if;
+    gross_share := gross_share_abs * direction;
 
     linked_beneficiary := null;
     payee_status := null;
@@ -726,7 +740,11 @@ begin
     recouped := 0;
     payable := gross_share;
 
-    if share_row.payee_id is not null
+    -- Recoupments consume positive earnings only. A negative provider row is
+    -- a chargeback/adjustment and is allocated proportionally without
+    -- advancing the recoupment balance.
+    if direction > 0
+       and share_row.payee_id is not null
        and beneficiary is distinct from new.owner_user_id
        and payable > 0 then
       for rec in
@@ -796,7 +814,7 @@ begin
     on conflict (import_row_id, split_share_id) do nothing
     returning id into allocation_id;
 
-    if allocation_id is null or payable <= 0 or beneficiary = new.owner_user_id then
+    if allocation_id is null or payable = 0 or beneficiary = new.owner_user_id then
       continue;
     end if;
 
@@ -809,10 +827,16 @@ begin
     ) values (
       new.account_id,
       new.owner_user_id,
-      'royalty_debit',
+      case
+        when payable > 0 then 'royalty_debit'::public.money_entry_kind
+        else 'royalty_credit'::public.money_entry_kind
+      end,
       -payable,
       new.currency,
-      'SplitShare allocation to ' || share_row.party_name,
+      case
+        when payable > 0 then 'SplitShare allocation to ' || share_row.party_name
+        else 'SplitShare negative adjustment allocated to ' || share_row.party_name
+      end,
       'splitshare_allocation',
       allocation_id,
       new.created_by,
@@ -834,10 +858,11 @@ begin
       jsonb_build_object(
         'splitshare_allocation_id', allocation_id,
         'payee_id', share_row.payee_id,
-        'recouped_minor', recouped
+        'recouped_minor', recouped,
+        'source_direction', direction
       )
     )
-    returning id into owner_debit_id;
+    returning id into owner_transfer_id;
 
     if beneficiary is not null then
       insert into public.ledger_accounts(owner_user_id, currency, label)
@@ -859,10 +884,16 @@ begin
       ) values (
         beneficiary_account,
         beneficiary,
-        'royalty_credit',
+        case
+          when payable > 0 then 'royalty_credit'::public.money_entry_kind
+          else 'royalty_debit'::public.money_entry_kind
+        end,
         payable,
         new.currency,
-        'SplitShare credit from ' || share_row.party_name,
+        case
+          when payable > 0 then 'SplitShare credit from ' || share_row.party_name
+          else 'SplitShare negative royalty adjustment'
+        end,
         'splitshare_allocation',
         allocation_id,
         new.created_by,
@@ -884,10 +915,11 @@ begin
         jsonb_build_object(
           'splitshare_allocation_id', allocation_id,
           'source_owner_user_id', new.owner_user_id,
-          'payee_id', share_row.payee_id
+          'payee_id', share_row.payee_id,
+          'source_direction', direction
         )
       )
-      returning id into beneficiary_credit_id;
+      returning id into beneficiary_transfer_id;
     else
       insert into public.ledger_entries (
         account_id, owner_user_id, kind, amount_minor, currency, description,
@@ -898,10 +930,16 @@ begin
       ) values (
         new.account_id,
         new.owner_user_id,
-        'royalty_credit',
+        case
+          when payable > 0 then 'royalty_credit'::public.money_entry_kind
+          else 'royalty_debit'::public.money_entry_kind
+        end,
         payable,
         new.currency,
-        'SplitShare held for external payee ' || share_row.party_name,
+        case
+          when payable > 0 then 'SplitShare held for external payee ' || share_row.party_name
+          else 'SplitShare held negative adjustment for external payee ' || share_row.party_name
+        end,
         'splitshare_allocation',
         allocation_id,
         new.created_by,
@@ -923,17 +961,18 @@ begin
         jsonb_build_object(
           'splitshare_allocation_id', allocation_id,
           'payee_id', share_row.payee_id,
-          'external_payee', true
+          'external_payee', true,
+          'source_direction', direction
         )
       )
-      returning id into held_credit_id;
+      returning id into held_transfer_id;
     end if;
 
     update public.splitshare_allocations
     set
-      owner_debit_ledger_entry_id = owner_debit_id,
-      beneficiary_credit_ledger_entry_id = beneficiary_credit_id,
-      held_ledger_entry_id = held_credit_id
+      owner_transfer_ledger_entry_id = owner_transfer_id,
+      beneficiary_transfer_ledger_entry_id = beneficiary_transfer_id,
+      held_ledger_entry_id = held_transfer_id
     where id = allocation_id;
   end loop;
 
@@ -961,7 +1000,7 @@ declare
   allocation public.splitshare_allocations;
   owner_account uuid;
   beneficiary_account uuid;
-  beneficiary_credit_id uuid;
+  beneficiary_transfer_id uuid;
 begin
   if new.linked_user_id is null
      or new.status <> 'approved'
@@ -974,7 +1013,7 @@ begin
     from public.splitshare_allocations
     where payee_id = new.id
       and status = 'held'
-      and payable_minor > 0
+      and payable_minor <> 0
     order by created_at, id
     for update
   loop
@@ -1006,6 +1045,7 @@ begin
       and currency = allocation.currency
       and label = 'default';
 
+    -- Remove the signed balance from the owner's held bucket.
     insert into public.ledger_entries (
       account_id, owner_user_id, kind, amount_minor, currency, description,
       reference_type, reference_id, created_by, balance_bucket, split_rule_id,
@@ -1013,10 +1053,13 @@ begin
     ) values (
       owner_account,
       allocation.owner_user_id,
-      'royalty_debit',
+      case
+        when allocation.payable_minor > 0 then 'royalty_debit'::public.money_entry_kind
+        else 'royalty_credit'::public.money_entry_kind
+      end,
       -allocation.payable_minor,
       allocation.currency,
-      'Release held SplitShare payable to linked payee',
+      'Release held SplitShare balance to linked payee',
       'splitshare_allocation',
       allocation.id,
       auth.uid(),
@@ -1026,6 +1069,7 @@ begin
       jsonb_build_object('payee_id', new.id, 'release_held', true)
     );
 
+    -- Apply the same signed balance to the linked beneficiary's available bucket.
     insert into public.ledger_entries (
       account_id, owner_user_id, kind, amount_minor, currency, description,
       reference_type, reference_id, created_by, balance_bucket, split_rule_id,
@@ -1033,10 +1077,16 @@ begin
     ) values (
       beneficiary_account,
       new.linked_user_id,
-      'royalty_credit',
+      case
+        when allocation.payable_minor > 0 then 'royalty_credit'::public.money_entry_kind
+        else 'royalty_debit'::public.money_entry_kind
+      end,
       allocation.payable_minor,
       allocation.currency,
-      'Released SplitShare payable',
+      case
+        when allocation.payable_minor > 0 then 'Released SplitShare payable'
+        else 'Released SplitShare negative adjustment'
+      end,
       'splitshare_allocation',
       allocation.id,
       auth.uid(),
@@ -1048,13 +1098,13 @@ begin
         'released_from_owner_user_id', allocation.owner_user_id
       )
     )
-    returning id into beneficiary_credit_id;
+    returning id into beneficiary_transfer_id;
 
     update public.splitshare_allocations
     set
       beneficiary_user_id = new.linked_user_id,
       status = 'credited',
-      beneficiary_credit_ledger_entry_id = beneficiary_credit_id
+      beneficiary_transfer_ledger_entry_id = beneficiary_transfer_id
     where id = allocation.id;
   end loop;
 
