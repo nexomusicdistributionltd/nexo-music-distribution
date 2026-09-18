@@ -10,7 +10,7 @@ import {
   type OutboundEventRow,
 } from "./outbound-meta";
 import { defaultFromAddress, getEmailProvider } from "./provider";
-import { renderHtmlDocument, renderTemplate } from "./render";
+import { loadTemplateHtml, renderHtmlDocument, renderTemplate } from "./render";
 import { canMarkOutboundSent, type CanonicalEmailStatus } from "./status";
 import { tryLoadStoredTemplate } from "./stored";
 import type { TemplateKey } from "./types";
@@ -78,6 +78,20 @@ function normalizedTemplateVars(
   }
 
   return vars;
+}
+
+export function templateContractSatisfied(candidateHtml: string, canonicalHtml: string): boolean {
+  const names = (html: string) =>
+    new Set(
+      [...html.matchAll(/\{\{[#/]?\s*([A-Z0-9_]+)\s*\}\}/g)].map(
+        (match) => match[1]
+      )
+    );
+  const candidate = names(candidateHtml);
+  for (const required of names(canonicalHtml)) {
+    if (!candidate.has(required)) return false;
+  }
+  return true;
 }
 
 async function canonicalSendRecipient(
@@ -162,8 +176,25 @@ export async function processEmailEvent(
   }
 
   const vars = normalizedTemplateVars(row, payload);
-  const stored = await tryLoadStoredTemplate(supabase, row.template_key);
+  let stored = await tryLoadStoredTemplate(supabase, row.template_key);
   const entry = getCatalogEntry(row.template_key);
+
+  // Admin-edited operational templates are allowed, but they must still honor
+  // the current canonical template contract. When the product adds required
+  // metadata fields, a stale stored copy must not silently strip them.
+  if (stored?.category === "ops" && entry?.filePath) {
+    try {
+      const canonicalHtml = await loadTemplateHtml(row.template_key);
+      if (!templateContractSatisfied(stored.html_body, canonicalHtml)) {
+        stored = null;
+      }
+    } catch {
+      // Rendering below remains authoritative; a missing catalog file will fail
+      // normally instead of sending a partial/unknown operational template.
+      stored = null;
+    }
+  }
+
   const payloadHtml = payloadString(payload, "html");
   const allowDormant =
     payload._allow_dormant === true || payloadString(payload, "_allow_dormant") === "true";
