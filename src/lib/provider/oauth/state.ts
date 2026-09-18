@@ -21,6 +21,10 @@ export function createDistributionOAuthState(): string {
   return `${payload}.${sign(payload)}`;
 }
 
+export function isDistributionOAuthStateCandidate(state: string | null): boolean {
+  return Boolean(state?.startsWith(`${PREFIX}.`));
+}
+
 export function verifyDistributionOAuthState(state: string | null): boolean {
   if (!state) return false;
   const parts = state.split(".");
