@@ -20,7 +20,7 @@ export default async function AdminWebsitePage() {
     supabase
       .from("artist_profiles")
       .select(
-        "id, artist_name, stage_name, public_slug, website_published, website_featured, public_tagline"
+        "id, artist_name, stage_name, public_slug, website_published, website_featured, public_tagline, avatar_url, cover_url, entzopedia_url"
       )
       .order("artist_name", { ascending: true })
       .limit(80),
