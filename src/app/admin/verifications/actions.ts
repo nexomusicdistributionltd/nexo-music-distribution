@@ -68,12 +68,30 @@ export async function reviewIdentityVerificationAction(input: {
     return { ok: false, error: "Could not save the verification review." };
   }
 
-  if (input.status === "verified") {
-    await service
-      .from("profiles")
-      .update({ full_name: verification.legal_name })
-      .eq("id", verification.user_id);
-  }
+  const { data: profile } = await service
+    .from("profiles")
+    .select("account_status")
+    .eq("id", verification.user_id)
+    .maybeSingle();
+
+  await service
+    .from("profiles")
+    .update(
+      input.status === "verified"
+        ? {
+            full_name: verification.legal_name,
+            identity_verified_at: now,
+            identity_verification_id: verification.id,
+            ...(profile?.account_status === "pending_verification" ? { account_status: "active" } : {}),
+          }
+        : input.status === "declined" || input.status === "additional_info_required"
+          ? {
+              identity_verified_at: null,
+              identity_verification_id: null,
+            }
+          : {}
+    )
+    .eq("id", verification.user_id);
 
   await service.from("identity_verification_events").insert({
     verification_id: input.verificationId,
@@ -82,6 +100,22 @@ export async function reviewIdentityVerificationAction(input: {
     actor_user_id: ctx.userId,
     event_type: `verification_${input.status}`,
     metadata: reason ? { reason } : {},
+  });
+
+  await service.from("notifications").insert({
+    user_id: verification.user_id,
+    type: "verification_update",
+    title: "Identity verification updated",
+    body:
+      input.status === "verified"
+        ? "Your identity has been verified."
+        : input.status === "declined"
+          ? "Your identity verification was declined. Review the reason and submit new live captures."
+          : input.status === "additional_info_required"
+            ? "Additional information is required for your identity verification."
+            : "Your identity verification is under review.",
+    entity_type: "identity_verification",
+    entity_id: input.verificationId,
   });
 
   revalidatePath("/admin/verifications");
