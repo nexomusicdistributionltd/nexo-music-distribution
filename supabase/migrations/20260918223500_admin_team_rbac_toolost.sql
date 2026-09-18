@@ -261,7 +261,7 @@ returns integer
 language plpgsql
 security definer
 set search_path=public
-as $
+as $team$
 declare
   actor uuid := auth.uid();
   normalized text[];
@@ -326,7 +326,7 @@ begin
 
   return expected;
 end;
-$;
+$team$;
 
 revoke all on function public.set_staff_team_roles(uuid,text[]) from public;
 grant execute on function public.set_staff_team_roles(uuid,text[]) to authenticated;
