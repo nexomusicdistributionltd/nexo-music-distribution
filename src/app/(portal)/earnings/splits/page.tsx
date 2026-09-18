@@ -27,7 +27,7 @@ export default async function EarningsSplitsPage() {
       {(data ?? []).length === 0 ? (
         <EmptyState
           title="No split rules"
-          description="Split rules with effective dates appear here. Historical rules used in ledger calculations are not silently rewritten."
+          description="Create a split to share royalties with collaborators or payees."
         />
       ) : (
         <ul className="space-y-3">
