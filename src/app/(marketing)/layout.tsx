@@ -5,6 +5,9 @@ import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtim
 import { publicDisplay, publicSans } from "@/components/public/fonts";
 import "./public.css";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function MarketingLayout({
   children,
 }: {
