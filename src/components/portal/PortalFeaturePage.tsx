@@ -17,6 +17,7 @@ import {
 } from "@/components/portal/PortalForms";
 import { DspProfileLinksEditor } from "@/components/roster/DspProfileLinksEditor";
 import { DspIcon } from "@/components/fanlink/DspIcon";
+import { PortalAnalyticsRealtime } from "@/components/portal/PortalAnalyticsRealtime";
 import { ArtistBioForm } from "@/components/roster/ArtistBioForm";
 import { findPortalItem, type PortalNavItem } from "@/lib/portal/ia";
 import { knowledgeArticle, allKnowledgeArticles } from "@/lib/portal/knowledge";
@@ -195,6 +196,7 @@ function StreamsAnalyticsView({
 
   return (
     <div className="space-y-6">
+      <PortalAnalyticsRealtime />
       <PageIntro eyebrow="Analytics" title={title} description={description} />
 
       <Alert
