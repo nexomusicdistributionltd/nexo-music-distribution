@@ -5,13 +5,19 @@ export const AUDIO_MIME_TYPES = [
   "audio/wav",
   "audio/x-wav",
   "audio/flac",
-  "audio/mpeg",
-  "audio/mp3",
   "audio/aiff",
   "audio/x-aiff",
-  "audio/mp4",
-  "audio/x-m4a",
 ] as const;
+
+export const DELIVERY_AUDIO_MIME_TYPES = [
+  "audio/flac",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/aiff",
+  "audio/x-aiff",
+] as const;
+
+export const ALLOWED_ARTWORK_SIZES = [1400, 3000, 4000] as const;
 
 export const ARTWORK_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -76,7 +82,7 @@ export function assertOwnedAssetPath(
 
 export function assertAudioFile(file: { type: string; size: number }): string | null {
   if (!AUDIO_MIME_TYPES.includes(file.type as (typeof AUDIO_MIME_TYPES)[number])) {
-    return "Unsupported audio type. Use WAV, FLAC, MP3, AIFF, or M4A.";
+    return "Unsupported audio type. Upload a lossless WAV, FLAC, or AIFF master.";
   }
   if (file.size > MAX_AUDIO_BYTES) return "Audio file exceeds 500MB limit.";
   if (file.size <= 0) return "Audio file is empty.";
@@ -89,5 +95,21 @@ export function assertArtworkFile(file: { type: string; size: number }): string 
   }
   if (file.size > MAX_ARTWORK_BYTES) return "Artwork exceeds 50MB limit.";
   if (file.size <= 0) return "Artwork file is empty.";
+  return null;
+}
+
+export function assertArtworkDimensions(
+  width: number | null | undefined,
+  height: number | null | undefined
+): string | null {
+  if (!width || !height) {
+    return "Artwork dimensions could not be read. Upload a square 1400×1400, 3000×3000, or 4000×4000 image.";
+  }
+  if (width !== height) {
+    return `Artwork must be square. Received ${width}×${height}px.`;
+  }
+  if (!ALLOWED_ARTWORK_SIZES.includes(width as (typeof ALLOWED_ARTWORK_SIZES)[number])) {
+    return `Artwork must be exactly 1400×1400, 3000×3000, or 4000×4000px. Received ${width}×${height}px.`;
+  }
   return null;
 }
