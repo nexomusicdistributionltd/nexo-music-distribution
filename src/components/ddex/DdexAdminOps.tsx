@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Modal } from "@/components/ui/Modal";
@@ -29,6 +30,7 @@ export function DdexAdminOps({
   latestMessageId?: string | null;
   targets: DspTargetPublic[];
 }) {
+  const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
@@ -47,7 +49,7 @@ export function DdexAdminOps({
       return;
     }
     setInfo(success);
-    window.location.reload();
+    router.refresh();
   }
 
   async function previewXml() {
@@ -99,7 +101,7 @@ export function DdexAdminOps({
           onClick={() => void run(() => generateErnAction(releaseId, testTarget?.id), "Generated ERN 4.3.2.")}
           disabled={pending}
         >
-          Generate
+          {pending ? "Working…" : "Generate"}
         </Button>
         <Button
           type="button"
