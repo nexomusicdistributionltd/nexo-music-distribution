@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
-import { MARKETING_SERVICE_SPECS, marketingServiceSpec } from "@/lib/marketing/services";
+import { MARKETING_SERVICE_SPECS, marketingServiceSpec, type MarketingServiceSpec } from "@/lib/marketing/services";
 import {
   updateMarketingContentAction,
   updateMarketingControlAction,
@@ -148,22 +148,22 @@ export default async function AdminMarketingPage() {
 
         <div className="grid gap-4 xl:grid-cols-2">
           {MARKETING_SERVICE_SPECS.map((spec) => {
-            const control = controlByKind.get(spec.kind);
+            const service: MarketingServiceSpec = spec;
+            const control = controlByKind.get(service.kind);
+            const providerFeature = control?.provider_feature || service.providerFeature;
             return (
               <form
-                key={spec.kind}
+                key={service.kind}
                 action={updateMarketingControlAction}
                 className="space-y-4 rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5"
               >
-                <input type="hidden" name="kind" value={spec.kind} />
+                <input type="hidden" name="kind" value={service.kind} />
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-h4">{control?.label || spec.label}</h3>
+                    <h3 className="text-h4">{control?.label || service.label}</h3>
                     <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-                      {providerModeLabel(control?.provider_mode || spec.providerMode)}
-                      {control?.provider_feature || spec.providerFeature
-                        ? " · feature: " + (control?.provider_feature || spec.providerFeature)
-                        : ""}
+                      {providerModeLabel(control?.provider_mode || service.providerMode)}
+                      {providerFeature ? " · feature: " + providerFeature : ""}
                     </p>
                   </div>
                   <span className="rounded-full border border-[var(--nexo-border)] px-2 py-1 text-caption">
@@ -185,7 +185,7 @@ export default async function AdminMarketingPage() {
                     </Select>
                   </Field>
                   <Field label="Release required">
-                    <Select name="requires_release" defaultValue={String(control?.requires_release ?? spec.requiresRelease)}>
+                    <Select name="requires_release" defaultValue={String(control?.requires_release ?? service.requiresRelease)}>
                       <option value="true">Required</option>
                       <option value="false">Optional</option>
                     </Select>
@@ -195,14 +195,14 @@ export default async function AdminMarketingPage() {
                 <Field label="Artist/label description">
                   <Textarea
                     name="description"
-                    defaultValue={control?.description || spec.guidance}
+                    defaultValue={control?.description || service.guidance}
                     maxLength={1000}
                   />
                 </Field>
                 <Field label="Internal operations instructions">
                   <Textarea
                     name="admin_instructions"
-                    defaultValue={control?.admin_instructions || spec.adminGuidance}
+                    defaultValue={control?.admin_instructions || service.adminGuidance}
                     maxLength={4000}
                   />
                 </Field>
