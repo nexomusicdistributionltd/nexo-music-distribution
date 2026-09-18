@@ -41,4 +41,19 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - name: Production build
+        shell: bash
+        run: |
+          set +e
+          npm run build 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          echo "BUILD_EXIT_CODE=$code" >> "$GITHUB_ENV"
+          exit 0
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build-log
+          path: build.log
+      - name: Enforce build result
+        run: exit "${BUILD_EXIT_CODE}"
