@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import type { RosterArtist } from "@/lib/roster/types";
+import { DspIcon } from "@/components/fanlink/DspIcon";
+import { DSP_PROFILE_SPECS, type DspProfileKey } from "@/lib/dsp/profile-links";
 
 export function RosterArtistForm({
   mode,
@@ -26,6 +28,7 @@ export function RosterArtistForm({
   const [bio, setBio] = React.useState(initial?.bio ?? "");
   const [avatarUrl, setAvatarUrl] = React.useState(initial?.avatar_url ?? "");
   const [website, setWebsite] = React.useState(initial?.website ?? "");
+  const [dspLinks, setDspLinks] = React.useState<Record<string, { url: string; enabled: boolean }>>(() => Object.fromEntries(DSP_PROFILE_SPECS.map((d) => [d.key, { url: "", enabled: false }])));
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
 
@@ -46,7 +49,7 @@ export function RosterArtistForm({
     };
     const res =
       mode === "create"
-        ? await createRosterArtist(payload)
+        ? await createRosterArtist(payload, DSP_PROFILE_SPECS.map((d) => ({ dspKey: d.key as DspProfileKey, url: dspLinks[d.key].url, enabled: dspLinks[d.key].enabled })))
         : await updateRosterArtist(initial!.id, payload);
     setBusy(false);
     if (!res.ok) {
@@ -119,6 +122,16 @@ export function RosterArtistForm({
           placeholder="https://..."
         />
       </label>
+      {mode === "create" ? (
+        <section className="space-y-3 rounded-[1.25rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4">
+          <div><h2 className="text-h4">DSP artist profiles</h2><p className="mt-1 text-caption text-[var(--nexo-text-muted)]">Turn on stores where this artist already has a profile and paste the matching artist URL. Leave a store off for a new artist with no existing profile there.</p></div>
+          <div className="grid gap-3">{DSP_PROFILE_SPECS.map((dsp) => { const row = dspLinks[dsp.key]; return (
+            <div key={dsp.key} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3">
+              <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-small font-medium"><DspIcon name={dsp.key === "applemusic" ? "apple_music" : dsp.key} className="h-5 w-5" />{dsp.title}</span><button type="button" role="switch" aria-checked={row.enabled} onClick={() => setDspLinks((prev) => ({ ...prev, [dsp.key]: { ...prev[dsp.key], enabled: !prev[dsp.key].enabled } }))} className={`relative h-6 w-11 rounded-full transition-colors ${row.enabled ? "bg-[var(--nexo-text)]" : "bg-[var(--nexo-elevated)]"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${row.enabled ? "left-6" : "left-1"}`} /></button></div>
+              {row.enabled ? <Input className="mt-3" type="url" required value={row.url} onChange={(e) => setDspLinks((prev) => ({ ...prev, [dsp.key]: { ...prev[dsp.key], url: e.target.value } }))} placeholder={`Paste ${dsp.title} artist profile URL`} /> : null}
+            </div>); })}</div>
+        </section>
+      ) : null}
       <div className="flex gap-2">
         <Button type="submit" disabled={busy}>
           {mode === "create" ? "Create artist" : "Save changes"}
