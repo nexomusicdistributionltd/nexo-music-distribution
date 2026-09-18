@@ -3,7 +3,7 @@ import { INQUIRIES_EMAIL, PRIMARY_CONTACT_EMAIL } from "@/lib/brand/contact";
 import { COMPANY_LEGAL, PUBLISHING_DIVISION } from "@/lib/site";
 import type { LegalSection } from "@/components/legal/LegalArticle";
 
-export const LEGAL_UPDATED = "15 September 2026";
+export const LEGAL_UPDATED = "18 September 2026";
 export const LEGAL_CONTACT_EMAIL = PRIMARY_CONTACT_EMAIL;
 export const LEGAL_INQUIRIES_EMAIL = INQUIRIES_EMAIL;
 
@@ -121,14 +121,14 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "2. Data we collect",
     paragraphs: [
-      "We collect account data (name, email, country, artist or label profile), authentication data (including one-time login codes), catalog metadata and audio files you upload, support messages, newsletter subscriptions, and server logs needed to operate and secure the service.",
+      "We collect account data (name, email, country, artist or label profile), authentication data (including one-time login codes), catalog metadata and audio files you upload, support messages, newsletter subscriptions, and server logs needed to operate and secure the service.",\n      "For mandatory artist and label identity verification, we collect the legal name, date of birth, country, document type, live camera images of the front and back of the identity document, and a live face image. Verification evidence is treated as sensitive account-security data and is not displayed publicly.",
       "If you subscribe, Paddle processes payment card or wallet details. Nexo stores Paddle customer, subscription, and transaction identifiers needed to recognise your plan. We do not store full card numbers.",
     ],
   },
   {
     heading: "3. How we use data",
     paragraphs: [
-      "We use personal data to create and secure accounts, deliver releases, calculate royalties from ingested reports, provide support, send transactional email, improve the product, and comply with law.",
+      "We use personal data to create and secure accounts, verify artist and label identities, detect duplicate or potentially fraudulent verification evidence, deliver releases, calculate royalties from ingested reports, provide support, send transactional email, improve the product, resolve disputes, and comply with law.",
     ],
     bullets: [
       "Contract: operating your artist or label workspace and any paid subscription.",
@@ -158,13 +158,13 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "7. Retention",
     paragraphs: [
-      "We retain account and catalog records for as long as your workspace exists and for a reasonable period afterward for royalties, disputes, and legal holds. Paddle retains payment records according to its obligations as merchant of record. Webhook event identifiers are kept to process billing updates idempotently.",
+      "We retain account and catalog records for as long as your workspace exists and for a reasonable period afterward for royalties, disputes, fraud prevention, security investigations, and legal holds. Identity-verification evidence may be retained while the account exists and afterward where reasonably necessary for fraud prevention, compliance, disputes, or legal obligations. Paddle retains payment records according to its obligations as merchant of record. Webhook event identifiers are kept to process billing updates idempotently.",
     ],
   },
   {
     heading: "8. Security",
     paragraphs: [
-      "We use access controls, encrypted transport, and role-based restrictions (including row-level security in our database) so users can read their own billing records and staff can administer finance. Payment secrets and webhook signing secrets are server-only.",
+      "We use access controls, encrypted transport, and role-based restrictions (including row-level security in our database). Identity documents and face captures are stored in a private access-controlled bucket; staff access is limited to verification review and operational security. Payment secrets and webhook signing secrets are server-only.",
     ],
   },
   {
