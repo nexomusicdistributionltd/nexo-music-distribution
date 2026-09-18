@@ -62,10 +62,17 @@ export type ProviderStatusResult = {
   updatedAt: string;
 };
 
+export type ProviderDspDeliveryStatus = {
+  dsp: string;
+  status: string;
+  message?: string;
+  updatedAt?: string;
+};
+
 export type ProviderDeliveryStatus = {
   providerReleaseId: string;
   deliveryStatus: string;
-  dspStatuses?: Array<{ dsp: string; status: string }>;
+  dspStatuses?: ProviderDspDeliveryStatus[];
   updatedAt: string;
 };
 
