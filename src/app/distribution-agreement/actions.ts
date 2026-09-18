@@ -284,7 +284,10 @@ export async function signDistributionAgreementAction(input: {
       payload: {
         FIRST_NAME: String(verification.legal_name).split(/\\s+/)[0] || String(verification.legal_name),
         AGREEMENT_ID: agreementId,
+        AGREEMENT_VERSION: DISTRIBUTION_AGREEMENT_VERSION,
+        SIGNED_AT: new Date(signedAt).toLocaleString("en-GB", { timeZone: "UTC" }) + " UTC",
         CTA_URL: `https://nexomusicdistribution.com/api/agreements/${agreementId}/download`,
+        CTA_LABEL: "Download signed agreement",
       },
     });
   } catch {
