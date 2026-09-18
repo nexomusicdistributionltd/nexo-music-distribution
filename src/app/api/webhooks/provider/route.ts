@@ -51,7 +51,7 @@ async function resolveInternalReleaseId(
       .select("id")
       .eq("id", releaseReference)
       .maybeSingle();
-    if (direct?.id) return direct.id;
+    if (typeof direct?.id === "string") return direct.id;
   }
 
   const { data: releaseRows } = await supabase
@@ -60,7 +60,7 @@ async function resolveInternalReleaseId(
     .eq("provider_release_id", releaseReference)
     .limit(2);
 
-  if (releaseRows?.length === 1) return releaseRows[0].id;
+  if (releaseRows?.length === 1 && typeof releaseRows[0]?.id === "string") return releaseRows[0].id;
   if ((releaseRows?.length ?? 0) > 1) return null;
 
   const { data: jobRows } = await supabase
@@ -71,7 +71,7 @@ async function resolveInternalReleaseId(
     .limit(10);
 
   const releaseIds = [
-    ...new Set((jobRows ?? []).map((row) => row.release_id).filter(Boolean)),
+    ...new Set((jobRows ?? []).map((row) => row.release_id).filter((id): id is string => typeof id === "string" && id.length > 0)),
   ];
   return releaseIds.length === 1 ? releaseIds[0] : null;
 }
