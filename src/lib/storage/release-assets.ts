@@ -1,7 +1,17 @@
 export const AUDIO_BUCKET = "release-audio";
 export const ARTWORK_BUCKET = "release-artwork";
 
-export const AUDIO_MIME_TYPES = ["audio/flac", "audio/x-flac"] as const;
+export const AUDIO_MIME_TYPES = [
+  "audio/wav",
+  "audio/x-wav",
+  "audio/wave",
+  "audio/flac",
+  "audio/x-flac",
+  "audio/aiff",
+  "audio/x-aiff",
+] as const;
+
+const AUDIO_EXTENSIONS = [".wav", ".flac", ".aif", ".aiff"] as const;
 
 export const ARTWORK_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -74,11 +84,14 @@ export function assertOwnedAssetPath(
 export function assertAudioFile(file: { type: string; size: number; name?: string }): string | null {
   const mime = file.type.toLowerCase();
   const name = file.name?.toLowerCase() ?? "";
-  if (
-    !AUDIO_MIME_TYPES.includes(mime as (typeof AUDIO_MIME_TYPES)[number]) ||
-    (name && !name.endsWith(".flac"))
-  ) {
-    return "Music distribution accepts lossless FLAC audio only. Upload a .flac file.";
+  const mimeAccepted = AUDIO_MIME_TYPES.includes(
+    mime as (typeof AUDIO_MIME_TYPES)[number]
+  );
+  const extensionAccepted =
+    !name || AUDIO_EXTENSIONS.some((extension) => name.endsWith(extension));
+
+  if (!mimeAccepted || !extensionAccepted) {
+    return "Unsupported audio format. Upload a lossless WAV, FLAC, AIFF, or AIF file.";
   }
   if (file.size > MAX_AUDIO_BYTES) return "Audio file exceeds 500MB limit.";
   if (file.size <= 0) return "Audio file is empty.";
