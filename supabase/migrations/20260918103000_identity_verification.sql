@@ -79,6 +79,11 @@ drop policy if exists "identity_evidence_owner_insert" on public.identity_verifi
 create policy "identity_evidence_owner_insert" on public.identity_verification_evidence for insert to authenticated
 with check ((select auth.uid()) = user_id);
 
+drop policy if exists "identity_evidence_owner_update" on public.identity_verification_evidence;
+create policy "identity_evidence_owner_update" on public.identity_verification_evidence for update to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
 drop policy if exists "identity_events_owner_read" on public.identity_verification_events;
 create policy "identity_events_owner_read" on public.identity_verification_events for select to authenticated
 using (
