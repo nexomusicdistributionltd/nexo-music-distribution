@@ -116,3 +116,51 @@ export async function updateMarketingRequestAction(formData: FormData) {
   revalidateMarketing();
   return { ok: true as const };
 }
+
+const MARKETING_CONTENT_SLUGS = new Set(["client-offerings", "marketing-best-practices"]);
+
+export async function updateMarketingContentAction(formData: FormData) {
+  const ctx = await RequireAdministrator();
+  const slug = textValue(formData, "slug", 100);
+  if (!slug || !MARKETING_CONTENT_SLUGS.has(slug)) {
+    return { ok: false as const, error: "Unknown marketing content page." };
+  }
+
+  const title = textValue(formData, "title", 200);
+  const summary = textValue(formData, "summary", 1000);
+  if (!title || !summary) {
+    return { ok: false as const, error: "Title and summary are required." };
+  }
+
+  const headings = formData
+    .getAll("section_heading")
+    .map((value) => String(value).trim().slice(0, 200));
+  const bodies = formData
+    .getAll("section_body")
+    .map((value) => String(value).trim().slice(0, 5000));
+  const sections = headings
+    .map((heading, index) => ({ heading, body: bodies[index] ?? "" }))
+    .filter((section) => section.heading && section.body);
+
+  if (sections.length === 0) {
+    return { ok: false as const, error: "Add at least one complete content section." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("marketing_content_pages")
+    .update({
+      title,
+      summary,
+      sections,
+      enabled: boolValue(formData, "enabled"),
+      updated_by: ctx.userId,
+    })
+    .eq("slug", slug);
+
+  if (error) return { ok: false as const, error: "Marketing content could not be updated." };
+
+  revalidateMarketing();
+  revalidatePath("/help", "layout");
+  return { ok: true as const };
+}
