@@ -42,6 +42,17 @@ export async function saveDistributionToken(token: DistributionOAuthToken): Prom
   if (error) throw new Error("Could not securely save Distribution Engine credentials.");
 }
 
+async function refreshStoredCredential(data: StoredCredential): Promise<string | null> {
+  if (!data.refresh_token_ciphertext) return null;
+  const refreshToken = decryptDistributionSecret(data.refresh_token_ciphertext);
+  const refreshed = await refreshDistributionAccessToken(refreshToken);
+  // OAuth refresh responses commonly omit scope when it is unchanged. Preserve the
+  // last provider-reported grant so capability diagnostics do not regress to unknown.
+  if (!refreshed.scope && data.scope) refreshed.scope = data.scope;
+  await saveDistributionToken(refreshed);
+  return refreshed.access_token;
+}
+
 export async function loadDistributionAccessToken(): Promise<string | null> {
   const db = createServiceClient();
   const { data, error } = await db
@@ -52,15 +63,19 @@ export async function loadDistributionAccessToken(): Promise<string | null> {
   if (error || !data) return null;
   const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : null;
   const shouldRefresh = expiresAt !== null && expiresAt <= Date.now() + 60_000;
-  if (shouldRefresh && data.refresh_token_ciphertext) {
-    const refreshed = await refreshDistributionAccessToken(
-      decryptDistributionSecret(data.refresh_token_ciphertext)
-    );
-    await saveDistributionToken(refreshed);
-    return refreshed.access_token;
-  }
-  if (shouldRefresh) return null;
+  if (shouldRefresh) return refreshStoredCredential(data);
   return decryptDistributionSecret(data.access_token_ciphertext);
+}
+
+export async function forceRefreshDistributionAccessToken(): Promise<string | null> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("distribution_provider_credentials")
+    .select("access_token_ciphertext,refresh_token_ciphertext,expires_at,token_type,scope")
+    .eq("connection_key", "primary")
+    .maybeSingle<StoredCredential>();
+  if (error || !data) return null;
+  return refreshStoredCredential(data);
 }
 
 export async function getDistributionCredentialMetadata(): Promise<DistributionCredentialMetadata | null> {
