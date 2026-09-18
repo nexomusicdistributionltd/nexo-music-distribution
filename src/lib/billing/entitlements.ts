@@ -34,7 +34,7 @@ export type BillingEntitlements = {
   cancelAtPeriodEnd: boolean;
   /** Existing production features remain available without a Paddle subscription. */
   grandfathered: boolean;
-  source: "paddle" | "artist_starter" | "grandfathered" | "none";
+  source: "paddle" | "artist_starter" | "grandfathered" | "admin_override" | "none";
   policy: string;
 };
 
