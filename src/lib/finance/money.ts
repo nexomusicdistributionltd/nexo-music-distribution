@@ -40,6 +40,25 @@ export function currencyFractionDigits(currency: string): number {
   return 2;
 }
 
+export function parseMajorToMinorUnits(value: string, currency: string): number | null {
+  const raw = value.trim();
+  if (!/^\d+(?:\.\d+)?$/.test(raw)) return null;
+  const fraction = currencyFractionDigits(currency);
+  const [whole, decimals = ""] = raw.split(".");
+  if (decimals.length > fraction) return null;
+  const padded = decimals.padEnd(fraction, "0");
+  const amount = Number(whole) * 10 ** fraction + Number(padded || "0");
+  return Number.isSafeInteger(amount) ? amount : null;
+}
+
+export function minorUnitsToInputValue(amountMinor: number, currency: string): string {
+  const fraction = currencyFractionDigits(currency);
+  const scale = 10 ** fraction;
+  const whole = Math.floor(amountMinor / scale);
+  const decimal = amountMinor % scale;
+  return fraction === 0 ? String(whole) : `${whole}.${String(decimal).padStart(fraction, "0")}`;
+}
+
 /** Basis points: 10000 = 100% */
 export function assertShareBps(bps: unknown): bps is number {
   return typeof bps === "number" && Number.isInteger(bps) && bps >= 0 && bps <= 10000;
