@@ -78,10 +78,8 @@ export async function beginIdentityVerificationAction(input: {
       .insert({
         user_id: ctx.userId,
         account_type: accountType,
-        account_type: accountType,
         country_code: countryCode,
         legal_name: legalName,
-        legal_full_name: legalName,
         legal_full_name: legalName,
         date_of_birth: input.dateOfBirth,
         document_type: input.documentType,
@@ -95,8 +93,10 @@ export async function beginIdentityVerificationAction(input: {
     const { error } = await service
       .from("identity_verifications")
       .update({
+        account_type: accountType,
         country_code: countryCode,
         legal_name: legalName,
+        legal_full_name: legalName,
         date_of_birth: input.dateOfBirth,
         document_type: input.documentType,
         status: "draft",
