@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
 import { HomeFeaturedCatalog } from "@/components/website/HomeFeaturedCatalog";
+import { VideoCard } from "@/components/website/VideoCard";
 import { PartnerLogoMarquee } from "@/components/website/PartnerLogoMarquee";
 import { listActivePartners } from "@/lib/website/partners";
 import {
   getWebsiteSetting,
   listFeaturedPublicArtists,
   listFeaturedPublicReleases,
+  listPublishedVideos,
 } from "@/lib/website/queries";
 import { resolveHomepageImageMap } from "@/lib/website/homepage-images";
 import { HeroStage } from "@/components/public/HeroStage";
@@ -108,10 +110,11 @@ const SERVICES = [
 ];
 
 export default async function HomePage() {
-  const [partners, featuredReleases, featuredArtists, homepageSetting] = await Promise.all([
+  const [partners, featuredReleases, featuredArtists, featuredVideos, homepageSetting] = await Promise.all([
     listActivePartners(),
     listFeaturedPublicReleases(8),
     listFeaturedPublicArtists(8),
+    listPublishedVideos({ limit: 6 }),
     getWebsiteSetting("homepage"),
   ]);
   const home = (homepageSetting?.value ?? {}) as Record<string, unknown>;
@@ -247,6 +250,32 @@ export default async function HomePage() {
         showReleases={showFeaturedReleases}
         showArtists={showFeaturedArtists}
       />
+
+      {featuredVideos.length > 0 ? (
+        <section className="pub-section pub-container" id="featured-videos">
+          <div className="mb-8 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <NumberedLabel index="07">Nexo video showcase</NumberedLabel>
+              <DisplayHeading size="md" className="mt-4">
+                Featured videos.
+              </DisplayHeading>
+              <p className="pub-body mt-3 max-w-xl">
+                Videos selected by Nexo administrators and presented inside the Nexo website experience.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredVideos.map((video) => (
+              <VideoCard
+                key={video.id}
+                title={video.title}
+                url={video.url}
+                thumbnailUrl={video.thumbnail_url}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="pub-section pub-container">
         <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-start">
