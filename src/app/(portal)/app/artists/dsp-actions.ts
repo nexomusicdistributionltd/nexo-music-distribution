@@ -72,59 +72,52 @@ export async function saveArtistDspLinksAction(input: {
     previewImage?: string | null;
     previewCanonical?: string | null;
   }>;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<{ saved: number }>> {
   const gate = await assertCanEditArtist(input.artistProfileId);
   if (!gate.ok) return gate;
   const { supabase, ctx } = gate;
 
+  // Validate first, then persist in one database request. Saving must not depend on
+  // remote DSP scraping: previews are optional enrichment and can fail independently.
+  const payload: Array<Record<string, unknown>> = [];
   for (const spec of DSP_PROFILE_SPECS) {
     const row = input.links.find((l) => l.dspKey === spec.key);
     const check = validateDspProfileUrl(spec.key, row?.url ?? "");
     if (!check.ok) return { ok: false, error: check.error };
     const enabled = Boolean(row?.enabled && check.url);
-    let verified: Awaited<ReturnType<typeof fetchDspProfilePreview>> | null = null;
-    if (enabled && check.url) {
-      try { verified = await fetchDspProfilePreview(spec.key, check.url); }
-      catch { return { ok: false, error: `Could not verify the ${spec.title} artist profile. Check the URL and try again.` }; }
-      if (!verified?.canonicalUrl && !verified?.name) return { ok: false, error: `Could not verify the ${spec.title} artist profile.` };
-    }
-    const canonical = verified?.canonicalUrl || check.url;
-    const imageOk = verified?.image?.startsWith("https://") ? verified.image : null;
-    const { error } = await supabase.from("artist_dsp_links").upsert(
-      {
-        artist_profile_id: input.artistProfileId,
-        dsp_key: spec.key,
-        url: check.url,
-        enabled,
-        preview_name: verified?.name || null,
-        preview_image_url: imageOk,
-        preview_canonical_url: canonical,
-        fetched_at: check.url ? new Date().toISOString() : null,
-        verification_status: enabled ? "verified" : "unverified",
-        verified_at: enabled ? new Date().toISOString() : null,
-      },
-      { onConflict: "artist_profile_id,dsp_key" }
-    );
-    if (error) return { ok: false, error: error.message };
+    payload.push({
+      artist_profile_id: input.artistProfileId,
+      dsp_key: spec.key,
+      url: check.url,
+      enabled,
+      preview_name: row?.previewName?.trim() || null,
+      preview_image_url: row?.previewImage?.startsWith("https://") ? row.previewImage : null,
+      preview_canonical_url: row?.previewCanonical?.trim() || check.url || null,
+      fetched_at: row?.previewName || row?.previewCanonical ? new Date().toISOString() : null,
+      verification_status: "unverified",
+      verified_at: null,
+    });
   }
+
+  const { error } = await supabase
+    .from("artist_dsp_links")
+    .upsert(payload, { onConflict: "artist_profile_id,dsp_key" });
+  if (error) return { ok: false, error: error.message };
 
   try {
     await supabase.rpc("write_audit_log", {
       p_action: "dsp_profile_update",
       p_entity_type: "artist_profile",
       p_entity_id: input.artistProfileId,
-      p_metadata: { actor: ctx.userId },
+      p_metadata: { actor: ctx.userId, saved: payload.length },
     });
-  } catch {
-    /* ignore */
-  }
+  } catch { /* save is authoritative even if audit is unavailable */ }
 
   revalidatePath("/dashboard/profile");
   revalidatePath(`/app/artists/${input.artistProfileId}`);
   revalidatePath("/dashboard/releases/new");
-  return { ok: true, data: true };
+  return { ok: true, data: { saved: payload.length } };
 }
-
 export async function saveArtistBioAction(input: {
   artistProfileId: string;
   bio: string;
