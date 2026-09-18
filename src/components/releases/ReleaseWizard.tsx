@@ -185,7 +185,6 @@ export function ReleaseWizard({
         .filter(Boolean),
       distribution_settings: {
         worldwide: territories.toUpperCase().includes("WW"),
-        provider: "not_connected",
       },
     });
     if (!res.ok) throw new Error(res.error);
@@ -350,6 +349,10 @@ export function ReleaseWizard({
 
   return (
     <div className="space-y-6">
+      <section className="rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5 shadow-[var(--nexo-shadow-sm)] sm:p-6">
+        <div className="flex items-center justify-between gap-4"><div><p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--nexo-text-muted)]">Release builder</p><p className="mt-1 text-small text-[var(--nexo-text-secondary)]">Complete the release metadata, audio, contributors, rights and delivery settings before QC submission.</p></div><span className="shrink-0 text-caption font-semibold">{step + 1} / {STEPS.length}</span></div>
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[var(--nexo-elevated)]"><div className="h-full rounded-full bg-[var(--nexo-text)] transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} /></div>
+      </section>
       <div className="flex flex-wrap gap-2">
         {STEPS.map((label, i) => (
           <button
