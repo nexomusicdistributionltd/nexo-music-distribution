@@ -173,7 +173,9 @@ export function ReleaseWizard({
       typeof initialDistribution.providerArtistId === "number"
         ? String(initialDistribution.providerArtistId)
         : "",
-    youtubeRightsConfirmed: initialDistribution.confirmYoutubeRights === true,
+    youtubeRightsConfirmed:
+      initialDistribution.additionalRightsConfirmed === true ||
+      initialDistribution.confirmYoutubeRights === true,
     additional: {
       youtube: initialAdditional.youtube === true,
       facebook: initialAdditional.facebook === true,
@@ -323,7 +325,9 @@ export function ReleaseWizard({
         platforms: selectedPlatforms,
         providerArtistId: providerMeta.providerArtistId || null,
         additional: providerMeta.additional,
-        confirmYoutubeRights: providerMeta.youtubeRightsConfirmed,
+        confirmYoutubeRights:
+          providerMeta.additional.youtube && providerMeta.youtubeRightsConfirmed,
+        additionalRightsConfirmed: providerMeta.youtubeRightsConfirmed,
         applePreorder: providerMeta.applePreorder,
         applePreorderDate: providerMeta.applePreorderDate || null,
         licenseType: providerMeta.licenseType || null,
@@ -532,9 +536,13 @@ export function ReleaseWizard({
     setError(null);
     setBusy(true);
     try {
-      if (providerMeta.additional.youtube && !providerMeta.youtubeRightsConfirmed) {
+      const usesExclusiveRightsDelivery =
+        providerMeta.additional.youtube ||
+        providerMeta.additional.facebook ||
+        providerMeta.additional.soundcloud;
+      if (usesExclusiveRightsDelivery && !providerMeta.youtubeRightsConfirmed) {
         throw new Error(
-          "Confirm that you control the rights required for YouTube Content ID before submitting."
+          "Confirm that you control 100% of the exclusive rights required for the selected rights-management deliveries before submitting."
         );
       }
       const id = await ensureDraft();
@@ -883,7 +891,11 @@ export function ReleaseWizard({
                           checked={t.explicit}
                           onChange={(e) => {
                             const next = [...tracks];
-                            next[idx] = { ...t, explicit: e.target.checked };
+                            next[idx] = {
+                              ...t,
+                              explicit: e.target.checked,
+                              clean_version: e.target.checked ? false : t.clean_version,
+                            };
                             setTracks(next);
                           }}
                         />
@@ -895,7 +907,11 @@ export function ReleaseWizard({
                           checked={t.clean_version}
                           onChange={(e) => {
                             const next = [...tracks];
-                            next[idx] = { ...t, clean_version: e.target.checked };
+                            next[idx] = {
+                              ...t,
+                              clean_version: e.target.checked,
+                              explicit: e.target.checked ? false : t.explicit,
+                            };
                             setTracks(next);
                           }}
                         />
@@ -907,7 +923,11 @@ export function ReleaseWizard({
                           checked={t.instrumental}
                           onChange={(e) => {
                             const next = [...tracks];
-                            next[idx] = { ...t, instrumental: e.target.checked };
+                            next[idx] = {
+                              ...t,
+                              instrumental: e.target.checked,
+                              lyrics: e.target.checked ? "" : t.lyrics,
+                            };
                             setTracks(next);
                           }}
                         />
@@ -1137,7 +1157,7 @@ export function ReleaseWizard({
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-caption text-[var(--nexo-text-muted)]">UPC (optional — never auto-generated)</span>
+                <span className="text-caption text-[var(--nexo-text-muted)]">UPC (optional — provider can assign one if omitted)</span>
                 <Input
                   value={rights.upc}
                   onChange={(e) => setRights({ ...rights, upc: e.target.value })}
@@ -1162,13 +1182,15 @@ export function ReleaseWizard({
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">License type</span>
-                <Input
+                <Select
                   value={providerMeta.licenseType}
                   onChange={(e) =>
                     setProviderMeta((current) => ({ ...current, licenseType: e.target.value }))
                   }
-                  placeholder="Copyright"
-                />
+                >
+                  <option value="Copyright">Copyright</option>
+                  <option value="Creative Commons">Creative Commons</option>
+                </Select>
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Cover song titles (comma-separated)</span>
@@ -1319,7 +1341,9 @@ export function ReleaseWizard({
                     </label>
                   ))}
                 </div>
-                {providerMeta.additional.youtube ? (
+                {providerMeta.additional.youtube ||
+                providerMeta.additional.facebook ||
+                providerMeta.additional.soundcloud ? (
                   <label className="flex items-start gap-2 rounded-[var(--nexo-radius)] bg-[var(--nexo-elevated)] p-3">
                     <input
                       className="mt-1"
@@ -1333,7 +1357,8 @@ export function ReleaseWizard({
                       }
                     />
                     <span className="text-small">
-                      I confirm the catalog has the rights required for YouTube Content ID.
+                      I confirm I control 100% of the exclusive rights required for the selected
+                      content-identification / monetization services.
                     </span>
                   </label>
                 ) : null}
