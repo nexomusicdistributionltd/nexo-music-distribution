@@ -68,10 +68,26 @@ describe("parseCatalogJson / CSV", () => {
   });
 
   it("parses CSV with header", () => {
-    const csv = "title,artist_name,upc,isrcs\nHello,World,123456789012,USRC17607839";
+    const csv =
+      "title,artist_name,upc,isrcs,track_titles\nAlbum,World,123456789012,USRC17607839|USRC17607840,One|Two";
     const items = parseCatalogCsv(csv);
-    expect(items[0].title).toBe("Hello");
-    expect(items[0].isrcs).toEqual(["USRC17607839"]);
+    expect(items[0].title).toBe("Album");
+    expect(items[0].isrcs).toEqual(["USRC17607839", "USRC17607840"]);
+    expect(items[0].tracks).toEqual([
+      { title: "One", isrc: "USRC17607839", track_number: 1 },
+      { title: "Two", isrc: "USRC17607840", track_number: 2 },
+    ]);
+  });
+});
+
+  it("reads track ISRCs when validating JSON imports", () => {
+    const gaps = detectMetadataGaps({
+      title: "Album",
+      artist_name: "Artist",
+      upc: "123456789012",
+      tracks: [{ title: "One", isrc: "USRC17607839", track_number: 1 }],
+    });
+    expect(gaps).not.toContain("missing_isrc");
   });
 });
 
