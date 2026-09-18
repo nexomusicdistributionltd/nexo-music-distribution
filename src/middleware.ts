@@ -184,7 +184,7 @@ export async function middleware(request: NextRequest) {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id);
-      const list = (roles ?? []).map((r) => r.role as AppRole[]);
+      const list = (roles ?? []).map((r) => r.role as AppRole);
       if (
         !list.includes("admin") &&
         !list.includes("super_admin") &&
