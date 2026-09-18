@@ -1,6 +1,22 @@
 -- Identity verification hardening: camera-only evidence integrity, safe owner access,
 -- realtime review state, and staff notifications.
 
+alter table public.identity_verifications
+  add column if not exists applicant_note text;
+
+do $
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname='identity_verification_applicant_note_len'
+      and conrelid='public.identity_verifications'::regclass
+  ) then
+    alter table public.identity_verifications
+      add constraint identity_verification_applicant_note_len
+      check (applicant_note is null or char_length(applicant_note) <= 4000);
+  end if;
+end $;
+
 alter table public.identity_verification_evidence
   add column if not exists capture_method text not null default 'camera',
   add column if not exists sha256 text,
