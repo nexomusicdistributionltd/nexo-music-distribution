@@ -10,6 +10,7 @@ import {
   PROVIDER_NOT_CONNECTED_CODE,
 } from "@/lib/provider/errors";
 import { mapProviderStatusToRelease } from "./types";
+import { groupProviderContributors } from "@/lib/provider/participant-mapping";
 
 export type DistActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -120,22 +121,18 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
   const releaseContributors = release.release_contributors ?? [];
   const artistRoles = new Set(["primary_artist", "featured_artist", "remixer"]);
   const writerRoles = new Set(["songwriter", "composer", "lyricist"]);
-  const toRole = (role: string) =>
-    role === "primary_artist"
-      ? "primary"
-      : role === "featured_artist"
-        ? "featuring"
-        : role.replace(/_/g, " ");
 
-  const releaseArtists = releaseContributors
-    .filter((contributor) => !contributor.track_id && artistRoles.has(contributor.role))
-    .map((contributor) => ({
-      name: contributor.name,
-      role: [toRole(contributor.role)],
-      ...(contributor.role === "primary_artist" && providerArtistId
-        ? { artistId: providerArtistId }
-        : {}),
-    }));
+  const releaseArtists = groupProviderContributors(
+    releaseContributors
+      .filter((contributor) => !contributor.track_id && artistRoles.has(contributor.role))
+      .map((contributor) => ({
+        name: contributor.name,
+        role: contributor.role,
+        ...(contributor.role === "primary_artist" && providerArtistId
+          ? { artistId: providerArtistId }
+          : {}),
+      }))
+  );
   if (!releaseArtists.some((artist) => artist.role.includes("primary"))) {
     releaseArtists.unshift({
       name: release.primary_artist_name,
@@ -188,15 +185,17 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
       const scoped = releaseContributors.filter(
         (contributor) => !contributor.track_id || contributor.track_id === track.id
       );
-      const artists = scoped
-        .filter((contributor) => artistRoles.has(contributor.role))
-        .map((contributor) => ({
-          name: contributor.name,
-          role: [toRole(contributor.role)],
-          ...(contributor.role === "primary_artist" && providerArtistId
-            ? { artistId: providerArtistId }
-            : {}),
-        }));
+      const artists = groupProviderContributors(
+        scoped
+          .filter((contributor) => artistRoles.has(contributor.role))
+          .map((contributor) => ({
+            name: contributor.name,
+            role: contributor.role,
+            ...(contributor.role === "primary_artist" && providerArtistId
+              ? { artistId: providerArtistId }
+              : {}),
+          }))
+      );
       if (!artists.some((artist) => artist.role.includes("primary"))) {
         artists.unshift({
           name: release.primary_artist_name,
@@ -204,21 +203,25 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
           ...(providerArtistId ? { artistId: providerArtistId } : {}),
         });
       }
-      const writers = scoped
-        .filter((contributor) => writerRoles.has(contributor.role))
-        .map((contributor) => ({
-          name: contributor.name,
-          role: [toRole(contributor.role)],
-        }));
-      const credits = scoped
-        .filter(
-          (contributor) =>
-            !artistRoles.has(contributor.role) && !writerRoles.has(contributor.role)
-        )
-        .map((contributor) => ({
-          name: contributor.name,
-          role: [toRole(contributor.role)],
-        }));
+      const writers = groupProviderContributors(
+        scoped
+          .filter((contributor) => writerRoles.has(contributor.role))
+          .map((contributor) => ({
+            name: contributor.name,
+            role: contributor.role,
+          }))
+      );
+      const credits = groupProviderContributors(
+        scoped
+          .filter(
+            (contributor) =>
+              !artistRoles.has(contributor.role) && !writerRoles.has(contributor.role)
+          )
+          .map((contributor) => ({
+            name: contributor.name,
+            role: contributor.role,
+          }))
+      );
 
       return {
         trackId: track.id,
