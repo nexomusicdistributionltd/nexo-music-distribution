@@ -40,8 +40,8 @@ export default async function LabelArtistsPage({
     <div className="space-y-4">
       <PageIntro
         eyebrow="Label"
-        title="Roster"
-        description="Managed artist profiles for this label. Creating an artist does not change the Label account type or create a login."
+        title="Artist Roster"
+        description="Manage your label roster, artist identities, DSP profiles and release activity from one place. Creating an artist does not create a separate login."
         actions={
           <Link
             href="/app/artists/new"
