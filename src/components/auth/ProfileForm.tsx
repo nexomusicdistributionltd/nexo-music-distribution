@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { VerifiedBadge } from "@/components/verification/VerifiedBadge";
 import { COUNTRIES } from "@/lib/auth/countries";
 import { friendlyAuthError } from "@/lib/auth/errors";
 import type { AccountStatus, AppRole, Profile } from "@/lib/auth/types";
@@ -146,6 +147,7 @@ export function ProfileForm({
             <span className="text-caption capitalize text-[var(--nexo-text-muted)]">
               {accountTypeLabel.replace(/_/g, " ")}
             </span>
+            {profile.identity_verified_at ? <VerifiedBadge compact /> : null}
           </div>
         </div>
         <div>
@@ -178,6 +180,18 @@ export function ProfileForm({
         <div>
           <dt className="text-caption text-[var(--nexo-text-muted)]">Status</dt>
           <dd className="mt-0.5 capitalize">{profile.account_status.replace(/_/g, " ")}</dd>
+        </div>
+        <div>
+          <dt className="text-caption text-[var(--nexo-text-muted)]">Identity</dt>
+          <dd className="mt-0.5">
+            {profile.identity_verified_at ? (
+              <VerifiedBadge />
+            ) : (
+              <Link href="/verification" className="underline underline-offset-4">
+                Verification required
+              </Link>
+            )}
+          </dd>
         </div>
         <div className="sm:col-span-2">
           <dt className="text-caption text-[var(--nexo-text-muted)]">Role</dt>
