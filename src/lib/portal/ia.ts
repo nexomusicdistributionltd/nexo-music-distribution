@@ -165,6 +165,41 @@ function marketingGroups(): PortalNavItem[][] {
         description: "Outline a release campaign for staff review.",
       }),
       item({
+        href: "/marketing/priority-pitch",
+        label: "Priority Pitch",
+        pageKind: "service",
+        serviceKind: "priority_pitch",
+        description: "Submit a priority pitching request for staff review. Placement is never guaranteed.",
+      }),
+      item({
+        href: "/marketing/spotify-discovery-mode",
+        label: "Spotify Discovery Mode",
+        pageKind: "service",
+        serviceKind: "spotify_discovery_mode",
+        description: "Request eligibility review for Spotify Discovery Mode. Nexo does not invent enrollment.",
+      }),
+      item({
+        href: "/marketing/promotional-assets",
+        label: "Promotional Assets",
+        pageKind: "service",
+        serviceKind: "promotional_assets",
+        description: "Request release artwork, motion, social or campaign asset support.",
+      }),
+      item({
+        href: "/marketing/fan-blast",
+        label: "Fan Blast",
+        pageKind: "service",
+        serviceKind: "fan_blast",
+        description: "Request a fan communication campaign for staff review.",
+      }),
+      item({
+        href: "/marketing/award-monitoring",
+        label: "Award Monitoring",
+        pageKind: "service",
+        serviceKind: "award_monitoring",
+        description: "Request award and eligibility monitoring for catalog owned by this account.",
+      }),
+      item({
         href: "/marketing/third-party-playlisting",
         label: "Third Party Playlisting",
         pageKind: "service",
@@ -477,6 +512,55 @@ function splitShareGroups(): PortalNavItem[][] {
 function rightsGroups(): PortalNavItem[][] {
   return [
     [
+      item({
+        href: "/rights/profile-defender",
+        label: "Profile Defender",
+        pageKind: "service",
+        serviceKind: "profile_defender",
+        description: "Request review of impersonation, profile conflicts or catalog identity issues.",
+      }),
+      item({
+        href: "/rights/usage-discovery",
+        label: "Usage Discovery",
+        pageKind: "service",
+        serviceKind: "usage_discovery",
+        description: "Request a usage-discovery review using available Nexo and provider data.",
+      }),
+      item({
+        href: "/rights/chart-registration",
+        label: "Chart Registration",
+        pageKind: "service",
+        serviceKind: "chart_registration",
+        description: "Request chart-registration review for an eligible release.",
+      }),
+      item({
+        href: "/rights/cover-song-licensing",
+        label: "Cover Song Licensing",
+        pageKind: "service",
+        serviceKind: "cover_song_licensing",
+        description: "Request cover-song licensing review before distribution.",
+      }),
+      item({
+        href: "/rights/audio-recognition",
+        label: "Audio Recognition",
+        pageKind: "service",
+        serviceKind: "audio_recognition",
+        description: "Request fingerprinting or audio-recognition support where available.",
+      }),
+      item({
+        href: "/rights/tiktok-cml",
+        label: "TikTok CML",
+        pageKind: "service",
+        serviceKind: "tiktok_cml",
+        description: "Request TikTok Commercial Music Library review where eligible.",
+      }),
+      item({
+        href: "/rights/conflict-resolution",
+        label: "Conflict Resolution",
+        pageKind: "service",
+        serviceKind: "conflict_resolution",
+        description: "Open a catalog, ownership, duplicate or DSP conflict-resolution request.",
+      }),
       item({
         href: "/rights/youtube-allowlist",
         label: "YouTube Allowlist",
