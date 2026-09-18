@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { RequireAdmin } from "@/lib/auth/guards";
+import { RequireAdministrator } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import { DistributionNav } from "@/components/distribution/DistributionNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { getProviderConnectionState, readProviderConfig } from "@/lib/provider";
+import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
+import { hasDistributionCredential } from "@/lib/provider/oauth/store";
 
 export const metadata: Metadata = {
   title: "Provider status",
@@ -12,30 +13,34 @@ export const metadata: Metadata = {
 };
 
 export default async function ProviderStatusPage() {
-  await RequireAdmin();
-  const state = getProviderConnectionState();
-  const cfg = readProviderConfig();
+  await RequireAdministrator();
+  const oauthConfigured = isDistributionOAuthConfigured();
+  const authorized = oauthConfigured ? await hasDistributionCredential() : false;
 
   return (
     <div>
       <PageHeader title="Provider status" description="Server-side configuration only. Secrets never shown." />
       <DistributionNav current="/admin/distribution/provider" />
-      <ProviderBanner connected={state.connected} />
+      <ProviderBanner connected={authorized} />
       <Card className="mt-4">
         <CardHeader>
           <CardTitle>Connection</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-small">
-          <p>Status: <strong>{state.connected ? "Connected" : "Not connected / Unavailable"}</strong></p>
-          <p>Configured name: {cfg.name}</p>
-          <p>API key present: {cfg.apiKeyPresent ? "yes" : "no"}</p>
-          <p>API base URL set: {cfg.apiBaseUrl ? "yes" : "no"}</p>
-          <p>Webhook secret present: {cfg.webhookSecretPresent ? "yes" : "no"}</p>
-          <p className="text-[var(--nexo-text-muted)]">{state.message}</p>
-          {!state.connected ? (
+          <p>Status: <strong>{authorized ? "Connected" : oauthConfigured ? "Ready to connect" : "Configuration incomplete"}</strong></p>
+          <p>OAuth configuration: {oauthConfigured ? "ready" : "incomplete"}</p>
+          <p className="text-[var(--nexo-text-muted)]">{authorized ? "Distribution Engine authorization is stored securely." : "Connect the Distribution Engine to authorize delivery and data access."}</p>
+          {oauthConfigured && !authorized ? (
+            <a
+              href="/api/admin/distribution/connect"
+              className="inline-flex rounded-md bg-[var(--nexo-accent)] px-4 py-2 font-semibold text-black"
+            >
+              Connect Distribution Engine
+            </a>
+          ) : null}
+          {!authorized ? (
             <p className="text-[var(--nexo-text-muted)]">
-              Set PROVIDER_NAME + PROVIDER_API_KEY (server-only) and register a real adapter.
-              Until then every submit/sync/delivery action returns Provider Not Connected.
+              Complete the secure Distribution Engine connection before using submit, sync, or delivery actions.
             </p>
           ) : null}
         </CardContent>

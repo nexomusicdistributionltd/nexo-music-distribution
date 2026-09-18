@@ -2,6 +2,8 @@ import "server-only";
 
 import { readProviderConfig } from "./config";
 import { NotConnectedProvider } from "./not-connected";
+import { DistributionEngineProvider } from "./distribution-engine";
+import { isDistributionOAuthConfigured } from "./oauth/config";
 import type { DistributionProvider } from "./types";
 
 export * from "./types";
@@ -27,14 +29,24 @@ let cached: DistributionProvider | null = null;
  */
 export function getProvider(): DistributionProvider {
   if (cached) return cached;
+  if (isDistributionOAuthConfigured()) {
+    cached = new DistributionEngineProvider();
+    return cached;
+  }
   const cfg = readProviderConfig();
+  if (isDistributionOAuthConfigured()) {
+    const p = getProvider();
+    return {
+      connected: p.connected,
+      providerName: "distribution_engine",
+      message: p.connected ? "Distribution Engine configured. Authorization is verified at request time." : "Distribution Engine unavailable.",
+      webhookConfigured: cfg.webhookSecretPresent,
+    };
+  }
   if (!cfg.connected) {
     cached = new NotConnectedProvider();
     return cached;
   }
-  // Real adapters register here when implemented. Until then, even with env
-  // name set, refuse to pretend — require an actual adapter module.
-  // No fake LIVE/DELIVERED adapter is allowed.
   cached = new NotConnectedProvider();
   return cached;
 }

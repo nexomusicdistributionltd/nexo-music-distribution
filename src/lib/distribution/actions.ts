@@ -195,6 +195,9 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
         p_provider_status: status.status,
       });
       if (error) return { ok: false, error: error.message };
+      if (mapped === "live") {
+        try { const { drainFanlinkSyncJobs } = await import("@/lib/fanlink/jobs"); await drainFanlinkSyncJobs(5); } catch { /* release sync succeeds even if fanlink retry remains queued */ }
+      }
       return { ok: true, data: { run: data, status, mapped } };
     }
 

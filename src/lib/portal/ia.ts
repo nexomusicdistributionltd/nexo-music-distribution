@@ -90,6 +90,7 @@ function catalogGroups(kind: Exclude<WorkspaceKind, "admin">): PortalNavItem[][]
       }),
       artistsItem,
       ...createArtist,
+      item({ href: "/dashboard/fanlinks", label: "Fanlinks", pageKind: "existing", description: "Public Nexo smart links for your live releases, with DSP clicks and preview status." }),
     ],
     [
       item({
@@ -623,4 +624,7 @@ export const FORBIDDEN_PORTAL_COPY = [
   "SymphonicMS",
   "Get on Symphonic's Playlists",
   "Symphonic",
+  "Too Lost",
+  "TooLost",
+  "toolost",
 ] as const;

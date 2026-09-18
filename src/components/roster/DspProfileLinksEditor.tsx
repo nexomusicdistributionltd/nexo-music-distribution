@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
+import { DspIcon } from "@/components/fanlink/DspIcon";
 import { DSP_PROFILE_SPECS, type ArtistDspLink, type DspProfileKey } from "@/lib/dsp/profile-links";
 import {
   previewDspProfileAction,
@@ -125,6 +126,7 @@ export function DspProfileLinksEditor({
                       }))
                     }
                   />
+                  <DspIcon name={spec.key === "applemusic" ? "apple_music" : spec.key} className="h-5 w-5" />
                   {spec.title}
                 </label>
                 {row.preview_name ? (

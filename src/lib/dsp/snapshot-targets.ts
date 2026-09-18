@@ -10,9 +10,10 @@ export async function snapshotReleaseDspTargets(
   if (!artistProfileId) return;
   const { data } = await supabase
     .from("artist_dsp_links")
-    .select("id, dsp_key, url, enabled, preview_name, preview_image_url, preview_canonical_url")
+    .select("id, dsp_key, url, enabled, preview_name, preview_image_url, preview_canonical_url, verification_status, verified_at")
     .eq("artist_profile_id", artistProfileId);
-  const enabled = enabledDspTargets((data ?? []) as ArtistDspLink[]);
+  const verified = (data ?? []).filter((r) => r.verification_status === "verified" && r.verified_at);
+  const enabled = enabledDspTargets(verified as ArtistDspLink[]);
   await supabase.from("release_dsp_profile_targets").delete().eq("release_id", releaseId);
   if (enabled.length === 0) return;
   const rows = enabled

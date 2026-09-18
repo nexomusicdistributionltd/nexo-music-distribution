@@ -104,21 +104,17 @@ export async function sendComposedEmail(
     template_catalog_key: ADMIN_COMPOSE_TEMPLATE_KEY,
   };
 
-  const { data: ev, error: insertErr } = await supabase
-    .from("email_outbound_events")
-    .insert({
-      to_email: primary,
-      template_key: ADMIN_COMPOSE_TEMPLATE_KEY,
-      payload,
-      status: "queued",
-      related_entity_type: input.inReplyTo ? "email_reply" : "email_compose",
-    })
-    .select("id")
-    .single();
+  const { data: eventId, error: insertErr } = await supabase.rpc("admin_enqueue_composed_email", {
+    p_to_email: primary,
+    p_template_key: ADMIN_COMPOSE_TEMPLATE_KEY,
+    p_payload: payload,
+    p_related_entity_type: input.inReplyTo ? "email_reply" : "email_compose",
+  });
 
-  if (insertErr || !ev) {
+  if (insertErr || !eventId) {
     return { ok: false, error: insertErr?.message ?? "Could not queue outbound event." };
   }
+  const ev = { id: String(eventId) };
 
   if (!isZohoSmtpConfigured()) {
     await supabase

@@ -38,74 +38,19 @@ export async function createRosterArtist(
     .maybeSingle();
   if (!label) return { ok: false, error: "Label profile not found." };
 
-  // Snapshot Label account_type / roles — must remain unchanged after create
-  const { data: profileBefore } = await supabase
-    .from("profiles")
-    .select("account_type")
-    .eq("id", ctx.userId)
-    .maybeSingle();
-  const { data: rolesBefore } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", ctx.userId);
-
   const genres = (input.genres ?? []).map((g) => g.trim()).filter(Boolean);
-
-  const { data: artist, error } = await supabase
-    .from("artist_profiles")
-    .insert({
-      user_id: null,
-      profile_id: null,
-      stage_name: stage,
-      artist_name: stage,
-      bio: input.bio?.trim() || null,
-      country: input.country?.trim() || null,
-      genres,
-      avatar_url: input.avatar_url?.trim() || null,
-      website: input.website?.trim() || null,
-      created_by_label_profile_id: label.id,
-    })
-    .select("id")
-    .single();
-
-  if (error) return { ok: false, error: error.message };
-
-  const { error: linkErr } = await supabase.from("label_roster_artists").insert({
-    label_profile_id: label.id,
-    artist_profile_id: artist.id,
-    created_by: ctx.userId,
+  const { data: artistId, error } = await supabase.rpc("create_label_roster_artist", {
+    p_stage_name: stage,
+    p_bio: input.bio?.trim() || null,
+    p_country: input.country?.trim() || null,
+    p_genres: genres,
+    p_avatar_url: input.avatar_url?.trim() || null,
+    p_website: input.website?.trim() || null,
   });
-  if (linkErr) {
-    // Best-effort cleanup of orphan profile row
-    await supabase.from("artist_profiles").delete().eq("id", artist.id);
-    return { ok: false, error: linkErr.message };
+  if (error || !artistId) {
+    return { ok: false, error: error?.message ?? "Could not create roster artist." };
   }
-
-  // Hard assert: Label user must not have gained artist role or account_type flip
-  const { data: profileAfter } = await supabase
-    .from("profiles")
-    .select("account_type")
-    .eq("id", ctx.userId)
-    .maybeSingle();
-  const { data: rolesAfter } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", ctx.userId);
-
-  if (profileAfter?.account_type !== profileBefore?.account_type) {
-    return {
-      ok: false,
-      error: "Invariant violated: account_type changed during roster create.",
-    };
-  }
-  const beforeRoles = new Set((rolesBefore ?? []).map((r) => r.role));
-  const afterRoles = new Set((rolesAfter ?? []).map((r) => r.role));
-  if (afterRoles.has("artist") && !beforeRoles.has("artist")) {
-    return {
-      ok: false,
-      error: "Invariant violated: artist role was added to Label user.",
-    };
-  }
+  const artist = { id: String(artistId) };
 
   try {
     await supabase.rpc("write_audit_log", {
