@@ -60,17 +60,7 @@ export async function createReleaseDraft(input: {
   release_type: ReleaseType;
   /** Required for Label users — must be on their roster. Ignored for Artist users. */
   artist_profile_id?: string | null;
-}): Promise<ActionResult<{
-  id: string;
-  width: number | null;
-  height: number | null;
-  codec: string | null;
-  container: string | null;
-  sample_rate_hz: number | null;
-  bit_depth: number | null;
-  channels: number | null;
-  duration_ms: number | null;
-}>> {
+}): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireArtistOrLabel();
   try {
     assertCanMutateCatalog(ctx);
@@ -181,20 +171,7 @@ export async function createReleaseDraft(input: {
   }
 
   revalidateReleasePaths(data.id);
-  return {
-    ok: true,
-    data: {
-      id: data.id,
-      width,
-      height,
-      codec,
-      container,
-      sample_rate_hz,
-      bit_depth,
-      channels,
-      duration_ms,
-    },
-  };
+  return { ok: true, data: { id: data.id } };
 }
 
 export async function updateReleaseInfo(
@@ -452,7 +429,17 @@ export async function registerUploadedAsset(input: {
   width?: number | null;
   height?: number | null;
   replaceAssetId?: string | null;
-}): Promise<ActionResult<{ id: string }>> {
+}): Promise<ActionResult<{
+  id: string;
+  width: number | null;
+  height: number | null;
+  codec: string | null;
+  container: string | null;
+  sample_rate_hz: number | null;
+  bit_depth: number | null;
+  channels: number | null;
+  duration_ms: number | null;
+}>> {
   const ctx = await requireArtistOrLabel();
   try {
     assertCanMutateCatalog(ctx);
@@ -603,7 +590,20 @@ export async function registerUploadedAsset(input: {
   }
 
   revalidateReleasePaths(input.releaseId);
-  return { ok: true, data: { id: data.id } };
+  return {
+    ok: true,
+    data: {
+      id: data.id,
+      width,
+      height,
+      codec,
+      container,
+      sample_rate_hz,
+      bit_depth,
+      channels,
+      duration_ms,
+    },
+  };
 }
 
 export async function prepareAssetUpload(input: {
