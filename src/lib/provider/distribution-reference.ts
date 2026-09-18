@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { loadDistributionAccessToken } from "./oauth/store";
 import { readDistributionOAuthConfig } from "./oauth/config";
 import { ProviderUnavailableError } from "./errors";
@@ -48,7 +50,7 @@ function withQuery(path: string, qs: URLSearchParams): string {
   return qs.size ? `${path}?${qs.toString()}` : path;
 }
 
-async function api(path: string): Promise<unknown> {
+async function apiUncached(path: string): Promise<unknown> {
   const token = await loadDistributionAccessToken();
   if (!token) {
     throw new ProviderUnavailableError("Distribution Engine authorization is unavailable.");
@@ -90,6 +92,16 @@ async function api(path: string): Promise<unknown> {
 
   if (response.status === 204) return null;
   return response.json();
+}
+
+const cachedApiGet = unstable_cache(
+  async (path: string) => apiUncached(path),
+  ["distribution-engine-reference-get-v1"],
+  { revalidate: 60 }
+);
+
+async function api(path: string): Promise<unknown> {
+  return cachedApiGet(path);
 }
 
 function rows(value: unknown): Json[] {
