@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
@@ -19,6 +20,7 @@ const LABELS: Record<(typeof QC_CHECKLIST_KEYS)[number], string> = {
 };
 
 export function QcDecisionForm({ releaseId }: { releaseId: string }) {
+  const router = useRouter();
   const [checklist, setChecklist] = React.useState<QcChecklist>({});
   const [reason, setReason] = React.useState("");
   const [internal, setInternal] = React.useState("");
@@ -40,7 +42,7 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
       setError(res.error);
       return;
     }
-    window.location.reload();
+    router.refresh();
   }
 
   return (
@@ -88,7 +90,7 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
       ) : null}
       <div className="flex flex-wrap gap-2">
         <Button disabled={pending} onClick={() => run("approve")}>
-          Approve
+          {pending ? "Processing…" : "Approve"}
         </Button>
         <Button
           disabled={pending}
