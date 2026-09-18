@@ -1,8 +1,11 @@
+import { siAudiomack, siPandora } from "simple-icons/icons";
 import { DSP_BRANDS, type DspBrand } from "@/lib/dsp-brands";
 
-const brandByKey = new Map<string, DspBrand>(
-  DSP_BRANDS.map((brand) => [brand.key.toLowerCase(), brand])
-);
+const brandByKey = new Map<string, DspBrand>([
+  ...DSP_BRANDS.map((brand) => [brand.key.toLowerCase(), brand] as const),
+  ["audiomack", { key: "audiomack", title: siAudiomack.title, path: siAudiomack.path }],
+  ["pandora", { key: "pandora", title: siPandora.title, path: siPandora.path }],
+]);
 
 const aliases: Record<string, string> = {
   apple_music: "applemusic",
