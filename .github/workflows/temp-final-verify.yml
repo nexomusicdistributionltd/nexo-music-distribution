@@ -1,8 +1,8 @@
 name: Temporary final verification
 on:
-  push:
+  pull_request:
     branches:
-      - fix/final-portal-metadata-analytics-20260918
+      - main
 jobs:
   verify:
     runs-on: ubuntu-latest
