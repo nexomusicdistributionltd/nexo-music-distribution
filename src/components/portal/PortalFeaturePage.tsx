@@ -55,12 +55,12 @@ export async function PortalFeaturePage({ href }: { href: string }) {
     return (
       <div className="space-y-6">
         <PageIntro eyebrow="Analytics" title={def.label} description={def.description} />
-        <Alert variant={snap.statusLabel === "LIVE" ? "success" : "warning"} title={snap.statusLabel}>
+        <Alert variant={snap.statusLabel === "LIVE" ? "success" : "info"} title={snap.statusLabel}>
           {snap.note}
         </Alert>
         {snap.rowCount === 0 ? (
           <EmptyState
-            title={snap.statusLabel === "NOT CONNECTED" ? "Not connected" : "No rows yet"}
+            title="No verified rows yet"
             description="Nexo does not invent stream counts or DSP credentials."
           />
         ) : (
