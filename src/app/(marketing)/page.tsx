@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicCatalogRealtime } from "@/components/website/PublicCatalogRealtime";
 import { HomeFeaturedCatalog } from "@/components/website/HomeFeaturedCatalog";
+import { HomeVideos } from "@/components/website/HomeVideos";
 import { PartnerLogoMarquee } from "@/components/website/PartnerLogoMarquee";
 import { listActivePartners } from "@/lib/website/partners";
 import {
   getWebsiteSetting,
   listFeaturedPublicArtists,
   listFeaturedPublicReleases,
+  listPublishedVideos,
 } from "@/lib/website/queries";
 import { resolveHomepageImageMap } from "@/lib/website/homepage-images";
 import { HeroStage } from "@/components/public/HeroStage";
@@ -108,11 +110,12 @@ const SERVICES = [
 ];
 
 export default async function HomePage() {
-  const [partners, featuredReleases, featuredArtists, homepageSetting] = await Promise.all([
+  const [partners, featuredReleases, featuredArtists, homepageSetting, videos] = await Promise.all([
     listActivePartners(),
     listFeaturedPublicReleases(8),
     listFeaturedPublicArtists(8),
     getWebsiteSetting("homepage"),
+    listPublishedVideos({ limit: 6 }),
   ]);
   const home = (homepageSetting?.value ?? {}) as Record<string, unknown>;
   const heroEyebrow = String(
@@ -247,6 +250,7 @@ export default async function HomePage() {
         showReleases={showFeaturedReleases}
         showArtists={showFeaturedArtists}
       />
+      <HomeVideos videos={videos} />
 
       <section className="pub-section pub-container">
         <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-start">
