@@ -107,7 +107,7 @@ describe("dashboard copy is truthful", () => {
     expect(src).not.toMatch(/fake (stream|kpi|revenue)/i);
     expect(src).toContain("Welcome back,");
     expect(src).toContain("Create release");
-    expect(src).toContain("NOT CONNECTED");
+    expect(src).toContain("AVAILABLE");
     expect(src).toContain("Outstanding $0.00 is not estimated earnings");
     expect(src).not.toMatch(/Streams\s+\d+/);
   });
