@@ -41,6 +41,17 @@ function isrcFromRow(row: Row): string {
   return String(row.isrc ?? row.ISRC ?? row.track_isrc ?? "").trim().toUpperCase();
 }
 
+function analyticsReleaseIdFromRow(row: Row): string {
+  return String(
+    row.release_id ??
+      row.releaseId ??
+      row.provider_release_id ??
+      row.providerReleaseId ??
+      ""
+  ).trim();
+}
+
+
 function artistFromRow(row: Row): string {
   return normalize(
     row.artist ??
@@ -257,7 +268,7 @@ export async function ownedAnalytics(userId: string): Promise<OwnedAnalyticsResu
     if (result.status !== "fulfilled") return [];
     const source = aggregateRequests[index]?.source ?? "analytics";
     return providerAnalyticsRows(result.value, { _analytics_source: source }).filter((row) => {
-      const releaseId = releaseIdFromRow(row);
+      const releaseId = analyticsReleaseIdFromRow(row);
       const isrc = isrcFromRow(row);
       return (
         (Boolean(releaseId) && scope.providerIds.has(releaseId)) ||
