@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ReleaseWizard } from "@/components/releases/ReleaseWizard";
 import { RequireRole } from "@/lib/auth/guards";
 import {
-  getLabelProfileIdForUser,
+  getLabelProfileForUser,
   listRosterArtists,
 } from "@/lib/roster/queries";
 
@@ -20,10 +20,12 @@ export default async function NewReleasePage({
   const sp = await searchParams;
   const isLabel = ctx.roles.includes("label");
   let rosterArtists: { id: string; artist_name: string; stage_name: string }[] = [];
+  let defaultLabelName = "";
   if (isLabel) {
-    const labelId = await getLabelProfileIdForUser(ctx.userId);
-    if (labelId) {
-      const roster = await listRosterArtists(labelId);
+    const label = await getLabelProfileForUser(ctx.userId);
+    defaultLabelName = label?.label_name?.trim() || "";
+    if (label?.id) {
+      const roster = await listRosterArtists(label.id);
       rosterArtists = roster.map((a) => ({
         id: a.id,
         artist_name: a.artist_name,
@@ -51,6 +53,7 @@ export default async function NewReleasePage({
         accountRole={isLabel ? "label" : "artist"}
         rosterArtists={rosterArtists}
         initialArtistProfileId={initialArtistProfileId}
+        defaultLabelName={defaultLabelName}
       />
     </div>
   );
