@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   ArrowUpRight,
   BarChart3,
@@ -252,8 +253,8 @@ function Action({
   primary = false,
 }: {
   href: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
+  icon: ReactNode;
+  children: ReactNode;
   primary?: boolean;
 }) {
   return (
