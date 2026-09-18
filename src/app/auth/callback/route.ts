@@ -19,7 +19,16 @@ export async function GET(request: NextRequest) {
 
   const stateCookie = request.cookies.get("nexo_distribution_oauth_state")?.value ?? null;
 
-  if (verifyDistributionOAuthState(state) && stateCookie === state) {
+  const distributionState = verifyDistributionOAuthState(state);
+  if (distributionState && stateCookie !== state) {
+    const response = NextResponse.redirect(
+      new URL("/admin/distribution/provider?connection=failed", url.origin)
+    );
+    response.cookies.delete("nexo_distribution_oauth_state");
+    return response;
+  }
+
+  if (distributionState) {
     const code = url.searchParams.get("code");
     if (!code) {
       return NextResponse.redirect(
