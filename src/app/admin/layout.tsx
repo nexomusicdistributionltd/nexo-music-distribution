@@ -1,4 +1,5 @@
 import { navSectionsForRoles } from "@/lib/auth/nav";
+import { getEffectiveAdminPermissionsForContext } from "@/lib/admin/staff-access";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { AppTopbar } from "@/components/app/AppTopbar";
 import { RealtimeRefresh } from "@/components/notifications/RealtimeRefresh";
@@ -18,7 +19,8 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const ctx = await RequireAdmin();
-  const sections = navSectionsForRoles(ctx.roles);
+  const permissions = await getEffectiveAdminPermissionsForContext(ctx);
+  const sections = navSectionsForRoles(ctx.roles, permissions);
   const displayName =
     ctx.profile?.display_name || ctx.profile?.full_name || ctx.email || "Admin";
   const unread = await countUnreadNotifications(ctx.userId).catch(() => 0);
