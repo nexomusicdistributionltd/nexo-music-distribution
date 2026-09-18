@@ -100,10 +100,16 @@ export async function beginIdentityVerificationAction(input: {
     if (error) return { ok: false, error: "Could not update identity verification." };
   }
 
+  if (!verificationId) {
+    return { ok: false, error: "Could not resolve identity verification." };
+  }
+
+  const resolvedVerificationId = verificationId;
+
   const { data: submission, error: submissionError } = await service
     .from("identity_verification_submissions")
     .insert({
-      verification_id: verificationId,
+      verification_id: resolvedVerificationId,
       user_id: ctx.userId,
       document_type: input.documentType,
       status: "draft",
@@ -117,11 +123,11 @@ export async function beginIdentityVerificationAction(input: {
   await service
     .from("identity_verifications")
     .update({ latest_submission_id: submission.id })
-    .eq("id", verificationId)
+    .eq("id", resolvedVerificationId)
     .eq("user_id", ctx.userId);
 
   await service.from("identity_verification_events").insert({
-    verification_id: verificationId,
+    verification_id: resolvedVerificationId,
     submission_id: submission.id,
     user_id: ctx.userId,
     actor_user_id: ctx.userId,
@@ -129,7 +135,7 @@ export async function beginIdentityVerificationAction(input: {
     metadata: { document_type: input.documentType, country_code: countryCode },
   });
 
-  return { ok: true, data: { verificationId, submissionId: submission.id } };
+  return { ok: true, data: { verificationId: resolvedVerificationId, submissionId: submission.id } };
 }
 
 export async function submitIdentityVerificationAction(input: {
