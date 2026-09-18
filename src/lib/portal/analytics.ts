@@ -157,6 +157,7 @@ function matchesAnalyticsKey(row: Row, key: AnalyticsKey): boolean {
   if (key === "spotify_discovery") {
     return (
       hasMetric(row, "discovery_mode_streams") ||
+      (text.includes("discovery") && hasMetric(row, "streams")) ||
       (text.includes("spotify") && text.includes("discovery"))
     );
   }
@@ -248,13 +249,16 @@ function aggregateMetric(
   if (groups.size === 0) return null;
 
   let total = 0;
+  const latestValues: number[] = [];
   for (const entries of groups.values()) {
     const bestRank = Math.min(...entries.map((entry) => sourceRank(entry.row)));
     const preferred = entries.filter((entry) => sourceRank(entry.row) === bestRank);
 
     if (mode === "latest") {
-      const withDate = preferred.filter((entry) => entry.date).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-      total += (withDate[0] ?? preferred[preferred.length - 1]).value;
+      const withDate = preferred
+        .filter((entry) => entry.date)
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      latestValues.push((withDate[0] ?? preferred[preferred.length - 1]).value);
       continue;
     }
 
@@ -270,6 +274,12 @@ function aggregateMetric(
       byDate.set(date, Math.max(byDate.get(date) ?? Number.NEGATIVE_INFINITY, entry.value));
     }
     total += [...byDate.values()].reduce((sum, value) => sum + value, 0);
+  }
+
+  if (mode === "latest") {
+    return latestValues.length > 0
+      ? latestValues.reduce((sum, value) => sum + value, 0) / latestValues.length
+      : null;
   }
   return total;
 }
@@ -342,7 +352,11 @@ function buildMetricTotals(rows: Row[], key: AnalyticsKey): Record<string, numbe
   const totals: Record<string, number> = {};
   for (const metric of metricNamesForKey(key)) {
     const isRate = metric.endsWith("_rate");
-    const value = aggregateMetric(rows, METRICS[metric], isRate ? "latest" : "sum");
+    const aliases =
+      key === "spotify_discovery" && metric === "discovery_mode_streams"
+        ? [...METRICS.discovery_mode_streams, ...METRICS.streams]
+        : METRICS[metric];
+    const value = aggregateMetric(rows, aliases, isRate ? "latest" : "sum");
     if (value != null) totals[metric] = value;
   }
   return totals;
