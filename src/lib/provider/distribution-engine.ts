@@ -107,6 +107,50 @@ function stringArray(value: unknown): string[] {
     : [];
 }
 
+function assignedIdentifiers(data: Json): {
+  upc?: string;
+  tracks?: Array<{ trackNumber?: number; providerTrackId?: string; isrc?: string }>;
+} {
+  const identifiers = object(data.identifiers);
+  const upc =
+    firstString(data, ["upc", "barcode", "ean", "upc_code"]) ??
+    firstString(identifiers, ["upc", "barcode", "ean"]);
+
+  const releaseNode = object(data.release);
+  const sourceTracks = Array.isArray(data.tracks)
+    ? data.tracks
+    : Array.isArray(releaseNode.tracks)
+      ? releaseNode.tracks
+      : [];
+
+  const tracks = sourceTracks
+    .map((value) => object(value))
+    .map((track) => {
+      const rawNumber = firstString(track, [
+        "trackNumber",
+        "track_number",
+        "trackNo",
+        "track_no",
+        "position",
+        "sequence",
+      ]);
+      const parsed = rawNumber ? Number.parseInt(rawNumber, 10) : Number.NaN;
+      return {
+        trackNumber: Number.isInteger(parsed) && parsed > 0 ? parsed : undefined,
+        providerTrackId: firstString(track, ["id", "track_id", "trackId"]),
+        isrc:
+          firstString(track, ["isrc", "ISRC"]) ??
+          firstString(object(track.identifiers), ["isrc", "ISRC"]),
+      };
+    })
+    .filter((track) => track.trackNumber || track.providerTrackId || track.isrc);
+
+  return {
+    ...(upc ? { upc } : {}),
+    ...(tracks.length ? { tracks } : {}),
+  };
+}
+
 async function existingProviderDraft(releaseIdValue: string): Promise<string | null> {
   const db = createServiceClient();
   const { data } = await db
@@ -461,9 +505,11 @@ export class DistributionEngineProvider implements DistributionProvider {
       await request(`/releases/${encodeURIComponent(providerReleaseId)}`)
     );
     const status = firstString(data, ["status", "release_status"]) ?? "unknown";
+    const ids = assignedIdentifiers(data);
     return {
       providerReleaseId,
       status,
+      ...ids,
       updatedAt: new Date().toISOString(),
     };
   }
