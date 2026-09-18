@@ -73,6 +73,24 @@ export function RealtimeRefresh({
         {
           event: "*",
           schema: "public",
+          table: "marketing_service_controls",
+        },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "marketing_content_pages",
+        },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "music_video_submissions",
           ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
         },
