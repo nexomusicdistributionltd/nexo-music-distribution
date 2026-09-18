@@ -121,7 +121,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: "2. Data we collect",
     paragraphs: [
-      "We collect account data (name, email, country, artist or label profile), authentication data (including one-time login codes), catalog metadata and audio files you upload, support messages, newsletter subscriptions, and server logs needed to operate and secure the service.",\n      "For mandatory artist and label identity verification, we collect the legal name, date of birth, country, document type, live camera images of the front and back of the identity document, and a live face image. Verification evidence is treated as sensitive account-security data and is not displayed publicly.",
+      "We collect account data (name, email, country, artist or label profile), authentication data (including one-time login codes), catalog metadata and audio files you upload, support messages, newsletter subscriptions, and server logs needed to operate and secure the service.",
+      "For mandatory artist and label identity verification, we collect the legal name, date of birth, country, document type, live camera images of the front and back of the identity document, and a live face image. Verification evidence is treated as sensitive account-security data and is not displayed publicly.",
       "If you subscribe, Paddle processes payment card or wallet details. Nexo stores Paddle customer, subscription, and transaction identifiers needed to recognise your plan. We do not store full card numbers.",
     ],
   },
