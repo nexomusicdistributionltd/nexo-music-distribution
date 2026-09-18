@@ -67,10 +67,9 @@ export function assertOwnedAssetPath(
 export function assertAudioFile(file: { type: string; size: number; name?: string }): string | null {
   const filename = file.name?.toLowerCase() ?? "";
   const mime = file.type.toLowerCase();
-  const extensionFallbackAllowed = !mime || mime === "application/octet-stream";
   const isFlac =
     AUDIO_MIME_TYPES.includes(mime as (typeof AUDIO_MIME_TYPES)[number]) ||
-    (extensionFallbackAllowed && filename.endsWith(".flac"));
+    filename.endsWith(".flac");
   if (!isFlac) {
     return "Nexo delivery requires a lossless FLAC master. Upload a .flac file.";
   }
