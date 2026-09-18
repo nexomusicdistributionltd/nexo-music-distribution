@@ -7,7 +7,7 @@ import { isDistributionOAuthConfigured } from "./oauth/config";
 import { hasDistributionCredential } from "./oauth/store";
 import { getStoredDistributionIdentityHealth } from "./oauth/client";
 import type { DistributionProvider } from "./types";
-import { hasProviderWebhookSigningSecret } from "./webhook-secret";
+import { ensureProviderWebhookSigningSecret } from "./webhook-secret";
 
 export * from "./types";
 export { NotConnectedProvider, isProviderConnected } from "./not-connected";
@@ -52,8 +52,14 @@ export async function getProviderConnectionState(): Promise<{
   webhookConfigured: boolean;
 }> {
   const cfg = readProviderConfig();
-  const webhookConfigured =
-    cfg.webhookSecretPresent || (await hasProviderWebhookSigningSecret());
+  let webhookConfigured = cfg.webhookSecretPresent;
+  if (!webhookConfigured) {
+    try {
+      webhookConfigured = (await ensureProviderWebhookSigningSecret()).configured;
+    } catch {
+      webhookConfigured = false;
+    }
+  }
 
   if (isDistributionOAuthConfigured()) {
     const authorized = await hasDistributionCredential();
