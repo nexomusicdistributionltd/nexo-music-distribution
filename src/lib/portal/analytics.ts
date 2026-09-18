@@ -91,6 +91,7 @@ export async function loadAnalyticsSnapshot(
       amountMinor: null,
       currency: null,
       dspCodes: [],
+      streamCounts: {},
       note: "Analytics are available through Nexo. No verified rows can be displayed for this source right now.",
     };
   }
@@ -109,6 +110,7 @@ export async function loadAnalyticsSnapshot(
       amountMinor: 0,
       currency: null,
       dspCodes: [],
+      streamCounts: {},
       note:
         key === "spotify_discovery"
           ? "Spotify Discovery Mode is available through Nexo. No verified enrollment or activity rows are available for this account yet."
