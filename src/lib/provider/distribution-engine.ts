@@ -556,11 +556,6 @@ function validateSubmission(input: ProviderReleasePayload): void {
       "Release time must use 24-hour HH:MM format."
     );
   }
-  if (input.applePreorder === true && !normalizeProviderDate(input.applePreorderDate)) {
-    throw new ProviderDeliveryValidationError(
-      "Apple Music pre-order requires a valid pre-order date."
-    );
-  }
   if (input.tracks.length === 0) {
     throw new ProviderDeliveryValidationError(
       "At least one track is required for delivery."
