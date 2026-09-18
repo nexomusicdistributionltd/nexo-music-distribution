@@ -29,7 +29,9 @@ export type PlanFeatureId =
   | "advanced_catalog"
   | "advanced_royalty"
   | "advanced_publishing"
-  | "advanced_ops";
+  | "advanced_ops"
+  | "fanlinks"
+  | "advanced_analytics";
 
 export type FeatureUnlockReason = "included" | "grandfathered" | "paid";
 export type FeatureLockReason = "upgrade";
@@ -101,6 +103,12 @@ const ARTIST_FEATURES: Omit<PlanFeature, "state" | "reason">[] = [
     description: "Priority handling and advanced release operations.",
     href: "/dashboard/releases",
     requiredPlan: "artist_pro",
+  },
+  {
+    id: "fanlinks", label: "Fanlinks", description: "Smart release links, DSP click analytics and preview tools.", href: "/dashboard/fanlinks", requiredPlan: "artist_pro",
+  },
+  {
+    id: "advanced_analytics", label: "Advanced analytics", description: "Detailed distribution performance reporting.", href: "/analytics/streams", requiredPlan: "artist_pro",
   },
   {
     id: "catalog_migration",
@@ -195,6 +203,8 @@ const LABEL_FEATURES: Omit<PlanFeature, "state" | "reason">[] = [
     href: "/dashboard/profile",
     requiredPlan: "label_starter",
   },
+  { id: "fanlinks", label: "Fanlinks", description: "Smart release links and audience click analytics.", href: "/dashboard/fanlinks", requiredPlan: "label_starter" },
+  { id: "advanced_analytics", label: "Advanced analytics", description: "Detailed catalog and distribution performance reporting.", href: "/analytics/streams", requiredPlan: "label_starter" },
   {
     id: "catalog_migration",
     label: "Advanced catalog migration",
@@ -263,6 +273,8 @@ const ARTIST_PRO_ONLY = new Set<PlanFeatureId>([
   "priority_support",
   "player_eligibility",
   "advanced_profile",
+  "fanlinks",
+  "advanced_analytics",
 ]);
 
 const LABEL_CORE = new Set<PlanFeatureId>([
@@ -285,6 +297,8 @@ const LABEL_PRO_ONLY = new Set<PlanFeatureId>([
   "advanced_publishing",
   "priority_support",
   "advanced_ops",
+  "fanlinks",
+  "advanced_analytics",
 ]);
 
 function paidPlanId(entitlements: BillingEntitlements): PaidTierId | null {
