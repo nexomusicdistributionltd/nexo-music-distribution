@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { RequireAdministrator } from "@/lib/auth/guards";
+import { RequireAdminPermission } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { marketingServiceSpec } from "@/lib/marketing/services";
 import { parseHttpUrl } from "@/lib/dsp/profile-links";
@@ -41,7 +41,7 @@ function revalidateMarketing() {
 }
 
 export async function updateMarketingControlAction(formData: FormData): Promise<void> {
-  const ctx = await RequireAdministrator();
+  const ctx = await RequireAdminPermission("admin:marketing");
   const kind = textValue(formData, "kind", 80);
   const spec = marketingServiceSpec(kind);
   if (!kind || !spec) fail("Unknown marketing service.");
@@ -67,7 +67,7 @@ export async function updateMarketingControlAction(formData: FormData): Promise<
 }
 
 export async function updateMarketingRequestAction(formData: FormData): Promise<void> {
-  const ctx = await RequireAdministrator();
+  const ctx = await RequireAdminPermission("admin:marketing");
   const requestId = textValue(formData, "request_id", 80);
   const status = textValue(formData, "status", 40);
   const priority = textValue(formData, "priority", 20);
@@ -124,7 +124,7 @@ export async function updateMarketingRequestAction(formData: FormData): Promise<
 const MARKETING_CONTENT_SLUGS = new Set(["client-offerings", "marketing-best-practices"]);
 
 export async function updateMarketingContentAction(formData: FormData): Promise<void> {
-  const ctx = await RequireAdministrator();
+  const ctx = await RequireAdminPermission("admin:marketing");
   const slug = textValue(formData, "slug", 100);
   if (!slug || !MARKETING_CONTENT_SLUGS.has(slug)) {
     fail("Unknown marketing content page.");
