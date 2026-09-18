@@ -33,6 +33,8 @@ export interface Profile {
   restriction_kind?: AccountRestrictionKind;
   account_type: AppRole;
   email_verified_at: string | null;
+  identity_verified_at?: string | null;
+  identity_verification_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +50,7 @@ export interface ArtistProfile {
   country?: string | null;
   avatar_url?: string | null;
   cover_url?: string | null;
+  identity_verified?: boolean;
 }
 
 export interface LabelProfile {
@@ -61,6 +64,7 @@ export interface LabelProfile {
   logo_url?: string | null;
   description?: string | null;
   country?: string | null;
+  identity_verified?: boolean;
 }
 
 export interface AuthUserContext {
