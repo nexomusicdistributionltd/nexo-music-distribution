@@ -6,6 +6,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { AccountStatusForm } from "@/components/admin/AccountStatusForm";
 import { UserRolesForm } from "@/components/admin/UserRolesForm";
+import { StaffInviteForm } from "@/components/admin/StaffInviteForm";
+import { AccountPlanControl } from "@/components/admin/AccountPlanControl";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery } from "@/lib/admin/search";
 import { hasAdminPermission } from "@/lib/admin/permissions";
@@ -52,7 +54,8 @@ export default async function AdminUsersPage({
 
   return (
     <div>
-      <PageHeader title="Users" description="All profiles. Role changes require super_admin." showSearch searchQ={sp.q} />
+      <PageHeader title="Users & access" description="Manage accounts, invite staff and control administrative roles." showSearch searchQ={sp.q} />
+      {canRoles ? <StaffInviteForm /> : null}
       {error ? (
         <ErrorState title="Users unavailable" description={adminListErrorMessage(error)} retryHref="/admin/users" />
       ) : (data ?? []).length === 0 ? (
@@ -82,6 +85,9 @@ export default async function AdminUsersPage({
                 </div>
                 {canManage ? <AccountStatusForm userId={u.id} /> : null}
               </div>
+              {canRoles && (rolesByUser.get(u.id) ?? []).some((r) => r === "artist" || r === "label") ? (
+                <div className="mt-3"><AccountPlanControl userId={u.id} accountType={(rolesByUser.get(u.id) ?? []).includes("label") ? "label" : "artist"} /></div>
+              ) : null}
               {canRoles ? (
                 <div className="mt-3">
                   <UserRolesForm

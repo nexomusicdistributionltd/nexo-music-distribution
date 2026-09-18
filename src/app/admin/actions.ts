@@ -13,7 +13,8 @@ import {
 import { canTransitionPayout, type PayoutStatus } from "@/lib/finance/money";
 import type { AppRole } from "@/lib/auth/types";
 import { isAllowedAdminSettingKey } from "@/lib/admin/settings";
-import { evaluateRoleAssignment } from "@/lib/admin/roles";
+import { evaluateRoleAssignment, normalizeRoleList } from "@/lib/admin/roles";
+import { createServiceClient } from "@/lib/supabase/admin";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -172,6 +173,72 @@ export async function setAccountStatusAction(input: {
   }
   revalidateAdmin(["/admin/users", "/admin/artists", "/admin/labels"]);
   return { ok: true, data };
+}
+
+export async function setAccountPlanOverrideAction(input: {
+  userId: string;
+  accountType: "artist" | "label";
+  planId: "artist_starter" | "artist_pro" | "label_starter" | "label_pro";
+  status: "active" | "trialing" | "expired" | "paused" | "canceled";
+  endsAt?: string | null;
+  reason?: string;
+}): Promise<ActionResult> {
+  const ctx = await RequireSuperAdmin();
+  const valid = input.accountType === "artist"
+    ? ["artist_starter","artist_pro"].includes(input.planId)
+    : ["label_starter","label_pro"].includes(input.planId);
+  if (!valid) return { ok:false, error:"Plan does not match account type." };
+  const db=createServiceClient();
+  const {error}=await db.from("billing_entitlement_overrides").upsert({
+    user_id:input.userId,account_type:input.accountType,plan_id:input.planId,status:input.status,
+    ends_at:input.endsAt||null,reason:input.reason?.trim()||null,updated_by:ctx.userId,created_by:ctx.userId,updated_at:new Date().toISOString()
+  },{onConflict:"user_id"});
+  if(error)return {ok:false,error:error.message};
+  revalidateAdmin(["/admin/users","/admin/finance/billing","/dashboard","/billing"]);
+  return {ok:true,data:true};
+}
+
+export async function inviteStaffUserAction(input: {
+  email: string;
+  roles: AppRole[];
+}): Promise<ActionResult<{ userId: string }>> {
+  const ctx = await RequireSuperAdmin();
+  const email = input.email.trim().toLowerCase();
+  if (!/^\\S+@\\S+\\.\\S+$/.test(email)) return { ok: false, error: "Enter a valid email address." };
+  const roles = normalizeRoleList(input.roles);
+  if (!roles.length || roles.some((r) => r === "artist" || r === "label")) {
+    return { ok: false, error: "Staff invitations require support, admin, or super admin access." };
+  }
+
+  try {
+    const service = createServiceClient();
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://nexomusicdistribution.com"}/login`;
+    const { data, error } = await service.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
+      data: { invited_by: ctx.userId, nexo_staff_invite: true },
+    });
+    if (error) return { ok: false, error: error.message };
+    if (!data.user?.id) return { ok: false, error: "Invitation did not return a user." };
+
+    const { error: roleError } = await service.from("user_roles").upsert(
+      roles.map((role) => ({ user_id: data.user!.id, role })),
+      { onConflict: "user_id,role" }
+    );
+    if (roleError) return { ok: false, error: roleError.message };
+    await service.from("profiles").update({ account_status: "active" }).eq("id", data.user.id);
+    try {
+      await service.rpc("write_audit_log", {
+        p_action: "staff_invite",
+        p_entity_type: "profile",
+        p_entity_id: data.user.id,
+        p_metadata: { actor: ctx.userId, roles },
+      });
+    } catch { /* invitation remains valid */ }
+    revalidateAdmin(["/admin/users"]);
+    return { ok: true, data: { userId: data.user.id } };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not send invitation." };
+  }
 }
 
 export async function setUserRolesAction(input: {

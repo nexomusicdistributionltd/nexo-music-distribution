@@ -83,12 +83,13 @@ export function DspProfileLinksEditor({
             enabled: Boolean(rows[spec.key]?.enabled),
             previewName: rows[spec.key]?.preview_name,
             previewImage: rows[spec.key]?.preview_image_url,
+            previewCanonical: rows[spec.key]?.url,
           })),
         });
         setPending(false);
         if (!res.ok) setError(res.error);
         else {
-          setOk("DSP profile links saved. Enabled stores are used as targeting metadata on submit.");
+          setOk(`Saved ${res.data.saved} DSP profile settings. Release targeting is updated immediately.`);
           router.refresh();
         }
       }}

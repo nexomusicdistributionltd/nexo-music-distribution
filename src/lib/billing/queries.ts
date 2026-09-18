@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { billingAccountTypeFromRoles } from "./eligibility";
 import { getBillingEntitlements, type BillingEntitlements } from "./entitlements";
 import type { BillingAccountType } from "./plans";
+import { getAdminPlanOverride, applyAdminPlanOverride } from "./admin-overrides";
 import {
   subscriptionRowToSnapshot,
   type BillingCustomerRow,
@@ -80,10 +81,12 @@ export async function getEntitlementsForUser(input: {
   const accountType = billingAccountTypeFromRoles(input.roles, input.profileAccountType);
   const rows = await getOwnBillingSubscriptions(input.userId);
   const primary = primarySubscription(rows);
-  return getBillingEntitlements({
+  const base = getBillingEntitlements({
     accountType,
     subscription: primary ? subscriptionRowToSnapshot(primary) : null,
   });
+  const override = await getAdminPlanOverride(input.userId);
+  return applyAdminPlanOverride(base, override);
 }
 
 export async function getEntitlementsForAuth(ctx: AuthUserContext): Promise<BillingEntitlements> {

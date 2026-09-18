@@ -25,7 +25,7 @@ export default async function AdminDdexReleasePage({
   const snapshot = await loadDdexSnapshot(releaseId);
   if (!snapshot) notFound();
   const cfg = ddexConfigPublicStatus();
-  const readiness = readinessFromSnapshot(snapshot);
+  const readiness = await readinessFromSnapshot(snapshot);
   const history = await listDdexMessages(releaseId);
   const latest = history[0] ?? null;
   let targets: Awaited<ReturnType<typeof listPublicDspTargets>> = [];
@@ -53,7 +53,7 @@ export default async function AdminDdexReleasePage({
       <Alert>
         Sender {cfg.senderConfigured ? "configured" : "missing"}
         {cfg.lockedProductionSender ? " (locked production identity)" : " (production DPID guard will block delivery)"}.
-        Recipient {cfg.recipientConfigured ? "configured" : "not required for local test target"}.
+        Recipient {readiness.items.find((item) => item.key === "recipient")?.status === "READY" ? "resolved for the active DDEX target" : cfg.recipientConfigured ? "configured" : "not configured for a commercial DDEX target"}.
         DPIDs are not shown in the UI. NEXO_DDEX_CONTACT is {cfg.contactConfigured ? "set" : "not set (not invented)"}.
       </Alert>
       <DdexReadinessPanel report={readiness} />
