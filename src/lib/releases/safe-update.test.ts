@@ -29,7 +29,7 @@ describe("pickReleaseUpdateFields — mass assignment shield", () => {
     expect(safe).not.toHaveProperty("rejection_reason");
   });
 
-  it("forces distribution_settings.provider to not_connected", () => {
+  it("strips client-supplied provider fields from distribution settings", () => {
     const safe = pickReleaseUpdateFields({
       distribution_settings: {
         worldwide: true,
@@ -40,8 +40,8 @@ describe("pickReleaseUpdateFields — mass assignment shield", () => {
     });
     expect(safe.distribution_settings).toMatchObject({
       worldwide: true,
-      provider: "not_connected",
     });
+    expect(safe.distribution_settings as object).not.toHaveProperty("provider");
     expect(safe.distribution_settings as object).not.toHaveProperty("provider_connected");
     expect(safe.distribution_settings as object).not.toHaveProperty("provider_release_id");
   });
