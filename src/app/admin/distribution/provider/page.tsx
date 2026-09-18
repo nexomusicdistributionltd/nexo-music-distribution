@@ -6,6 +6,7 @@ import { DistributionNav } from "@/components/distribution/DistributionNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { getProviderConnectionState } from "@/lib/provider";
 import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
+import { hasDistributionCredential } from "@/lib/provider/oauth/store";
 
 export const metadata: Metadata = {
   title: "Provider status",
@@ -16,21 +17,22 @@ export default async function ProviderStatusPage() {
   await RequireAdministrator();
   const state = getProviderConnectionState();
   const oauthConfigured = isDistributionOAuthConfigured();
+  const authorized = oauthConfigured ? await hasDistributionCredential() : false;
 
   return (
     <div>
       <PageHeader title="Provider status" description="Server-side configuration only. Secrets never shown." />
       <DistributionNav current="/admin/distribution/provider" />
-      <ProviderBanner connected={state.connected} />
+      <ProviderBanner connected={authorized} />
       <Card className="mt-4">
         <CardHeader>
           <CardTitle>Connection</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-small">
-          <p>Status: <strong>{state.connected ? "Connected" : "Not connected / Unavailable"}</strong></p>
+          <p>Status: <strong>{authorized ? "Connected" : oauthConfigured ? "Ready to connect" : "Configuration incomplete"}</strong></p>
           <p>OAuth configuration: {oauthConfigured ? "ready" : "incomplete"}</p>
-          <p className="text-[var(--nexo-text-muted)]">{state.message}</p>
-          {oauthConfigured ? (
+          <p className="text-[var(--nexo-text-muted)]">{authorized ? "Distribution Engine authorization is stored securely." : "Connect the Distribution Engine to authorize delivery and data access."}</p>
+          {oauthConfigured && !authorized ? (
             <a
               href="/api/admin/distribution/connect"
               className="inline-flex rounded-md bg-[var(--nexo-accent)] px-4 py-2 font-semibold text-black"
@@ -38,7 +40,7 @@ export default async function ProviderStatusPage() {
               Connect Distribution Engine
             </a>
           ) : null}
-          {!state.connected ? (
+          {!authorized ? (
             <p className="text-[var(--nexo-text-muted)]">
               Complete the secure Distribution Engine connection before using submit, sync, or delivery actions.
             </p>
