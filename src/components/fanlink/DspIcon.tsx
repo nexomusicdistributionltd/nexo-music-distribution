@@ -10,7 +10,7 @@ import {
   siPandora,
   siShazam,
   siTiktok,
-  siAmazonmusic,
+  siAmazon,
 } from "simple-icons/icons";
 
 type Icon = { title: string; hex: string; path: string };
@@ -27,8 +27,8 @@ const icons: Record<string, Icon> = {
   pandora: siPandora,
   shazam: siShazam,
   tiktok: siTiktok,
-  amazon: siAmazonmusic,
-  amazon_music: siAmazonmusic,
+  amazon: siAmazon,
+  amazon_music: siAmazon,
 };
 
 export function DspIcon({
