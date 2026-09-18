@@ -531,9 +531,34 @@ function validateSubmission(input: ProviderReleasePayload): void {
       "Release title and primary artist are required for delivery."
     );
   }
-  if (!input.releaseDate) {
+  if (!input.releaseDate || !normalizeProviderDate(input.releaseDate)) {
     throw new ProviderDeliveryValidationError(
-      "Release date is required for delivery."
+      "Release date is required in YYYY-MM-DD format for delivery."
+    );
+  }
+  if (input.language && !normalizeProviderLanguage(input.language)) {
+    throw new ProviderDeliveryValidationError(
+      "Release language must use a supported ISO language value."
+    );
+  }
+  if (input.licenseType && !normalizeProviderLicenseType(input.licenseType)) {
+    throw new ProviderDeliveryValidationError(
+      "Release license type must be Copyright or Creative Commons."
+    );
+  }
+  if (input.timeZone && !normalizeProviderTimeZone(input.timeZone)) {
+    throw new ProviderDeliveryValidationError(
+      "Release time zone must be a valid IANA time zone."
+    );
+  }
+  if (input.releaseTime && !normalizeProviderReleaseTime(input.releaseTime)) {
+    throw new ProviderDeliveryValidationError(
+      "Release time must use 24-hour HH:MM format."
+    );
+  }
+  if (input.applePreorder === true && !normalizeProviderDate(input.applePreorderDate)) {
+    throw new ProviderDeliveryValidationError(
+      "Apple Music pre-order requires a valid pre-order date."
     );
   }
   if (input.tracks.length === 0) {
