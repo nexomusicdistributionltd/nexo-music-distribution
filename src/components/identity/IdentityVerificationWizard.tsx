@@ -102,6 +102,20 @@ export function IdentityVerificationWizard({
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
+  React.useEffect(() => {
+    if (countryCode && countryCode !== "NG" && documentType === "nin") {
+      setDocumentType("national_id");
+    }
+  }, [countryCode, documentType]);
+
+  const documentTypes = React.useMemo(
+    () =>
+      (Object.keys(IDENTITY_DOCUMENT_LABELS) as IdentityDocumentType[]).filter(
+        (type) => type !== "nin" || countryCode === "NG"
+      ),
+    [countryCode]
+  );
+
   const status = liveStatus ?? current?.status ?? null;
   const reason = liveReason ?? current?.reason ?? null;
   const locked =
@@ -278,7 +292,7 @@ export function IdentityVerificationWizard({
           <div className="space-y-2">
             <p className="text-label">Identity document</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {(Object.keys(IDENTITY_DOCUMENT_LABELS) as IdentityDocumentType[]).map((type) => (
+              {documentTypes.map((type) => (
                 <button
                   type="button"
                   key={type}
