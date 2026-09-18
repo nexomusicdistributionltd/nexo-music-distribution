@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default async function MigrationPage() {
   await RequireAdmin();
-  const provider = getProviderConnectionState();
+  const provider = await getProviderConnectionState();
   const migrations = await listCatalogMigrations(30);
   const discovery = defaultUnavailableCatalog();
 
