@@ -36,6 +36,8 @@ export function AccountPlanControl({
   const plans: readonly TierId[] = accountType === "artist" ? ARTIST_PLANS : LABEL_PLANS;
   const [plan, setPlan] = React.useState<TierId>(plans[0]);
   const [status, setStatus] = React.useState<PlanStatus>("active");
+  const [endsAt, setEndsAt] = React.useState("");
+  const [reason, setReason] = React.useState("");
   const [pending, setPending] = React.useState(false);
   const [msg, setMsg] = React.useState("");
 
@@ -51,6 +53,8 @@ export function AccountPlanControl({
           accountType,
           planId: plan,
           status,
+          endsAt: endsAt || null,
+          reason,
         });
         setPending(false);
         setMsg(result.ok ? "Plan updated immediately." : result.error);
@@ -81,6 +85,21 @@ export function AccountPlanControl({
           <option key={item}>{item}</option>
         ))}
       </select>
+      <input
+        type="datetime-local"
+        value={endsAt}
+        onChange={(event) => setEndsAt(event.target.value)}
+        aria-label="Plan access ends at"
+        className="rounded border border-[var(--nexo-border)] bg-[var(--nexo-card)] px-2 py-1"
+      />
+      <input
+        type="text"
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+        placeholder="Reason (optional)"
+        maxLength={300}
+        className="min-w-[12rem] rounded border border-[var(--nexo-border)] bg-[var(--nexo-card)] px-2 py-1"
+      />
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Apply plan"}
       </Button>
