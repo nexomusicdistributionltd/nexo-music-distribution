@@ -34,7 +34,7 @@ async function loadReleases(userId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("releases")
-    .select("id, title")
+    .select("id, title, primary_artist_name")
     .eq("owner_user_id", userId)
     .order("updated_at", { ascending: false })
     .limit(40);
@@ -405,7 +405,7 @@ async function VideosView({ userId }: { userId: string }) {
   const [{ data: rows }, publicVideos] = await Promise.all([
     supabase
       .from("music_video_submissions")
-      .select("id, title, video_url, status, created_at, admin_note")
+      .select("id, title, video_url, status, created_at, admin_note, provider_release_id, provider_status, provider_error")
       .eq("owner_user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -415,7 +415,7 @@ async function VideosView({ userId }: { userId: string }) {
     <div className="space-y-6">
       <PageIntro
         title="Upload Music Video"
-        description="Submit a public video URL for distribution review. Nexo does not host the file unless staff later ingest it."
+        description="Prepare a complete music-video package for Nexo review and connected-provider delivery. Music-video delivery remains subject to provider account eligibility."
       />
       <MusicVideoForm releases={releases} />
       {(rows ?? []).length === 0 ? (
@@ -425,7 +425,18 @@ async function VideosView({ userId }: { userId: string }) {
           {(rows ?? []).map((r) => (
             <li key={r.id} className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
               <p className="font-medium">{r.title}</p>
-              <p className="text-caption text-[var(--nexo-text-muted)]">{r.status}</p>
+              <p className="text-caption text-[var(--nexo-text-muted)]">
+                {r.status}
+                {r.provider_status ? ` · Provider: ${r.provider_status}` : ""}
+              </p>
+              {r.provider_error ? (
+                <p className="mt-1 text-caption text-[var(--nexo-error)]">{r.provider_error}</p>
+              ) : null}
+              {r.provider_release_id ? (
+                <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                  Provider release ID: {r.provider_release_id}
+                </p>
+              ) : null}
               <a className="break-all text-small underline-offset-4 hover:underline" href={r.video_url} rel="noreferrer">
                 {r.video_url}
               </a>
