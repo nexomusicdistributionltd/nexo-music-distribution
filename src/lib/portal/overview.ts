@@ -18,6 +18,7 @@ export type StreamOverviewRow = {
   label: string;
   status: StreamOverviewStatus;
   statementRows: number;
+  streams: number | null;
 };
 
 function codeMatches(dspCode: string, needles: readonly string[]): boolean {
@@ -37,9 +38,14 @@ export function countByMatchedDsp(dspCodes: string[]): Record<string, number> {
 
 export function streamOverviewRows(
   liveDspCodes: string[],
-  idleStatus: StreamOverviewStatus = "EMPTY"
+  idleStatus: StreamOverviewStatus = "EMPTY",
+  dspStreams: Array<{ code: string; streams: number }> = []
 ): StreamOverviewRow[] {
   const counts = countByMatchedDsp(liveDspCodes);
+  const streamTotals = new Map<string, number>();
+  for (const row of dspStreams) {
+    streamTotals.set(row.code, (streamTotals.get(row.code) ?? 0) + Math.max(0, Number(row.streams) || 0));
+  }
   const used = new Set<string>();
   const rows: StreamOverviewRow[] = STREAM_OVERVIEW_DSPS.map((dsp) => {
     let statementRows = 0;
@@ -49,11 +55,20 @@ export function streamOverviewRows(
         used.add(code);
       }
     }
+    let streams = 0;
+    let hasStreamValue = false;
+    for (const [code, value] of streamTotals.entries()) {
+      if (codeMatches(code, dsp.match)) {
+        streams += value;
+        hasStreamValue = true;
+      }
+    }
     return {
       id: dsp.id,
       label: dsp.label,
-      status: statementRows > 0 ? "LIVE" : idleStatus,
+      status: statementRows > 0 || (hasStreamValue && streams > 0) ? "LIVE" : idleStatus,
       statementRows,
+      streams: hasStreamValue ? streams : null,
     };
   });
 
@@ -64,6 +79,7 @@ export function streamOverviewRows(
       label: code,
       status: "LIVE",
       statementRows: n,
+      streams: streamTotals.get(code) ?? null,
     });
   }
   return rows;
