@@ -26,6 +26,7 @@ export type AdminPermission =
   | "admin:statements"
   | "admin:analytics"
   | "admin:distribution"
+  | "admin:marketing"
   | "admin:ddex"
   | "admin:compliance"
   | "admin:support"
@@ -79,6 +80,7 @@ const ADMIN_PERMS: AdminPermission[] = [
   "admin:statements",
   "admin:analytics",
   "admin:distribution",
+  "admin:marketing",
   "admin:ddex",
   "admin:compliance",
   "admin:support",
@@ -142,6 +144,7 @@ const ADMIN_PATH_PERMISSIONS: Array<{
   { prefix: "/admin/verifications", permission: "admin:compliance" },
   { prefix: "/admin/agreements", permission: "admin:compliance" },
   { prefix: "/admin/distribution", permission: "admin:distribution" },
+  { prefix: "/admin/marketing", permission: "admin:marketing" },
   { prefix: "/admin/ddex", permission: "admin:ddex" },
   { prefix: "/admin/playlist-pitches", permission: "admin:distribution" },
   { prefix: "/admin/portal-requests", permission: "admin:support" },
