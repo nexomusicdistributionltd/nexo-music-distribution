@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  RequireRole,
+  RequireVerifiedPortal,
   assertCanMutateCatalog,
   assertCanSubmitRelease,
 } from "@/lib/auth/guards";
@@ -44,7 +44,7 @@ export type ActionResult<T = unknown> =
   | { ok: false; error: string };
 
 async function requireArtistOrLabel() {
-  return RequireRole(["artist", "label"]);
+  return RequireVerifiedPortal();
 }
 
 function revalidateReleasePaths(id?: string) {
