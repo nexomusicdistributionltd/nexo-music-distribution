@@ -4,6 +4,7 @@ import { readProviderConfig } from "./config";
 import { NotConnectedProvider } from "./not-connected";
 import { DistributionEngineProvider } from "./distribution-engine";
 import { isDistributionOAuthConfigured } from "./oauth/config";
+import { hasDistributionCredential } from "./oauth/store";
 import type { DistributionProvider } from "./types";
 
 export * from "./types";
@@ -42,22 +43,22 @@ export function getDistributionProvider(): DistributionProvider {
   return getProvider();
 }
 
-export function getProviderConnectionState(): {
+export async function getProviderConnectionState(): Promise<{
   connected: boolean;
   providerName: string | null;
   message: string;
   webhookConfigured: boolean;
-} {
+}> {
   const cfg = readProviderConfig();
 
   if (isDistributionOAuthConfigured()) {
-    const p = getProvider();
+    const authorized = await hasDistributionCredential();
     return {
-      connected: p.connected,
+      connected: authorized,
       providerName: "distribution_engine",
-      message: p.connected
-        ? "Distribution Engine configured. Authorization is verified at request time."
-        : "Distribution Engine unavailable.",
+      message: authorized
+        ? "Distribution Engine connected and authorized."
+        : "Distribution Engine is configured and ready for secure authorization.",
       webhookConfigured: cfg.webhookSecretPresent,
     };
   }
