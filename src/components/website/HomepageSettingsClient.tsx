@@ -53,6 +53,8 @@ export function HomepageSettingsClient({
     show_partners: initial.show_partners !== false,
     show_services: initial.show_services !== false,
     show_about: initial.show_about !== false,
+    show_blog: initial.show_blog !== false,
+    show_videos: initial.show_videos !== false,
   });
 
   async function onUpload(key: HomepageImageKey, file: File | null) {
@@ -161,6 +163,8 @@ export function HomepageSettingsClient({
             ["show_partners", "Partners marquee"],
             ["show_services", "Services"],
             ["show_about", "About"],
+            ["show_blog", "Latest blog posts"],
+            ["show_videos", "Nexo Video"],
           ] as const
         ).map(([key, label]) => (
           <label key={key} className="inline-flex items-center gap-2">
