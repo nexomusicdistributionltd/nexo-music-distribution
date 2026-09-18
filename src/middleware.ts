@@ -17,6 +17,7 @@ const PROTECTED_PREFIXES = [
   "/profile",
   "/app",
   "/support",
+  "/verification",
   "/admin",
 ];
 
@@ -144,7 +145,7 @@ export async function middleware(request: NextRequest) {
   if (user && supabase && isProtected) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_status, restriction_kind")
+      .select("account_status, restriction_kind, account_type, identity_verified_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -174,6 +175,23 @@ export async function middleware(request: NextRequest) {
         url.searchParams.set("reason", "otp-required");
         return redirectWithSession(url, getResponse);
       }
+    }
+
+    const requiresIdentityVerification =
+      verified &&
+      (profile?.account_type === "artist" || profile?.account_type === "label") &&
+      !profile?.identity_verified_at;
+
+    if (
+      requiresIdentityVerification &&
+      pathname !== "/verification" &&
+      !pathname.startsWith("/support")
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/verification";
+      url.search = "";
+      url.searchParams.set("reason", "identity-required");
+      return redirectWithSession(url, getResponse);
     }
 
     // Role-based admin gate (coarse — layouts re-check)
@@ -321,6 +339,7 @@ export const config = {
     "/profile/:path*",
     "/app/:path*",
     "/support/:path*",
+    "/verification",
     "/admin/:path*",
     "/login",
     "/login/verify",
