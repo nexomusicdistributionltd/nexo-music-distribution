@@ -7,6 +7,7 @@ import { Bell, Building2, Menu, MessageSquare, X, CirclePlus, Link2 } from "luci
 import { Logo } from "@/components/brand/Logo";
 import { LogoutButton } from "@/components/app/LogoutButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { VerifiedBadge } from "@/components/verification/VerifiedBadge";
 import { PortalAccordionNav } from "@/components/portal/PortalAccordionNav";
 import type { NavItem, NavSection, WorkspaceKind } from "@/lib/auth/nav";
 import { titleForPath } from "@/lib/auth/nav";
@@ -19,6 +20,7 @@ export function PortalChrome({
   workspaceKind,
   unreadNotifications = 0,
   labelName,
+  identityVerified = false,
 }: {
   sections: NavSection[];
   accountItems: NavItem[];
@@ -26,6 +28,7 @@ export function PortalChrome({
   workspaceKind: Exclude<WorkspaceKind, "admin">;
   unreadNotifications?: number;
   labelName?: string | null;
+  identityVerified?: boolean;
 }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = React.useState(false);
@@ -114,13 +117,14 @@ export function PortalChrome({
         </Link>
         <button
           type="button"
-          className="hidden max-w-[12rem] truncate text-caption text-[var(--nexo-text-muted)] hover:text-[var(--nexo-text)] sm:inline"
+          className="hidden max-w-[14rem] items-center gap-1.5 truncate text-caption text-[var(--nexo-text-muted)] hover:text-[var(--nexo-text)] sm:inline-flex"
           onClick={() => {
             setNavOpen(false);
             setAccountOpen(true);
           }}
         >
-          {displayName}
+          <span className="truncate">{displayName}</span>
+          {identityVerified ? <VerifiedBadge compact /> : null}
         </button>
         <ThemeToggle />
         <button
@@ -164,6 +168,7 @@ export function PortalChrome({
               >
                 {displayName}
               </h2>
+              {identityVerified ? <VerifiedBadge className="mt-2" /> : null}
             </div>
             <CloseX onClick={() => setAccountOpen(false)} />
           </div>
