@@ -545,6 +545,12 @@ export function accountOverlayItems(
           : "Label accounts linked to you, if any.",
     }),
     item({
+      href: "/distribution-agreement",
+      label: "Distribution Agreement",
+      pageKind: "existing",
+      description: "Review your signed Nexo distribution agreement and execution record.",
+    }),
+    item({
       href: "/dashboard/profile",
       label: "My profile",
       pageKind: "existing",
