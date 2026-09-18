@@ -60,6 +60,11 @@ export const EMAIL_AUTOMATION_SPECS: EmailAutomationSpec[] = [
   catalogSpec("AUTH_REAUTHENTICATION", "Supabase Auth reauthentication (hosted)", "auth_supabase", {
     enabledByDefault: false,
   }),
+  catalogSpec("IDENTITY_SUBMITTED", "Identity verification submitted", "account_user"),
+  catalogSpec("IDENTITY_VERIFIED", "Identity verification approved", "account_user"),
+  catalogSpec("IDENTITY_DECLINED", "Identity verification declined", "account_user"),
+  catalogSpec("IDENTITY_ADDITIONAL_INFO_REQUIRED", "Identity verification needs more information", "account_user"),
+  catalogSpec("AGREEMENT_SIGNED", "Distribution agreement executed", "account_user"),
   catalogSpec("RELEASE_SUBMITTED", "Release status → submitted", "release_owner"),
   catalogSpec("RELEASE_UNDER_REVIEW", "Release status → in_qc", "release_owner"),
   catalogSpec("RELEASE_CHANGES_REQUIRED", "QC request changes (pre-approval)", "release_owner"),
