@@ -26,10 +26,13 @@ describe("storage auth concepts", () => {
     expect(ARTWORK_BUCKET).toBe("release-artwork");
   });
 
-  it("rejects bad mime / oversized files", () => {
-    expect(assertAudioFile({ type: "application/pdf", size: 10 })).toMatch(/Unsupported/);
+  it("accepts only FLAC audio and still enforces size", () => {
+    expect(assertAudioFile({ type: "application/pdf", size: 10, name: "track.pdf" })).toMatch(/FLAC/);
+    expect(assertAudioFile({ type: "audio/wav", size: 10, name: "track.wav" })).toMatch(/FLAC/);
+    expect(assertAudioFile({ type: "audio/flac", size: 10, name: "track.flac" })).toBeNull();
+    expect(assertAudioFile({ type: "audio/x-flac", size: 10, name: "track.flac" })).toBeNull();
     expect(assertArtworkFile({ type: "image/gif", size: 10 })).toMatch(/Artwork must/);
-    expect(assertAudioFile({ type: "audio/wav", size: 0 })).toMatch(/empty/);
+    expect(assertAudioFile({ type: "audio/flac", size: 0, name: "track.flac" })).toMatch(/empty/);
   });
 
   it("rejects path traversal and cross-user paths", () => {
