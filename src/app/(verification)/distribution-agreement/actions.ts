@@ -10,6 +10,7 @@ import {
   DISTRIBUTION_AGREEMENT_VERSION,
   legalNameMatches,
 } from "@/lib/legal/distribution-agreement";
+import { queueAgreementSignedEmail } from "@/lib/email/identity-agreement";
 
 type SignInput = {
   legalName: string;
@@ -220,6 +221,13 @@ export async function signDistributionAgreementAction(
       action_path: `/distribution-agreement?agreement=${agreementId}`,
     }),
   ]);
+
+  await queueAgreementSignedEmail({
+    supabase: service,
+    userId: ctx.userId,
+    agreementId,
+    legalName: verifiedLegalName,
+  });
 
   revalidatePath("/distribution-agreement");
   revalidatePath("/dashboard");
