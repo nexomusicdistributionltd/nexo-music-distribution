@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { RequireRole, assertCanMutateCatalog } from "@/lib/auth/guards";
+import { RequireVerifiedPortal, assertCanMutateCatalog } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { canOwnerTransitionPitch, isPlaylistPitchStatus } from "@/lib/playlist-pitch/status";
 import { parseHttpUrl } from "@/lib/dsp/profile-links";
@@ -11,7 +11,7 @@ export type ActionResult<T = unknown> =
   | { ok: false; error: string };
 
 async function requirePortal() {
-  return RequireRole(["artist", "label"]);
+  return RequireVerifiedPortal();
 }
 
 export async function createPlaylistPitch(input: {
