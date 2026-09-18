@@ -32,6 +32,17 @@ export async function createRosterArtist(
   const stage = input.stage_name?.trim();
   if (!stage) return { ok: false, error: "Stage / display name is required." };
 
+  const validatedDspLinks = new Map<DspProfileKey, { url: string | null; enabled: boolean }>();
+  for (const spec of DSP_PROFILE_SPECS) {
+    const row = dspLinks.find((link) => link.dspKey === spec.key);
+    const check = validateDspProfileUrl(spec.key, row?.url ?? "");
+    if (!check.ok) return { ok: false, error: check.error };
+    validatedDspLinks.set(spec.key, {
+      url: check.url,
+      enabled: Boolean(row?.enabled && check.url),
+    });
+  }
+
   const supabase = await createClient();
   const { data: label } = await supabase
     .from("label_profiles")
@@ -54,16 +65,15 @@ export async function createRosterArtist(
   }
   const artist = { id: String(artistId) };
 
-  // Save DSP targeting metadata in the same create flow so labels do not need a second deployment or edit pass.
+  // All DSP URLs are validated before the artist row is created, preventing partial artists
+  // when a profile link is malformed.
   for (const spec of DSP_PROFILE_SPECS) {
-    const row = dspLinks.find((l) => l.dspKey === spec.key);
-    const check = validateDspProfileUrl(spec.key, row?.url ?? "");
-    if (!check.ok) return { ok: false, error: check.error };
+    const validated = validatedDspLinks.get(spec.key)!;
     const { error: dspError } = await supabase.from("artist_dsp_links").upsert({
       artist_profile_id: artist.id,
       dsp_key: spec.key,
-      url: check.url,
-      enabled: Boolean(row?.enabled && check.url),
+      url: validated.url,
+      enabled: validated.enabled,
       verification_status: "unverified",
       verified_at: null,
       fetched_at: null,
