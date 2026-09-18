@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Alert } from "@/components/ui/Alert";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -231,11 +232,11 @@ export function ProfileForm({
           in the app.
         </p>
         <div className="mt-4">
-          <a href="/forgot-password">
+          <Link href="/forgot-password">
             <Button type="button" variant="outline" className="rounded-full">
               Reset password
             </Button>
-          </a>
+          </Link>
         </div>
       </section>
     </div>
