@@ -117,6 +117,6 @@ describe("dashboard copy is truthful", () => {
     expect(src).toContain("Administration command center");
     expect(src).not.toMatch(/DSP Connected/);
     expect(src).toContain("getAdminAttention");
-    expect(src).toContain("Live operational counts");
+    expect(src).toContain("Authoritative database counts.");
   });
 });
