@@ -446,16 +446,23 @@ export function ReleaseWizard({
       try {
         clientArtworkMeta = await artworkDimensions(file);
       } catch {
-        setError("Could not read the artwork dimensions. Use a valid JPEG, PNG, or WebP file.");
-        return;
+        const lower = file.name.toLowerCase();
+        const isTiff =
+          file.type === "image/tiff" || lower.endsWith(".tif") || lower.endsWith(".tiff");
+        if (!isTiff) {
+          setError("Could not read the artwork dimensions. Use a valid JPG, PNG, or TIFF file.");
+          return;
+        }
       }
-      const { width, height } = clientArtworkMeta;
-      const accepted = width === height && [1400, 3000, 4000].includes(width);
-      if (!accepted) {
-        setError(
-          `Artwork is ${width}×${height}px. Nexo accepts square artwork at exactly 1400×1400, 3000×3000, or 4000×4000px. Please upload a supported size.`
-        );
-        return;
+      if (clientArtworkMeta) {
+        const { width, height } = clientArtworkMeta;
+        const accepted = width === height && width >= 3000 && width <= 5000;
+        if (!accepted) {
+          setError(
+            `Artwork is ${width}×${height}px. TooLost requires square artwork between 3000×3000 and 5000×5000px.`
+          );
+          return;
+        }
       }
     }
 
@@ -772,7 +779,7 @@ export function ReleaseWizard({
           {step === 2 ? (
             <div className="space-y-4">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                Enter complete DSP metadata for every track. ISRC is never fabricated. Nexo can retain WAV, FLAC, AIFF, MP3, or M4A intake files, but the connected Distribution Engine currently requires a lossless FLAC master before live provider delivery.
+                Enter complete DSP metadata for every track. ISRC is never fabricated. This API delivery flow requires a lossless FLAC master for every track.
               </p>
               {tracks.map((t, idx) => (
                 <div key={idx} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-4 space-y-3">
@@ -931,7 +938,7 @@ export function ReleaseWizard({
                     <label className="text-caption text-[var(--nexo-text-muted)]">Audio file</label>
                     <Input
                       type="file"
-                      accept=".wav,.flac,.mp3,.aiff,.aif,.m4a,audio/wav,audio/x-wav,audio/flac,audio/x-flac,audio/aiff,audio/x-aiff,audio/mpeg,audio/mp4"
+                      accept=".flac,audio/flac,audio/x-flac"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (f) void onUpload("audio", f, t.id);
@@ -1079,13 +1086,13 @@ export function ReleaseWizard({
           {step === 4 ? (
             <div className="space-y-3">
               <div className="space-y-1 text-small text-[var(--nexo-text-muted)]">
-                <p>Cover artwork must be square and one of these accepted dimensions:</p>
-                <p className="font-medium text-[var(--nexo-text)]">1400×1400, 3000×3000, or 4000×4000 px</p>
-                <p>JPEG, PNG, or WebP. Nexo checks width and height before upload and rejects unsupported artwork immediately.</p>
+                <p>Cover artwork must match TooLost&apos;s current delivery requirements:</p>
+                <p className="font-medium text-[var(--nexo-text)]">Square · 3000–5000 px · JPG, PNG, or TIFF · max 36 MB</p>
+                <p>Use RGB artwork. Nexo verifies file type, size, and dimensions before the release can pass QC.</p>
               </div>
               <Input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept=".jpg,.jpeg,.png,.tif,.tiff,image/jpeg,image/png,image/tiff"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) void onUpload("artwork", f);
