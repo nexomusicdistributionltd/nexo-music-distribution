@@ -85,6 +85,30 @@ describe("canTransition — no self-approve", () => {
     expect(isEditableStatus("approved")).toBe(false);
     expect(canRequestTakedown("approved")).toBe(true);
   });
+
+  it("allows staff to return approved releases for changes", () => {
+    const res = canTransition({
+      from: "approved",
+      to: "changes_requested",
+      actor: "staff",
+      providerConnected: true,
+      isOwner: false,
+    });
+    expect(res.ok).toBe(true);
+  });
+
+  it("makes changes_requested editable and resubmittable by the owner", () => {
+    expect(isEditableStatus("changes_requested")).toBe(true);
+    expect(canSubmit("changes_requested")).toBe(true);
+    const res = canTransition({
+      from: "changes_requested",
+      to: "submitted",
+      actor: "owner",
+      providerConnected: true,
+      isOwner: true,
+    });
+    expect(res.ok).toBe(true);
+  });
 });
 
   it("blocks owner forging scheduled from draft", () => {
