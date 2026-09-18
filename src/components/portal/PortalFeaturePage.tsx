@@ -22,7 +22,6 @@ import { knowledgeArticle, allKnowledgeArticles } from "@/lib/portal/knowledge";
 import { loadAnalyticsSnapshot } from "@/lib/portal/analytics";
 import { ENROLLABLE_SERVICES, SERVICE_KIND_LABEL, isAnalyticsKey } from "@/lib/portal/service-kinds";
 import { formatMinorUnits } from "@/lib/finance/money";
-import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { getArtistProfileForUser, getLabelProfileForUser, listArtistDspLinks, listRosterArtists } from "@/lib/roster/queries";
 import { listPublishedVideos } from "@/lib/website/queries";
 import { workspaceKindForRoles } from "@/lib/auth/nav";
@@ -506,7 +505,6 @@ async function LabelsView({ userId, isLabel }: { userId: string; isLabel: boolea
 
 async function PaymentTaxView({ userId }: { userId: string }) {
   const supabase = await createClient();
-  const payment = getPaymentConnectionState();
   const { data: tax } = await supabase
     .from("account_tax_details")
     .select("legal_name, country, tax_id")
@@ -516,16 +514,13 @@ async function PaymentTaxView({ userId }: { userId: string }) {
     <div className="space-y-6">
       <PageIntro
         title="Payment & Tax Details"
-        description="Tax profile is stored on your account. Payment rails stay NOT CONNECTED until a live adapter is registered."
+        description="Keep your tax and legal details current for Nexo royalty payout review."
         actions={
           <Link href="/billing" className="text-small underline-offset-4 hover:underline">
             Plan & billing
           </Link>
         }
       />
-      <Alert variant="warning" title="Payment">
-        {payment.message}
-      </Alert>
       <TaxDetailsForm initial={tax ?? null} />
     </div>
   );
