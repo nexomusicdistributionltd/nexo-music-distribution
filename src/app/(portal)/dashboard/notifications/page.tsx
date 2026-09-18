@@ -18,7 +18,7 @@ export default async function NotificationsPage() {
       <div>
         <h1 className="text-h2">Notifications</h1>
         <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
-          In-app only — no external email is sent from this batch.
+          Realtime account updates, distribution notices, verification decisions, and Nexo broadcasts.
         </p>
       </div>
       {items.length === 0 ? (
