@@ -234,6 +234,25 @@ export async function submitIdentityVerificationAction(input: {
     metadata: {},
   });
 
+  const { data: staffRows } = await service
+    .from("user_roles")
+    .select("user_id")
+    .in("role", ["support", "admin", "super_admin"]);
+  const staffIds = [...new Set((staffRows ?? []).map((row) => row.user_id).filter(Boolean))]
+    .filter((id) => id !== ctx.userId);
+  if (staffIds.length > 0) {
+    await service.from("notifications").insert(
+      staffIds.map((userId) => ({
+        user_id: userId,
+        type: "verification_update",
+        title: "Identity verification submitted",
+        body: "An artist or label submitted live identity evidence for review.",
+        entity_type: "identity_verification",
+        entity_id: input.verificationId,
+      }))
+    );
+  }
+
   revalidatePath("/verify-identity");
   revalidatePath("/dashboard");
   return { ok: true, data: { status: "submitted" } };
