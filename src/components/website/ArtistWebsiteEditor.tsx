@@ -41,6 +41,7 @@ export function ArtistWebsiteEditor({ artist }: Props) {
     spotify: socials.spotify || "",
     instagram: socials.instagram || "",
     website: socials.website || "",
+    entzopedia: socials.entzopedia || "",
     published: artist.website_published,
     featured: artist.website_featured,
   });
@@ -126,7 +127,7 @@ export function ArtistWebsiteEditor({ artist }: Props) {
           onChange={(e) => setForm((f) => ({ ...f, bioHtml: e.target.value }))}
         />
       </label>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="text-caption">
           Spotify URL
           <Input
@@ -149,6 +150,15 @@ export function ArtistWebsiteEditor({ artist }: Props) {
             className="mt-1"
             value={form.website}
             onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+          />
+        </label>
+        <label className="text-caption">
+          Entzopedia artist URL
+          <Input
+            className="mt-1"
+            placeholder="https://entzopedia.com/..."
+            value={form.entzopedia}
+            onChange={(e) => setForm((f) => ({ ...f, entzopedia: e.target.value }))}
           />
         </label>
       </div>
@@ -182,6 +192,7 @@ export function ArtistWebsiteEditor({ artist }: Props) {
             if (form.spotify) socialLinks.spotify = form.spotify;
             if (form.instagram) socialLinks.instagram = form.instagram;
             if (form.website) socialLinks.website = form.website;
+            if (form.entzopedia) socialLinks.entzopedia = form.entzopedia;
             const res = await setArtistWebsiteAction({
               artistProfileId: artist.id,
               artistName: form.artistName,
