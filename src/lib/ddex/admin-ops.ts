@@ -12,6 +12,8 @@ import {
   updateDdexValidation,
 } from "./persistence";
 import { getDdexTransport } from "./transport";
+import { getDspTarget, listDspTargets } from "./persistence";
+import { configForTarget } from "./targets";
 import { validateErnXml } from "./validate";
 import {
   buildDdexPackage,
@@ -28,10 +30,20 @@ import {
 } from "./service";
 import type { DdexCatalogSnapshot, DdexMessageRecord } from "./types";
 
-export function readinessFromSnapshot(
+export async function readinessFromSnapshot(
   snapshot: DdexCatalogSnapshot,
   cfg = readDdexConfig()
-): ReadinessReport {
+): Promise<ReadinessReport> {
+  // Readiness must use the same resolved DDEX target identity as generation.
+  // Prefer the active local test target for validation; otherwise use an explicitly configured target.
+  let runtime = cfg;
+  try {
+    const targets = await listDspTargets();
+    const target = targets.find((t) => t.is_test && t.is_active) ?? targets.find((t) => t.is_active && !t.planning_only) ?? null;
+    if (target) runtime = configForTarget(cfg, target);
+  } catch {
+    // Environment-only configuration remains the fallback.
+  }
   return evaluateReleaseReadiness({
     upc: snapshot.release.upc,
     copyright_line: snapshot.release.copyright_line,
@@ -45,8 +57,8 @@ export function readinessFromSnapshot(
     contributors: snapshot.contributors,
     assets: snapshot.assets,
     deals: snapshot.deals,
-    senderConfigured: Boolean(cfg.senderPartyId),
-    recipientConfigured: Boolean(cfg.recipientPartyId),
+    senderConfigured: Boolean(runtime.senderPartyId),
+    recipientConfigured: Boolean(runtime.recipientPartyId),
   });
 }
 
@@ -68,7 +80,7 @@ export async function generateErnForRelease(
     return {
       ok: false,
       error: res.error,
-      readiness: snapshot ? readinessFromSnapshot(snapshot) : undefined,
+      readiness: snapshot ? await readinessFromSnapshot(snapshot) : undefined,
     };
   }
   return {
