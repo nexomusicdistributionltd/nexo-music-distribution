@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { createClient } from "@/lib/supabase/client";
+import type { DistributionLookupOption } from "@/lib/provider/distribution-reference";
 import type {
   ContributorRole,
   ReleaseAssetRow,
@@ -71,6 +72,9 @@ export function ReleaseWizard({
   mode = "create",
   accountRole = "artist",
   rosterArtists = [],
+  genreOptions = [],
+  languageOptions = [],
+  platformOptions = [],
 }: {
   initial?: ReleaseRow | null;
   tracks?: ReleaseTrackRow[];
@@ -79,6 +83,9 @@ export function ReleaseWizard({
   mode?: "create" | "edit";
   accountRole?: "artist" | "label";
   rosterArtists?: RosterOption[];
+  genreOptions?: DistributionLookupOption[];
+  languageOptions?: DistributionLookupOption[];
+  platformOptions?: DistributionLookupOption[];
 }) {
   const router = useRouter();
   const [step, setStep] = React.useState(0);
@@ -109,6 +116,10 @@ export function ReleaseWizard({
   const [territories, setTerritories] = React.useState(
     (initial?.territories ?? ["WW"]).join(", ")
   );
+  const [platforms, setPlatforms] = React.useState<string[]>(() => {
+    const value = initial?.distribution_settings?.platforms;
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  });
   const [tracks, setTracks] = React.useState<TrackDraft[]>(
     initialTracks?.length
       ? initialTracks.map((t) => ({
@@ -198,6 +209,7 @@ export function ReleaseWizard({
         .filter(Boolean),
       distribution_settings: {
         worldwide: territories.toUpperCase().includes("WW"),
+        platforms,
       },
     });
     if (!res.ok) throw new Error(res.error);
@@ -504,7 +516,16 @@ export function ReleaseWizard({
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Genre</span>
-                <Input value={info.genre} onChange={(e) => setInfo({ ...info, genre: e.target.value })} />
+                {genreOptions.length > 0 ? (
+                  <Select value={info.genre} onChange={(e) => setInfo({ ...info, genre: e.target.value })}>
+                    <option value="">Select genre</option>
+                    {genreOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input value={info.genre} onChange={(e) => setInfo({ ...info, genre: e.target.value })} />
+                )}
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Subgenre</span>
@@ -512,7 +533,16 @@ export function ReleaseWizard({
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Language</span>
-                <Input value={info.language} onChange={(e) => setInfo({ ...info, language: e.target.value })} />
+                {languageOptions.length > 0 ? (
+                  <Select value={info.language} onChange={(e) => setInfo({ ...info, language: e.target.value })}>
+                    <option value="">Select language</option>
+                    {languageOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input value={info.language} onChange={(e) => setInfo({ ...info, language: e.target.value })} />
+                )}
               </label>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Release date</span>
@@ -866,6 +896,31 @@ export function ReleaseWizard({
                 </span>
                 <Input value={territories} onChange={(e) => setTerritories(e.target.value)} />
               </label>
+              {platformOptions.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-caption text-[var(--nexo-text-muted)]">
+                    DSPs / services from the connected distribution provider. Leave all unchecked to use the provider default delivery set.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {platformOptions.map((option) => (
+                      <label key={option.value} className="flex items-center gap-2 rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] px-3 py-2 text-small">
+                        <input
+                          type="checkbox"
+                          checked={platforms.includes(option.value)}
+                          onChange={(e) =>
+                            setPlatforms((current) =>
+                              e.target.checked
+                                ? [...new Set([...current, option.value])]
+                                : current.filter((value) => value !== option.value)
+                            )
+                          }
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
