@@ -742,6 +742,13 @@ export async function registerUploadedAsset(input: {
       : assertArtworkFile({ type: input.mimeType, size: input.sizeBytes, name: input.filename });
   if (fileCheck) return { ok: false, error: fileCheck };
 
+  if (input.kind === "audio" && !input.trackId) {
+    return {
+      ok: false,
+      error: "Audio must be linked to a saved track. Save the track and retry the FLAC upload.",
+    };
+  }
+
   const normalizedMimeType = input.kind === "audio" ? "audio/flac" : input.mimeType;
   const bucket = input.kind === "audio" ? AUDIO_BUCKET : ARTWORK_BUCKET;
   const pathErr = assertOwnedAssetPath(input.storagePath, ctx.userId, input.releaseId);
