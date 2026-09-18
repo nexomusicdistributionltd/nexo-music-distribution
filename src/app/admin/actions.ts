@@ -26,6 +26,25 @@ export type ActionResult<T = unknown> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
+
+function artistFacingDeliveryCorrection(message: string): string {
+  const raw = message.trim();
+  const flacTrack = raw.match(/Track\s+(\d+)\s+must use lossless FLAC/i);
+  if (!flacTrack) return raw;
+
+  return [
+    "Audio File Requires Attention",
+    "",
+    `Track ${flacTrack[1]} cannot be delivered to distribution services because the uploaded audio file does not meet the required delivery format.`,
+    "",
+    "Please replace the current audio file with a lossless FLAC file and resubmit the release for review.",
+    "",
+    "Required format: FLAC (lossless audio)",
+    "",
+    "Once the corrected FLAC file has been uploaded, resubmit the release and our team will review it again.",
+  ].join("\n");
+}
+
 function revalidateAdmin(paths: string[] = []) {
   revalidatePath("/admin");
   for (const p of paths) revalidatePath(p);
@@ -140,18 +159,19 @@ export async function performQcDecisionAction(input: {
 
         if (!submitted.ok) {
           if (submitted.code === PROVIDER_DELIVERY_VALIDATION_CODE) {
+            const artistVisibleCorrection = artistFacingDeliveryCorrection(submitted.error);
             const { data: returned, error: returnError } = await supabase.rpc(
               "admin_reopen_release_for_corrections",
               {
                 p_release_id: input.releaseId,
-                p_reason: submitted.error,
+                p_reason: artistVisibleCorrection,
               }
             );
 
             if (!returnError) {
               distribution.returnedForChanges = returned;
               distributionWarning =
-                `Release declined and returned to the artist/label for correction: ${submitted.error}`;
+                `Release declined and returned to the artist/label for correction: ${artistVisibleCorrection}`;
             } else {
               distributionWarning =
                 `Delivery validation failed: ${submitted.error} Nexo could not automatically return the release for correction: ${returnError.message}`;
