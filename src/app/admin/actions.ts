@@ -183,7 +183,11 @@ export async function setAccountPlanOverrideAction(input: {
   status: "active" | "trialing" | "past_due" | "expired" | "paused" | "canceled";
   endsAt?: string | null;
   reason?: string;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<{
+  endsAt: string | null;
+  billingInterval: "month" | "year" | null;
+  status: "active" | "trialing" | "past_due" | "expired" | "paused" | "canceled";
+}>> {
   const ctx = await RequireAdminPermission("admin:billing_tools");
   const valid =
     input.accountType === "artist"
