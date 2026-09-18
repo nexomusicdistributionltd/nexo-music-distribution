@@ -53,6 +53,14 @@ export function PortalOverview({
   actionNeeded: { id: string; title: string }[];
   loadError: string | null;
 }) {
+  const chartRows = streamRows.filter(
+    (row) => row.streams != null && Number.isFinite(row.streams) && row.streams >= 0
+  );
+  const maxStreams = chartRows.reduce(
+    (max, row) => Math.max(max, Number(row.streams ?? 0)),
+    0
+  );
+
   return (
     <div className="relative space-y-4 pb-16">
       <section className="overflow-hidden rounded-[1.5rem] border border-[var(--nexo-border)] bg-[var(--nexo-card)] shadow-[var(--nexo-shadow-sm)]">
@@ -202,10 +210,34 @@ export function PortalOverview({
               {streamStatus}
             </p>
             <p className="mt-3 max-w-md text-small text-[var(--nexo-text-secondary)]">{streamNote}</p>
-            <div
-              className="mt-6 h-24 w-full max-w-lg rounded-md border border-dashed border-[var(--nexo-chart-grid)]"
-              aria-hidden
-            />
+            {chartRows.length > 0 && maxStreams > 0 ? (
+              <div className="mt-6 w-full max-w-lg space-y-3 text-left">
+                {chartRows.map((row) => {
+                  const value = Number(row.streams ?? 0);
+                  const width = maxStreams > 0 ? Math.max(2, (value / maxStreams) * 100) : 0;
+                  return (
+                    <div key={`chart-${row.id}`} className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-3">
+                      <span className="truncate text-caption text-[var(--nexo-text-secondary)]">
+                        {row.label}
+                      </span>
+                      <div className="h-2.5 overflow-hidden rounded-full bg-[var(--nexo-chart-grid)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--nexo-text)] transition-[width] duration-300"
+                          style={{ width: `${width}%` }}
+                        />
+                      </div>
+                      <span className="min-w-12 text-right text-caption tabular-nums text-[var(--nexo-text-secondary)]">
+                        {Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-6 w-full max-w-lg rounded-md border border-dashed border-[var(--nexo-chart-grid)] px-4 py-8 text-caption text-[var(--nexo-text-muted)]">
+                Live stream chart will appear when verified provider stream totals are available.
+              </div>
+            )}
           </div>
         </div>
         <div className="flex justify-center border-t border-[var(--nexo-divider)] px-4 py-4">
