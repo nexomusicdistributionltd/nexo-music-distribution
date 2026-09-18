@@ -58,7 +58,7 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
       setRows((current) => [...current, result.data]);
       setMessage({
         ok: true,
-        text: "Payout method saved and sent to Nexo Finance for verification.",
+        text: "Payout method saved. Verification is pending.",
       });
       setDisplayName("");
       setBeneficiaryName("");
@@ -104,7 +104,7 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
       <div>
         <h2 className="text-h4">Payout methods</h2>
         <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-          Add a bank, wallet or payment destination. New methods require Nexo Finance approval
+          Add a bank, wallet or payment destination. New methods require verification
           before they can be used for a royalty payout.
         </p>
       </div>
@@ -127,7 +127,7 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
                   {row.status === "active"
                     ? "Approved"
                     : row.status === "verification_required"
-                      ? "Finance review required"
+                      ? "Verification required"
                       : row.status.replace(/_/g, " ")}
                 </p>
               </div>
