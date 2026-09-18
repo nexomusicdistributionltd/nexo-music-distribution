@@ -333,67 +333,50 @@ export async function postApprovalReviewAction(input: {
   releaseId: string;
   reason: string;
 }): Promise<AdminReleaseActionResult<unknown>> {
-  await RequireAdminPermission("admin:qc");
+  // This action can cancel a queued distribution job, so Support/QC-only staff
+  // must not be able to run it.
+  await RequireAdminPermission("admin:distribution");
+
   const reason = input.reason.trim();
-  if (!reason) return { ok: false, error: "Artist / label visible correction reason is required." };
+  if (reason.length < 4) {
+    return { ok: false, error: "Enter a clear reason for the artist or label (at least 4 characters)." };
+  }
 
   const supabase = await createClient();
   const { data: release, error: readError } = await supabase
     .from("releases")
-    .select("id,status,provider_release_id")
+    .select("id,status")
     .eq("id", input.releaseId)
     .maybeSingle();
+
   if (readError) return { ok: false, error: readError.message };
   if (!release) return { ok: false, error: "Release not found." };
-  if (release.status !== "approved") {
+
+  if (!["approved", "scheduled", "failed"].includes(release.status)) {
     return {
       ok: false,
       error:
-        "Only an approved release that has not entered delivery can be returned to the artist or label for changes.",
-    };
-  }
-  if (release.provider_release_id) {
-    return {
-      ok: false,
-      error:
-        "This release already exists at TooLost. Use the provider edit/takedown workflow instead of reopening the pre-delivery release.",
+        "This release can no longer be reopened from the approval queue. If TooLost delivery has started, use the provider edit/takedown workflow.",
     };
   }
 
-  const { data, error } = await supabase.rpc("return_approved_release_for_changes", {
+  const { data, error } = await supabase.rpc("admin_reopen_release_for_corrections", {
     p_release_id: input.releaseId,
-    p_artist_visible_reason: reason,
-    p_internal_note: null,
+    p_reason: reason,
   });
   if (error) return { ok: false, error: error.message };
-
-  try {
-    await supabase.rpc("write_audit_log", {
-      p_action: "release_status_change",
-      p_entity_type: "release",
-      p_entity_id: input.releaseId,
-      p_metadata: {
-        source: "admin_post_approval_review",
-        from: "approved",
-        to: "changes_requested",
-        reason,
-        owner_can_edit_and_resubmit: true,
-      },
-    });
-  } catch {
-    // The atomic RPC already writes status history + QC review.
-  }
 
   try {
     const { drainQueuedOutbox } = await import("@/lib/email/hooks");
     await drainQueuedOutbox(10);
   } catch {
-    // State change is authoritative even if SMTP is temporarily unavailable.
+    // The database state + in-app notification are authoritative even if email is delayed.
   }
 
   revalidateRelease(input.releaseId);
   revalidatePath("/dashboard/releases");
   revalidatePath(`/dashboard/releases/${input.releaseId}`);
   revalidatePath("/dashboard/notifications");
+
   return { ok: true, data };
 }
