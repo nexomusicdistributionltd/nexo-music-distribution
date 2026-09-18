@@ -84,11 +84,17 @@ export function HomeFeaturedCatalog({
           <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {artists.map((a, i) => {
               const name = a.artist_name || a.stage_name || "Artist";
-              if (!a.public_slug) return null;
+              const entzopediaUrl =
+                typeof a.social_links?.entzopedia === "string" &&
+                /^https:\/\/(?:www\.)?entzopedia\.(?:com|net|org)\//i.test(a.social_links.entzopedia)
+                  ? a.social_links.entzopedia
+                  : null;
+              if (!a.public_slug && !entzopediaUrl) return null;
+              const artistHref = entzopediaUrl || artistCanonicalPath(a.public_slug);
               return (
                 <Reveal key={a.id} as="li" delayMs={(i % 4) * 50}>
                   <Link
-                    href={artistCanonicalPath(a.public_slug)}
+                    href={artistHref}
                     className="flex items-center gap-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4 transition hover:border-[var(--nexo-border-strong)]"
                   >
                     <div className="h-14 w-14 overflow-hidden rounded-full bg-[var(--nexo-elevated)]">
