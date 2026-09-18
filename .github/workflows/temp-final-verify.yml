@@ -1,0 +1,19 @@
+name: Temporary final verification
+on:
+  push:
+    branches:
+      - fix/final-portal-metadata-analytics-20260918
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install xmllint
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+      - run: npm ci
+      - run: npm test -- --runInBand
+      - run: npm run build
