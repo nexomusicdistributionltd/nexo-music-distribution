@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RequireAdminPermission } from "@/lib/auth/guards";
-import { hasAdminPermission } from "@/lib/admin/permissions";
+import { getEffectiveAdminPermissionsForContext } from "@/lib/admin/staff-access";
 import { QcDecisionForm } from "@/components/admin/QcDecisionForm";
 import { AdminReleaseMetadataForm } from "@/components/admin/AdminReleaseMetadataForm";
 import { PostApprovalReviewForm } from "@/components/admin/PostApprovalReviewForm";
@@ -27,7 +27,8 @@ export default async function AdminReleaseDetailPage({
   params: Promise<{ releaseId: string }>;
 }) {
   const adminContext = await RequireAdminPermission("admin:releases");
-  const canOperateDistribution = hasAdminPermission(adminContext.roles, "admin:distribution");
+  const adminPermissions = await getEffectiveAdminPermissionsForContext(adminContext);
+  const canOperateDistribution = adminPermissions.has("admin:distribution");
   const { releaseId } = await params;
   const detail = await getReleaseDetail(releaseId);
   if (!detail) notFound();
