@@ -231,7 +231,7 @@ export async function updateAdminReleaseMetadataAction(
 
   const updates = Object.fromEntries(
     Object.entries(safe).filter(
-      ([field, value]) => !releaseValueEqual(field, value, existing[field])
+      ([field, value]) => !releaseValueEqual(field, value, (existing as Record<string, unknown>)[field])
     )
   ) as Record<string, unknown>;
 
@@ -285,7 +285,7 @@ export async function updateAdminReleaseMetadataAction(
       providerSynced = true;
     } catch (error) {
       const rollback = Object.fromEntries(
-        changedFields.map((field) => [field, existing[field] ?? null])
+        changedFields.map((field) => [field, (existing as Record<string, unknown>)[field] ?? null])
       );
       const { error: rollbackError } = await supabase
         .from("releases")
