@@ -328,7 +328,10 @@ export function ReleaseWizard({
       const supabase = createClient();
       const { error: upErr } = await supabase.storage
         .from(prep.data.bucket)
-        .upload(prep.data.path, file, { upsert: true, contentType: file.type });
+        .upload(prep.data.path, file, {
+          upsert: true,
+          contentType: kind === "audio" ? "audio/flac" : file.type,
+        });
       if (upErr) throw upErr;
       const reg = await registerUploadedAsset({
         releaseId: id,
@@ -336,7 +339,7 @@ export function ReleaseWizard({
         kind,
         storagePath: prep.data.path,
         filename: file.name,
-        mimeType: file.type,
+        mimeType: kind === "audio" ? "audio/flac" : file.type,
         sizeBytes: file.size,
         width: artworkDimensions?.width ?? null,
         height: artworkDimensions?.height ?? null,
@@ -352,7 +355,7 @@ export function ReleaseWizard({
           storage_bucket: prep.data.bucket,
           storage_path: prep.data.path,
           filename: file.name,
-          mime_type: file.type,
+          mime_type: kind === "audio" ? "audio/flac" : file.type,
           size_bytes: file.size,
           checksum: null,
           width: artworkDimensions?.width ?? null,
@@ -570,7 +573,7 @@ export function ReleaseWizard({
           {step === 2 ? (
             <div className="space-y-4">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                ISRC is optional and never auto-generated. Upload lossless WAV, FLAC, or AIFF audio per track. FLAC is preferred for the current delivery workflow.
+                Upload lossless FLAC audio only. If you do not already have an ISRC, leave it blank; Nexo will store a valid code when the Distribution Engine assigns and returns one.
               </p>
               {tracks.map((t, idx) => (
                 <div key={idx} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-4 space-y-3">
@@ -631,7 +634,7 @@ export function ReleaseWizard({
                     <label className="text-caption text-[var(--nexo-text-muted)]">Audio file</label>
                     <Input
                       type="file"
-                      accept="audio/wav,audio/x-wav,audio/flac,audio/aiff,audio/x-aiff,.wav,.flac,.aiff,.aif"
+                      accept=".flac,audio/flac,audio/x-flac"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (f) void onUpload("audio", f, t.id);
@@ -842,11 +845,11 @@ export function ReleaseWizard({
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-caption text-[var(--nexo-text-muted)]">UPC (optional — never auto-generated)</span>
+                <span className="text-caption text-[var(--nexo-text-muted)]">UPC (optional — leave blank for provider assignment)</span>
                 <Input
                   value={rights.upc}
                   onChange={(e) => setRights({ ...rights, upc: e.target.value })}
-                  placeholder="12–14 digits if you have one"
+                  placeholder="12–14 digits if you already have one"
                 />
               </label>
               <label className="block space-y-1 sm:col-span-2">
