@@ -160,6 +160,7 @@ export async function createReleaseDraft(input: {
   let artistProfileId: string | null = null;
   let labelProfileId: string | null = null;
   let primaryArtistName = ctx.profile?.display_name || ctx.profile?.full_name || "";
+  let defaultLabelName: string | null = null;
 
   const isArtist = ctx.roles.includes("artist");
   const isLabel = ctx.roles.includes("label");
@@ -185,6 +186,7 @@ export async function createReleaseDraft(input: {
       .eq("user_id", ctx.userId)
       .maybeSingle();
     labelProfileId = data?.id ?? null;
+    defaultLabelName = data?.label_name?.trim() || null;
     if (!labelProfileId) return { ok: false, error: "Label profile not found." };
 
     const rosterArtistId = input.artist_profile_id?.trim() || null;
@@ -220,6 +222,7 @@ export async function createReleaseDraft(input: {
       release_type: input.release_type,
       title: "",
       primary_artist_name: primaryArtistName,
+      label_name: defaultLabelName,
       status: "draft",
       territories: ["WW"],
       distribution_settings: {
