@@ -25,11 +25,13 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
   const [reason, setReason] = React.useState("");
   const [internal, setInternal] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  const [notice, setNotice] = React.useState<{ kind: "success" | "warning"; text: string } | null>(null);
   const [pending, setPending] = React.useState(false);
 
   async function run(decision: QcDecision) {
     setPending(true);
     setError(null);
+    setNotice(null);
     const res = await performQcDecisionAction({
       releaseId,
       decision,
@@ -41,6 +43,16 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
     if (!res.ok) {
       setError(res.error);
       return;
+    }
+    if (decision === "approve") {
+      if (res.data.distributionWarning) {
+        setNotice({ kind: "warning", text: res.data.distributionWarning });
+      } else {
+        setNotice({
+          kind: "success",
+          text: "Release approved and submitted to TooLost for distribution. Live delivery status will continue syncing automatically.",
+        });
+      }
     }
     router.refresh();
   }
@@ -86,6 +98,14 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
       {error ? (
         <Alert variant="warning" title="Cannot complete QC">
           {error}
+        </Alert>
+      ) : null}
+      {notice ? (
+        <Alert
+          variant={notice.kind === "success" ? "success" : "warning"}
+          title={notice.kind === "success" ? "Distribution started" : "Approved — distribution needs attention"}
+        >
+          {notice.text}
         </Alert>
       ) : null}
       <div className="flex flex-wrap gap-2">
