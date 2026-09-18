@@ -11,8 +11,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function NewReleasePage() {
+export default async function NewReleasePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ artist?: string }>;
+}) {
   const ctx = await RequireRole(["artist", "label"]);
+  const sp = await searchParams;
   const isLabel = ctx.roles.includes("label");
   let rosterArtists: { id: string; artist_name: string; stage_name: string }[] = [];
   if (isLabel) {
@@ -27,6 +32,12 @@ export default async function NewReleasePage() {
     }
   }
 
+  const requestedArtistId = (sp.artist ?? "").trim();
+  const initialArtistProfileId =
+    isLabel && rosterArtists.some((artist) => artist.id === requestedArtistId)
+      ? requestedArtistId
+      : undefined;
+
   return (
     <div className="space-y-6">
       <div>
@@ -39,6 +50,7 @@ export default async function NewReleasePage() {
         mode="create"
         accountRole={isLabel ? "label" : "artist"}
         rosterArtists={rosterArtists}
+        initialArtistProfileId={initialArtistProfileId}
       />
     </div>
   );
