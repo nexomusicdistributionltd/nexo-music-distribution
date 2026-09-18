@@ -451,7 +451,7 @@ export async function registerUploadedAsset(input: {
 
   const fileCheck =
     input.kind === "audio"
-      ? assertAudioFile({ type: input.mimeType, size: input.sizeBytes })
+      ? assertAudioFile({ type: input.mimeType, size: input.sizeBytes, name: input.filename })
       : assertArtworkFile({ type: input.mimeType, size: input.sizeBytes });
   if (fileCheck) return { ok: false, error: fileCheck };
 
@@ -503,7 +503,20 @@ export async function registerUploadedAsset(input: {
       const ab = await blob.arrayBuffer();
       const buf = Buffer.from(ab);
       if (input.kind === "audio") {
-        const meta = await extractAudioTechMeta(buf, input.mimeType);
+        const isNativeFlac =
+          buf.length >= 4 &&
+          buf[0] === 0x66 &&
+          buf[1] === 0x4c &&
+          buf[2] === 0x61 &&
+          buf[3] === 0x43;
+        if (!isNativeFlac) {
+          await supabase.storage.from(bucket).remove([input.storagePath]);
+          return {
+            ok: false,
+            error: "Music distribution accepts native lossless FLAC audio only. Re-export this track as .flac and upload it again.",
+          };
+        }
+        const meta = await extractAudioTechMeta(buf, "audio/flac");
         codec = meta.codec;
         container = meta.container;
         sample_rate_hz = meta.sample_rate_hz;
@@ -541,7 +554,7 @@ export async function registerUploadedAsset(input: {
       storage_bucket: bucket,
       storage_path: input.storagePath,
       filename: input.filename,
-      mime_type: input.mimeType,
+      mime_type: input.kind === "audio" ? "audio/flac" : input.mimeType,
       size_bytes: input.sizeBytes,
       width,
       height,
@@ -610,6 +623,10 @@ export async function prepareAssetUpload(input: {
   if (!existing) return { ok: false, error: "Release not found." };
   if (!isEditableStatus(existing.status as ReleaseStatus)) {
     return { ok: false, error: "Release is locked." };
+  }
+
+  if (input.kind === "audio" && !input.filename.toLowerCase().endsWith(".flac")) {
+    return { ok: false, error: "Music distribution accepts .flac audio files only." };
   }
 
   const id = crypto.randomUUID();
