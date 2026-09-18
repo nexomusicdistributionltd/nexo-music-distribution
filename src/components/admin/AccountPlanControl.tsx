@@ -8,7 +8,8 @@ import {
   setAccountPlanOverrideAction,
 } from "@/app/admin/actions";
 import type { BillingAccountType, BillingInterval, TierId } from "@/lib/billing/plans";
-import type { AdminPlanStatus } from "@/lib/billing/admin-overrides";
+
+type AdminPlanStatus = "active" | "trialing" | "past_due" | "expired" | "paused" | "canceled";
 
 const ARTIST_PLANS = ["artist_starter", "artist_pro"] as const satisfies readonly TierId[];
 const LABEL_PLANS = ["label_starter", "label_pro"] as const satisfies readonly TierId[];
