@@ -6,6 +6,7 @@ import * as React from "react";
 import {
   createReleaseDraft,
   getDistributionMetadataLookups,
+  getDistributionPreferenceDefaults,
   prepareAssetUpload,
   registerUploadedAsset,
   replaceContributors,
@@ -262,6 +263,7 @@ export function ReleaseWizard({
   const [providerPreferenceArtists, setProviderPreferenceArtists] = React.useState<
     Array<{ value: string; label: string }>
   >([]);
+  const [providerPreferencesBusy, setProviderPreferencesBusy] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -277,6 +279,60 @@ export function ReleaseWizard({
       active = false;
     };
   }, []);
+
+  async function applyDistributionPreferences() {
+    setError(null);
+    setProviderPreferencesBusy(true);
+    try {
+      const result = await getDistributionPreferenceDefaults(
+        providerMeta.providerArtistId || null
+      );
+      if (!result.ok) throw new Error(result.error);
+      const defaults = result.data;
+
+      setInfo((current) => ({
+        ...current,
+        primary_artist_name: current.primary_artist_name || defaults.artistName || "",
+        genre: current.genre || defaults.primaryGenre || "",
+        subgenre: current.subgenre || defaults.secondaryGenre || "",
+        language:
+          !initial?.language && current.language === "en"
+            ? defaults.language || current.language
+            : current.language || defaults.language || "en",
+        label_name: current.label_name || defaults.label || "",
+      }));
+      setRights((current) => ({
+        ...current,
+        copyright_line: current.copyright_line || defaults.cLine || "",
+        phonogram_line: current.phonogram_line || defaults.pLine || "",
+      }));
+      setProviderMeta((current) => {
+        const hasAdditionalSelection = Object.values(current.additional).some(Boolean);
+        return {
+          ...current,
+          releaseTime: current.releaseTime || defaults.releaseTime || "",
+          timeZone: current.timeZone || defaults.timeZone || "",
+          additional: hasAdditionalSelection
+            ? current.additional
+            : { ...current.additional, ...defaults.additional },
+        };
+      });
+      setSelectedPlatforms((current) =>
+        current.length > 0 || defaults.stores.length === 0 ? current : defaults.stores
+      );
+      setTerritories((current) =>
+        current && current !== "WW"
+          ? current
+          : defaults.territories.length
+            ? defaults.territories.join(", ")
+            : current
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load distribution preferences.");
+    } finally {
+      setProviderPreferencesBusy(false);
+    }
+  }
 
   async function ensureDraft(): Promise<string> {
     if (releaseId) return releaseId;
@@ -719,6 +775,27 @@ export function ReleaseWizard({
                   </p>
                 </label>
               ) : null}
+              <div className="sm:col-span-2 flex flex-wrap items-center gap-3 rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-small font-medium">TooLost Preferences</p>
+                  <p className="text-caption text-[var(--nexo-text-muted)]">
+                    Apply saved genre, language, label/copyright lines, stores, territories,
+                    release time and eligible additional-delivery defaults.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    providerPreferencesBusy ||
+                    (accountRole === "label" && !providerMeta.providerArtistId)
+                  }
+                  onClick={() => void applyDistributionPreferences()}
+                >
+                  {providerPreferencesBusy ? "Loading…" : "Apply saved preferences"}
+                </Button>
+              </div>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Genre</span>
                 <Input
