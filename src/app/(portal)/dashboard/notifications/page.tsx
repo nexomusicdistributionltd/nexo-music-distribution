@@ -24,7 +24,7 @@ export default async function NotificationsPage() {
       {items.length === 0 ? (
         <EmptyState title="No notifications" description="QC and status updates will show up here." />
       ) : (
-        <NotificationsClient items={items} />
+        <NotificationsClient items={items} userId={ctx.userId} />
       )}
     </div>
   );
