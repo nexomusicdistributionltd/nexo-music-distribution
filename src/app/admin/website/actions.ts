@@ -295,6 +295,8 @@ export async function upsertCmsPageAction(input: {
   revalidatePath("/terms");
   revalidatePath("/cookies");
   revalidatePath("/refund-policy");
+  revalidatePath("/contact");
+  revalidatePath("/pricing");
   revalidatePath("/pages", "layout");
   return { ok: true };
 }
