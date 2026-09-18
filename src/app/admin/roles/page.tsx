@@ -70,26 +70,26 @@ export default async function AdminRolesPage() {
     ]);
 
   const userIds = [...new Set((roleRows ?? []).map((row) => row.user_id))];
-  const [{ data: profiles, error: profilesError }, { data: assignmentRows }] =
-    userIds.length
-      ? await Promise.all([
-          supabase
-            .from("profiles")
-            .select(
-              "id, email, display_name, full_name, account_status, account_type, created_at"
-            )
-            .in("id", userIds),
-          supabase
-            .from("staff_role_assignments")
-            .select("user_id, role_key")
-            .in("user_id", userIds),
-        ])
-      : [
-          { data: [], error: null },
-          { data: [] as Array<{ user_id: string; role_key: string }> },
-        ];
+  const profileResult = userIds.length
+    ? await supabase
+        .from("profiles")
+        .select(
+          "id, email, display_name, full_name, account_status, account_type, created_at"
+        )
+        .in("id", userIds)
+    : null;
+  const assignmentResult = userIds.length
+    ? await supabase
+        .from("staff_role_assignments")
+        .select("user_id, role_key")
+        .in("user_id", userIds)
+    : null;
 
-  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+  const profiles = profileResult?.data ?? [];
+  const profilesError = profileResult?.error ?? null;
+  const assignmentRows = assignmentResult?.data ?? [];
+
+  const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
   const assignmentsByUser = new Map<string, string[]>();
   for (const row of assignmentRows ?? []) {
     const list = assignmentsByUser.get(row.user_id) ?? [];
@@ -192,7 +192,7 @@ export default async function AdminRolesPage() {
               <div className="flex items-start justify-between gap-3">
                 <h3 className="font-medium">{team.name}</h3>
                 <span className="rounded-full border border-[var(--nexo-border)] px-2 py-0.5 text-caption">
-                  {staff.filter((row) => row.teamRoleKeys.includes(team.role_key)).length}
+                  {staff.filter((row) => row.role === "support" && row.teamRoleKeys.includes(team.role_key)).length}
                 </span>
               </div>
               <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
