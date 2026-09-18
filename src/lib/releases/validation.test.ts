@@ -39,7 +39,11 @@ describe("validateReleaseForSubmit", () => {
       { kind: "artwork" as const, track_id: null, mime_type: "image/jpeg" },
       { kind: "audio" as const, track_id: "t1", mime_type: "audio/flac" },
     ],
-    contributors: [{ name: "Artist", role: "primary_artist" as const }],
+    contributors: [
+      { name: "Artist", role: "primary_artist" as const, track_id: null },
+      { name: "Writer", role: "songwriter" as const, track_id: null },
+      { name: "Producer", role: "producer" as const, track_id: null },
+    ],
   };
 
   it("passes a complete single", () => {
@@ -75,7 +79,7 @@ describe("validateReleaseForSubmit", () => {
     expect(issues.some((i) => i.field === "tracks")).toBe(true);
   });
 
-  it("uses TooLost duration rules for EP and album classification", () => {
+  it("uses distribution duration rules for EP and album classification", () => {
     const longEp = validateReleaseForSubmit({
       ...base,
       release: { ...base.release, release_type: "ep" },
@@ -122,6 +126,29 @@ describe("validateReleaseForSubmit", () => {
       ],
     });
     expect(issues.some((i) => i.field === "track.1.audio")).toBe(true);
+  });
+
+  it("requires complete credit categories for every track", () => {
+    const issues = validateReleaseForSubmit({
+      ...base,
+      contributors: [
+        { name: "Artist", role: "primary_artist", track_id: null },
+      ],
+    });
+    expect(
+      issues.some(
+        (i) =>
+          i.field === "track.1.contributors" &&
+          i.message.includes("composition/lyrics")
+      )
+    ).toBe(true);
+    expect(
+      issues.some(
+        (i) =>
+          i.field === "track.1.contributors" &&
+          i.message.includes("production/engineering")
+      )
+    ).toBe(true);
   });
 
   it("rejects AUTO upc tokens", () => {
