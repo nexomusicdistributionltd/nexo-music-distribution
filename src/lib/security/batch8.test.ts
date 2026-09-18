@@ -83,7 +83,8 @@ describe("Batch 8 hostile self-check", () => {
     const p = getPaymentConnectionState();
     expect(typeof d.connected).toBe("boolean");
     expect(p.connected).toBe(false);
-    expect(p.message).toMatch(/Manual Nexo payout processing is available/i);\n    expect(p.message).toMatch(/Automated .*not enabled|activate only after .*verified/i);
+    expect(p.message).toMatch(/Manual Nexo payout processing is available/i);
+    expect(p.message).toMatch(/Automated .*not enabled|activate only after .*verified/i);
   });
 
   it("path traversal blocked for owned assets", () => {
