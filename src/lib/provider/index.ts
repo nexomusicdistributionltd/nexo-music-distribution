@@ -1,6 +1,5 @@
 import "server-only";
 
-import { readProviderConfig } from "./config";
 import { NotConnectedProvider } from "./not-connected";
 import { DistributionEngineProvider } from "./distribution-engine";
 import { isDistributionOAuthConfigured } from "./oauth/config";
@@ -51,7 +50,6 @@ export async function getProviderConnectionState(): Promise<{
   message: string;
   webhookConfigured: boolean;
 }> {
-  const cfg = readProviderConfig();
   const webhookConfigured = await hasRuntimeProviderWebhookSecret();
 
   if (isDistributionOAuthConfigured()) {
