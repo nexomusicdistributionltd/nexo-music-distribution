@@ -124,7 +124,7 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
     role === "primary_artist"
       ? "primary"
       : role === "featured_artist"
-        ? "featured"
+        ? "featuring"
         : role.replace(/_/g, " ");
 
   const releaseArtists = releaseContributors
