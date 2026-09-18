@@ -47,7 +47,13 @@ type TrackDraft = {
   title: string;
   version: string;
   isrc: string;
+  iswc: string;
+  liner_note: string;
+  tiktok_start_time: string;
   explicit: boolean;
+  clean_version: boolean;
+  instrumental: boolean;
+  ai_assisted: boolean;
   language: string;
   lyrics: string;
 };
@@ -91,6 +97,12 @@ export function ReleaseWizard({
       : {};
   const seededRosterArtistId = initial?.artist_profile_id ?? initialArtistProfileId;
   const seededRosterArtist = rosterArtists.find((artist) => artist.id === seededRosterArtistId);
+  const initialAdditional =
+    initialDistribution.additional &&
+    typeof initialDistribution.additional === "object" &&
+    !Array.isArray(initialDistribution.additional)
+      ? (initialDistribution.additional as Record<string, unknown>)
+      : {};
 
   const [step, setStep] = React.useState(0);
   const [releaseId, setReleaseId] = React.useState<string | null>(initial?.id ?? null);
@@ -152,6 +164,24 @@ export function ReleaseWizard({
         ? initialDistribution.timeZone
         : "",
     isAiGenerated: initialDistribution.isAiGenerated === true,
+    providerArtistId:
+      typeof initialDistribution.providerArtistId === "string" ||
+      typeof initialDistribution.providerArtistId === "number"
+        ? String(initialDistribution.providerArtistId)
+        : "",
+    youtubeRightsConfirmed: initialDistribution.confirmYoutubeRights === true,
+    additional: {
+      youtube: initialAdditional.youtube === true,
+      facebook: initialAdditional.facebook === true,
+      soundcloud: initialAdditional.soundcloud === true,
+      soundExchange: initialAdditional.soundExchange === true,
+      beatPort: initialAdditional.beatPort === true,
+      junoDownloads: initialAdditional.junoDownloads === true,
+      trackLibs: initialAdditional.trackLibs === true,
+      hook: initialAdditional.hook === true,
+      lyricfind: initialAdditional.lyricfind === true,
+      even: initialAdditional.even === true,
+    },
     coverSongs: Array.isArray(initialDistribution.coverSongs)
       ? initialDistribution.coverSongs
           .filter((value): value is string => typeof value === "string")
@@ -166,11 +196,31 @@ export function ReleaseWizard({
           title: t.title,
           version: t.version ?? "",
           isrc: t.isrc ?? "",
+          iswc: t.iswc ?? "",
+          liner_note: t.liner_note ?? "",
+          tiktok_start_time: t.tiktok_start_time ?? "",
           explicit: t.explicit,
+          clean_version: t.clean_version ?? false,
+          instrumental: t.instrumental ?? false,
+          ai_assisted: t.ai_assisted ?? false,
           language: t.language ?? initial?.language ?? "en",
           lyrics: t.lyrics ?? "",
         }))
-      : [{ track_number: 1, title: "", version: "", isrc: "", explicit: false, language: initial?.language ?? "en", lyrics: "" }]
+      : [{
+          track_number: 1,
+          title: "",
+          version: "",
+          isrc: "",
+          iswc: "",
+          liner_note: "",
+          tiktok_start_time: "",
+          explicit: false,
+          clean_version: false,
+          instrumental: false,
+          ai_assisted: false,
+          language: initial?.language ?? "en",
+          lyrics: "",
+        }]
   );
   const [contributors, setContributors] = React.useState<ContribDraft[]>(
     initialContributors?.length
@@ -203,6 +253,9 @@ export function ReleaseWizard({
   const [providerLanguages, setProviderLanguages] = React.useState<Array<{ value: string; label: string }>>([]);
   const [providerPlatforms, setProviderPlatforms] = React.useState<Array<{ value: string; label: string }>>([]);
   const [providerCountries, setProviderCountries] = React.useState<Array<{ value: string; label: string }>>([]);
+  const [providerPreferenceArtists, setProviderPreferenceArtists] = React.useState<
+    Array<{ value: string; label: string }>
+  >([]);
 
   React.useEffect(() => {
     let active = true;
@@ -212,6 +265,7 @@ export function ReleaseWizard({
       setProviderLanguages(result.data.languages);
       setProviderPlatforms(result.data.platforms);
       setProviderCountries(result.data.countries);
+      setProviderPreferenceArtists(result.data.preferenceArtists);
     });
     return () => {
       active = false;
@@ -263,6 +317,9 @@ export function ReleaseWizard({
         ...initialDistribution,
         worldwide: territories.toUpperCase().includes("WW"),
         platforms: selectedPlatforms,
+        providerArtistId: providerMeta.providerArtistId || null,
+        additional: providerMeta.additional,
+        confirmYoutubeRights: providerMeta.youtubeRightsConfirmed,
         applePreorder: providerMeta.applePreorder,
         applePreorderDate: providerMeta.applePreorderDate || null,
         licenseType: providerMeta.licenseType || null,
@@ -288,7 +345,13 @@ export function ReleaseWizard({
         title: t.title,
         version: t.version || null,
         isrc: t.isrc || null,
+        iswc: t.iswc || null,
+        liner_note: t.liner_note || null,
+        tiktok_start_time: t.tiktok_start_time || null,
         explicit: t.explicit,
+        clean_version: t.clean_version,
+        instrumental: t.instrumental,
+        ai_assisted: t.ai_assisted,
         language: t.language || info.language || null,
         lyrics: t.lyrics.trim() || null,
       }))
@@ -302,7 +365,13 @@ export function ReleaseWizard({
           title: t.title,
           version: t.version ?? "",
           isrc: t.isrc ?? "",
+          iswc: t.iswc ?? "",
+          liner_note: t.liner_note ?? "",
+          tiktok_start_time: t.tiktok_start_time ?? "",
           explicit: t.explicit,
+          clean_version: t.clean_version ?? false,
+          instrumental: t.instrumental ?? false,
+          ai_assisted: t.ai_assisted ?? false,
           language: t.language ?? info.language ?? "en",
           lyrics: t.lyrics ?? "",
         }))
@@ -450,6 +519,11 @@ export function ReleaseWizard({
     setError(null);
     setBusy(true);
     try {
+      if (providerMeta.additional.youtube && !providerMeta.youtubeRightsConfirmed) {
+        throw new Error(
+          "Confirm that you control the rights required for YouTube Content ID before submitting."
+        );
+      }
       const id = await ensureDraft();
       await saveInfo(id);
       await saveTracks(id);
@@ -506,8 +580,8 @@ export function ReleaseWizard({
         </CardHeader>
         <CardContent className="space-y-4">
           {step === 0 ? (
-            <div className="grid gap-3 sm:grid-cols-3">
-              {(["single", "ep", "album"] as ReleaseType[]).map((t) => (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(["single", "ep", "album", "compilation"] as ReleaseType[]).map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -520,7 +594,13 @@ export function ReleaseWizard({
                 >
                   <p className="font-medium capitalize">{t}</p>
                   <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-                    {t === "single" ? "1–3 tracks" : t === "ep" ? "2–6 tracks" : "7+ tracks"}
+                    {t === "single"
+                      ? "1–3 tracks"
+                      : t === "ep"
+                        ? "2–6 tracks"
+                        : t === "album"
+                          ? "7+ tracks"
+                          : "Multi-artist compilation"}
                   </p>
                 </button>
               ))}
@@ -592,6 +672,32 @@ export function ReleaseWizard({
                   readOnly={accountRole === "label"}
                 />
               </label>
+              {providerPreferenceArtists.length > 0 ? (
+                <label className="block space-y-1 sm:col-span-2">
+                  <span className="text-caption text-[var(--nexo-text-muted)]">
+                    Distribution artist preference
+                  </span>
+                  <Select
+                    value={providerMeta.providerArtistId}
+                    onChange={(e) =>
+                      setProviderMeta((current) => ({
+                        ...current,
+                        providerArtistId: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Match by artist name</option>
+                    {providerPreferenceArtists.map((artist) => (
+                      <option key={artist.value} value={artist.value}>
+                        {artist.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="text-caption text-[var(--nexo-text-muted)]">
+                    Uses the artist profile already available in the connected distribution account.
+                  </p>
+                </label>
+              ) : null}
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Genre</span>
                 <Input
@@ -712,6 +818,39 @@ export function ReleaseWizard({
                     />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
+                    <Input
+                      placeholder="ISWC (optional)"
+                      value={t.iswc}
+                      onChange={(e) => {
+                        const next = [...tracks];
+                        next[idx] = { ...t, iswc: e.target.value.toUpperCase() };
+                        setTracks(next);
+                      }}
+                    />
+                    <Input
+                      placeholder="TikTok start time (optional)"
+                      value={t.tiktok_start_time}
+                      onChange={(e) => {
+                        const next = [...tracks];
+                        next[idx] = { ...t, tiktok_start_time: e.target.value };
+                        setTracks(next);
+                      }}
+                    />
+                  </div>
+                  <label className="block space-y-1">
+                    <span className="text-caption text-[var(--nexo-text-muted)]">Liner note</span>
+                    <Textarea
+                      rows={3}
+                      value={t.liner_note}
+                      placeholder="Optional track notes"
+                      onChange={(e) => {
+                        const next = [...tracks];
+                        next[idx] = { ...t, liner_note: e.target.value };
+                        setTracks(next);
+                      }}
+                    />
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block space-y-1">
                       <span className="text-caption text-[var(--nexo-text-muted)]">Track language</span>
                       <Input
@@ -724,18 +863,56 @@ export function ReleaseWizard({
                         }}
                       />
                     </label>
-                    <label className="flex items-center gap-2 pt-6">
-                      <input
-                        type="checkbox"
-                        checked={t.explicit}
-                        onChange={(e) => {
-                          const next = [...tracks];
-                          next[idx] = { ...t, explicit: e.target.checked };
-                          setTracks(next);
-                        }}
-                      />
-                      <span className="text-small">Explicit lyrics/content</span>
-                    </label>
+                    <div className="grid gap-2 pt-6">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={t.explicit}
+                          onChange={(e) => {
+                            const next = [...tracks];
+                            next[idx] = { ...t, explicit: e.target.checked };
+                            setTracks(next);
+                          }}
+                        />
+                        <span className="text-small">Explicit lyrics/content</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={t.clean_version}
+                          onChange={(e) => {
+                            const next = [...tracks];
+                            next[idx] = { ...t, clean_version: e.target.checked };
+                            setTracks(next);
+                          }}
+                        />
+                        <span className="text-small">Clean version</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={t.instrumental}
+                          onChange={(e) => {
+                            const next = [...tracks];
+                            next[idx] = { ...t, instrumental: e.target.checked };
+                            setTracks(next);
+                          }}
+                        />
+                        <span className="text-small">Instrumental</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={t.ai_assisted}
+                          onChange={(e) => {
+                            const next = [...tracks];
+                            next[idx] = { ...t, ai_assisted: e.target.checked };
+                            setTracks(next);
+                          }}
+                        />
+                        <span className="text-small">AI-assisted audio/content</span>
+                      </label>
+                    </div>
                   </div>
                   <label className="block space-y-1">
                     <span className="text-caption text-[var(--nexo-text-muted)]">Lyrics</span>
@@ -779,7 +956,13 @@ export function ReleaseWizard({
                       title: "",
                       version: "",
                       isrc: "",
+                      iswc: "",
+                      liner_note: "",
+                      tiktok_start_time: "",
                       explicit: false,
+                      clean_version: false,
+                      instrumental: false,
+                      ai_assisted: false,
                       language: info.language || "en",
                       lyrics: "",
                     },
@@ -1070,6 +1253,69 @@ export function ReleaseWizard({
                 </datalist>
               </label>
 
+              <fieldset className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
+                <legend className="px-1 text-caption font-medium text-[var(--nexo-text-muted)]">
+                  Additional deliveries
+                </legend>
+                <p className="text-caption text-[var(--nexo-text-muted)]">
+                  These options map to the connected distributor&apos;s additional-delivery settings.
+                  Enable only services for which you control the required rights.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    ["youtube", "YouTube Content ID"],
+                    ["facebook", "Meta Rights Manager"],
+                    ["soundcloud", "SoundCloud Monetization"],
+                    ["soundExchange", "SoundExchange"],
+                    ["beatPort", "Beatport"],
+                    ["junoDownloads", "Juno Download"],
+                    ["trackLibs", "Tracklib"],
+                    ["hook", "Hook"],
+                    ["lyricfind", "LyricFind"],
+                    ["even", "EVEN"],
+                  ].map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-2 text-small">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(
+                          providerMeta.additional[
+                            key as keyof typeof providerMeta.additional
+                          ]
+                        )}
+                        onChange={(e) =>
+                          setProviderMeta((current) => ({
+                            ...current,
+                            additional: {
+                              ...current.additional,
+                              [key]: e.target.checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                {providerMeta.additional.youtube ? (
+                  <label className="flex items-start gap-2 rounded-[var(--nexo-radius)] bg-[var(--nexo-elevated)] p-3">
+                    <input
+                      className="mt-1"
+                      type="checkbox"
+                      checked={providerMeta.youtubeRightsConfirmed}
+                      onChange={(e) =>
+                        setProviderMeta((current) => ({
+                          ...current,
+                          youtubeRightsConfirmed: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span className="text-small">
+                      I confirm the catalog has the rights required for YouTube Content ID.
+                    </span>
+                  </label>
+                ) : null}
+              </fieldset>
+
               {providerPlatforms.length > 0 ? (
                 <fieldset className="space-y-2">
                   <legend className="text-caption text-[var(--nexo-text-muted)]">
@@ -1126,6 +1372,13 @@ export function ReleaseWizard({
               </p>
               <p>
                 <strong>Platforms selected:</strong> {selectedPlatforms.length || "Provider default"}
+              </p>
+              <p>
+                <strong>Additional deliveries:</strong>{" "}
+                {Object.entries(providerMeta.additional)
+                  .filter(([, enabled]) => enabled)
+                  .map(([key]) => key)
+                  .join(", ") || "None"}
               </p>
               <p>
                 <strong>Release time:</strong>{" "}
