@@ -1,19 +1,223 @@
 import "server-only";
+
 import { createClient } from "@/lib/supabase/server";
-import { distributionReference } from "@/lib/provider/distribution-reference";
-type Row=Record<string,unknown>;
-function arr(x:unknown):Row[]{if(Array.isArray(x))return x.filter(v=>v&&typeof v==="object") as Row[];const o=(x&&typeof x==="object"?x:{}) as Row;for(const k of ["data","items","releases","tracks","artists","channels","territories","sales","analytics"]){if(Array.isArray(o[k]))return o[k] as Row[]}return []}
-function ids(rows:Row[]){return new Set(rows.map(r=>String(r.provider_release_id??"")).filter(Boolean))}
-export async function ownedDistributionScope(userId:string){
- const db=await createClient();const {data:local}=await db.from("releases").select("id,provider_release_id,artist_profile_id,label_profile_id").eq("owner_user_id",userId);
- return {local:local??[],providerIds:ids((local??[]) as unknown as Row[])};
+import {
+  distributionReference,
+  providerRows,
+  type ProviderSalesPageQuery,
+} from "@/lib/provider/distribution-reference";
+
+type Row = Record<string, unknown>;
+
+type LocalReleaseScope = {
+  id: string;
+  provider_release_id: string | null;
+  primary_artist_name: string | null;
+  release_tracks?: Array<{ isrc: string | null }> | null;
+};
+
+function normalize(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
 }
-export async function ownedSales(userId:string,kind:"overview"|"tracks"|"releases"|"artists"|"channels"|"territories"|"streamRates"){
- const scope=await ownedDistributionScope(userId);if(!scope.providerIds.size)return [];
- const raw=await ({overview:distributionReference.salesOverview,tracks:distributionReference.salesTracks,releases:distributionReference.salesReleases,artists:distributionReference.salesArtists,channels:distributionReference.salesChannels,territories:distributionReference.salesTerritories,streamRates:distributionReference.streamRates}[kind])();
- return arr(raw).filter(r=>{const id=String(r.release_id??r.releaseId??r.provider_release_id??"");return Boolean(id)&&scope.providerIds.has(id)});
+
+function positiveId(value: unknown): string | null {
+  const v = String(value ?? "").trim();
+  return v ? v : null;
 }
-export async function ownedAnalytics(userId:string){
- const scope=await ownedDistributionScope(userId);if(!scope.providerIds.size)return [];
- const raw=await distributionReference.analytics();return arr(raw).filter(r=>{const id=String(r.release_id??r.releaseId??r.provider_release_id??"");return Boolean(id)&&scope.providerIds.has(id)});
+
+function releaseIdFromRow(row: Row): string {
+  return String(
+    row.release_id ??
+      row.releaseId ??
+      row.provider_release_id ??
+      row.providerReleaseId ??
+      row.id ??
+      ""
+  ).trim();
+}
+
+function isrcFromRow(row: Row): string {
+  return String(row.isrc ?? row.ISRC ?? row.track_isrc ?? "").trim().toUpperCase();
+}
+
+function artistFromRow(row: Row): string {
+  return normalize(
+    row.artist ??
+      row.artist_name ??
+      row.artistName ??
+      row.primary_artist ??
+      row.primaryArtist ??
+      row.name
+  );
+}
+
+function annotate(rows: Row[], extra: Row): Row[] {
+  return rows.map((row) => ({ ...row, ...extra }));
+}
+
+async function settleRows(tasks: Array<Promise<unknown>>): Promise<Row[]> {
+  const settled = await Promise.allSettled(tasks);
+  return settled.flatMap((result) =>
+    result.status === "fulfilled" ? providerRows(result.value) : []
+  );
+}
+
+async function paginated(
+  getter: (query: ProviderSalesPageQuery) => Promise<unknown>,
+  maxPages = 5
+): Promise<Row[]> {
+  const rows: Row[] = [];
+  for (let page = 1; page <= maxPages; page += 1) {
+    const raw = await getter({ page, perPage: 100 });
+    const current = providerRows(raw);
+    rows.push(...current);
+
+    const outer = raw && typeof raw === "object" ? (raw as Row) : {};
+    const currentPage = Number(outer.currentPage ?? page);
+    const totalPages = Number(outer.totalPages ?? currentPage);
+    if (!Number.isFinite(totalPages) || currentPage >= totalPages || current.length === 0) {
+      break;
+    }
+  }
+  return rows;
+}
+
+export async function ownedDistributionScope(userId: string) {
+  const db = await createClient();
+  const { data: local } = await db
+    .from("releases")
+    .select("id,provider_release_id,primary_artist_name,release_tracks(isrc)")
+    .eq("owner_user_id", userId);
+
+  const releases = (local ?? []) as unknown as LocalReleaseScope[];
+  const releaseIds = releases.map((release) => release.id).filter(Boolean);
+
+  let links: Array<{ release_id: string; provider_release_id: string | null }> = [];
+  if (releaseIds.length > 0) {
+    const { data } = await db
+      .from("provider_release_links")
+      .select("release_id,provider_release_id")
+      .in("release_id", releaseIds)
+      .eq("provider_name", "distribution_engine");
+    links = (data ?? []) as Array<{ release_id: string; provider_release_id: string | null }>;
+  }
+
+  const linked = new Map(
+    links
+      .map((link) => [link.release_id, positiveId(link.provider_release_id)] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+  );
+
+  const providerIds = new Set<string>();
+  const isrcs = new Set<string>();
+  const artistNames = new Set<string>();
+
+  for (const release of releases) {
+    const providerId = positiveId(release.provider_release_id) ?? linked.get(release.id) ?? null;
+    if (providerId) providerIds.add(providerId);
+    if (release.primary_artist_name) artistNames.add(normalize(release.primary_artist_name));
+    for (const track of release.release_tracks ?? []) {
+      if (track.isrc) isrcs.add(track.isrc.trim().toUpperCase());
+    }
+  }
+
+  return { local: releases, providerIds, isrcs, artistNames };
+}
+
+export type OwnedSalesKind =
+  | "overview"
+  | "monthlyOverview"
+  | "tracks"
+  | "releases"
+  | "artists"
+  | "channels"
+  | "territories"
+  | "streamRates";
+
+/**
+ * Reads only real upstream data and scopes account-sensitive sales to releases/tracks/artists
+ * already owned by the signed-in Nexo user. Aggregate provider-wide sales are never exposed
+ * directly to artist/label clients.
+ */
+export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<Row[]> {
+  const scope = await ownedDistributionScope(userId);
+  if (!scope.providerIds.size && kind !== "streamRates") return [];
+
+  const providerIds = [...scope.providerIds].slice(0, 100);
+
+  if (kind === "overview" || kind === "monthlyOverview") {
+    const rows = await settleRows(
+      providerIds.map(async (providerReleaseId) => {
+        const raw = await distributionReference.salesReleaseOverview(providerReleaseId, {
+          page: 1,
+          perPage: 100,
+        });
+        return annotate(providerRows(raw), { provider_release_id: providerReleaseId });
+      })
+    );
+    return rows;
+  }
+
+  if (kind === "channels") {
+    return settleRows(
+      providerIds.map(async (providerReleaseId) => {
+        const raw = await distributionReference.salesReleaseChannels(providerReleaseId, {
+          page: 1,
+          perPage: 100,
+        });
+        return annotate(providerRows(raw), { provider_release_id: providerReleaseId });
+      })
+    );
+  }
+
+  if (kind === "territories") {
+    return settleRows(
+      providerIds.map(async (providerReleaseId) => {
+        const raw = await distributionReference.salesReleaseTerritories(providerReleaseId, {
+          page: 1,
+          perPage: 100,
+        });
+        return annotate(providerRows(raw), { provider_release_id: providerReleaseId });
+      })
+    );
+  }
+
+  if (kind === "streamRates") {
+    return paginated((query) => distributionReference.streamRates(query), 3);
+  }
+
+  if (kind === "releases") {
+    const rows = await paginated((query) => distributionReference.salesReleases(query));
+    return rows.filter((row) => scope.providerIds.has(releaseIdFromRow(row)));
+  }
+
+  if (kind === "tracks") {
+    if (!scope.isrcs.size) return [];
+    const rows = await paginated((query) => distributionReference.salesTracks(query));
+    return rows.filter((row) => scope.isrcs.has(isrcFromRow(row)));
+  }
+
+  if (kind === "artists") {
+    if (!scope.artistNames.size) return [];
+    const rows = await paginated((query) => distributionReference.salesArtists(query));
+    return rows.filter((row) => scope.artistNames.has(artistFromRow(row)));
+  }
+
+  return [];
+}
+
+export async function ownedAnalytics(userId: string): Promise<Row[]> {
+  const scope = await ownedDistributionScope(userId);
+  if (!scope.isrcs.size && !scope.providerIds.size) return [];
+
+  const raw = await distributionReference.analyticsOverview();
+  const rows = providerRows(raw);
+  return rows.filter((row) => {
+    const releaseId = releaseIdFromRow(row);
+    const isrc = isrcFromRow(row);
+    return (
+      (Boolean(releaseId) && scope.providerIds.has(releaseId)) ||
+      (Boolean(isrc) && scope.isrcs.has(isrc))
+    );
+  });
 }
