@@ -15,5 +15,35 @@ jobs:
       - name: Install xmllint
         run: sudo apt-get update && sudo apt-get install -y libxml2-utils
       - run: npm ci
-      - run: npm test
-      - run: npm run build
+      - name: Test suite
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee test.log
+          code=${PIPESTATUS[0]}
+          echo "TEST_EXIT_CODE=$code" >> "$GITHUB_ENV"
+          exit 0
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          path: test.log
+      - name: Production build
+        shell: bash
+        run: |
+          set +e
+          npm run build 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          echo "BUILD_EXIT_CODE=$code" >> "$GITHUB_ENV"
+          exit 0
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+      - name: Enforce verification
+        run: |
+          test "${TEST_EXIT_CODE}" = "0"
+          test "${BUILD_EXIT_CODE}" = "0"
