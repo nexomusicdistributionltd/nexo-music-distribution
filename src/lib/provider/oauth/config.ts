@@ -7,6 +7,7 @@ export type DistributionOAuthConfig = {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
+  scope: string | null;
 };
 
 function required(name: string): string {
@@ -23,6 +24,7 @@ export function readDistributionOAuthConfig(): DistributionOAuthConfig {
     clientId: required("DISTRIBUTION_CLIENT_ID"),
     clientSecret: required("DISTRIBUTION_CLIENT_SECRET"),
     redirectUri: required("DISTRIBUTION_REDIRECT_URI"),
+    scope: (process.env.DISTRIBUTION_OAUTH_SCOPE ?? "").trim() || null,
   };
 }
 

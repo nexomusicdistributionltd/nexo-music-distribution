@@ -39,13 +39,24 @@ export async function GET(request: NextRequest) {
     }
     try {
       const token = await exchangeDistributionAuthorizationCode(code);
-      // Persist the valid OAuth token first. Identity verification is a health check and
-      // must not prevent a successful authorization from being stored if /me is unavailable.
+      // Store the token securely, but do not claim the provider is connected until
+      // a protected API request succeeds.
       await saveDistributionToken(token);
       try {
         await verifyDistributionIdentity(token.access_token);
-      } catch {
-        // The credential remains securely stored; protected API calls will validate it in use.
+      } catch (e) {
+        const status =
+          e && typeof e === "object" && "status" in e
+            ? Number((e as { status?: unknown }).status)
+            : null;
+        const response = NextResponse.redirect(
+          new URL(
+            `/admin/distribution/provider?connection=${status === 403 ? "forbidden" : "verification_failed"}`,
+            appOrigin
+          )
+        );
+        response.cookies.delete("nexo_distribution_oauth_state");
+        return response;
       }
       const response = NextResponse.redirect(
         new URL("/admin/distribution/provider?connection=connected", appOrigin)
