@@ -98,6 +98,13 @@ begin
       using errcode = '42501';
   end if;
 
+  if resolved_user_id is null
+     and auth.uid() is not null
+     and not public.is_staff(auth.uid()) then
+    raise exception 'Explicit recipient transactional email requires staff or service role'
+      using errcode = '42501';
+  end if;
+
   -- One outbox event = one mailbox. Explicit broadcasts/newsletters must enqueue
   -- one event per recipient instead of passing a recipient list in one string.
   if to_addr ~ E'[\\r\\n,;]' then
