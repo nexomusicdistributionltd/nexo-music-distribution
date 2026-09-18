@@ -14,11 +14,15 @@ export function ServiceRequestForm({
   titlePlaceholder,
   urlLabel,
   releases,
+  requiresRelease = false,
+  guidance,
 }: {
   kind: string;
   titlePlaceholder: string;
   urlLabel?: string;
   releases: { id: string; title: string | null }[];
+  requiresRelease?: boolean;
+  guidance?: string;
 }) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
@@ -53,12 +57,24 @@ export function ServiceRequestForm({
       }}
     >
       <h2 className="text-h4">New request</h2>
+      {guidance ? (
+        <p className="text-small text-[var(--nexo-text-muted)]">{guidance}</p>
+      ) : null}
+      {requiresRelease && releases.length === 0 ? (
+        <Alert variant="warning" title="Release required">
+          Create and submit an eligible release before using this service.
+        </Alert>
+      ) : null}
       {error ? (
         <Alert variant="warning" title="Not saved">
           {error}
         </Alert>
       ) : null}
-      {ok ? <Alert variant="success" title="Submitted">Staff will review this request.</Alert> : null}
+      {ok ? (
+        <Alert variant="success" title="Submitted">
+          Your request is live in Nexo operations. Status changes will appear here as staff or the connected provider progresses the real workflow.
+        </Alert>
+      ) : null}
       <Input name="title" required placeholder={titlePlaceholder} aria-label="Title" />
       {urlLabel ? (
         <Input name="related_url" placeholder={urlLabel} aria-label={urlLabel} />
@@ -66,8 +82,8 @@ export function ServiceRequestForm({
         <Input name="related_url" placeholder="Related URL (optional)" aria-label="Related URL" />
       )}
       {releases.length > 0 ? (
-        <Select name="release_id" aria-label="Release">
-          <option value="">No specific release</option>
+        <Select name="release_id" aria-label="Release" required={requiresRelease}>
+          <option value="">{requiresRelease ? "Select release" : "No specific release"}</option>
           {releases.map((r) => (
             <option key={r.id} value={r.id}>
               {r.title || "Untitled"}
@@ -76,7 +92,7 @@ export function ServiceRequestForm({
         </Select>
       ) : null}
       <Textarea name="body" placeholder="Details" aria-label="Details" />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || (requiresRelease && releases.length === 0)}>
         {pending ? "Submitting…" : "Submit request"}
       </Button>
     </form>
