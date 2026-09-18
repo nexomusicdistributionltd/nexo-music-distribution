@@ -9,7 +9,7 @@ import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
 import { getProviderConnectionState } from "@/lib/provider";
 import { createClient } from "@/lib/supabase/server";
 import type { ReleaseStatus } from "@/lib/releases/types";
-import { SyncJobButton } from "@/components/distribution/DistributionActionForms";
+import { SubmitJobButton, SyncJobButton } from "@/components/distribution/DistributionActionForms";
 import { listDistributionJobs } from "@/lib/distribution/queries";
 
 export const metadata: Metadata = {
@@ -63,7 +63,11 @@ export default async function DeliveryPage() {
                 <div className="flex items-center gap-3">
                   <ReleaseStatusBadge status={r.status as ReleaseStatus} />
                   {job ? (
-                    <SyncJobButton jobId={job.id} providerConnected={provider.connected} />
+                    r.provider_release_id || job.provider_release_id ? (
+                      <SyncJobButton jobId={job.id} providerConnected={provider.connected} />
+                    ) : (
+                      <SubmitJobButton jobId={job.id} providerConnected={provider.connected} />
+                    )
                   ) : null}
                 </div>
               </li>
