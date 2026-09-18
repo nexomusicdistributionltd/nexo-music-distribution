@@ -3,10 +3,13 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { getServiceRoleKey } from "@/lib/supabase/admin";
 import { getConfiguredProviderName } from "@/lib/provider/config";
+import { isDistributionOAuthConfigured } from "@/lib/provider/oauth/config";
 import {
   verifyProviderWebhookSignature,
   extractWebhookEventId,
   extractWebhookEventType,
+  extractProviderReleaseReference,
+  extractProviderStatus,
 } from "@/lib/distribution/webhook";
 import { mapProviderStatusToRelease } from "@/lib/distribution/types";
 import {
@@ -28,10 +31,56 @@ function serviceClient() {
   });
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+async function resolveInternalReleaseId(
+  supabase: ReturnType<typeof createClient>,
+  releaseReference: string | null
+): Promise<string | null> {
+  if (!releaseReference) return null;
+
+  // Some internal test callbacks may send Nexo's own UUID. Only accept it after
+  // proving that release exists; never pass an arbitrary external string to a UUID RPC.
+  if (isUuid(releaseReference)) {
+    const { data: direct } = await supabase
+      .from("releases")
+      .select("id")
+      .eq("id", releaseReference)
+      .maybeSingle();
+    if (direct?.id) return direct.id;
+  }
+
+  const { data: releaseRows } = await supabase
+    .from("releases")
+    .select("id")
+    .eq("provider_release_id", releaseReference)
+    .limit(2);
+
+  if (releaseRows?.length === 1) return releaseRows[0].id;
+  if ((releaseRows?.length ?? 0) > 1) return null;
+
+  const { data: jobRows } = await supabase
+    .from("distribution_jobs")
+    .select("release_id")
+    .eq("provider_release_id", releaseReference)
+    .order("updated_at", { ascending: false })
+    .limit(10);
+
+  const releaseIds = [
+    ...new Set((jobRows ?? []).map((row) => row.release_id).filter(Boolean)),
+  ];
+  return releaseIds.length === 1 ? releaseIds[0] : null;
+}
+
 /**
- * Provider webhook ingress.
- * Fails closed when PROVIDER_WEBHOOK_SECRET missing or signature invalid.
- * Idempotent by (provider_name, event_id).
+ * Distribution Engine webhook ingress.
+ * Fails closed when the webhook secret is missing or the HMAC signature is invalid.
+ * Idempotent by (provider_name, event_id). External provider release identifiers are
+ * resolved server-side before any release status mutation.
  */
 export async function POST(req: Request) {
   const ip = clientIpFromRequest(req);
@@ -57,39 +106,29 @@ export async function POST(req: Request) {
     signatureHeader: signature,
   });
 
-  let payload: Record<string, unknown> = {};
+  let payload: Record<string, unknown>;
   try {
     payload = rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {};
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  const eventId = extractWebhookEventId(payload);
+  const eventId = extractWebhookEventId(payload, rawBody);
   if (!eventId) {
     return NextResponse.json({ ok: false, error: "event id required" }, { status: 400 });
   }
 
   const eventType = extractWebhookEventType(payload);
-  const providerName = getConfiguredProviderName() ?? "not_connected";
-  const mapped =
-    mapProviderStatusToRelease(
-      typeof payload.status === "string"
-        ? payload.status
-        : typeof (payload.data as { status?: string } | undefined)?.status === "string"
-          ? (payload.data as { status: string }).status
-          : eventType
-    ) ?? null;
+  const providerName = isDistributionOAuthConfigured()
+    ? "distribution_engine"
+    : getConfiguredProviderName() ?? "not_connected";
 
-  const releaseId =
-    typeof payload.release_id === "string"
-      ? payload.release_id
-      : typeof payload.releaseId === "string"
-        ? payload.releaseId
-        : null;
+  const rawProviderStatus = extractProviderStatus(payload) ?? eventType;
+  const mapped = mapProviderStatusToRelease(rawProviderStatus);
+  const releaseReference = extractProviderReleaseReference(payload);
 
   const supabase = serviceClient();
   if (!supabase) {
-    // Still fail closed on signature; cannot persist without service role
     if (!verification.ok) {
       return NextResponse.json(
         { ok: false, error: verification.reason },
@@ -102,6 +141,10 @@ export async function POST(req: Request) {
     );
   }
 
+  const releaseId = verification.ok
+    ? await resolveInternalReleaseId(supabase, releaseReference)
+    : null;
+
   const { data, error } = await supabase.rpc("process_provider_webhook_event", {
     p_provider_name: providerName,
     p_event_id: eventId,
@@ -113,7 +156,13 @@ export async function POST(req: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: publicErrorMessage(error.message, "Webhook processing failed") }, { status: 500 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: publicErrorMessage(error.message, "Webhook processing failed"),
+      },
+      { status: 500 }
+    );
   }
 
   if (!verification.ok) {
@@ -123,5 +172,10 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, event: data });
+  return NextResponse.json({
+    ok: true,
+    matchedRelease: Boolean(releaseId),
+    mappedStatus: mapped,
+    event: data,
+  });
 }
