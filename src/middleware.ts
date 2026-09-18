@@ -17,6 +17,7 @@ const PROTECTED_PREFIXES = [
   "/profile",
   "/app",
   "/support",
+  "/verify-identity",
   "/admin",
 ];
 
@@ -144,7 +145,7 @@ export async function middleware(request: NextRequest) {
   if (user && supabase && isProtected) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_status, restriction_kind")
+      .select("account_status, restriction_kind, account_type, identity_verified_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -174,6 +175,20 @@ export async function middleware(request: NextRequest) {
         url.searchParams.set("reason", "otp-required");
         return redirectWithSession(url, getResponse);
       }
+    }
+
+    const requiresIdentity =
+      profile?.account_type === "artist" || profile?.account_type === "label";
+    if (
+      verified &&
+      requiresIdentity &&
+      !profile?.identity_verified_at &&
+      pathname !== "/verify-identity"
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/verify-identity";
+      url.search = "";
+      return redirectWithSession(url, getResponse);
     }
 
     // Role-based admin gate (coarse — layouts re-check)
@@ -327,6 +342,7 @@ export const config = {
     "/register",
     "/forgot-password",
     "/verify-email",
+    "/verify-identity",
     "/nexo-admin",
   ],
 };
