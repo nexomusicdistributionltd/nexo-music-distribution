@@ -74,3 +74,61 @@ export async function hasDistributionCredential(): Promise<boolean> {
     .maybeSingle();
   return !error && Boolean(data?.access_token_ciphertext);
 }
+
+
+const WEBHOOK_SECRET_KEY = "provider_webhook_hmac";
+
+export async function saveDistributionWebhookSecret(
+  secret: string,
+  updatedBy?: string | null
+): Promise<void> {
+  const value = secret.trim();
+  if (value.length < 16) {
+    throw new Error("Webhook secret must be at least 16 characters.");
+  }
+  const db = createServiceClient();
+  const { error } = await db.from("distribution_provider_secrets").upsert(
+    {
+      secret_key: WEBHOOK_SECRET_KEY,
+      secret_ciphertext: encryptDistributionSecret(value),
+      updated_by: updatedBy ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "secret_key" }
+  );
+  if (error) throw new Error("Could not securely save the provider webhook secret.");
+}
+
+export async function loadDistributionWebhookSecret(): Promise<string | null> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("distribution_provider_secrets")
+    .select("secret_ciphertext")
+    .eq("secret_key", WEBHOOK_SECRET_KEY)
+    .maybeSingle();
+  if (error || !data?.secret_ciphertext) return null;
+  try {
+    return decryptDistributionSecret(data.secret_ciphertext);
+  } catch {
+    return null;
+  }
+}
+
+export async function hasDistributionWebhookSecret(): Promise<boolean> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("distribution_provider_secrets")
+    .select("secret_key")
+    .eq("secret_key", WEBHOOK_SECRET_KEY)
+    .maybeSingle();
+  return !error && Boolean(data?.secret_key);
+}
+
+export async function removeDistributionWebhookSecret(): Promise<void> {
+  const db = createServiceClient();
+  const { error } = await db
+    .from("distribution_provider_secrets")
+    .delete()
+    .eq("secret_key", WEBHOOK_SECRET_KEY);
+  if (error) throw new Error("Could not remove the provider webhook secret.");
+}
