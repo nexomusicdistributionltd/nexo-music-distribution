@@ -46,6 +46,7 @@ describe("premium dashboard nav", () => {
       "/admin/qc",
       "/admin/artists",
       "/admin/labels",
+      "/admin/roles",
       "/admin/ddex",
       "/admin/playlist-pitches",
       "/admin/portal-requests",
@@ -61,6 +62,7 @@ describe("premium dashboard nav", () => {
     }
     expect(hrefs).toContain("/admin/finance/billing");
     expect(navForRoles(["support"]).map((n) => n.href)).not.toContain("/admin/settings");
+    expect(navForRoles(["support"]).map((n) => n.href)).not.toContain("/admin/roles");
     expect(navSectionsForRoles(["admin"]).length).toBeGreaterThan(4);
     expect(navForRoles(["artist"]).map((n) => n.href)).not.toContain("/admin/emails");
     expect(navForRoles(["label"]).map((n) => n.href)).not.toContain("/admin/emails");

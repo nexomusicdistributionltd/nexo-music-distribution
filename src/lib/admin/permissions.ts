@@ -136,6 +136,7 @@ const ADMIN_PATH_PERMISSIONS: Array<{
   { prefix: "/admin/artists", permission: "admin:artists" },
   { prefix: "/admin/labels", permission: "admin:labels" },
   { prefix: "/admin/users", permission: "admin:users" },
+  { prefix: "/admin/roles", permission: "admin:staff_invite" },
   { prefix: "/admin/verifications", permission: "admin:compliance" },
   { prefix: "/admin/agreements", permission: "admin:compliance" },
   { prefix: "/admin/distribution", permission: "admin:distribution" },

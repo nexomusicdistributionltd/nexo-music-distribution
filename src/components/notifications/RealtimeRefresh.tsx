@@ -120,6 +120,16 @@ export function RealtimeRefresh({
           "postgres_changes",
           { event: "*", schema: "public", table: "provider_webhook_events" },
           () => router.refresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "profiles" },
+          () => router.refresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "user_roles" },
+          () => router.refresh()
         );
     }
 
