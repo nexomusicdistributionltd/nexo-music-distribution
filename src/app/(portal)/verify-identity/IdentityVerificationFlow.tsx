@@ -34,7 +34,7 @@ export function IdentityVerificationFlow({userId,initial}:{userId:string;initial
  },[verificationId,router,supabase]);
  React.useEffect(()=>{if(!capture)return; navigator.mediaDevices?.getUserMedia({video:{facingMode:capture==="selfie"?"user":{ideal:"environment"}},audio:false}).then(stream=>{streamRef.current=stream;if(videoRef.current)videoRef.current.srcObject=stream;}).catch(()=>{setMessage("Camera access is required. Allow camera permission and try again.");setCapture(null);});},[capture]);
 
- async function saveIdentity(){setBusy(true);setMessage("");const r=await saveVerificationIdentityAction({countryCode:country,legalFullName:name,dateOfBirth:dob,documentType:doc});setBusy(false);if(!r.ok){setMessage(r.error);return;}setVerificationId(r.id);setStep(2);}
+ async function saveIdentity(){setBusy(true);setMessage("");const r=await saveVerificationIdentityAction({countryCode:country,legalFullName:name,dateOfBirth:dob,documentType:doc});setBusy(false);if(!r.ok||!r.id){setMessage(r.error??"Could not save verification.");return;}setVerificationId(r.id);setStep(2);}
  async function takePhoto(){
    if(!capture||!videoRef.current||!verificationId)return;
    setBusy(true);setMessage(""); const video=videoRef.current; const canvas=document.createElement("canvas");
@@ -45,10 +45,10 @@ export function IdentityVerificationFlow({userId,initial}:{userId:string;initial
    const {error}=await supabase.storage.from("identity-verification").upload(path,blob,{contentType:"image/jpeg",upsert:false});
    if(error){setBusy(false);setMessage(error.message);return;}
    const r=await registerVerificationEvidenceAction({verificationId,evidenceType:capture,storagePath:path,mimeType:"image/jpeg",sizeBytes:blob.size});
-   if(!r.ok){setBusy(false);setMessage(r.error);return;}
+   if(!r.ok){setBusy(false);setMessage(r.error??"Could not register captured evidence.");return;}
    setCaptured(v=>({...v,[capture]:true})); streamRef.current?.getTracks().forEach(t=>t.stop());streamRef.current=null;setCapture(null);setBusy(false);
  }
- async function submit(){setBusy(true);const r=await submitIdentityVerificationAction(verificationId);setBusy(false);if(!r.ok){setMessage(r.error);return;}setStatus("submitted");setStep(4);router.refresh();}
+ async function submit(){setBusy(true);const r=await submitIdentityVerificationAction(verificationId);setBusy(false);if(!r.ok){setMessage(r.error??"Could not submit verification.");return;}setStatus("submitted");setStep(4);router.refresh();}
  if(["submitted","under_review","verified"].includes(status)) return <StatusPanel status={status}/>;
  return <div className="mx-auto max-w-2xl space-y-6">
    <div><p className="text-caption font-semibold uppercase tracking-[.16em] text-[var(--nexo-text-muted)]">Identity verification</p><h1 className="mt-2 text-h2">Verify your identity</h1><p className="mt-2 text-small text-[var(--nexo-text-secondary)]">Required for artist and label accounts. Your legal name and date of birth must match your identity document.</p></div>
