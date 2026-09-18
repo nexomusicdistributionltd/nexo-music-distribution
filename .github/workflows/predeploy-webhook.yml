@@ -42,6 +42,28 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Tests
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee test.log
+          echo "TEST_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+          exit 0
       - name: Production build
-        run: npm run build
+        shell: bash
+        run: |
+          set +e
+          npm run build 2>&1 | tee build.log
+          echo "BUILD_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+          exit 0
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webhook-verification-logs
+          path: |
+            test.log
+            build.log
+      - name: Enforce verification
+        run: |
+          test "${TEST_EXIT}" = "0"
+          test "${BUILD_EXIT}" = "0"
