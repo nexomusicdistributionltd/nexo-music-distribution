@@ -321,6 +321,7 @@ export async function createSplitRuleAction(input: {
       party_role: s.partyRole,
       share_bps: s.shareBps,
       party_user_id: s.partyUserId ?? null,
+      payee_id: s.payeeId ?? null,
     }))
   );
   if (shareErr) return { ok: false, error: shareErr.message };
