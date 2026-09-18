@@ -83,8 +83,18 @@ export function RealtimeRefresh({
         {
           event: "*",
           schema: "public",
-          table: "payout_requests",
+          table: "payouts",
           ...(staff ? {} : { filter: `owner_user_id=eq.${userId}` }),
+        },
+        () => router.refresh()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "payout_methods",
+          ...(staff ? {} : { filter: `user_id=eq.${userId}` }),
         },
         () => router.refresh()
       )
