@@ -157,6 +157,24 @@ export async function completePayoutPaidAction(input: {
     };
   }
   const supabase = await createClient();
+  if (input.manual) {
+    const { data: current, error: currentError } = await supabase
+      .from("payouts")
+      .select("status")
+      .eq("id", input.payoutId)
+      .maybeSingle();
+    if (currentError || !current) return { ok: false, error: "Payout not found." };
+    if (current.status === "approved") {
+      const transitioned = await supabase.rpc("transition_payout_status", {
+        p_payout_id: input.payoutId,
+        p_new_status: "processing",
+        p_reason: "Verified external/manual payment processing",
+      });
+      if (transitioned.error) return { ok: false, error: transitioned.error.message };
+    } else if (current.status !== "processing") {
+      return { ok: false, error: "Manual payment completion requires an approved or processing payout." };
+    }
+  }
   const { data, error } = await supabase.rpc("complete_payout_paid", {
     p_payout_id: input.payoutId,
     p_payment_reference: input.paymentReference.trim(),
