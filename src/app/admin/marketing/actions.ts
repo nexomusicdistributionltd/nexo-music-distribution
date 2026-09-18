@@ -30,17 +30,21 @@ function boolValue(formData: FormData, key: string): boolean {
   return String(formData.get(key) ?? "false") === "true";
 }
 
+function fail(message: string): never {
+  throw new Error(message);
+}
+
 function revalidateMarketing() {
   revalidatePath("/admin/marketing");
   revalidatePath("/marketing", "layout");
   revalidatePath("/dashboard", "layout");
 }
 
-export async function updateMarketingControlAction(formData: FormData) {
+export async function updateMarketingControlAction(formData: FormData): Promise<void> {
   const ctx = await RequireAdministrator();
   const kind = textValue(formData, "kind", 80);
   const spec = marketingServiceSpec(kind);
-  if (!kind || !spec) return { ok: false as const, error: "Unknown marketing service." };
+  if (!kind || !spec) fail("Unknown marketing service.");
 
   const description = textValue(formData, "description", 1000);
   const adminInstructions = textValue(formData, "admin_instructions", 4000);
@@ -57,25 +61,25 @@ export async function updateMarketingControlAction(formData: FormData) {
     })
     .eq("kind", kind);
 
-  if (error) return { ok: false as const, error: "Marketing control could not be updated." };
+  if (error) fail("Marketing control could not be updated.");
   revalidateMarketing();
-  return { ok: true as const };
+  return;
 }
 
-export async function updateMarketingRequestAction(formData: FormData) {
+export async function updateMarketingRequestAction(formData: FormData): Promise<void> {
   const ctx = await RequireAdministrator();
   const requestId = textValue(formData, "request_id", 80);
   const status = textValue(formData, "status", 40);
   const priority = textValue(formData, "priority", 20);
 
   if (!requestId || !/^[0-9a-f-]{36}$/i.test(requestId)) {
-    return { ok: false as const, error: "Invalid request." };
+    fail("Invalid request.");
   }
   if (!status || !REQUEST_STATUSES.has(status)) {
-    return { ok: false as const, error: "Invalid status." };
+    fail("Invalid status.");
   }
   if (!priority || !REQUEST_PRIORITIES.has(priority)) {
-    return { ok: false as const, error: "Invalid priority." };
+    fail("Invalid priority.");
   }
 
   const supabase = await createClient();
@@ -86,13 +90,13 @@ export async function updateMarketingRequestAction(formData: FormData) {
     .maybeSingle();
 
   if (readError || !existing || !marketingServiceSpec(existing.kind)) {
-    return { ok: false as const, error: "Marketing request was not found." };
+    fail("Marketing request was not found.");
   }
 
   const providerUrlRaw = textValue(formData, "provider_url", 2000);
   const parsedProviderUrl = providerUrlRaw ? parseHttpUrl(providerUrlRaw) : null;
   if (providerUrlRaw && (!parsedProviderUrl || parsedProviderUrl.protocol !== "https:")) {
-    return { ok: false as const, error: "Provider reference URL must be a valid HTTPS URL." };
+    fail("Provider reference URL must be a valid HTTPS URL.");
   }
 
   const now = new Date().toISOString();
@@ -111,25 +115,25 @@ export async function updateMarketingRequestAction(formData: FormData) {
     })
     .eq("id", requestId);
 
-  if (error) return { ok: false as const, error: "Marketing request could not be updated." };
+  if (error) fail("Marketing request could not be updated.");
 
   revalidateMarketing();
-  return { ok: true as const };
+  return;
 }
 
 const MARKETING_CONTENT_SLUGS = new Set(["client-offerings", "marketing-best-practices"]);
 
-export async function updateMarketingContentAction(formData: FormData) {
+export async function updateMarketingContentAction(formData: FormData): Promise<void> {
   const ctx = await RequireAdministrator();
   const slug = textValue(formData, "slug", 100);
   if (!slug || !MARKETING_CONTENT_SLUGS.has(slug)) {
-    return { ok: false as const, error: "Unknown marketing content page." };
+    fail("Unknown marketing content page.");
   }
 
   const title = textValue(formData, "title", 200);
   const summary = textValue(formData, "summary", 1000);
   if (!title || !summary) {
-    return { ok: false as const, error: "Title and summary are required." };
+    fail("Title and summary are required.");
   }
 
   const headings = formData
@@ -143,7 +147,7 @@ export async function updateMarketingContentAction(formData: FormData) {
     .filter((section) => section.heading && section.body);
 
   if (sections.length === 0) {
-    return { ok: false as const, error: "Add at least one complete content section." };
+    fail("Add at least one complete content section.");
   }
 
   const supabase = await createClient();
@@ -158,9 +162,9 @@ export async function updateMarketingContentAction(formData: FormData) {
     })
     .eq("slug", slug);
 
-  if (error) return { ok: false as const, error: "Marketing content could not be updated." };
+  if (error) fail("Marketing content could not be updated.");
 
   revalidateMarketing();
   revalidatePath("/help", "layout");
-  return { ok: true as const };
+  return;
 }
