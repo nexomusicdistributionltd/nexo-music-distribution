@@ -12,10 +12,12 @@ export function WebhookRuntimePanel({
   endpoint,
   configured,
   source,
+  canManageSecret,
 }: {
   endpoint: string;
   configured: boolean;
   source: "environment" | "database" | "none";
+  canManageSecret: boolean;
 }) {
   const [pending, start] = useTransition();
   const [secret, setSecret] = useState<string | null>(null);
@@ -82,17 +84,21 @@ export function WebhookRuntimePanel({
       </dl>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button size="sm" disabled={pending || !configured} onClick={reveal}>
-          Reveal signing secret
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending || !configured || source === "environment"}
-          onClick={rotate}
-        >
-          Rotate secret
-        </Button>
+        {canManageSecret ? (
+          <>
+            <Button size="sm" disabled={pending || !configured} onClick={reveal}>
+              Reveal signing secret
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending || !configured || source === "environment"}
+              onClick={rotate}
+            >
+              Rotate secret
+            </Button>
+          </>
+        ) : null}
         <Button
           size="sm"
           variant="secondary"
