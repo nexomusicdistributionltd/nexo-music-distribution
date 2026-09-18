@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function AdminDashboardPage() {
   await RequireAdmin();
   const attention = await getAdminAttention();
-  const provider = getProviderConnectionState();
+  const provider = await getProviderConnectionState();
   const ddex = ddexConfigPublicStatus();
 
   const strips = [
