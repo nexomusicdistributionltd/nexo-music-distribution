@@ -1053,7 +1053,7 @@ export function ReleaseWizard({
                     Delivery platforms
                   </legend>
                   <p className="text-caption text-[var(--nexo-text-muted)]">
-                    Leave all unchecked to use the provider's default supported destination set.
+                    Leave all unchecked to use the default destination set returned by the provider.
                   </p>
                   <div className="grid max-h-64 gap-2 overflow-y-auto rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-3 sm:grid-cols-2 lg:grid-cols-3">
                     {providerPlatforms.map((platform) => (
