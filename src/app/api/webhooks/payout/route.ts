@@ -38,7 +38,7 @@ function isUuid(value: string): boolean {
 }
 
 async function resolveInternalPayoutId(
-  supabase: ReturnType<typeof createClient>,
+  supabase: NonNullable<ReturnType<typeof serviceClient>>,
   payoutReference: string | null
 ): Promise<string | null> {
   if (!payoutReference) return null;
