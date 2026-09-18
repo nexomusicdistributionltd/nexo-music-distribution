@@ -43,7 +43,7 @@ describe("Batch 8 hostile self-check", () => {
     expect(h["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
     expect(h["Content-Security-Policy"]).toContain("*.supabase.co");
     expect(h["Referrer-Policy"]).toBeTruthy();
-    expect(h["Permissions-Policy"]).toContain("camera=()");
+    expect(h["Permissions-Policy"]).toContain("camera=(self)");
   });
 
   it("signed URL bucket allowlist rejects unknown buckets and traversal", () => {
@@ -78,12 +78,13 @@ describe("Batch 8 hostile self-check", () => {
     expect(isSafeRedirectPath("/dashboard")).toBe(true);
   });
 
-  it("providers report NOT CONNECTED without inventing success", () => {
+  it("providers never invent automated payout connectivity", () => {
     const d = readProviderConfig();
     const p = getPaymentConnectionState();
     expect(typeof d.connected).toBe("boolean");
     expect(p.connected).toBe(false);
-    expect(p.message).toMatch(/NOT CONNECTED|UNAVAILABLE/i);
+    expect(p.message).toMatch(/Manual Nexo payout processing is available/i);
+    expect(p.message).toMatch(/Automated .*not enabled|activate only after .*verified/i);
   });
 
   it("path traversal blocked for owned assets", () => {

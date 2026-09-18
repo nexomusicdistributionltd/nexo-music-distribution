@@ -45,8 +45,8 @@ export function getPaymentConnectionState(): {
     connected: false,
     providerName: cfg.name,
     message: cfg.name
-      ? `Payment provider "${cfg.name}" credentials may be present but no live adapter is registered. Payout execution UNAVAILABLE.`
-      : "Payment provider NOT CONNECTED.",
+      ? `Manual Nexo payout processing is available. Automated ${cfg.name} execution will activate only after its live adapter is verified.`
+      : "Manual Nexo payout processing is available. Automated provider settlement is not enabled yet.",
     webhookConfigured: cfg.webhookSecretPresent,
   };
 }

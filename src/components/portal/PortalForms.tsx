@@ -356,12 +356,24 @@ export function PayoutRequestForm({
   availableMinor,
   currency,
   paymentMessage,
+  payoutMethods,
 }: {
   availableMinor: number;
   currency: string;
   paymentMessage: string;
+  payoutMethods: Array<{
+    id: string;
+    label: string;
+    methodType: string;
+    destinationMask: string;
+    currency: string | null;
+    preferred: boolean;
+  }>;
 }) {
   const s = usePendingAction();
+  const orderedMethods = [...payoutMethods].sort(
+    (a, b) => Number(b.preferred) - Number(a.preferred)
+  );
   return (
     <form
       className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
@@ -371,22 +383,73 @@ export function PayoutRequestForm({
         const form = e.currentTarget;
         void s.run(async () => {
           const r = await createPayoutRequestAction({
-            amountMinor: parseMajorUnitsToMinor(String(fd.get("amount_display") || ""), currency) ?? 0,
+            amountMinor: parseMajorUnitsToMinor(
+              String(fd.get("amount_display") || ""),
+              currency
+            ) ?? 0,
             currency,
-            method_note: String(fd.get("method_note") || ""),
+            payoutMethodId: String(fd.get("payout_method_id") || ""),
           });
           return r.ok ? { ok: true } : r;
         }, form);
       }}
     >
       <h2 className="text-h4">Request payment</h2>
-      <Alert variant="warning">{paymentMessage}</Alert>
+      <Alert>{paymentMessage}</Alert>
       {s.error ? <Alert variant="error">{s.error}</Alert> : null}
-      {s.ok ? <Alert variant="success">Request submitted for staff review.</Alert> : null}
-      <p className="text-caption text-[var(--nexo-text-muted)]">Available balance: {formatMinorUnits(availableMinor, currency)}</p>
-      <label className="block space-y-1"><span className="text-caption text-[var(--nexo-text-muted)]">Payout amount ({currency})</span><Input name="amount_display" type="number" required min={currencyFractionDigits(currency) === 0 ? 1 : 1 / 10 ** currencyFractionDigits(currency)} max={availableMinor / 10 ** currencyFractionDigits(currency)} step={currencyFractionDigits(currency) === 0 ? 1 : 1 / 10 ** currencyFractionDigits(currency)} placeholder={currencyFractionDigits(currency) === 0 ? "0" : "0.00"} /></label>
-      <Input name="method_note" placeholder="Method note (optional)" />
-      <Button type="submit" disabled={s.pending || availableMinor <= 0}>
+      {s.ok ? <Alert variant="success">Request submitted for Nexo Finance review.</Alert> : null}
+      <p className="text-caption text-[var(--nexo-text-muted)]">
+        Available balance: {formatMinorUnits(availableMinor, currency)}
+      </p>
+      <label className="block space-y-1">
+        <span className="text-caption text-[var(--nexo-text-muted)]">
+          Payout amount ({currency})
+        </span>
+        <Input
+          name="amount_display"
+          type="number"
+          required
+          min={
+            currencyFractionDigits(currency) === 0
+              ? 1
+              : 1 / 10 ** currencyFractionDigits(currency)
+          }
+          max={availableMinor / 10 ** currencyFractionDigits(currency)}
+          step={
+            currencyFractionDigits(currency) === 0
+              ? 1
+              : 1 / 10 ** currencyFractionDigits(currency)
+          }
+          placeholder={currencyFractionDigits(currency) === 0 ? "0" : "0.00"}
+        />
+      </label>
+      {orderedMethods.length > 0 ? (
+        <label className="block space-y-1">
+          <span className="text-caption text-[var(--nexo-text-muted)]">
+            Approved payout method
+          </span>
+          <Select
+            name="payout_method_id"
+            required
+            defaultValue={orderedMethods.find((method) => method.preferred)?.id ?? orderedMethods[0]?.id}
+          >
+            {orderedMethods.map((method) => (
+              <option key={method.id} value={method.id}>
+                {method.label} · {method.destinationMask}
+                {method.currency ? ` · ${method.currency}` : ""}
+              </option>
+            ))}
+          </Select>
+        </label>
+      ) : (
+        <Alert variant="warning">
+          Add a payout method above and wait for Nexo Finance approval before requesting payment.
+        </Alert>
+      )}
+      <Button
+        type="submit"
+        disabled={s.pending || availableMinor <= 0 || orderedMethods.length === 0}
+      >
         {s.pending ? "Submitting…" : "Request payment"}
       </Button>
     </form>

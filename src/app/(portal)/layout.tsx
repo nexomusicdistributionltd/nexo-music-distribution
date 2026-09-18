@@ -14,6 +14,7 @@ import { getLabelProfileForUser } from "@/lib/roster/queries";
 import { isBlockedStatus } from "@/lib/auth/types";
 import { redirect } from "next/navigation";
 import { getIdentityVerificationForUser } from "@/lib/identity/queries";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,17 @@ export default async function PortalLayout({
 
   if (isPortalWorkspace && identityVerification?.status !== "verified") {
     redirect("/verify-identity");
+  }
+
+  if (isPortalWorkspace) {
+    const supabase = await createClient();
+    const { data: agreementReady, error: agreementError } = await supabase.rpc(
+      "has_current_distribution_agreement",
+      { p_user_id: ctx.userId }
+    );
+    if (agreementError || !agreementReady) {
+      redirect("/distribution-agreement");
+    }
   }
 
   if (isPortalWorkspace) {

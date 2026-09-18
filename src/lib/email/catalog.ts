@@ -45,6 +45,12 @@ export const EMAIL_CATALOG: EmailCatalogEntry[] = [
   { eventType: "release.status", templateKey: "RELEASE_TAKEDOWN_REQUESTED", filePath: "emails/templates/RELEASE_TAKEDOWN_REQUESTED.html", subject: "Takedown request received" },
   { eventType: "release.status", templateKey: "RELEASE_TAKEDOWN_COMPLETED", filePath: "emails/templates/RELEASE_TAKEDOWN_COMPLETED.html", subject: "Release taken down" },
 
+  { eventType: "identity.verification", templateKey: "IDENTITY_VERIFICATION_SUBMITTED", filePath: "emails/templates/IDENTITY_VERIFICATION_SUBMITTED.html", subject: "Identity verification submitted" },
+  { eventType: "identity.verification", templateKey: "IDENTITY_VERIFICATION_APPROVED", filePath: "emails/templates/IDENTITY_VERIFICATION_APPROVED.html", subject: "Identity verification approved" },
+  { eventType: "identity.verification", templateKey: "IDENTITY_VERIFICATION_DECLINED", filePath: "emails/templates/IDENTITY_VERIFICATION_DECLINED.html", subject: "Identity verification declined" },
+  { eventType: "identity.verification", templateKey: "IDENTITY_VERIFICATION_INFO_REQUIRED", filePath: "emails/templates/IDENTITY_VERIFICATION_INFO_REQUIRED.html", subject: "Additional identity information required" },
+  { eventType: "agreement", templateKey: "AGREEMENT_SIGNED", filePath: "emails/templates/AGREEMENT_SIGNED.html", subject: "Your Nexo distribution agreement is signed" },
+
   { eventType: "account.status", templateKey: "ACCOUNT_SUSPENDED", filePath: "emails/templates/ACCOUNT_SUSPENDED.html", subject: "Account suspended" },
   { eventType: "account.status", templateKey: "ACCOUNT_RESTRICTED", filePath: "emails/templates/ACCOUNT_RESTRICTED.html", subject: "Account restriction applied" },
   { eventType: "account.status", templateKey: "ACCOUNT_RESTORED", filePath: "emails/templates/ACCOUNT_RESTORED.html", subject: "Account restored" },

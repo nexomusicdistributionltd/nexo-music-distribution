@@ -302,24 +302,40 @@ export async function requestEnrollmentAction(service_key: string): Promise<Port
 export async function createPayoutRequestAction(input: {
   amountMinor: number;
   currency?: string;
-  method_note?: string;
+  payoutMethodId: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
-  const rl = checkRateLimit({ key: `payout:req:${ctx.userId}`, ...RATE_LIMITS.payoutCreate });
+  const rl = checkRateLimit({
+    key: `payout:req:${ctx.userId}`,
+    ...RATE_LIMITS.payoutCreate,
+  });
   if (!rl.ok) return { ok: false, error: "Too many payout requests." };
-  const parsed = validatePayoutRequestInput(input);
+
+  const parsed = validatePayoutRequestInput({
+    amountMinor: input.amountMinor,
+    currency: input.currency,
+  });
   if (!parsed.ok) return parsed;
 
+  const payoutMethodId = input.payoutMethodId.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(payoutMethodId)) {
+    return { ok: false, error: "Select an approved payout method." };
+  }
+
   const supabase = await createClient();
-  const idempotencyKey = `portal:${ctx.userId}:${parsed.currency}:${parsed.amountMinor}:${Date.now()}`;
-  const { data, error } = await supabase.rpc("create_payout_request", {
+  const idempotencyKey =
+    `portal:${ctx.userId}:${parsed.currency}:${parsed.amountMinor}:${payoutMethodId}:${Date.now()}`;
+
+  const { data, error } = await supabase.rpc("create_payout_request_with_method", {
     p_owner_user_id: ctx.userId,
     p_amount_minor: parsed.amountMinor,
     p_currency: parsed.currency,
-    p_method: input.method_note?.trim() || null,
+    p_payout_method_id: payoutMethodId,
     p_idempotency_key: idempotencyKey,
   });
+
   if (error) return { ok: false, error: publicErrorMessage(error.message) };
+
   revalidatePath("/earnings/payouts");
   revalidatePath("/earnings");
   return { ok: true, data: { id: data.id } };

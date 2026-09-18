@@ -146,23 +146,15 @@ export async function completePayoutPaidAction(input: {
   if (!input.paymentReference?.trim()) {
     return { ok: false, error: "payment_reference required from real payment operation." };
   }
-  // Without a connected provider, refuse casual PAID even with a typed reference
-  // unless staff explicitly uses the RPC after a real op. We still call the RPC
-  // which enforces GUC + processing state — but UI should not invent refs.
   const provider = getPaymentProvider();
-  if (!provider.connected) {
-    return {
-      ok: false,
-      error:
-        "Payment provider NOT CONNECTED. Cannot mark PAID without an authorized server/provider payment path.",
-    };
-  }
+  const providerName =
+    input.providerName?.trim() || (provider.connected ? provider.name : "manual");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("complete_payout_paid", {
     p_payout_id: input.payoutId,
     p_payment_reference: input.paymentReference.trim(),
-    p_provider_name: input.providerName ?? null,
-    p_provider_payout_id: input.providerPayoutId ?? null,
+    p_provider_name: providerName,
+    p_provider_payout_id: input.providerPayoutId?.trim() || null,
   });
   if (error) return { ok: false, error: error.message };
   revalidateFinance();

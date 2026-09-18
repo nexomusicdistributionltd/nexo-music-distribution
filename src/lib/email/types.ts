@@ -21,6 +21,11 @@ export const APPROVED_TEMPLATE_KEYS = [
   "RELEASE_UPDATE_REQUIRED",
   "RELEASE_TAKEDOWN_REQUESTED",
   "RELEASE_TAKEDOWN_COMPLETED",
+  "IDENTITY_VERIFICATION_SUBMITTED",
+  "IDENTITY_VERIFICATION_APPROVED",
+  "IDENTITY_VERIFICATION_DECLINED",
+  "IDENTITY_VERIFICATION_INFO_REQUIRED",
+  "AGREEMENT_SIGNED",
   "ACCOUNT_SUSPENDED",
   "ACCOUNT_RESTRICTED",
   "ACCOUNT_RESTORED",
@@ -42,6 +47,8 @@ export type EmailEventType =
   | "release.status"
   | "release.qc"
   | "release.submit"
+  | "identity.verification"
+  | "agreement"
   | "account.status"
   | "compliance"
   | "support"
