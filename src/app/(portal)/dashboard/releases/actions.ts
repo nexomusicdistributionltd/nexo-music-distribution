@@ -779,6 +779,19 @@ export async function registerUploadedAsset(input: {
     }
   }
 
+  if (input.kind === "audio" && input.trackId) {
+    const { data: previousAudio } = await supabase
+      .from("release_assets")
+      .select("*")
+      .eq("release_id", input.releaseId)
+      .eq("kind", "audio")
+      .eq("track_id", input.trackId);
+    for (const asset of previousAudio ?? []) {
+      await supabase.storage.from(asset.storage_bucket).remove([asset.storage_path]);
+      await supabase.from("release_assets").delete().eq("id", asset.id);
+    }
+  }
+
   let width = input.width ?? null;
   let height = input.height ?? null;
   let codec: string | null = null;

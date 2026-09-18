@@ -1,9 +1,5 @@
 import type { ReleaseRow, ReleaseTrackRow, ReleaseAssetRow, ReleaseContributorRow, ReleaseType } from "./types";
-import {
-  COMPOSITION_CREDIT_ROLES,
-  PERFORMER_CREDIT_ROLES,
-  PRODUCTION_CREDIT_ROLES,
-} from "./contributor-roles";
+import { COMPOSITION_CREDIT_ROLES } from "./contributor-roles";
 
 export type ValidationIssue = { field: string; message: string };
 
@@ -57,7 +53,7 @@ export function validateReleaseForSubmit(input: {
     ReleaseTrackRow,
     "track_number" | "title" | "isrc" | "id" | "duration_ms"
   >[];
-  assets: Pick<ReleaseAssetRow, "kind" | "track_id" | "mime_type">[];
+  assets: Pick<ReleaseAssetRow, "kind" | "track_id" | "mime_type" | "filename">[];
   contributors: Pick<ReleaseContributorRow, "name" | "role" | "track_id">[];
 }): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -176,64 +172,58 @@ export function validateReleaseForSubmit(input: {
   }
 
   const audioAssets = assets.filter((a) => a.kind === "audio");
-  const incompatibleAudio = audioAssets.filter((a) => a.mime_type !== "audio/flac");
-  if (incompatibleAudio.length > 0) {
-    issues.push({
-      field: "audio",
-      message: "Distribution delivery requires lossless FLAC audio. Re-upload non-FLAC tracks before submitting.",
-    });
-  }
-  if (audioAssets.length < tracks.length) {
-    issues.push({
-      field: "audio",
-      message: "Each track must have an audio file before submit.",
-    });
-  } else {
-    // Prefer per-track linkage when track_id is present on assets
-    const linked = new Set(
-      audioAssets.map((a) => a.track_id).filter((id): id is string => Boolean(id))
+  const isFlacAsset = (asset: Pick<ReleaseAssetRow, "mime_type" | "filename">) => {
+    const mime = (asset.mime_type ?? "").toLowerCase();
+    const filename = (asset.filename ?? "").toLowerCase();
+    return (
+      mime === "audio/flac" ||
+      mime === "audio/x-flac" ||
+      mime === "application/flac" ||
+      filename.endsWith(".flac")
     );
-    if (linked.size > 0) {
-      for (const t of tracks) {
-        const trackId = (t as { id?: string }).id;
-        if (trackId && !linked.has(trackId)) {
-          issues.push({
-            field: `track.${t.track_number}.audio`,
-            message: `Track ${t.track_number} is missing linked audio.`,
-          });
-        }
-      }
+  };
+
+  for (const track of tracks) {
+    const linkedAudio = audioAssets.filter((asset) => asset.track_id === track.id);
+    const legacySingleTrackAudio =
+      tracks.length === 1
+        ? audioAssets.filter((asset) => asset.track_id == null)
+        : [];
+    const candidates = linkedAudio.length > 0 ? linkedAudio : legacySingleTrackAudio;
+
+    if (candidates.length === 0) {
+      issues.push({
+        field: `track.${track.track_number}.audio`,
+        message: `Track ${track.track_number} is missing linked audio.`,
+      });
+      continue;
+    }
+
+    if (!candidates.some(isFlacAsset)) {
+      issues.push({
+        field: `track.${track.track_number}.audio`,
+        message: `Track ${track.track_number} requires a lossless FLAC master before submission.`,
+      });
     }
   }
 
   const namedContributors = contributors.filter((c) => Boolean(c.name?.trim()));
-  if (!namedContributors.length) {
-    issues.push({
-      field: "contributors",
-      message: "Complete contributor credits are required.",
-    });
-  } else {
+  const genreKey = (release.genre ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const isSpokenWord =
+    genreKey.includes("spokenword") ||
+    genreKey === "spoken" ||
+    genreKey.includes("podcast");
+
+  if (!isSpokenWord) {
     for (const track of tracks) {
       const scoped = namedContributors.filter(
         (contributor) => !contributor.track_id || contributor.track_id === track.id
       );
       const contributorRoles = new Set(scoped.map((contributor) => contributor.role));
-      if (![...contributorRoles].some((role) => PERFORMER_CREDIT_ROLES.has(role))) {
-        issues.push({
-          field: `track.${track.track_number}.contributors`,
-          message: `Track ${track.track_number} needs an accurate performer credit (for example lead vocals, vocals, choir, instrument, primary or featured artist).`,
-        });
-      }
       if (![...contributorRoles].some((role) => COMPOSITION_CREDIT_ROLES.has(role))) {
         issues.push({
           field: `track.${track.track_number}.contributors`,
-          message: `Track ${track.track_number} needs a composition/lyrics credit (songwriter, composer, lyricist or arranger).`,
-        });
-      }
-      if (![...contributorRoles].some((role) => PRODUCTION_CREDIT_ROLES.has(role))) {
-        issues.push({
-          field: `track.${track.track_number}.contributors`,
-          message: `Track ${track.track_number} needs a production/engineering credit (for example producer, recording, mixing or mastering engineer).`,
+          message: `Track ${track.track_number} needs at least one songwriter/composer/lyricist or arranger credit.`,
         });
       }
     }
