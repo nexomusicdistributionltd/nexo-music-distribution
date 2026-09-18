@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { SettingsForm } from "@/components/releases/SettingsForm";
 import { Alert } from "@/components/ui/Alert";
-import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import { RequireAuth } from "@/lib/auth/guards";
 
 export const metadata: Metadata = {
@@ -26,7 +25,6 @@ export default async function SettingsPage() {
           Timezone, language, and profile preferences.
         </p>
       </div>
-      <ProviderBanner connected={false} />
       <SettingsForm profile={ctx.profile} />
     </div>
   );
