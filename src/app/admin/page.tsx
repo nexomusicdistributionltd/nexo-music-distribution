@@ -56,7 +56,7 @@ export default async function AdminDashboardPage() {
         const { count, error } = await db
           .from("website_partners")
           .select("*", { count: "exact", head: true })
-          .eq("published", true);
+          .eq("is_active", true);
         return error ? 0 : Number(count ?? 0);
       })(),
       (async () => {
@@ -64,7 +64,7 @@ export default async function AdminDashboardPage() {
         const { count, error } = await db
           .from("blog_posts")
           .select("*", { count: "exact", head: true })
-          .eq("published", true);
+          .eq("status", "published");
         return error ? 0 : Number(count ?? 0);
       })(),
     ]),
