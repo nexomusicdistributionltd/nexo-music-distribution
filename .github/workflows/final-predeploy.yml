@@ -42,7 +42,19 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Test suite
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee test.log
+          code=${PIPESTATUS[0]}
+          echo "TEST_EXIT_CODE=$code" >> "$GITHUB_ENV"
+          exit 0
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-test-log
+          path: test.log
       - name: Production build
         shell: bash
         run: |
@@ -57,5 +69,8 @@ jobs:
         with:
           name: final-build-log
           path: build.log
-      - name: Enforce build result
-        run: exit "${BUILD_EXIT_CODE}"
+      - name: Enforce verification result
+        shell: bash
+        run: |
+          test "${TEST_EXIT_CODE}" = "0"
+          test "${BUILD_EXIT_CODE}" = "0"
