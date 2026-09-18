@@ -80,7 +80,7 @@ export default async function LabelArtistsPage({
               <TH>Artist</TH>
               <TH>Location</TH>
               <TH>Releases</TH>
-              <TH></TH>
+              <TH>Actions</TH>
             </TR>
           </THead>
           <TBody>
@@ -100,12 +100,20 @@ export default async function LabelArtistsPage({
                 <TD>{a.country || "—"}</TD>
                 <TD>{releaseCounts[a.id] ?? 0}</TD>
                 <TD className="text-right">
-                  <Link
-                    href={`/app/artists/${a.id}`}
-                    className="text-caption underline-offset-4 hover:underline"
-                  >
-                    Open
-                  </Link>
+                  <span className="inline-flex items-center gap-3">
+                    <Link
+                      href={`/dashboard/releases/new?artist=${encodeURIComponent(a.id)}`}
+                      className="text-caption underline-offset-4 hover:underline"
+                    >
+                      New release
+                    </Link>
+                    <Link
+                      href={`/app/artists/${a.id}`}
+                      className="text-caption underline-offset-4 hover:underline"
+                    >
+                      Open
+                    </Link>
+                  </span>
                 </TD>
               </TR>
             ))}
