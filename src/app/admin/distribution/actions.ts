@@ -1,7 +1,8 @@
 "use server";
 
+import { createHmac } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { RequireAdminPermission } from "@/lib/auth/guards";
+import { RequireAdminPermission, RequireSuperAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import {
   queueApprovedRelease,
@@ -12,6 +13,12 @@ import {
   retryFailedJob,
 } from "@/lib/distribution/actions";
 import { defaultUnavailableCatalog, discoverExternalCatalog } from "@/lib/migration/external-catalog";
+import {
+  ensureRuntimeProviderWebhookSecret,
+  loadRuntimeProviderWebhookSecret,
+  rotateRuntimeProviderWebhookSecret,
+} from "@/lib/provider/webhook-secret";
+import { verifyProviderWebhookSignature } from "@/lib/distribution/webhook";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -147,4 +154,68 @@ export async function offerOldTakedownAction(migrationId: string): Promise<Actio
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/distribution/migration");
   return { ok: true, data };
+}
+
+
+export async function revealProviderWebhookSecretAction(): Promise<
+  ActionResult<{ secret: string }>
+> {
+  await RequireSuperAdmin();
+  const stored = await loadRuntimeProviderWebhookSecret();
+  if (!stored) {
+    return { ok: false, error: "Webhook signing secret is not provisioned." };
+  }
+  return { ok: true, data: { secret: stored.secret } };
+}
+
+export async function rotateProviderWebhookSecretAction(): Promise<
+  ActionResult<{ secret: string }>
+> {
+  const ctx = await RequireSuperAdmin();
+  try {
+    const rotated = await rotateRuntimeProviderWebhookSecret(ctx.userId);
+    revalidatePath("/admin/distribution/webhooks");
+    return { ok: true, data: { secret: rotated.secret } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not rotate webhook secret.",
+    };
+  }
+}
+
+export async function testProviderWebhookSignatureAction(): Promise<
+  ActionResult<{ message: string }>
+> {
+  const ctx = await RequireAdminPermission("admin:distribution");
+  try {
+    const runtime = await ensureRuntimeProviderWebhookSecret(ctx.userId);
+    const rawBody = JSON.stringify({
+      event_id: "nexo-signature-self-test",
+      type: "nexo.webhook.signature_test",
+    });
+    const signature = createHmac("sha256", runtime.secret)
+      .update(rawBody, "utf8")
+      .digest("hex");
+    const verified = verifyProviderWebhookSignature({
+      rawBody,
+      signatureHeader: `sha256=${signature}`,
+      secretOverride: runtime.secret,
+    });
+    if (!verified.ok) {
+      return { ok: false, error: verified.reason };
+    }
+    return {
+      ok: true,
+      data: {
+        message:
+          "Webhook HMAC verification passed. The Nexo endpoint is ready for signed provider events.",
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Webhook signature test failed.",
+    };
+  }
 }
