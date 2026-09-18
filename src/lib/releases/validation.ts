@@ -47,7 +47,7 @@ export function validateReleaseForSubmit(input: {
     | "territories"
   >;
   tracks: Pick<ReleaseTrackRow, "track_number" | "title" | "isrc" | "id">[];
-  assets: Pick<ReleaseAssetRow, "kind" | "track_id">[];
+  assets: Pick<ReleaseAssetRow, "kind" | "track_id" | "mime_type">[];
   contributors: Pick<ReleaseContributorRow, "name" | "role">[];
 }): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -114,6 +114,13 @@ export function validateReleaseForSubmit(input: {
   }
 
   const audioAssets = assets.filter((a) => a.kind === "audio");
+  const incompatibleAudio = audioAssets.filter((a) => a.mime_type !== "audio/flac");
+  if (incompatibleAudio.length > 0) {
+    issues.push({
+      field: "audio",
+      message: "Distribution delivery requires lossless FLAC audio. Re-upload non-FLAC tracks before submitting.",
+    });
+  }
   if (audioAssets.length < tracks.length) {
     issues.push({
       field: "audio",

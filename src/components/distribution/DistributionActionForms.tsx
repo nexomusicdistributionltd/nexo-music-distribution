@@ -52,7 +52,7 @@ export function SubmitJobButton({
       <Button
         size="sm"
         disabled={pending || !providerConnected}
-        title={!providerConnected ? "Provider Not Connected" : undefined}
+        title={!providerConnected ? "Distribution Engine authorization required" : undefined}
         onClick={() =>
           start(async () => {
             const r = await submitJobAction(jobId);
@@ -60,13 +60,13 @@ export function SubmitJobButton({
               r.ok
                 ? "Submit recorded."
                 : r.code === "PROVIDER_NOT_CONNECTED"
-                  ? "Provider Not Connected / Unavailable"
+                  ? "Distribution Engine authorization required."
                   : r.error
             );
           })
         }
       >
-        {providerConnected ? "Submit to provider" : "Submit unavailable"}
+        {providerConnected ? "Submit to Distribution Engine" : "Authorization required"}
       </Button>
       <Result msg={msg} />
     </div>
@@ -88,7 +88,7 @@ export function SyncJobButton({
         size="sm"
         variant="secondary"
         disabled={pending || !providerConnected}
-        title={!providerConnected ? "Provider Not Connected" : undefined}
+        title={!providerConnected ? "Distribution Engine authorization required" : undefined}
         onClick={() =>
           start(async () => {
             const r = await syncJobAction(jobId);
@@ -96,13 +96,13 @@ export function SyncJobButton({
               r.ok
                 ? "Sync completed."
                 : r.code === "PROVIDER_NOT_CONNECTED"
-                  ? "Provider Not Connected / Unavailable"
+                  ? "Distribution Engine authorization required."
                   : r.error
             );
           })
         }
       >
-        {providerConnected ? "Sync status" : "Sync unavailable"}
+        {providerConnected ? "Sync status" : "Authorization required"}
       </Button>
       <Result msg={msg} />
     </div>

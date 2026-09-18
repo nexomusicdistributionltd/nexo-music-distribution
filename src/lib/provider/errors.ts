@@ -1,6 +1,7 @@
 export const PROVIDER_NOT_CONNECTED_CODE = "PROVIDER_NOT_CONNECTED";
 export const PROVIDER_UNAVAILABLE_CODE = "PROVIDER_UNAVAILABLE";
 export const PROVIDER_WEBHOOK_REJECTED_CODE = "PROVIDER_WEBHOOK_REJECTED";
+export const PROVIDER_DELIVERY_VALIDATION_CODE = "PROVIDER_DELIVERY_VALIDATION";
 
 export function providerNotConnectedMessage() {
   return "Not connected — distribution provider is not configured. Delivery, live status, and provider sync are unavailable.";
@@ -22,6 +23,14 @@ export class ProviderUnavailableError extends Error {
   }
 }
 
+export class ProviderDeliveryValidationError extends Error {
+  readonly code = PROVIDER_DELIVERY_VALIDATION_CODE;
+  constructor(message: string) {
+    super(message);
+    this.name = "ProviderDeliveryValidationError";
+  }
+}
+
 export class ProviderWebhookRejectedError extends Error {
   readonly code = PROVIDER_WEBHOOK_REJECTED_CODE;
   constructor(message = "Webhook rejected — signature invalid or secret missing.") {
@@ -34,6 +43,7 @@ export type ProviderErrorCode =
   | typeof PROVIDER_NOT_CONNECTED_CODE
   | typeof PROVIDER_UNAVAILABLE_CODE
   | typeof PROVIDER_WEBHOOK_REJECTED_CODE
+  | typeof PROVIDER_DELIVERY_VALIDATION_CODE
   | string;
 
 export function toProviderErrorPayload(err: unknown): {
@@ -44,6 +54,9 @@ export function toProviderErrorPayload(err: unknown): {
     return { code: err.code, message: err.message };
   }
   if (err instanceof ProviderUnavailableError) {
+    return { code: err.code, message: err.message };
+  }
+  if (err instanceof ProviderDeliveryValidationError) {
     return { code: err.code, message: err.message };
   }
   if (err instanceof ProviderWebhookRejectedError) {

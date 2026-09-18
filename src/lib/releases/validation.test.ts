@@ -36,8 +36,8 @@ describe("validateReleaseForSubmit", () => {
     },
     tracks: [{ id: "t1", track_number: 1, title: "Song", isrc: null }],
     assets: [
-      { kind: "artwork" as const, track_id: null },
-      { kind: "audio" as const, track_id: "t1" },
+      { kind: "artwork" as const, track_id: null, mime_type: "image/jpeg" },
+      { kind: "audio" as const, track_id: "t1", mime_type: "audio/flac" },
     ],
     contributors: [{ name: "Artist", role: "primary_artist" as const }],
   };
@@ -55,6 +55,17 @@ describe("validateReleaseForSubmit", () => {
     expect(issues.some((i) => i.field === "audio")).toBe(true);
   });
 
+  it("requires provider-compatible lossless audio", () => {
+    const issues = validateReleaseForSubmit({
+      ...base,
+      assets: [
+        { kind: "artwork", track_id: null, mime_type: "image/jpeg" },
+        { kind: "audio", track_id: "t1", mime_type: "audio/mpeg" },
+      ],
+    });
+    expect(issues.some((i) => i.field === "audio" && i.message.includes("FLAC"))).toBe(true);
+  });
+
   it("enforces track counts by type", () => {
     expect(expectedTrackCount("album")).toEqual({ min: 7, max: 100 });
     const issues = validateReleaseForSubmit({
@@ -68,8 +79,8 @@ describe("validateReleaseForSubmit", () => {
     const issues = validateReleaseForSubmit({
       ...base,
       assets: [
-        { kind: "artwork", track_id: null },
-        { kind: "audio", track_id: "other" },
+        { kind: "artwork", track_id: null, mime_type: "image/jpeg" },
+        { kind: "audio", track_id: "other", mime_type: "audio/flac" },
       ],
     });
     expect(issues.some((i) => i.field === "track.1.audio")).toBe(true);
