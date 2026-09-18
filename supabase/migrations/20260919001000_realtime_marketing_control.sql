@@ -116,10 +116,82 @@ on conflict (kind) do update set
   description = excluded.description,
   admin_instructions = excluded.admin_instructions;
 
-do $$
+create table if not exists public.marketing_content_pages (
+  slug text primary key,
+  title text not null,
+  summary text not null,
+  sections jsonb not null default '[]'::jsonb,
+  enabled boolean not null default true,
+  updated_by uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint marketing_content_sections_array check (jsonb_typeof(sections) = 'array')
+);
+
+drop trigger if exists marketing_content_pages_set_updated_at on public.marketing_content_pages;
+create trigger marketing_content_pages_set_updated_at
+  before update on public.marketing_content_pages
+  for each row execute function public.set_updated_at();
+
+alter table public.marketing_content_pages enable row level security;
+
+drop policy if exists "marketing_content_pages_select" on public.marketing_content_pages;
+create policy "marketing_content_pages_select" on public.marketing_content_pages
+  for select to authenticated
+  using (true);
+
+drop policy if exists "marketing_content_pages_staff_write" on public.marketing_content_pages;
+create policy "marketing_content_pages_staff_write" on public.marketing_content_pages
+  for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
+
+insert into public.marketing_content_pages (slug, title, summary, sections)
+values
+  (
+    'client-offerings',
+    'Client Offerings',
+    'Current Nexo marketing and catalog services available to this account.',
+    jsonb_build_array(
+      jsonb_build_object(
+        'heading', 'Distribution and account services',
+        'body', 'Your Nexo account provides the distribution, catalog, royalty, reporting and support features enabled for your plan. Marketing services are operated only when the relevant request is accepted and completed.'
+      ),
+      jsonb_build_object(
+        'heading', 'Marketing requests',
+        'body', 'DSP Pitching, Priority Pitch, Spotify Discovery Mode, Promotional Assets, Fan Blast, Award Monitoring, Third Party Playlisting, Nexo Ad Box, Influencers, Nexo Labs and Luminate Registration use live request states. A submitted request is not a placement, enrollment, campaign launch or provider confirmation.'
+      )
+    )
+  ),
+  (
+    'marketing-best-practices',
+    'Marketing Best Practices',
+    'Practical release marketing guidance based on real release and campaign states.',
+    jsonb_build_array(
+      jsonb_build_object(
+        'heading', 'Prepare before release',
+        'body', 'Complete release metadata, artwork, audio, artist profiles and delivery early. For provider pitching workflows, leave enough lead time for review and do not treat submission as guaranteed editorial placement.'
+      ),
+      jsonb_build_object(
+        'heading', 'Use verified outcomes',
+        'body', 'Base campaign decisions on real Nexo and provider analytics. Missing data stays pending or unavailable; it is never replaced with invented streams, reach, clicks or conversions.'
+      ),
+      jsonb_build_object(
+        'heading', 'Protect the catalog',
+        'body', 'Avoid artificial streaming, guaranteed-playlist schemes and unverified promotional claims. Keep campaign links, budgets, creator posts and provider references attached to the real request that produced them.'
+      )
+    )
+  )
+on conflict (slug) do nothing;
+
+do $
 begin
   begin
     alter publication supabase_realtime add table public.marketing_service_controls;
   exception when duplicate_object then null;
   end;
-end $$;
+  begin
+    alter publication supabase_realtime add table public.marketing_content_pages;
+  exception when duplicate_object then null;
+  end;
+end $;
