@@ -82,18 +82,26 @@ export async function saveArtistDspLinksAction(input: {
     const check = validateDspProfileUrl(spec.key, row?.url ?? "");
     if (!check.ok) return { ok: false, error: check.error };
     const enabled = Boolean(row?.enabled && check.url);
-    const image = (row?.previewImage ?? "").trim();
-    const imageOk = image.startsWith("https://") ? image : null;
+    let verified: Awaited<ReturnType<typeof fetchDspProfilePreview>> | null = null;
+    if (enabled && check.url) {
+      try { verified = await fetchDspProfilePreview(spec.key, check.url); }
+      catch { return { ok: false, error: `Could not verify the ${spec.title} artist profile. Check the URL and try again.` }; }
+      if (!verified?.canonicalUrl && !verified?.name) return { ok: false, error: `Could not verify the ${spec.title} artist profile.` };
+    }
+    const canonical = verified?.canonicalUrl || check.url;
+    const imageOk = verified?.image?.startsWith("https://") ? verified.image : null;
     const { error } = await supabase.from("artist_dsp_links").upsert(
       {
         artist_profile_id: input.artistProfileId,
         dsp_key: spec.key,
         url: check.url,
         enabled,
-        preview_name: row?.previewName?.trim() || null,
+        preview_name: verified?.name || null,
         preview_image_url: imageOk,
-        preview_canonical_url: row?.previewCanonical?.trim() || check.url,
+        preview_canonical_url: canonical,
         fetched_at: check.url ? new Date().toISOString() : null,
+        verification_status: enabled ? "verified" : "unverified",
+        verified_at: enabled ? new Date().toISOString() : null,
       },
       { onConflict: "artist_profile_id,dsp_key" }
     );
