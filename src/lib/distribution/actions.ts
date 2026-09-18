@@ -32,6 +32,7 @@ export async function submitQueuedRelease(
   idempotencyKey: string
 ): Promise<DistActionResult> {
   const supabase = await createClient();
+  const service = createServiceClient();
   const { data: begin, error: beginErr } = await supabase.rpc("begin_submit_queued_release", {
     p_job_id: jobId,
     p_idempotency_key: idempotencyKey,
@@ -54,12 +55,12 @@ export async function submitQueuedRelease(
   const state = getProviderConnectionState();
 
   if (!state.connected || !provider.connected) {
-    const { data, error } = await supabase.rpc("complete_submit_queued_release", {
+    const { data, error } = await service.rpc("complete_submit_queued_release", {
       p_submission_id: began.submission_id,
       p_ok: false,
       p_error_code: PROVIDER_NOT_CONNECTED_CODE,
       p_error_message:
-        "Provider Not Connected — cannot submit. Configure PROVIDER_NAME + PROVIDER_API_KEY and a real adapter.",
+        "Distribution Engine authorization is unavailable. Connect it from the secure admin integration.",
     });
     if (error) return { ok: false, error: error.message, code: PROVIDER_NOT_CONNECTED_CODE };
     return {
@@ -78,7 +79,7 @@ export async function submitQueuedRelease(
     .maybeSingle();
 
   if (!release) {
-    await supabase.rpc("complete_submit_queued_release", {
+    await service.rpc("complete_submit_queued_release", {
       p_submission_id: began.submission_id,
       p_ok: false,
       p_error_code: "RELEASE_NOT_FOUND",
@@ -110,24 +111,6 @@ export async function submitQueuedRelease(
     });
 
     // Success finalize is service_role only — never forge via staff JWT.
-    let service;
-    try {
-      service = createServiceClient();
-    } catch {
-      await supabase.rpc("complete_submit_queued_release", {
-        p_submission_id: began.submission_id,
-        p_ok: false,
-        p_error_code: PROVIDER_NOT_CONNECTED_CODE,
-        p_error_message:
-          "Cannot finalize submit — service role not configured / Provider Not Connected.",
-      });
-      return {
-        ok: false,
-        error: "Provider Not Connected / cannot finalize",
-        code: PROVIDER_NOT_CONNECTED_CODE,
-      };
-    }
-
     const { data, error } = await service.rpc("complete_submit_queued_release", {
       p_submission_id: began.submission_id,
       p_ok: true,
@@ -137,7 +120,7 @@ export async function submitQueuedRelease(
     return { ok: true, data };
   } catch (err) {
     const payload = toProviderErrorPayload(err);
-    const { data, error } = await supabase.rpc("complete_submit_queued_release", {
+    const { data, error } = await service.rpc("complete_submit_queued_release", {
       p_submission_id: began.submission_id,
       p_ok: false,
       p_error_code: payload.code,
