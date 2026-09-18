@@ -397,7 +397,7 @@ export function PayoutRequestForm({
       <h2 className="text-h4">Request payment</h2>
       <Alert>{paymentMessage}</Alert>
       {s.error ? <Alert variant="error">{s.error}</Alert> : null}
-      {s.ok ? <Alert variant="success">Request submitted for Nexo Finance review.</Alert> : null}
+      {s.ok ? <Alert variant="success">Payout request submitted.</Alert> : null}
       <p className="text-caption text-[var(--nexo-text-muted)]">
         Available balance: {formatMinorUnits(availableMinor, currency)}
       </p>
@@ -443,7 +443,7 @@ export function PayoutRequestForm({
         </label>
       ) : (
         <Alert variant="warning">
-          Add a payout method above and wait for Nexo Finance approval before requesting payment.
+          Add and verify a payout method before requesting payment.
         </Alert>
       )}
       <Button
