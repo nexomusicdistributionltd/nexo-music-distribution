@@ -472,9 +472,10 @@ export function ReleaseWizard({
       const prep = await prepareAssetUpload({ releaseId: id, kind, filename: file.name });
       if (!prep.ok) throw new Error(prep.error);
       const supabase = createClient();
+      const uploadMimeType = kind === "audio" ? "audio/flac" : file.type;
       const { error: upErr } = await supabase.storage
         .from(prep.data.bucket)
-        .upload(prep.data.path, file, { upsert: true, contentType: file.type });
+        .upload(prep.data.path, file, { upsert: true, contentType: uploadMimeType });
       if (upErr) throw upErr;
       const reg = await registerUploadedAsset({
         releaseId: id,
@@ -482,7 +483,7 @@ export function ReleaseWizard({
         kind,
         storagePath: prep.data.path,
         filename: file.name,
-        mimeType: file.type,
+        mimeType: uploadMimeType,
         sizeBytes: file.size,
         width: clientArtworkMeta?.width ?? null,
         height: clientArtworkMeta?.height ?? null,
@@ -498,7 +499,7 @@ export function ReleaseWizard({
           storage_bucket: prep.data.bucket,
           storage_path: prep.data.path,
           filename: file.name,
-          mime_type: file.type,
+          mime_type: uploadMimeType,
           size_bytes: file.size,
           checksum: null,
           width: clientArtworkMeta?.width ?? null,
