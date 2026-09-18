@@ -309,7 +309,7 @@ export async function inviteStaffUserAction(input: {
       // Invitation remains authoritative if audit persistence is temporarily unavailable.
     }
 
-    revalidateAdmin(["/admin/users", "/admin/audit"]);
+    revalidateAdmin(["/admin/users", "/admin/roles", "/admin/audit"]);
     return { ok: true, data: { userId: invitedUserId } };
   } catch (e) {
     return {
@@ -365,7 +365,7 @@ export async function setUserRolesAction(input: {
     p_roles: gate.roles,
   });
   if (error) return { ok: false, error: error.message };
-  revalidateAdmin(["/admin/users"]);
+  revalidateAdmin(["/admin/users", "/admin/roles"]);
   return { ok: true, data: true };
 }
 
