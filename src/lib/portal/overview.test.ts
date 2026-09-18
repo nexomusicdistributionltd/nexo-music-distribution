@@ -30,6 +30,26 @@ describe("portal overview streams", () => {
     expect(rows.some((r) => r.id === "unknown_dsp" && r.status === "LIVE")).toBe(true);
   });
 
+  it("shows only verified provider trend percentages", () => {
+    const rows = streamOverviewRows(
+      ["spotify", "apple_music"],
+      "EMPTY",
+      { spotify: 1250 },
+      { spotify: 8.25, apple_music: -2.5 }
+    );
+    expect(rows.find((r) => r.id === "spotify")?.trendPercent).toBe(8.25);
+    expect(rows.find((r) => r.id === "apple_music")?.trendPercent).toBe(-2.5);
+    expect(rows.find((r) => r.id === "youtube")?.trendPercent).toBeNull();
+
+    const ambiguous = streamOverviewRows(
+      ["apple_music", "apple"],
+      "EMPTY",
+      {},
+      { apple_music: 3, apple: 4 }
+    );
+    expect(ambiguous.find((r) => r.id === "apple_music")?.trendPercent).toBeNull();
+  });
+
   it("uses NOT CONNECTED copy when nothing is ingested", () => {
     const empty = streamOverviewHeadline({ connected: false, rowCount: 0 });
     expect(empty.status).toBe("NOT CONNECTED");
