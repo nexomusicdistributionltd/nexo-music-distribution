@@ -10,6 +10,8 @@ export function createDistributionAuthorizationUrl(): { url: URL; state: string 
   url.searchParams.set("client_id", cfg.clientId);
   url.searchParams.set("redirect_uri", cfg.redirectUri);
   url.searchParams.set("state", state);
-  // Scope is intentionally omitted until the provider documents/assigns approved scopes.
+  // Only request scopes explicitly approved/configured for this provider app.
+  // Never guess provider-specific scope names.
+  if (cfg.scope) url.searchParams.set("scope", cfg.scope);
   return { url, state };
 }
