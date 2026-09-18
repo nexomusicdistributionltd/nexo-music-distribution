@@ -17,6 +17,12 @@ export const EMAIL_CATALOG: EmailCatalogEntry[] = [
   { eventType: "auth", templateKey: "AUTH_EMAIL_CHANGE", filePath: null, subject: "Confirm email change — Nexo Music Distribution LTD" },
   { eventType: "auth", templateKey: "AUTH_REAUTHENTICATION", filePath: null, subject: "Confirm it's you — Nexo Music Distribution LTD" },
 
+  { eventType: "identity", templateKey: "IDENTITY_SUBMITTED", filePath: "emails/templates/IDENTITY_SUBMITTED.html", subject: "Identity verification received" },
+  { eventType: "identity", templateKey: "IDENTITY_VERIFIED", filePath: "emails/templates/IDENTITY_VERIFIED.html", subject: "Identity verified — complete your Nexo agreement" },
+  { eventType: "identity", templateKey: "IDENTITY_DECLINED", filePath: "emails/templates/IDENTITY_DECLINED.html", subject: "Identity verification update" },
+  { eventType: "identity", templateKey: "IDENTITY_ADDITIONAL_INFO_REQUIRED", filePath: "emails/templates/IDENTITY_ADDITIONAL_INFO_REQUIRED.html", subject: "Additional identity information required" },
+  { eventType: "agreement", templateKey: "AGREEMENT_SIGNED", filePath: "emails/templates/AGREEMENT_SIGNED.html", subject: "Your Nexo distribution agreement is signed" },
+
   { eventType: "release.submit", templateKey: "RELEASE_SUBMITTED", filePath: "emails/templates/RELEASE_SUBMITTED.html", subject: "Release submitted to Nexo" },
   { eventType: "release.status", templateKey: "RELEASE_UNDER_REVIEW", filePath: "emails/templates/RELEASE_UNDER_REVIEW.html", subject: "Release entered QC review" },
   { eventType: "release.qc", templateKey: "RELEASE_CHANGES_REQUIRED", filePath: "emails/templates/RELEASE_CHANGES_REQUIRED.html", subject: "Changes required on your release" },
