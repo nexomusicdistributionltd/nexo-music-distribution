@@ -22,7 +22,12 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { DeliveryBrandIcon } from "@/components/releases/DeliveryBrandIcon";
 import { createClient } from "@/lib/supabase/client";
-import { CONTRIBUTOR_ROLE_OPTIONS } from "@/lib/releases/contributor-roles";
+import {
+  COMPOSITION_CREDIT_ROLES,
+  CONTRIBUTOR_ROLE_OPTIONS,
+  PERFORMER_CREDIT_ROLES,
+  PRODUCTION_CREDIT_ROLES,
+} from "@/lib/releases/contributor-roles";
 import type {
   ContributorRole,
   ReleaseAssetRow,
@@ -350,6 +355,25 @@ export function ReleaseWizard({
     [territories]
   );
   const worldwideTerritories = selectedTerritoryCodes.includes("WW");
+
+  const contributorRoleSet = React.useMemo(
+    () =>
+      new Set(
+        contributors
+          .filter((contributor) => contributor.name.trim())
+          .map((contributor) => contributor.role)
+      ),
+    [contributors]
+  );
+  const performerCreditsReady = [...contributorRoleSet].some((role) =>
+    PERFORMER_CREDIT_ROLES.has(role)
+  );
+  const compositionCreditsReady = [...contributorRoleSet].some((role) =>
+    COMPOSITION_CREDIT_ROLES.has(role)
+  );
+  const productionCreditsReady = [...contributorRoleSet].some((role) =>
+    PRODUCTION_CREDIT_ROLES.has(role)
+  );
 
   React.useEffect(() => {
     let active = true;
@@ -1452,6 +1476,23 @@ export function ReleaseWizard({
                 Apple requires accurate credits across these categories; one person may hold multiple roles.
                 Share % remains optional ownership metadata.
               </p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {[
+                  ["Performer", performerCreditsReady],
+                  ["Composition & lyrics", compositionCreditsReady],
+                  ["Production & engineering", productionCreditsReady],
+                ].map(([label, ready]) => (
+                  <div
+                    key={String(label)}
+                    className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3"
+                  >
+                    <p className="text-small font-medium">{String(label)}</p>
+                    <p className="text-caption text-[var(--nexo-text-muted)]">
+                      {ready ? "Credit added" : "Required before submission"}
+                    </p>
+                  </div>
+                ))}
+              </div>
               {contributors.map((c, idx) => (
                 <div key={idx} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   <Input
