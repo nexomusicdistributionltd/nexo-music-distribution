@@ -338,5 +338,6 @@ export async function createPayoutRequestAction(input: {
 
   revalidatePath("/earnings/payouts");
   revalidatePath("/earnings");
+  revalidatePath("/wallet");
   return { ok: true, data: { id: data.id } };
 }
