@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
@@ -19,6 +20,7 @@ export function TicketPanel({
     author_user_id: string;
   }[];
 }) {
+  const router = useRouter();
   const [reply, setReply] = React.useState("");
   const [internal, setInternal] = React.useState(false);
   const [status, setStatus] = React.useState("open");
@@ -69,7 +71,7 @@ export function TicketPanel({
           });
           setPending(false);
           if (!r.ok) setError(r.error);
-          else window.location.reload();
+          else router.refresh();
         }}
       >
         Save / send
