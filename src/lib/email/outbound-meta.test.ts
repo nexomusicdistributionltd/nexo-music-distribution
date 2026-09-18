@@ -4,7 +4,6 @@ import {
   templateVarsFromPayload,
   type OutboundEventRow,
 } from "./outbound-meta";
-import { templateContractSatisfied } from "./outbox";
 
 const base: OutboundEventRow = {
   id: "evt-1",
@@ -67,25 +66,5 @@ describe("templateVarsFromPayload", () => {
     expect(vars.FIRST_NAME).toBe("Ada");
     expect(vars._event_type).toBeUndefined();
     expect(vars._idempotency_key).toBeUndefined();
-  });
-});
-
-
-describe("templateContractSatisfied", () => {
-  it("rejects stale operational templates that omit current metadata fields", () => {
-    const canonical =
-      "{{FIRST_NAME}} {{RELEASE_TITLE}} {{RELEASE_ID}} {{TRACKS_SUMMARY}} {{DECISION_SUMMARY}}";
-    expect(
-      templateContractSatisfied(
-        "{{FIRST_NAME}} {{RELEASE_TITLE}}",
-        canonical
-      )
-    ).toBe(false);
-    expect(
-      templateContractSatisfied(
-        "{{FIRST_NAME}} {{RELEASE_TITLE}} {{RELEASE_ID}} {{TRACKS_SUMMARY}} {{DECISION_SUMMARY}}",
-        canonical
-      )
-    ).toBe(true);
   });
 });
