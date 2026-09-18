@@ -119,7 +119,8 @@ export default async function DashboardPage() {
   });
   const streamRows = streamOverviewRows(
     streamSnap?.dspCodes ?? [],
-    headline.status === "LIVE" ? "EMPTY" : headline.status
+    headline.status === "LIVE" ? "EMPTY" : headline.status,
+    streamSnap?.dspStreams ?? []
   );
   const balance = buildBalanceOverview({ statement, ledger });
 
@@ -137,7 +138,9 @@ export default async function DashboardPage() {
         enrollableCount={ENROLLABLE_SERVICES.length}
         streamRows={streamRows}
         streamStatus={headline.status}
-        streamNote={headline.chartNote}
+        streamNote={streamSnap?.note ?? headline.chartNote}
+        streamTrend={streamSnap?.trend ?? []}
+        totalStreams={streamSnap?.totalStreams ?? 0}
         balance={balance}
         actionNeeded={actionNeeded.map((r) => ({ id: r.id, title: r.title || "Untitled" }))}
         loadError={loadError}
