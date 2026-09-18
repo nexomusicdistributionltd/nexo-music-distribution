@@ -36,8 +36,8 @@ describe("validateReleaseForSubmit", () => {
     },
     tracks: [{ id: "t1", track_number: 1, title: "Song", isrc: null, duration_ms: 180000 }],
     assets: [
-      { kind: "artwork" as const, track_id: null, mime_type: "image/jpeg" },
-      { kind: "audio" as const, track_id: "t1", mime_type: "audio/flac" },
+      { kind: "artwork" as const, track_id: null, mime_type: "image/jpeg", filename: "cover.jpg" },
+      { kind: "audio" as const, track_id: "t1", mime_type: "audio/flac", filename: "song.flac" },
     ],
     contributors: [
       { name: "Artist", role: "primary_artist" as const, track_id: null },
@@ -63,8 +63,8 @@ describe("validateReleaseForSubmit", () => {
     const issues = validateReleaseForSubmit({
       ...base,
       assets: [
-        { kind: "artwork", track_id: null, mime_type: "image/jpeg" },
-        { kind: "audio", track_id: "t1", mime_type: "audio/mpeg" },
+        { kind: "artwork", track_id: null, mime_type: "image/jpeg", filename: "cover.jpg" },
+        { kind: "audio", track_id: "t1", mime_type: "audio/mpeg", filename: "song.mp3" },
       ],
     });
     expect(issues.some((i) => i.field === "audio" && i.message.includes("FLAC"))).toBe(true);
@@ -121,14 +121,14 @@ describe("validateReleaseForSubmit", () => {
     const issues = validateReleaseForSubmit({
       ...base,
       assets: [
-        { kind: "artwork", track_id: null, mime_type: "image/jpeg" },
-        { kind: "audio", track_id: "other", mime_type: "audio/flac" },
+        { kind: "artwork", track_id: null, mime_type: "image/jpeg", filename: "cover.jpg" },
+        { kind: "audio", track_id: "other", mime_type: "audio/flac", filename: "other.flac" },
       ],
     });
     expect(issues.some((i) => i.field === "track.1.audio")).toBe(true);
   });
 
-  it("requires complete credit categories for every track", () => {
+  it("requires a composition credit for music tracks", () => {
     const issues = validateReleaseForSubmit({
       ...base,
       contributors: [
@@ -139,16 +139,32 @@ describe("validateReleaseForSubmit", () => {
       issues.some(
         (i) =>
           i.field === "track.1.contributors" &&
-          i.message.includes("composition/lyrics")
+          i.message.includes("songwriter/composer")
       )
     ).toBe(true);
-    expect(
-      issues.some(
-        (i) =>
-          i.field === "track.1.contributors" &&
-          i.message.includes("production/engineering")
-      )
-    ).toBe(true);
+  });
+
+  it("ignores stale non-FLAC assets when a valid FLAC exists for the same track", () => {
+    const issues = validateReleaseForSubmit({
+      ...base,
+      assets: [
+        { kind: "artwork", track_id: null, mime_type: "image/jpeg", filename: "cover.jpg" },
+        { kind: "audio", track_id: "t1", mime_type: "audio/mpeg", filename: "old.mp3" },
+        { kind: "audio", track_id: "t1", mime_type: "audio/flac", filename: "current.flac" },
+      ],
+    });
+    expect(issues.some((i) => i.field === "track.1.audio")).toBe(false);
+  });
+
+  it("accepts a .flac filename when an old browser MIME was stored", () => {
+    const issues = validateReleaseForSubmit({
+      ...base,
+      assets: [
+        { kind: "artwork", track_id: null, mime_type: "image/jpeg", filename: "cover.jpg" },
+        { kind: "audio", track_id: "t1", mime_type: "application/octet-stream", filename: "song.flac" },
+      ],
+    });
+    expect(issues.some((i) => i.field === "track.1.audio")).toBe(false);
   });
 
   it("rejects AUTO upc tokens", () => {
