@@ -1,34 +1,14 @@
-import {
-  siSpotify,
-  siApplemusic,
-  siYoutubemusic,
-  siYoutube,
-  siDeezer,
-  siTidal,
-  siSoundcloud,
-  siAudiomack,
-  siPandora,
-  siShazam,
-  siTiktok,
-  siAmazon,
-} from "simple-icons/icons";
+import { DSP_BRANDS, type DspBrand } from "@/lib/dsp-brands";
 
-type Icon = { title: string; hex: string; path: string };
+const brandByKey = new Map<string, DspBrand>(
+  DSP_BRANDS.map((brand) => [brand.key.toLowerCase(), brand])
+);
 
-const icons: Record<string, Icon> = {
-  spotify: siSpotify,
-  apple_music: siApplemusic,
-  youtube_music: siYoutubemusic,
-  youtube: siYoutube,
-  deezer: siDeezer,
-  tidal: siTidal,
-  soundcloud: siSoundcloud,
-  audiomack: siAudiomack,
-  pandora: siPandora,
-  shazam: siShazam,
-  tiktok: siTiktok,
-  amazon: siAmazon,
-  amazon_music: siAmazon,
+const aliases: Record<string, string> = {
+  apple_music: "applemusic",
+  youtube_music: "youtubemusic",
+  amazon: "amazonmusic",
+  amazon_music: "amazonmusic",
 };
 
 export function DspIcon({
@@ -38,11 +18,14 @@ export function DspIcon({
   name: string;
   className?: string;
 }) {
-  const i = icons[name.toLowerCase()];
-  if (!i) return null;
+  const normalized = name.toLowerCase();
+  const key = aliases[normalized] ?? normalized;
+  const icon = brandByKey.get(key);
+  if (!icon) return null;
+
   return (
-    <svg className={className} role="img" viewBox="0 0 24 24" aria-label={i.title}>
-      <path fill="currentColor" d={i.path} />
+    <svg className={className} role="img" viewBox="0 0 24 24" aria-label={icon.title}>
+      <path fill="currentColor" d={icon.path} />
     </svg>
   );
 }
