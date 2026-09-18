@@ -79,8 +79,8 @@ export default async function EarningsPayoutsPage() {
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">Payouts</h1>
         <p className="mt-2 text-small text-[var(--nexo-text-secondary)]">
-          Add an approved payout destination, request payment from your available royalty balance,
-          and follow each request through Finance review and payment.
+          Add a payout destination, request payment from your available royalty balance,
+          and track each payout request.
         </p>
       </section>
 
@@ -89,7 +89,6 @@ export default async function EarningsPayoutsPage() {
       <PayoutRequestForm
         availableMinor={availableMinor}
         currency={currency}
-        paymentMessage="Nexo Finance processes approved payout requests using the payout method you select below."
         payoutMethods={activeMethods.map((row) => ({
           id: row.id,
           label: row.display_name,
