@@ -43,6 +43,79 @@ export type ActionResult<T = unknown> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
+type ProviderLookupOption = { value: string; label: string };
+
+function normalizeProviderLookup(payload: unknown, keys: string[]): ProviderLookupOption[] {
+  const outer =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : {};
+  const data =
+    outer.data && typeof outer.data === "object" && !Array.isArray(outer.data)
+      ? (outer.data as Record<string, unknown>)
+      : outer;
+  let rows: unknown[] = [];
+  for (const key of keys) {
+    if (Array.isArray(data[key])) {
+      rows = data[key] as unknown[];
+      break;
+    }
+  }
+  if (!rows.length && Array.isArray(outer.data)) rows = outer.data as unknown[];
+
+  const seen = new Set<string>();
+  const options: ProviderLookupOption[] = [];
+  for (const row of rows) {
+    if (typeof row === "string") {
+      const value = row.trim();
+      if (value && !seen.has(value.toLowerCase())) {
+        seen.add(value.toLowerCase());
+        options.push({ value, label: value });
+      }
+      continue;
+    }
+    if (!row || typeof row !== "object") continue;
+    const r = row as Record<string, unknown>;
+    const rawValue = r.value ?? r.code ?? r.slug ?? r.id ?? r.name ?? r.label;
+    const rawLabel = r.label ?? r.name ?? rawValue;
+    if (rawValue == null || rawLabel == null) continue;
+    const value = String(rawValue).trim();
+    const label = String(rawLabel).trim();
+    if (!value || !label || seen.has(value.toLowerCase())) continue;
+    seen.add(value.toLowerCase());
+    options.push({ value, label });
+  }
+  return options;
+}
+
+export async function getDistributionMetadataLookups(): Promise<
+  ActionResult<{ genres: ProviderLookupOption[]; languages: ProviderLookupOption[] }>
+> {
+  await requireArtistOrLabel();
+  try {
+    const { distributionReference } = await import("@/lib/provider/distribution-reference");
+    const [genresResult, languagesResult] = await Promise.allSettled([
+      distributionReference.genres(),
+      distributionReference.languages(),
+    ]);
+    return {
+      ok: true,
+      data: {
+        genres:
+          genresResult.status === "fulfilled"
+            ? normalizeProviderLookup(genresResult.value, ["genres", "items", "data"])
+            : [],
+        languages:
+          languagesResult.status === "fulfilled"
+            ? normalizeProviderLookup(languagesResult.value, ["languages", "items", "data"])
+            : [],
+      },
+    };
+  } catch {
+    return { ok: true, data: { genres: [], languages: [] } };
+  }
+}
+
 async function requireArtistOrLabel() {
   return RequireVerifiedPortal();
 }
