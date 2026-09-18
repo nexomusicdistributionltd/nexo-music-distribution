@@ -67,15 +67,22 @@ export default async function DistributionAccountPage() {
       <DistributionNav current="/admin/distribution/account" />
       <ProviderBanner connected={provider.connected} />
 
-      {!reportedScope ? (
+      {salesAuthorizationDenied ? (
+        <Alert variant="warning" title="TooLost sales permission denied">
+          The live TooLost sales endpoint rejected the stored authorization after one shared token refresh.
+          {" "}
+          <Link href="/api/admin/distribution/connect" className="font-medium underline">
+            Reconnect TooLost and grant read:sales
+          </Link>
+          .
+        </Alert>
+      ) : !reportedScope ? (
         <Alert variant="default" title="Provider scope list not reported">
           The token did not report its granted scope list. The live protected endpoint checks below are the authoritative capability test.
         </Alert>
       ) : effectiveMissing.length ? (
         <Alert variant="warning" title="Provider permissions need attention">
-          {salesAuthorizationDenied
-            ? "TooLost rejected the live sales endpoint even though the stored grant may list read:sales. The app refreshed the token once; reauthorization is required for sales access."
-            : `Missing required scope${effectiveMissing.length === 1 ? "" : "s"}: ${effectiveMissing.join(", ")}.`}
+          Missing required scope{effectiveMissing.length === 1 ? "" : "s"}: {effectiveMissing.join(", ")}.
           {" "}
           <Link href="/api/admin/distribution/connect" className="font-medium underline">
             Reconnect TooLost
