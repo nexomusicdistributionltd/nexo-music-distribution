@@ -122,6 +122,7 @@ export async function upsertMappingAction(input: {
   externalArtistId?: string;
   externalArtistUri?: string;
   externalArtistUrl?: string;
+  verified?: boolean;
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:distribution");
   const supabase = await createClient();
@@ -131,7 +132,7 @@ export async function upsertMappingAction(input: {
     p_external_artist_id: input.externalArtistId ?? null,
     p_external_artist_uri: input.externalArtistUri ?? null,
     p_external_artist_url: input.externalArtistUrl ?? null,
-    p_verified: false,
+    p_verified: Boolean(input.verified),
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/distribution/mapping");
