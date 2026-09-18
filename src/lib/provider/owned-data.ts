@@ -11,9 +11,9 @@ export async function ownedDistributionScope(userId:string){
 export async function ownedSales(userId:string,kind:"overview"|"tracks"|"releases"|"artists"|"channels"|"territories"|"streamRates"){
  const scope=await ownedDistributionScope(userId);if(!scope.providerIds.size)return [];
  const raw=await ({overview:distributionReference.salesOverview,tracks:distributionReference.salesTracks,releases:distributionReference.salesReleases,artists:distributionReference.salesArtists,channels:distributionReference.salesChannels,territories:distributionReference.salesTerritories,streamRates:distributionReference.streamRates}[kind])();
- return arr(raw).filter(r=>{const id=String(r.release_id??r.releaseId??r.provider_release_id??"");return !id||scope.providerIds.has(id)});
+ return arr(raw).filter(r=>{const id=String(r.release_id??r.releaseId??r.provider_release_id??"");return Boolean(id)&&scope.providerIds.has(id)});
 }
 export async function ownedAnalytics(userId:string){
  const scope=await ownedDistributionScope(userId);if(!scope.providerIds.size)return [];
- const raw=await distributionReference.analytics();return arr(raw).filter(r=>{const id=String(r.release_id??r.releaseId??r.provider_release_id??"");return !id||scope.providerIds.has(id)});
+ const raw=await distributionReference.analytics();return arr(raw).filter(r=>{const id=String(r.release_id??r.releaseId??r.provider_release_id??"");return Boolean(id)&&scope.providerIds.has(id)});
 }
