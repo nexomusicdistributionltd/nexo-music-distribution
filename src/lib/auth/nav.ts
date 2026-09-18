@@ -169,6 +169,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/compliance", label: "Compliance", icon: "compliance" },
       { href: "/admin/search", label: "Search", icon: "search" },
       { href: "/admin/reports", label: "Reports", icon: "audit" },
+      { href: "/admin/portal-features", label: "Portal features", icon: "settings" },
       { href: "/admin/audit", label: "Audit", icon: "audit" },
     ],
   },
