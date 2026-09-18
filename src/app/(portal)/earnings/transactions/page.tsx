@@ -26,8 +26,8 @@ export default async function EarningsTransactionsPage() {
       <EarningsNav />
       {(data ?? []).length === 0 ? (
         <EmptyState
-          title="No transactions"
-          description="ROYALTY / ADJUSTMENT / DEDUCTION / FEE / PAYOUT / REFUND entries appear when posted to the ledger."
+          title="No transactions yet"
+          description="Royalty, adjustment and payout activity will appear here."
         />
       ) : (
         <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)]">
