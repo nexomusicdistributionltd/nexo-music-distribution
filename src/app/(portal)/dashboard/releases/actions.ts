@@ -523,6 +523,24 @@ export async function registerUploadedAsset(input: {
     // leave nulls — readiness will surface missing tech meta
   }
 
+  if (input.kind === "artwork") {
+    const acceptedArtworkSize =
+      width != null &&
+      height != null &&
+      width === height &&
+      [1400, 3000, 4000].includes(width);
+    if (!acceptedArtworkSize) {
+      await supabase.storage.from(bucket).remove([input.storagePath]);
+      return {
+        ok: false,
+        error:
+          width != null && height != null
+            ? `Artwork is ${width}×${height}px. Use exactly 1400×1400, 3000×3000, or 4000×4000px.`
+            : "Artwork dimensions could not be verified. Upload a valid JPEG, PNG, or WebP image.",
+      };
+    }
+  }
+
   const { data, error } = await supabase
     .from("release_assets")
     .insert({
