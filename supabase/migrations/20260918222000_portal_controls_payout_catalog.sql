@@ -192,6 +192,9 @@ create table if not exists public.website_footer_links (
 create index if not exists website_footer_links_section_idx
   on public.website_footer_links(section_key,sort_order,id);
 
+create unique index if not exists website_footer_links_unique_item_uidx
+  on public.website_footer_links(section_key,href,label);
+
 alter table public.website_footer_links enable row level security;
 grant select on public.website_footer_links to anon, authenticated;
 grant all on public.website_footer_links to service_role;
