@@ -23,4 +23,13 @@ describe("TooLost participant role mapping", () => {
       ])
     ).toEqual([{ name: "Writer", role: ["composer", "author"] }]);
   });
+
+  it("always places the primary artist first", () => {
+    expect(
+      groupProviderContributors([
+        { name: "Guest", role: "featured_artist" },
+        { name: "Main", role: "primary_artist" },
+      ]).map((entry) => entry.name)
+    ).toEqual(["Main", "Guest"]);
+  });
 });
