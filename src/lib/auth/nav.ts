@@ -86,6 +86,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/artists", label: "Artists", icon: "users" },
       { href: "/admin/labels", label: "Labels", icon: "roster" },
       { href: "/admin/users", label: "Users", icon: "users" },
+      { href: "/admin/verifications", label: "Identity verification", icon: "compliance" },
     ],
   },
   {
@@ -193,6 +194,9 @@ export function navSectionsForRoles(roles: AppRole[]): NavSection[] {
       items: section.items.filter((item) => {
         if (item.href === "/admin/settings") {
           return hasAdminPermission(roles, "admin:settings");
+        }
+        if (item.href === "/admin/verifications") {
+          return hasAdminPermission(roles, "admin:verification");
         }
         return true;
       }),
