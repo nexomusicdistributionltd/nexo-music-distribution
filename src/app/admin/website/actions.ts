@@ -22,7 +22,7 @@ export async function setReleaseWebsiteAction(input: {
   embedYoutube?: string;
   coverUrl?: string | null;
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:releases");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_set_release_website", {
     p_release_id: input.releaseId,
@@ -38,14 +38,13 @@ export async function setReleaseWebsiteAction(input: {
   });
   if (error) return { ok: false, error: error.message };
   if (input.coverUrl !== undefined) {
-    const { error: coverError } = await supabase
-      .from("releases")
-      .update({
-        website_cover_override_url: input.coverUrl?.trim()
-          ? input.coverUrl.trim()
-          : null,
-      })
-      .eq("id", input.releaseId);
+    const { error: coverError } = await supabase.rpc(
+      "admin_set_release_cover_override",
+      {
+        p_release_id: input.releaseId,
+        p_cover_url: input.coverUrl?.trim() || null,
+      }
+    );
     if (coverError) return { ok: false, error: coverError.message };
   }
   revalidatePath("/admin/website");
@@ -70,7 +69,7 @@ export async function setArtistWebsiteAction(input: {
   coverUrl?: string | null;
   socialLinks?: Record<string, string> | null;
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:artists");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_set_artist_website", {
     p_artist_profile_id: input.artistProfileId,
@@ -99,7 +98,7 @@ export async function setArtistWebsiteAction(input: {
 export async function upsertHomepageSettingsAction(
   value: Record<string, unknown>
 ): Promise<ActionResult> {
-  await RequireAdminPermission("admin:settings");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_upsert_website_setting", {
     p_key: "homepage",
@@ -115,7 +114,7 @@ export async function upsertHomepageSettingsAction(
 export async function upsertFooterSettingsAction(
   value: Record<string, unknown>
 ): Promise<ActionResult> {
-  await RequireAdminPermission("admin:settings");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_upsert_website_setting", {
     p_key: "footer",
@@ -140,7 +139,7 @@ export async function upsertWebsiteVideoAction(input: {
   sortOrder?: number;
   delete?: boolean;
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:settings");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_upsert_website_video", {
     p_id: input.id ?? null,
@@ -193,7 +192,7 @@ export async function upsertPartnerAction(input: {
   sortOrder?: number;
   isActive?: boolean;
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:settings");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const row = {
     name: input.name.trim(),
@@ -217,7 +216,7 @@ export async function upsertPartnerAction(input: {
 }
 
 export async function deletePartnerAction(id: string): Promise<ActionResult> {
-  await RequireAdminPermission("admin:settings");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const { error } = await supabase.from("website_partners").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
@@ -237,7 +236,7 @@ export async function upsertBlogPostAction(input: {
   coverImageUrl?: string;
   tags?: string[];
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:settings");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const slug = slugify(input.slug || input.title);
   const body = sanitizeCmsHtml(input.bodyHtml);
@@ -274,7 +273,7 @@ export async function upsertCmsPageAction(input: {
   seoTitle?: string;
   seoDescription?: string;
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:settings");
+  await RequireAdminPermission("admin:website");
   const supabase = await createClient();
   const { error } = await supabase
     .from("cms_pages")
