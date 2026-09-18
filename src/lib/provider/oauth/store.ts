@@ -74,3 +74,22 @@ export async function hasDistributionCredential(): Promise<boolean> {
     .maybeSingle();
   return !error && Boolean(data?.access_token_ciphertext);
 }
+
+
+export async function getStoredDistributionScopes(): Promise<string[]> {
+  try {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("distribution_provider_credentials")
+      .select("scope")
+      .eq("connection_key", "primary")
+      .maybeSingle<{ scope: string | null }>();
+    if (error || !data?.scope) return [];
+    return data.scope
+      .split(/[\s,]+/)
+      .map((scope) => scope.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
