@@ -41,6 +41,7 @@ describe("Batch 8 hostile self-check", () => {
     expect(h["X-Frame-Options"]).toBe("DENY");
     expect(h["X-Content-Type-Options"]).toBe("nosniff");
     expect(h["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
+    expect(h["Permissions-Policy"]).toContain("camera=(self)");
     expect(h["Content-Security-Policy"]).toContain("*.supabase.co");
     expect(h["Referrer-Policy"]).toBeTruthy();
     expect(h["Permissions-Policy"]).toContain("camera=()");
