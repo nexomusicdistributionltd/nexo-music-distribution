@@ -13,16 +13,35 @@ export type ProviderReleasePayload = {
   title: string;
   type: "single" | "ep" | "album";
   primaryArtistName: string;
+  labelName?: string | null;
+  genre?: string | null;
+  subgenre?: string | null;
+  language?: string | null;
   upc?: string | null;
   releaseDate?: string | null;
+  originalReleaseDate?: string | null;
+  copyrightYear?: number | null;
+  copyrightLine?: string | null;
+  phonogramLine?: string | null;
   tracks: Array<{
+    trackId?: string | null;
     trackNumber: number;
     title: string;
+    version?: string | null;
     isrc?: string | null;
+    language?: string | null;
+    explicit?: boolean;
+    audioStorageBucket?: string | null;
     audioStoragePath?: string | null;
+    audioFilename?: string | null;
+    audioMimeType?: string | null;
   }>;
+  artworkStorageBucket?: string | null;
   artworkStoragePath?: string | null;
+  artworkFilename?: string | null;
+  artworkMimeType?: string | null;
   territories?: string[];
+  deliverySettings?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
