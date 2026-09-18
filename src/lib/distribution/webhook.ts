@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getProviderWebhookSecret } from "@/lib/provider/config";
 import { ProviderWebhookRejectedError } from "@/lib/provider/errors";
+import { loadDistributionWebhookSecret } from "@/lib/provider/oauth/store";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -30,6 +31,42 @@ export function verifyProviderWebhookSignature(options: {
   signatureHeader: string | null;
 }): { ok: true } | { ok: false; reason: string } {
   const secret = getProviderWebhookSecret();
+  if (!secret) {
+    return {
+      ok: false,
+      reason:
+        "Distribution webhook secret is not configured — webhook rejected (fail closed).",
+    };
+  }
+  if (!options.signatureHeader || !options.signatureHeader.trim()) {
+    return { ok: false, reason: "Missing signature header." };
+  }
+
+  const provided = options.signatureHeader.trim().replace(/^sha256=/i, "");
+  const expected = createHmac("sha256", secret)
+    .update(options.rawBody, "utf8")
+    .digest("hex");
+
+  try {
+    const a = Buffer.from(provided, "hex");
+    const b = Buffer.from(expected, "hex");
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      return { ok: false, reason: "Signature mismatch." };
+    }
+  } catch {
+    return { ok: false, reason: "Invalid signature encoding." };
+  }
+
+  return { ok: true };
+}
+
+export async function verifyProviderWebhookSignatureAsync(options: {
+  rawBody: string;
+  signatureHeader: string | null;
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const envSecret = getProviderWebhookSecret();
+  const storedSecret = envSecret ? null : await loadDistributionWebhookSecret();
+  const secret = envSecret ?? storedSecret;
   if (!secret) {
     return {
       ok: false,
