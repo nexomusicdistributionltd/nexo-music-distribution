@@ -10,7 +10,6 @@ import {
   deleteDraftRelease,
   duplicateRelease,
   requestTakedown,
-  submitRelease,
 } from "@/app/(portal)/dashboard/releases/actions";
 import {
   canRequestTakedown,
@@ -29,7 +28,7 @@ export function ReleaseRowActions({
   const router = useRouter();
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [confirm, setConfirm] = React.useState<"submit" | "takedown" | "delete" | null>(null);
+  const [confirm, setConfirm] = React.useState<"takedown" | "delete" | null>(null);
   const [takedownReason, setTakedownReason] = React.useState("");
 
   async function run(
@@ -88,9 +87,12 @@ export function ReleaseRowActions({
           Duplicate
         </Button>
         {canSubmit(status) ? (
-          <Button variant="primary" size="sm" disabled={!!busy} onClick={() => setConfirm("submit")}>
-            Submit
-          </Button>
+          <Link
+            href={`/dashboard/releases/${id}?edit=1`}
+            className="inline-flex h-8 items-center rounded-[var(--nexo-radius)] bg-[var(--nexo-primary)] px-3 text-[length:0.75rem] font-medium [color:var(--nexo-primary-fg)]"
+          >
+            Review &amp; submit
+          </Link>
         ) : null}
         {canRequestTakedown(status) ? (
           <Button variant="outline" size="sm" disabled={!!busy} onClick={() => setConfirm("takedown")}>
@@ -111,15 +113,6 @@ export function ReleaseRowActions({
       </div>
       {error ? <p className="text-caption text-[var(--nexo-error)]">{error}</p> : null}
 
-      <ConfirmationDialog
-        open={confirm === "submit"}
-        onClose={() => setConfirm(null)}
-        title="Submit to QC?"
-        description="This locks the release for quality control. You cannot edit until changes are requested."
-        confirmLabel={busy === "submit" ? "Submitting…" : "Submit to QC"}
-        confirmDisabled={busy === "submit"}
-        onConfirm={() => run("submit", () => submitRelease(id))}
-      />
       <ConfirmationDialog
         open={confirm === "delete"}
         onClose={() => setConfirm(null)}
