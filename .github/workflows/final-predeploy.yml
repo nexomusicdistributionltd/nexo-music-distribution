@@ -41,6 +41,8 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - name: Unit tests
+        run: npm test
       - name: Production build
         shell: bash
         run: |
