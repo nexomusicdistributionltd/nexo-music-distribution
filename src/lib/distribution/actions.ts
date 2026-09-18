@@ -65,7 +65,7 @@ export async function submitQueuedRelease(
     if (error) return { ok: false, error: error.message, code: PROVIDER_NOT_CONNECTED_CODE };
     return {
       ok: false,
-      error: "Provider Not Connected",
+      error: "Distribution Engine authorization is unavailable.",
       code: PROVIDER_NOT_CONNECTED_CODE,
       data,
     };
@@ -74,7 +74,7 @@ export async function submitQueuedRelease(
   // Load release payload
   const { data: release } = await supabase
     .from("releases")
-    .select("*, release_tracks(*)")
+    .select("*, release_tracks(*), release_assets(*), release_contributors(*)")
     .eq("id", began.release_id!)
     .maybeSingle();
 
@@ -89,25 +89,73 @@ export async function submitQueuedRelease(
   }
 
   try {
+    const audioAssets = (release.release_assets ?? []).filter(
+      (asset: { kind: string }) => asset.kind === "audio"
+    );
+    const artwork = (release.release_assets ?? []).find(
+      (asset: { kind: string }) => asset.kind === "artwork"
+    );
+    const tracks = [...(release.release_tracks ?? [])].sort(
+      (a: { track_number: number }, b: { track_number: number }) =>
+        a.track_number - b.track_number
+    );
+
     const result = await provider.submitRelease({
       releaseId: release.id,
       title: release.title,
       type: release.release_type,
       primaryArtistName: release.primary_artist_name,
+      labelName: release.label_name,
+      genre: release.genre,
+      subgenre: release.subgenre,
+      language: release.language,
       upc: release.upc,
       releaseDate: release.release_date,
-      tracks: (release.release_tracks ?? []).map(
+      originalReleaseDate: release.original_release_date,
+      copyrightYear: release.copyright_year,
+      copyrightLine: release.copyright_line,
+      phonogramLine: release.phonogram_line,
+      tracks: tracks.map(
         (t: {
+          id: string;
           track_number: number;
           title: string;
+          version: string | null;
           isrc: string | null;
-        }) => ({
-          trackNumber: t.track_number,
-          title: t.title,
-          isrc: t.isrc,
-        })
+          language: string | null;
+          explicit: boolean;
+        }) => {
+          const linked = audioAssets.find(
+            (asset: { track_id?: string | null }) => asset.track_id === t.id
+          );
+          const audio =
+            linked ??
+            (tracks.length === 1 && audioAssets.length === 1 ? audioAssets[0] : null);
+
+          return {
+            trackId: t.id,
+            trackNumber: t.track_number,
+            title: t.title,
+            version: t.version,
+            isrc: t.isrc,
+            language: t.language,
+            explicit: t.explicit,
+            audioStorageBucket: audio?.storage_bucket ?? null,
+            audioStoragePath: audio?.storage_path ?? null,
+            audioFilename: audio?.filename ?? null,
+            audioMimeType: audio?.mime_type ?? null,
+          };
+        }
       ),
+      artworkStorageBucket: artwork?.storage_bucket ?? null,
+      artworkStoragePath: artwork?.storage_path ?? null,
+      artworkFilename: artwork?.filename ?? null,
+      artworkMimeType: artwork?.mime_type ?? null,
       territories: release.territories ?? [],
+      deliverySettings:
+        release.distribution_settings && typeof release.distribution_settings === "object"
+          ? release.distribution_settings
+          : {},
     });
 
     // Success finalize is service_role only — never forge via staff JWT.
@@ -139,12 +187,12 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
     const { data, error } = await supabase.rpc("record_provider_sync_run", {
       p_job_id: jobId,
       p_status: "unavailable",
-      p_error_message: "Provider Not Connected — sync unavailable.",
+      p_error_message: "Distribution Engine authorization is unavailable — sync cannot run yet.",
     });
     if (error) return { ok: false, error: error.message };
     return {
       ok: false,
-      error: "Provider Not Connected / Unavailable",
+      error: "Distribution Engine authorization is unavailable.",
       code: PROVIDER_NOT_CONNECTED_CODE,
       data,
     };
