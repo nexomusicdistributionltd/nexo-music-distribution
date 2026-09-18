@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { CoverArt } from "@/components/workspace/CoverArt";
+import { DspIcon } from "@/components/fanlink/DspIcon";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { formatMinorUnits } from "@/lib/finance/money";
 import {
@@ -174,14 +175,24 @@ export function PortalOverview({
           <ul className="divide-y divide-[var(--nexo-divider)] border-b border-[var(--nexo-divider)] lg:border-b-0 lg:border-r">
             {streamRows.map((row) => (
               <li key={row.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-small font-medium">{row.label}</span>
+                <span className="flex min-w-0 items-center gap-2.5 text-small font-medium">
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--nexo-border)] bg-[var(--nexo-bg)]">
+                    <DspIcon name={row.id} className="h-4 w-4" />
+                  </span>
+                  <span className="truncate">{row.label}</span>
+                </span>
                 <span className="text-right">
                   <span className="block text-[0.65rem] uppercase tracking-wide text-[var(--nexo-text-muted)]">
                     Streams
                   </span>
                   <span className="text-small tabular-nums text-[var(--nexo-text-secondary)]">
-                    {row.status}
+                    {row.streams == null ? row.status : Intl.NumberFormat("en-US").format(row.streams)}
                   </span>
+                  {row.trendPercent != null ? (
+                    <span className="block text-[0.65rem] tabular-nums text-[var(--nexo-text-muted)]">
+                      {row.trendPercent > 0 ? "+" : ""}{row.trendPercent.toFixed(1)}%
+                    </span>
+                  ) : null}
                 </span>
               </li>
             ))}
