@@ -28,7 +28,6 @@ import type {
   ReleaseType,
 } from "@/lib/releases/types";
 import { assertArtworkFile, assertAudioFile } from "@/lib/storage/release-assets";
-import { ProviderBanner } from "./ProviderBanner";
 
 const STEPS = [
   "Type",
@@ -351,7 +350,6 @@ export function ReleaseWizard({
 
   return (
     <div className="space-y-6">
-      <ProviderBanner connected={false} />
       <div className="flex flex-wrap gap-2">
         {STEPS.map((label, i) => (
           <button
@@ -778,8 +776,8 @@ export function ReleaseWizard({
 
           {step === 6 ? (
             <div className="space-y-3">
-              <Alert title="Provider">
-                Distribution settings are stored, but delivery is unavailable until a provider is connected.
+              <Alert title="Distribution">
+                Nexo manages delivery after your release passes quality control.
               </Alert>
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">
