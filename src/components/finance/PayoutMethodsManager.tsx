@@ -104,7 +104,7 @@ export function PayoutMethodsManager({ methods }: { methods: PayoutMethodSafeRow
       <div>
         <h2 className="text-h4">Payout methods</h2>
         <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-          Add a bank, wallet or payment destination. New methods require Nexo Finance approval
+          Add a bank, wallet or payment destination. New methods require verification
           before they can be used for a royalty payout.
         </p>
       </div>
