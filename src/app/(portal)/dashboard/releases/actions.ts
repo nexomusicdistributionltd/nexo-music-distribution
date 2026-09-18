@@ -86,8 +86,19 @@ function normalizeProviderLookup(payload: unknown, keys: string[]): ProviderLook
     }
     if (!row || typeof row !== "object") continue;
     const r = row as Record<string, unknown>;
-    const rawValue = r.value ?? r.code ?? r.slug ?? r.id ?? r.name ?? r.label;
-    const rawLabel = r.label ?? r.name ?? rawValue;
+    const rawValue =
+      r.value ??
+      r.code ??
+      r.slug ??
+      r.id ??
+      r.artist_id ??
+      r.artistId ??
+      r.artist_name ??
+      r.artistName ??
+      r.name ??
+      r.label;
+    const rawLabel =
+      r.label ?? r.artist_name ?? r.artistName ?? r.name ?? rawValue;
     if (rawValue == null || rawLabel == null) continue;
     const value = String(rawValue).trim();
     const label = String(rawLabel).trim();
@@ -116,12 +127,14 @@ export async function getDistributionMetadataLookups(): Promise<
       platformsResult,
       countriesResult,
       preferenceArtistsResult,
+      labelPreferencesResult,
     ] = await Promise.allSettled([
       distributionReference.genres(),
       distributionReference.languages(),
       distributionReference.platforms(),
       distributionReference.countries(),
       distributionReference.artistPreferences(),
+      distributionReference.labelPreference(),
     ]);
     return {
       ok: true,
@@ -142,13 +155,27 @@ export async function getDistributionMetadataLookups(): Promise<
           countriesResult.status === "fulfilled"
             ? normalizeProviderLookup(countriesResult.value, ["countries", "items", "data"])
             : [],
-        preferenceArtists:
-          preferenceArtistsResult.status === "fulfilled"
-            ? normalizeProviderLookup(
-                preferenceArtistsResult.value,
-                ["artists", "preferences", "items", "data"]
-              )
-            : [],
+        preferenceArtists: (() => {
+          const artistOptions =
+            preferenceArtistsResult.status === "fulfilled"
+              ? normalizeProviderLookup(
+                  preferenceArtistsResult.value,
+                  ["artists", "preferences", "items", "data"]
+                )
+              : [];
+          const labelArtistOptions =
+            labelPreferencesResult.status === "fulfilled"
+              ? normalizeProviderLookup(
+                  labelPreferencesResult.value,
+                  ["artists", "preferences", "items", "data"]
+                )
+              : [];
+          const merged = new Map<string, ProviderLookupOption>();
+          for (const option of [...artistOptions, ...labelArtistOptions]) {
+            merged.set(option.value, option);
+          }
+          return [...merged.values()];
+        })(),
       },
     };
   } catch {
