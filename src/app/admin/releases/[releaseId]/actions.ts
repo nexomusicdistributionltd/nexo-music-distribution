@@ -47,6 +47,7 @@ const ADMIN_METADATA_EDITABLE = new Set<ReleaseStatus>([
 
 const PROVIDER_PATCHABLE_FIELDS = new Set([
   "title",
+  "version",
   "label_name",
   "genre",
   "subgenre",
@@ -74,6 +75,67 @@ function cleanNullableString(value: unknown): string | null | undefined {
   if (value === null) return null;
   const text = String(value).trim();
   return text || null;
+}
+
+function releaseValueEqual(field: string, left: unknown, right: unknown): boolean {
+  if (field === "territories") {
+    const normalize = (value: unknown) =>
+      Array.isArray(value)
+        ? [...value].map((item) => String(item).trim().toUpperCase()).filter(Boolean).sort()
+        : [];
+    return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+  }
+  return (left ?? null) === (right ?? null);
+}
+
+function providerMetadataPatch(input: Record<string, unknown>) {
+  return {
+    title: typeof input.title === "string" ? input.title : undefined,
+    version:
+      typeof input.version === "string" || input.version === null
+        ? (input.version as string | null)
+        : undefined,
+    labelName:
+      typeof input.label_name === "string" || input.label_name === null
+        ? (input.label_name as string | null)
+        : undefined,
+    genre:
+      typeof input.genre === "string" || input.genre === null
+        ? (input.genre as string | null)
+        : undefined,
+    subgenre:
+      typeof input.subgenre === "string" || input.subgenre === null
+        ? (input.subgenre as string | null)
+        : undefined,
+    language:
+      typeof input.language === "string" || input.language === null
+        ? (input.language as string | null)
+        : undefined,
+    releaseDate:
+      typeof input.release_date === "string" || input.release_date === null
+        ? (input.release_date as string | null)
+        : undefined,
+    originalReleaseDate:
+      typeof input.original_release_date === "string" || input.original_release_date === null
+        ? (input.original_release_date as string | null)
+        : undefined,
+    copyrightYear:
+      typeof input.copyright_year === "number" || input.copyright_year === null
+        ? (input.copyright_year as number | null)
+        : undefined,
+    copyrightLine:
+      typeof input.copyright_line === "string" || input.copyright_line === null
+        ? (input.copyright_line as string | null)
+        : undefined,
+    phonogramLine:
+      typeof input.phonogram_line === "string" || input.phonogram_line === null
+        ? (input.phonogram_line as string | null)
+        : undefined,
+    upc:
+      typeof input.upc === "string" || input.upc === null
+        ? (input.upc as string | null)
+        : undefined,
+  };
 }
 
 export async function updateAdminReleaseMetadataAction(
@@ -167,9 +229,16 @@ export async function updateAdminReleaseMetadataAction(
     }
   }
 
-  const changedFields = Object.keys(safe);
-  if (!changedFields.length) return { ok: false, error: "No valid metadata changes supplied." };
+  const updates = Object.fromEntries(
+    Object.entries(safe).filter(
+      ([field, value]) => !releaseValueEqual(field, value, existing[field])
+    )
+  ) as Record<string, unknown>;
 
+  const changedFields = Object.keys(updates);
+  if (!changedFields.length) return { ok: false, error: "No metadata changes detected." };
+
+  let providerPatch: ReturnType<typeof providerMetadataPatch> | null = null;
   if (existing.provider_release_id) {
     const unsafeUpstream = changedFields.filter((field) => !PROVIDER_PATCHABLE_FIELDS.has(field));
     if (unsafeUpstream.length) {
@@ -179,15 +248,60 @@ export async function updateAdminReleaseMetadataAction(
           `This release is already linked to TooLost. These fields cannot be safely changed after provider creation: ${unsafeUpstream.join(", ")}.`,
       };
     }
+
+    const unsupportedClears = changedFields.filter((field) => updates[field] === null);
+    if (unsupportedClears.length) {
+      return {
+        ok: false,
+        error:
+          `TooLost's current metadata PATCH does not document clearing these linked fields: ${unsupportedClears.join(", ")}. Enter a replacement value instead.`,
+      };
+    }
+
+    const state = await getProviderConnectionState();
+    if (!state.connected) {
+      return {
+        ok: false,
+        error:
+          "TooLost is not connected. Reconnect the provider before changing metadata on a release that already exists upstream.",
+      };
+    }
+    providerPatch = providerMetadataPatch(updates);
   }
 
   const { data: updated, error: updateError } = await supabase
     .from("releases")
-    .update(safe)
+    .update(updates)
     .eq("id", releaseId)
     .select("*")
     .single();
   if (updateError) return { ok: false, error: updateError.message };
+
+  let providerSynced = false;
+
+  if (existing.provider_release_id && providerPatch) {
+    try {
+      await getProvider().updateRelease(existing.provider_release_id, providerPatch);
+      providerSynced = true;
+    } catch (error) {
+      const rollback = Object.fromEntries(
+        changedFields.map((field) => [field, existing[field] ?? null])
+      );
+      const { error: rollbackError } = await supabase
+        .from("releases")
+        .update(rollback)
+        .eq("id", releaseId);
+
+      revalidateRelease(releaseId);
+      const providerError = toProviderErrorPayload(error).message;
+      return {
+        ok: false,
+        error: rollbackError
+          ? `TooLost rejected the update and Nexo could not automatically restore the previous metadata. Reconcile this release before retrying. Provider error: ${providerError}`
+          : `TooLost rejected the update, so Nexo restored the previous metadata. ${providerError}`,
+      };
+    }
+  }
 
   try {
     await supabase.rpc("write_audit_log", {
@@ -198,70 +312,11 @@ export async function updateAdminReleaseMetadataAction(
         source: "admin_release_metadata",
         status,
         fields: changedFields,
+        provider_synced: providerSynced,
       },
     });
   } catch {
-    // Metadata update remains authoritative even if audit transport is temporarily unavailable.
-  }
-
-  let providerSynced = false;
-  let providerWarning: string | undefined;
-
-  if (existing.provider_release_id) {
-    const state = await getProviderConnectionState();
-    if (!state.connected) {
-      providerWarning =
-        "Nexo metadata was saved, but TooLost is not connected so the upstream release was not updated.";
-    } else {
-      try {
-        await getProvider().updateRelease(existing.provider_release_id, {
-          title: typeof safe.title === "string" ? safe.title : undefined,
-          labelName:
-            typeof safe.label_name === "string" || safe.label_name === null
-              ? (safe.label_name as string | null)
-              : undefined,
-          genre:
-            typeof safe.genre === "string" || safe.genre === null
-              ? (safe.genre as string | null)
-              : undefined,
-          subgenre:
-            typeof safe.subgenre === "string" || safe.subgenre === null
-              ? (safe.subgenre as string | null)
-              : undefined,
-          language:
-            typeof safe.language === "string" || safe.language === null
-              ? (safe.language as string | null)
-              : undefined,
-          releaseDate:
-            typeof safe.release_date === "string" || safe.release_date === null
-              ? (safe.release_date as string | null)
-              : undefined,
-          originalReleaseDate:
-            typeof safe.original_release_date === "string" || safe.original_release_date === null
-              ? (safe.original_release_date as string | null)
-              : undefined,
-          copyrightYear:
-            typeof safe.copyright_year === "number" || safe.copyright_year === null
-              ? (safe.copyright_year as number | null)
-              : undefined,
-          copyrightLine:
-            typeof safe.copyright_line === "string" || safe.copyright_line === null
-              ? (safe.copyright_line as string | null)
-              : undefined,
-          phonogramLine:
-            typeof safe.phonogram_line === "string" || safe.phonogram_line === null
-              ? (safe.phonogram_line as string | null)
-              : undefined,
-          upc:
-            typeof safe.upc === "string" || safe.upc === null
-              ? (safe.upc as string | null)
-              : undefined,
-        });
-        providerSynced = true;
-      } catch (error) {
-        providerWarning = toProviderErrorPayload(error).message;
-      }
-    }
+    // The metadata update is already authoritative; status history remains unchanged.
   }
 
   revalidateRelease(releaseId);
@@ -270,7 +325,6 @@ export async function updateAdminReleaseMetadataAction(
     data: {
       release: updated as ReleaseRow,
       providerSynced,
-      ...(providerWarning ? { providerWarning } : {}),
     },
   };
 }
