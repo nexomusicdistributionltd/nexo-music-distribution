@@ -22,7 +22,6 @@ import { knowledgeArticle, allKnowledgeArticles } from "@/lib/portal/knowledge";
 import { loadAnalyticsSnapshot } from "@/lib/portal/analytics";
 import { ENROLLABLE_SERVICES, SERVICE_KIND_LABEL, isAnalyticsKey } from "@/lib/portal/service-kinds";
 import { formatMinorUnits } from "@/lib/finance/money";
-import { getPaymentConnectionState } from "@/lib/finance/payment";
 import { getArtistProfileForUser, getLabelProfileForUser, listArtistDspLinks, listRosterArtists } from "@/lib/roster/queries";
 import { listPublishedVideos } from "@/lib/website/queries";
 import { workspaceKindForRoles } from "@/lib/auth/nav";
@@ -508,25 +507,39 @@ async function LabelsView({ userId, isLabel }: { userId: string; isLabel: boolea
 
 async function PaymentTaxView({ userId }: { userId: string }) {
   const supabase = await createClient();
-  const payment = getPaymentConnectionState();
-  const { data: tax } = await supabase
-    .from("account_tax_details")
-    .select("legal_name, country, tax_id")
-    .eq("owner_user_id", userId)
-    .maybeSingle();
+  const [{ data: tax }, { data: payoutMethods }] = await Promise.all([
+    supabase
+      .from("account_tax_details")
+      .select("legal_name, country, tax_id")
+      .eq("owner_user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("payout_methods")
+      .select("id,status")
+      .eq("user_id", userId)
+      .neq("status", "disabled"),
+  ]);
+  const ready = (payoutMethods ?? []).filter((row) => row.status === "active").length;
   return (
     <div className="space-y-6">
       <PageIntro
         title="Payment & Tax Details"
-        description="Tax profile is stored on your account. Payment rails stay NOT CONNECTED until a live adapter is registered."
+        description="Maintain your tax profile and payout destinations used for royalty payments."
         actions={
-          <Link href="/billing" className="text-small underline-offset-4 hover:underline">
-            Plan & billing
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/earnings/payouts#payment-methods" className="text-small underline-offset-4 hover:underline">
+              Manage payout methods
+            </Link>
+            <Link href="/billing" className="text-small underline-offset-4 hover:underline">
+              Plan & billing
+            </Link>
+          </div>
         }
       />
-      <Alert variant="warning" title="Payment">
-        {payment.message}
+      <Alert variant={ready > 0 ? "success" : "default"} title="Royalty payout setup">
+        {ready > 0
+          ? `${ready} approved payout method${ready === 1 ? "" : "s"} available for royalty payments.`
+          : "Add a payout method from your Wallet. Methods that require review become available after Nexo Finance approves them."}
       </Alert>
       <TaxDetailsForm initial={tax ?? null} />
     </div>
