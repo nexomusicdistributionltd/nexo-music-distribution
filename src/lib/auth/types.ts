@@ -33,6 +33,8 @@ export interface Profile {
   restriction_kind?: AccountRestrictionKind;
   account_type: AppRole;
   email_verified_at: string | null;
+  identity_verified_at?: string | null;
+  identity_verification_id?: string | null;
   created_at: string;
   updated_at: string;
 }
