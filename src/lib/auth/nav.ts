@@ -99,6 +99,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/distribution", label: "Distribution", icon: "distribution" },
       { href: "/admin/ddex", label: "DDEX", icon: "ddex" },
       { href: "/admin/playlist-pitches", label: "Playlist pitches", icon: "distribution" },
+      { href: "/admin/marketing", label: "Marketing", icon: "analytics" },
       { href: "/admin/portal-requests", label: "Portal requests", icon: "messages" },
     ],
   },
