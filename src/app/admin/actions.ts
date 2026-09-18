@@ -188,10 +188,31 @@ export async function setAccountPlanOverrideAction(input: {
     ? ["artist_starter","artist_pro"].includes(input.planId)
     : ["label_starter","label_pro"].includes(input.planId);
   if (!valid) return { ok:false, error:"Plan does not match account type." };
+
+  let endsAt: string | null = null;
+  if (input.endsAt) {
+    const parsed = Date.parse(input.endsAt);
+    if (Number.isNaN(parsed)) return { ok:false, error:"Plan end date is invalid." };
+    endsAt = new Date(parsed).toISOString();
+  }
+
   const db=createServiceClient();
+  const { data: existing } = await db
+    .from("billing_entitlement_overrides")
+    .select("created_by")
+    .eq("user_id", input.userId)
+    .maybeSingle();
+
   const {error}=await db.from("billing_entitlement_overrides").upsert({
-    user_id:input.userId,account_type:input.accountType,plan_id:input.planId,status:input.status,
-    ends_at:input.endsAt||null,reason:input.reason?.trim()||null,updated_by:ctx.userId,created_by:ctx.userId,updated_at:new Date().toISOString()
+    user_id:input.userId,
+    account_type:input.accountType,
+    plan_id:input.planId,
+    status:input.status,
+    ends_at:endsAt,
+    reason:input.reason?.trim()||null,
+    updated_by:ctx.userId,
+    created_by:existing?.created_by ?? ctx.userId,
+    updated_at:new Date().toISOString()
   },{onConflict:"user_id"});
   if(error)return {ok:false,error:error.message};
   revalidateAdmin(["/admin/users","/admin/finance/billing","/dashboard","/billing"]);
