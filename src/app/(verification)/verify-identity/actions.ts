@@ -392,6 +392,32 @@ export async function submitIdentityVerificationAction(input: {
     );
   }
 
+  try {
+    const { data: profile } = await service
+      .from("profiles")
+      .select("email, full_name, display_name")
+      .eq("id", ctx.userId)
+      .maybeSingle();
+    const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
+    await enqueueTransactionalEmail({
+      supabase: service,
+      templateKey: "IDENTITY_VERIFICATION_SUBMITTED",
+      eventType: "identity.verification",
+      to: profile?.email || ctx.email,
+      recipientUserId: ctx.userId,
+      relatedEntityType: "identity_verification",
+      relatedEntityId: input.verificationId,
+      idempotencyKey: `IDENTITY_SUBMITTED:${input.submissionId}`,
+      payload: {
+        FIRST_NAME: profile?.display_name || profile?.full_name || "there",
+        CTA_URL: "https://nexomusicdistribution.com/verify-identity",
+        CTA_LABEL: "View verification status",
+      },
+    });
+  } catch {
+    // Verification submission must not fail because email delivery is unavailable.
+  }
+
   revalidatePath("/verify-identity");
   revalidatePath("/dashboard");
   return { ok: true, data: { status: "submitted" } };
