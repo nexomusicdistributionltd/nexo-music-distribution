@@ -78,12 +78,12 @@ export function ReleaseDetailView({
         </div>
       </div>
 
-      {release.changes_requested_reason ? (
+      {release.status === "changes_requested" && release.changes_requested_reason ? (
         <Alert variant="warning" title="Changes requested">
           {release.changes_requested_reason}
         </Alert>
       ) : null}
-      {release.rejection_reason ? (
+      {release.status === "rejected" && release.rejection_reason ? (
         <Alert variant="error" title="Rejected">
           {release.rejection_reason}
         </Alert>
