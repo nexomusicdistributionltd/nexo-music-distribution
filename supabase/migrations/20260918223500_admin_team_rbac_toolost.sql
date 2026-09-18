@@ -815,3 +815,106 @@ create policy "identity_storage_select_own_or_staff" on storage.objects
       or public.has_staff_permission(auth.uid(),'admin:compliance')
     )
   );
+
+
+-- Explicit Data API grants. RLS remains authoritative. Anon SELECT is needed
+-- only so the invoker helper can safely resolve to false from public-read policies.
+grant select on public.staff_roles, public.staff_role_permissions, public.staff_role_assignments
+  to anon, authenticated, service_role;
+grant insert, update, delete on public.staff_role_assignments
+  to authenticated, service_role;
+grant insert, update, delete on public.staff_roles, public.staff_role_permissions
+  to authenticated, service_role;
+
+-- Marketing / playlist pitching.
+drop policy if exists "playlist_pitch_select" on public.playlist_pitch_requests;
+create policy "playlist_pitch_select" on public.playlist_pitch_requests
+  for select to authenticated
+  using (
+    owner_user_id=auth.uid()
+    or public.has_staff_permission(auth.uid(),'admin:marketing')
+  );
+
+drop policy if exists "playlist_pitch_staff_update" on public.playlist_pitch_requests;
+create policy "playlist_pitch_staff_update" on public.playlist_pitch_requests
+  for update to authenticated
+  using (public.has_staff_permission(auth.uid(),'admin:marketing'))
+  with check (public.has_staff_permission(auth.uid(),'admin:marketing'));
+
+-- Notification operations. Users always keep their own rows.
+drop policy if exists "notifications_select_own" on public.notifications;
+create policy "notifications_select_own" on public.notifications
+  for select to authenticated
+  using (
+    user_id=auth.uid()
+    or public.has_staff_permission(auth.uid(),'admin:notifications')
+  );
+
+drop policy if exists "notifications_insert_staff" on public.notifications;
+create policy "notifications_insert_staff" on public.notifications
+  for insert to authenticated
+  with check (public.has_staff_permission(auth.uid(),'admin:notifications'));
+
+drop policy if exists "notification_broadcast_staff_select" on public.notification_broadcasts;
+create policy "notification_broadcast_staff_select" on public.notification_broadcasts
+  for select to authenticated
+  using (public.has_staff_permission(auth.uid(),'admin:notifications'));
+
+-- Report exports can be created/read by teams with report access.
+drop policy if exists "report_exports_insert" on public.report_exports;
+create policy "report_exports_insert" on public.report_exports
+  for insert to authenticated
+  with check (
+    requested_by=auth.uid()
+    and public.has_staff_permission(auth.uid(),'admin:reports')
+  );
+
+drop policy if exists "report_exports_own_or_admin" on public.report_exports;
+create policy "report_exports_own_or_admin" on public.report_exports
+  for select to authenticated
+  using (
+    requested_by=auth.uid()
+    or public.has_staff_permission(auth.uid(),'admin:reports')
+  );
+
+-- Website team must never receive broad UPDATE on the releases table just to
+-- change a public showcase image. This narrow RPC updates only that field.
+create or replace function public.admin_set_release_cover_override(
+  p_release_id uuid,
+  p_cover_url text default null
+)
+returns public.releases
+language plpgsql
+security definer
+set search_path=public
+as $website$
+declare
+  actor uuid := auth.uid();
+  row public.releases;
+begin
+  if actor is null or not public.has_staff_permission(actor,'admin:website') then
+    raise exception 'Website permission required' using errcode='42501';
+  end if;
+
+  update public.releases
+  set website_cover_override_url=nullif(btrim(coalesce(p_cover_url,'')),''),
+      updated_at=now()
+  where id=p_release_id
+  returning * into row;
+
+  if row.id is null then
+    raise exception 'Release not found' using errcode='P0002';
+  end if;
+
+  perform public.write_audit_log(
+    'website_publish'::public.audit_action,
+    'release',
+    p_release_id,
+    jsonb_build_object('cover_override_changed',true)
+  );
+  return row;
+end;
+$website$;
+
+revoke all on function public.admin_set_release_cover_override(uuid,text) from public;
+grant execute on function public.admin_set_release_cover_override(uuid,text) to authenticated;
