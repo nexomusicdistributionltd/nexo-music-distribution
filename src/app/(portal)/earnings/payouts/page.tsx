@@ -6,6 +6,7 @@ import { formatMinorUnits } from "@/lib/finance/money";
 import { EarningsNav } from "@/components/finance/EarningsNav";
 import { PayoutRequestForm } from "@/components/portal/PortalForms";
 import { getPaymentConnectionState } from "@/lib/finance/payment";
+import { PayoutMethodsManager, type PayoutMethodSafeRow } from "@/components/finance/PayoutMethodsManager";
 import { PayoutMethodsClient } from "@/components/finance/PayoutMethodsClient";
 
 export const metadata: Metadata = {
@@ -39,6 +40,27 @@ export default async function EarningsPayoutsPage() {
   const primary = (balances ?? [])[0];
   const availableMinor = Number(primary?.available_minor ?? 0);
   const currency = primary?.currency ?? "USD";
+  const safeMethods: PayoutMethodSafeRow[] = (payoutMethods ?? []).map((row) => {
+    const details =
+      row.details && typeof row.details === "object" && !Array.isArray(row.details)
+        ? (row.details as Record<string, unknown>)
+        : {};
+    return {
+      id: row.id,
+      method_type: row.method_type,
+      display_name: row.display_name,
+      country_code: row.country_code,
+      currency: row.currency ? String(row.currency).trim() : null,
+      beneficiary_name: row.beneficiary_name,
+      destination_mask:
+        typeof details.destination_mask === "string"
+          ? details.destination_mask
+          : "Secure destination",
+      is_preferred: row.is_preferred,
+      status: row.status,
+    };
+  });
+  const activeMethods = safeMethods.filter((row) => row.status === "active");
 
   return (
     <div className="space-y-4">
