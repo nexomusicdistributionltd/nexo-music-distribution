@@ -6,7 +6,7 @@ import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import { DistributionNav } from "@/components/distribution/DistributionNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { isDistributionOAuthConfigured, readDistributionOAuthConfig } from "@/lib/provider/oauth/config";
-import { hasDistributionCredential } from "@/lib/provider/oauth/store";
+import { getStoredDistributionScopes, hasDistributionCredential } from "@/lib/provider/oauth/store";
 import { getStoredDistributionIdentityHealth } from "@/lib/provider/oauth/client";
 
 export const metadata: Metadata = {
@@ -24,6 +24,10 @@ export default async function ProviderStatusPage({
   const oauthConfigured = isDistributionOAuthConfigured();
   const authorized = oauthConfigured ? await hasDistributionCredential() : false;
   const health = authorized ? await getStoredDistributionIdentityHealth() : null;
+  const grantedScopes = authorized ? await getStoredDistributionScopes() : [];
+  const missingDataScopes = ["read:sales", "read:analytics"].filter(
+    (scope) => !grantedScopes.includes(scope)
+  );
   const connected = Boolean(health?.ok);
   const callbackUri = oauthConfigured ? readDistributionOAuthConfig().redirectUri : null;
 
@@ -53,6 +57,23 @@ export default async function ProviderStatusPage({
           fresh authorization.
         </div>
       ) : null}
+      {connected && missingDataScopes.length > 0 ? (
+        <div className="mt-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-small">
+          <p className="font-medium">Provider authorization needs an updated grant</p>
+          <p className="mt-1">
+            Missing scope{missingDataScopes.length > 1 ? "s" : ""}:{" "}
+            <code>{missingDataScopes.join(", ")}</code>. Reconnect the Distribution Engine once so
+            Sales and Analytics can use the documented protected endpoints.
+          </p>
+          <Link
+            href="/api/admin/distribution/connect"
+            className="mt-3 inline-flex rounded-md bg-[var(--nexo-accent)] px-4 py-2 font-semibold text-black"
+          >
+            Reauthorize Distribution Engine
+          </Link>
+        </div>
+      ) : null}
+
       <Card className="mt-4">
         <CardHeader>
           <CardTitle>Connection</CardTitle>
