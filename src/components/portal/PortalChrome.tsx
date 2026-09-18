@@ -59,9 +59,9 @@ export function PortalChrome({
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[18.5rem] flex-col bg-black text-white lg:flex">
-        <div className="flex h-14 items-center border-b border-white/10 px-4">
-          <Logo height={22} href="/dashboard" variant="on-dark" />
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[18.5rem] flex-col border-r border-[var(--nexo-border)] bg-[var(--nexo-bg)] text-[var(--nexo-text)] lg:flex">
+        <div className="flex h-14 items-center border-b border-[var(--nexo-border)] px-4">
+          <Logo height={22} href="/dashboard" />
         </div>
         <div className="flex-1 overflow-y-auto pb-8">
           <PortalAccordionNav sections={sections} />
@@ -154,13 +154,13 @@ export function PortalChrome({
         <FullOverlay onClose={() => setAccountOpen(false)} labelledBy="portal-account-title">
           <div className="flex items-start justify-between gap-4 px-5 pt-6">
             <div className="min-w-0">
-              <Logo height={28} href="/dashboard" variant="on-dark" />
-              <p className="mt-4 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-white">
+              <Logo height={28} href="/dashboard" />
+              <p className="mt-4 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-[var(--nexo-text)]">
                 NEXO MUSIC DISTRIBUTION LTD
               </p>
               <h2
                 id="portal-account-title"
-                className="mt-3 truncate text-[0.95rem] font-semibold uppercase tracking-[0.08em] text-white"
+                className="mt-3 truncate text-[0.95rem] font-semibold uppercase tracking-[0.08em] text-[var(--nexo-text)]"
               >
                 {displayName}
               </h2>
@@ -168,7 +168,7 @@ export function PortalChrome({
             <CloseX onClick={() => setAccountOpen(false)} />
           </div>
           <div className="mt-6 flex-1 overflow-y-auto px-4">
-            <div className="overflow-hidden rounded-xl bg-[#3a3a42] text-white">
+            <div className="overflow-hidden rounded-xl border border-[var(--nexo-border)] bg-[var(--nexo-surface)] text-[var(--nexo-text)]">
               {accountItems.map((it, idx) => {
                 const isLabels = it.href === "/account/labels";
                 return (
@@ -178,7 +178,7 @@ export function PortalChrome({
                       href={it.href}
                       onClick={() => setAccountOpen(false)}
                       className={cn(
-                        "flex items-center gap-3 px-4 py-3 text-[0.9rem] text-white/90 hover:bg-white/10",
+                        "flex items-center gap-3 px-4 py-3 text-[0.9rem] text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)]",
                         idx > 0 && !isLabels ? "" : ""
                       )}
                     >
@@ -187,7 +187,7 @@ export function PortalChrome({
                           <Building2 className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
                           <span className="min-w-0">
                             <span className="block truncate">{labelName}</span>
-                            <span className="block text-[0.7rem] text-white/50">Labels</span>
+                            <span className="block text-[0.7rem] text-[var(--nexo-text-muted)]">Labels</span>
                           </span>
                         </>
                       ) : (
@@ -203,7 +203,7 @@ export function PortalChrome({
             <LogoutButton
               variant="button"
               label="Logout"
-              className="h-11 w-full border border-white/25 bg-transparent [color:#e07070] hover:bg-white/5"
+              className="h-11 w-full border border-[var(--nexo-border)] bg-transparent [color:#e07070] hover:bg-[var(--nexo-ghost-hover)]"
             />
           </div>
         </FullOverlay>
@@ -222,7 +222,7 @@ function FullOverlay({
   labelledBy: string;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--nexo-bg)] text-[var(--nexo-text)]" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
       <button type="button" className="sr-only" onClick={onClose}>
         Close
       </button>
@@ -236,7 +236,7 @@ function CloseX({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       aria-label="Close"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)] hover:text-[var(--nexo-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)]"
       onClick={onClick}
     >
       <X className="h-5 w-5" />
