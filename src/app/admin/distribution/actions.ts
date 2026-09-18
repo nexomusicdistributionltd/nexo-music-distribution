@@ -12,7 +12,7 @@ import {
   reinstateReleaseAction,
   retryFailedJob,
 } from "@/lib/distribution/actions";
-import { defaultUnavailableCatalog, discoverExternalCatalog } from "@/lib/migration/external-catalog";
+import { discoverTooLostCatalog } from "@/lib/migration/external-catalog";
 import {
   ensureRuntimeProviderWebhookSecret,
   loadRuntimeProviderWebhookSecret,
@@ -103,7 +103,7 @@ export async function createMigrationAction(input: {
     p_owner_user_id: input.ownerUserId,
     p_artist_profile_id: input.artistProfileId ?? null,
     p_label_profile_id: null,
-    p_source_name: input.sourceName ?? "unconfigured",
+    p_source_name: input.sourceName ?? "toolost",
     p_title: input.title ?? null,
     p_notes: null,
   });
@@ -114,13 +114,12 @@ export async function createMigrationAction(input: {
 
 export async function discoverCatalogAction(source: "spotify" | "apple_music" | "other") {
   await RequireAdminPermission("admin:distribution");
-  const result = await discoverExternalCatalog({ source });
-  return result;
+  return discoverTooLostCatalog({ source, page: 1, limit: 100 });
 }
 
 export async function getDefaultCatalogAvailabilityAction() {
   await RequireAdminPermission("admin:distribution");
-  return defaultUnavailableCatalog();
+  return discoverTooLostCatalog({ source: "other", page: 1, limit: 1 });
 }
 
 export async function upsertMappingAction(input: {
