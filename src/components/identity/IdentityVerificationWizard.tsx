@@ -374,6 +374,9 @@ export function IdentityVerificationWizard({
           <Button type="button" onClick={() => void submit()} disabled={busy} className="w-full rounded-full">
             {busy ? "Submitting securely…" : "Submit verification"}
           </Button>
+          <p className="text-caption text-[var(--nexo-text-muted)]">
+            By submitting, you confirm these captures are your own identity evidence and agree that Nexo may retain them for account verification, fraud prevention, security investigations, disputes, and legal obligations as described in the <Link href="/privacy" className="underline underline-offset-2">Privacy Policy</Link>.
+          </p>
         </section>
       ) : null}
 
