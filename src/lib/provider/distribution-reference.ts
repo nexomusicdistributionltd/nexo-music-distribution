@@ -66,19 +66,17 @@ async function apiUncached(path: string): Promise<unknown> {
   });
 
   if (!response.ok) {
-    let providerMessage = "";
+    // Do not surface upstream provider branding or raw error prose into artist/label portals.
+    // HTTP status plus rate/quota metadata is sufficient for safe operator troubleshooting.
     try {
-      const body = (await response.json()) as Json;
-      const candidate = body.message ?? body.error;
-      if (typeof candidate === "string") providerMessage = candidate.trim();
+      await response.json();
     } catch {
-      // The upstream may return an empty/non-JSON body. HTTP status remains authoritative.
+      // Empty/non-JSON upstream bodies are valid error responses.
     }
 
     const retryAfter = response.headers.get("retry-after");
     const quotaRemaining = response.headers.get("x-api-quota-remaining");
     const detail = [
-      providerMessage,
       response.status === 429 && retryAfter ? `retry after ${retryAfter}s` : "",
       quotaRemaining === "0" ? "API quota remaining: 0" : "",
     ]
