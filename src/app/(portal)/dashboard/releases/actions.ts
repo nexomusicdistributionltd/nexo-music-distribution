@@ -192,6 +192,130 @@ export async function getDistributionMetadataLookups(): Promise<
   }
 }
 
+
+function preferenceRecord(payload: unknown): Record<string, unknown> {
+  const outer =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : {};
+  const data =
+    outer.data && typeof outer.data === "object" && !Array.isArray(outer.data)
+      ? (outer.data as Record<string, unknown>)
+      : outer;
+  const artist =
+    data.artist && typeof data.artist === "object" && !Array.isArray(data.artist)
+      ? (data.artist as Record<string, unknown>)
+      : data;
+  return artist;
+}
+
+function preferenceString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function preferenceStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (!item || typeof item !== "object") return "";
+        const row = item as Record<string, unknown>;
+        const raw = row.code ?? row.value ?? row.name ?? row.slug ?? row.id;
+        return raw == null ? "" : String(raw).trim();
+      })
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, enabled]) => enabled === true)
+      .map(([key]) => key);
+  }
+  return [];
+}
+
+export async function getDistributionPreferenceDefaults(
+  providerArtistId?: string | null
+): Promise<
+  ActionResult<{
+    artistName: string | null;
+    primaryGenre: string | null;
+    secondaryGenre: string | null;
+    language: string | null;
+    label: string | null;
+    cLine: string | null;
+    pLine: string | null;
+    releaseTime: string | null;
+    timeZone: string | null;
+    stores: string[];
+    territories: string[];
+    additional: Record<string, boolean>;
+  }>
+> {
+  const ctx = await requireArtistOrLabel();
+  try {
+    const { distributionReference } = await import("@/lib/provider/distribution-reference");
+    const payload =
+      ctx.roles.includes("label") && providerArtistId
+        ? await distributionReference.labelArtistPreference(providerArtistId)
+        : await distributionReference.artistPreference();
+    const artist = preferenceRecord(payload);
+    const deliveries =
+      artist.deliveries && typeof artist.deliveries === "object" && !Array.isArray(artist.deliveries)
+        ? (artist.deliveries as Record<string, unknown>)
+        : {};
+
+    return {
+      ok: true,
+      data: {
+        artistName:
+          preferenceString(artist.artistName) ??
+          preferenceString(artist.artist_name) ??
+          preferenceString(artist.name),
+        primaryGenre:
+          preferenceString(artist.primaryGenre) ?? preferenceString(artist.primary_genre),
+        secondaryGenre:
+          preferenceString(artist.secondaryGenre) ?? preferenceString(artist.secondary_genre),
+        language: preferenceString(artist.language),
+        label: preferenceString(artist.label),
+        cLine: preferenceString(artist.cLine) ?? preferenceString(artist.c_line),
+        pLine: preferenceString(artist.pLine) ?? preferenceString(artist.p_line),
+        releaseTime:
+          preferenceString(artist.releaseTime) ?? preferenceString(artist.release_time),
+        timeZone: preferenceString(artist.timeZone) ?? preferenceString(artist.time_zone),
+        stores: preferenceStringList(artist.stores),
+        territories: preferenceStringList(artist.territories),
+        additional: {
+          youtube: deliveries.delivery_youtube === true || deliveries.youtube === true,
+          facebook: deliveries.delivery_facebook === true || deliveries.facebook === true,
+          soundcloud:
+            deliveries.delivery_soundcloud === true || deliveries.soundcloud === true,
+          soundExchange:
+            deliveries.delivery_soundexchange === true ||
+            deliveries.soundExchange === true,
+          beatPort: deliveries.beatport === true || deliveries.beatPort === true,
+          junoDownloads:
+            deliveries.delivery_junodownload === true ||
+            deliveries.junoDownloads === true,
+          trackLibs:
+            deliveries.delivery_tracklib === true || deliveries.trackLibs === true,
+          hook: deliveries.delivery_hook === true || deliveries.hook === true,
+          lyricfind:
+            deliveries.delivery_lyricfind === true || deliveries.lyricfind === true,
+          even: deliveries.delivery_even === true || deliveries.even === true,
+        },
+      },
+    };
+  } catch {
+    return { ok: false, error: "Distribution preferences are unavailable right now." };
+  }
+}
+
 async function requireArtistOrLabel() {
   return RequireVerifiedPortal();
 }
