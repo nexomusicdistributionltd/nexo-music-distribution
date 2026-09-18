@@ -19,7 +19,7 @@ import { DspProfileLinksEditor } from "@/components/roster/DspProfileLinksEditor
 import { DspIcon } from "@/components/fanlink/DspIcon";
 import { ArtistBioForm } from "@/components/roster/ArtistBioForm";
 import { findPortalItem, type PortalNavItem } from "@/lib/portal/ia";
-import { knowledgeArticle, allKnowledgeArticles } from "@/lib/portal/knowledge";
+import { knowledgeArticle, allKnowledgeArticles, type KnowledgeArticle } from "@/lib/portal/knowledge";
 import { loadAnalyticsSnapshot } from "@/lib/portal/analytics";
 import { ENROLLABLE_SERVICES, SERVICE_KIND_LABEL, isAnalyticsKey } from "@/lib/portal/service-kinds";
 import { formatMinorUnits } from "@/lib/finance/money";
@@ -52,7 +52,7 @@ export async function PortalFeaturePage({ href }: { href: string }) {
   if (def.visibility && def.visibility !== "all" && def.visibility !== kind) notFound();
 
   if (def.pageKind === "knowledge") {
-    return <KnowledgeView def={def} />;
+    return <KnowledgeView def={def} userId={ctx.userId} />;
   }
   if (def.pageKind === "analytics") {
     if (!def.analyticsKey || !isAnalyticsKey(def.analyticsKey)) notFound();
@@ -418,19 +418,70 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function KnowledgeView({ def }: { def: PortalNavItem }) {
-  const article = def.knowledgeSlug ? knowledgeArticle(def.knowledgeSlug) : undefined;
+async function KnowledgeView({
+  def,
+  userId,
+}: {
+  def: PortalNavItem;
+  userId: string;
+}) {
+  let article = def.knowledgeSlug ? knowledgeArticle(def.knowledgeSlug) : undefined;
+  const realtimeMarketingContent = new Set(["client-offerings", "marketing-best-practices"]);
+
+  if (def.knowledgeSlug && realtimeMarketingContent.has(def.knowledgeSlug)) {
+    const supabase = await createClient();
+    const { data: page } = await supabase
+      .from("marketing_content_pages")
+      .select("slug, title, summary, sections, enabled")
+      .eq("slug", def.knowledgeSlug)
+      .maybeSingle();
+
+    if (page && page.enabled === false) {
+      return (
+        <div className="space-y-4">
+          <RealtimeRefresh userId={userId} />
+          <PageIntro title={page.title || def.label} description="This marketing guide is temporarily unpublished by Nexo operations." />
+          <EmptyState title="Content unavailable" description="Check back after Nexo operations republishes this page." />
+        </div>
+      );
+    }
+
+    if (page) {
+      const sections = Array.isArray(page.sections)
+        ? page.sections
+            .map((value) => {
+              if (!value || typeof value !== "object") return null;
+              const row = value as Record<string, unknown>;
+              const heading = typeof row.heading === "string" ? row.heading : "";
+              const body = typeof row.body === "string" ? row.body : "";
+              return heading && body ? { heading, body } : null;
+            })
+            .filter((value): value is { heading: string; body: string } => Boolean(value))
+        : [];
+
+      article = {
+        slug: page.slug,
+        title: page.title,
+        summary: page.summary,
+        sections,
+      } satisfies KnowledgeArticle;
+    }
+  }
+
   if (!article) {
     return (
       <div className="space-y-4">
+        <RealtimeRefresh userId={userId} />
         <PageIntro title={def.label} description={def.description} />
         <EmptyState title="Article unavailable" />
       </div>
     );
   }
+
   const others = allKnowledgeArticles().filter((a) => a.slug !== article.slug).slice(0, 6);
   return (
     <article className="space-y-6">
+      <RealtimeRefresh userId={userId} />
       <PageIntro eyebrow="Help" title={article.title} description={article.summary} />
       {article.sections.map((s) => (
         <section key={s.heading} className="space-y-2">
