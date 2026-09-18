@@ -1,12 +1,15 @@
+import Link from "next/link";
 import { Alert } from "@/components/ui/Alert";
-import { providerNotConnectedMessage } from "@/lib/provider/errors";
 
 export function ProviderBanner({ connected }: { connected: boolean }) {
   if (connected) return null;
   return (
-    <Alert variant="warning" title="Distribution provider">
-      {providerNotConnectedMessage()} Approved releases stay in catalog until a provider is connected —
-      approval is not the same as delivery or live.
+    <Alert variant="warning" title="Distribution Engine authorization required">
+      The Distribution Engine is configured but has not completed secure authorization.{" "}
+      <Link className="underline" href="/admin/distribution/provider">
+        Open connection settings
+      </Link>
+      .
     </Alert>
   );
 }
