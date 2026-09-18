@@ -1,4 +1,9 @@
 import type { ReleaseRow, ReleaseTrackRow, ReleaseAssetRow, ReleaseContributorRow, ReleaseType } from "./types";
+import {
+  COMPOSITION_CREDIT_ROLES,
+  PERFORMER_CREDIT_ROLES,
+  PRODUCTION_CREDIT_ROLES,
+} from "./contributor-roles";
 
 export type ValidationIssue = { field: string; message: string };
 
@@ -201,12 +206,32 @@ export function validateReleaseForSubmit(input: {
     }
   }
 
-  const hasNamedContributor = contributors.some((c) => Boolean(c.name?.trim()));
-  if (!hasNamedContributor) {
+  const namedContributors = contributors.filter((c) => Boolean(c.name?.trim()));
+  if (!namedContributors.length) {
     issues.push({
       field: "contributors",
-      message: "At least one contributor is required.",
+      message: "Complete contributor credits are required.",
     });
+  } else {
+    const contributorRoles = new Set(namedContributors.map((c) => c.role));
+    if (![...contributorRoles].some((role) => PERFORMER_CREDIT_ROLES.has(role))) {
+      issues.push({
+        field: "contributors",
+        message: "Add at least one accurate performer credit (for example lead vocals, vocals, choir, instrument, primary or featured artist).",
+      });
+    }
+    if (![...contributorRoles].some((role) => COMPOSITION_CREDIT_ROLES.has(role))) {
+      issues.push({
+        field: "contributors",
+        message: "Add at least one composition/lyrics credit (songwriter, composer, lyricist or arranger).",
+      });
+    }
+    if (![...contributorRoles].some((role) => PRODUCTION_CREDIT_ROLES.has(role))) {
+      issues.push({
+        field: "contributors",
+        message: "Add at least one production/engineering credit (for example producer, recording, mixing or mastering engineer).",
+      });
+    }
   }
 
   // Never fabricate codes
