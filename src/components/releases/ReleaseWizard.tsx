@@ -27,12 +27,13 @@ import type {
   ReleaseTrackRow,
   ReleaseType,
 } from "@/lib/releases/types";
-import { assertArtworkFile, assertAudioFile } from "@/lib/storage/release-assets";
+import { ALLOWED_ARTWORK_SIZES, assertArtworkFile, assertAudioFile } from "@/lib/storage/release-assets";
 
 const STEPS = [
   "Type",
   "Info",
   "Tracks",
+  "Lyrics",
   "Contributors",
   "Artwork",
   "Rights",
@@ -47,6 +48,8 @@ type TrackDraft = {
   version: string;
   isrc: string;
   explicit: boolean;
+  language: string;
+  lyrics: string;
 };
 
 type ContribDraft = {
@@ -115,8 +118,18 @@ export function ReleaseWizard({
           version: t.version ?? "",
           isrc: t.isrc ?? "",
           explicit: t.explicit,
+          language: t.language ?? initial?.language ?? "en",
+          lyrics: t.lyrics ?? "",
         }))
-      : [{ track_number: 1, title: "", version: "", isrc: "", explicit: false }]
+      : [{
+          track_number: 1,
+          title: "",
+          version: "",
+          isrc: "",
+          explicit: false,
+          language: initial?.language ?? "en",
+          lyrics: "",
+        }]
   );
   const [contributors, setContributors] = React.useState<ContribDraft[]>(
     initialContributors?.length
@@ -200,6 +213,8 @@ export function ReleaseWizard({
         version: t.version || null,
         isrc: t.isrc || null,
         explicit: t.explicit,
+        language: t.language || null,
+        lyrics: t.lyrics || null,
       }))
     );
     if (!res.ok) throw new Error(res.error);
@@ -212,6 +227,8 @@ export function ReleaseWizard({
           version: t.version ?? "",
           isrc: t.isrc ?? "",
           explicit: t.explicit,
+          language: t.language ?? "en",
+          lyrics: t.lyrics ?? "",
         }))
       );
     }
@@ -250,8 +267,11 @@ export function ReleaseWizard({
         await saveTracks(id);
       } else if (step === 3) {
         const id = await ensureDraft();
+        await saveTracks(id);
+      } else if (step === 4) {
+        const id = await ensureDraft();
         await saveContributors(id);
-      } else if (step === 5 || step === 6) {
+      } else if (step === 6 || step === 7) {
         const id = await ensureDraft();
         await saveInfo(id);
       }
@@ -270,6 +290,25 @@ export function ReleaseWizard({
     if (check) {
       setError(check);
       return;
+    }
+    if (kind === "artwork") {
+      try {
+        const dimensions = await readImageDimensions(file);
+        if (
+          dimensions.width !== dimensions.height ||
+          !ALLOWED_ARTWORK_SIZES.includes(
+            dimensions.width as (typeof ALLOWED_ARTWORK_SIZES)[number]
+          )
+        ) {
+          setError(
+            `Artwork must be exactly 1400×1400, 3000×3000, or 4000×4000px. Received ${dimensions.width}×${dimensions.height}px.`
+          );
+          return;
+        }
+      } catch {
+        setError("Could not read artwork dimensions. Upload a valid JPEG, PNG, or WebP image.");
+        return;
+      }
     }
     const id = await ensureDraft();
     setUploadProgress(`Uploading ${file.name}…`);
@@ -304,14 +343,14 @@ export function ReleaseWizard({
           mime_type: file.type,
           size_bytes: file.size,
           checksum: null,
-          width: null,
-          height: null,
-          codec: null,
-          container: null,
-          sample_rate_hz: null,
-          bit_depth: null,
-          channels: null,
-          duration_ms: null,
+          width: reg.data.width,
+          height: reg.data.height,
+          codec: reg.data.codec,
+          container: reg.data.container,
+          sample_rate_hz: reg.data.sample_rate_hz,
+          bit_depth: reg.data.bit_depth,
+          channels: reg.data.channels,
+          duration_ms: reg.data.duration_ms,
           hash_algorithm: null,
           uploaded_by: null,
           created_at: new Date().toISOString(),
@@ -519,7 +558,7 @@ export function ReleaseWizard({
           {step === 2 ? (
             <div className="space-y-4">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                ISRC is optional and never auto-generated. Upload audio per track.
+                Upload a lossless WAV, FLAC, or AIFF master for every track. ISRC is required before distribution and is never fabricated by Nexo.
               </p>
               {tracks.map((t, idx) => (
                 <div key={idx} className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-4 space-y-3">
@@ -564,6 +603,15 @@ export function ReleaseWizard({
                       }}
                     />
                   </div>
+                  <Input
+                    placeholder="Track language (ISO code, e.g. en)"
+                    value={t.language}
+                    onChange={(e) => {
+                      const next = [...tracks];
+                      next[idx] = { ...t, language: e.target.value };
+                      setTracks(next);
+                    }}
+                  />
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -580,7 +628,7 @@ export function ReleaseWizard({
                     <label className="text-caption text-[var(--nexo-text-muted)]">Audio file</label>
                     <Input
                       type="file"
-                      accept="audio/*,.wav,.flac,.mp3,.aiff,.m4a"
+                      accept="audio/flac,audio/wav,audio/x-wav,audio/aiff,audio/x-aiff,.flac,.wav,.aif,.aiff"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (f) void onUpload("audio", f, t.id);
@@ -606,6 +654,8 @@ export function ReleaseWizard({
                       version: "",
                       isrc: "",
                       explicit: false,
+                      language: info.language || "en",
+                      lyrics: "",
                     },
                   ])
                 }
@@ -616,6 +666,34 @@ export function ReleaseWizard({
           ) : null}
 
           {step === 3 ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-h4">Lyrics</h3>
+                <p className="mt-1 text-small text-[var(--nexo-text-muted)]">
+                  Add the exact lyrics for each track. Leave instrumental tracks blank. Lyrics are stored with the track metadata and are never generated.
+                </p>
+              </div>
+              {tracks.map((t, idx) => (
+                <label key={t.id ?? idx} className="block space-y-1">
+                  <span className="text-caption text-[var(--nexo-text-muted)]">
+                    Track {idx + 1}{t.title ? `: ${t.title}` : ""}
+                  </span>
+                  <Textarea
+                    rows={10}
+                    placeholder="Enter lyrics exactly as performed…"
+                    value={t.lyrics}
+                    onChange={(e) => {
+                      const next = [...tracks];
+                      next[idx] = { ...t, lyrics: e.target.value };
+                      setTracks(next);
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          ) : null}
+
+          {step === 4 ? (
             <div className="space-y-3">
               <p className="text-small text-[var(--nexo-text-muted)]">
                 Assign each contributor to the whole release or a specific track. Share % is optional
@@ -717,10 +795,10 @@ export function ReleaseWizard({
             </div>
           ) : null}
 
-          {step === 4 ? (
+          {step === 5 ? (
             <div className="space-y-3">
               <p className="text-small text-[var(--nexo-text-muted)]">
-                Cover art (JPEG/PNG/WebP). Stored in private bucket; DB keeps the file reference.
+                Cover art must be square and exactly 1400×1400, 3000×3000, or 4000×4000px (JPEG/PNG/WebP). Invalid dimensions are rejected before upload.
               </p>
               <Input
                 type="file"
@@ -741,7 +819,7 @@ export function ReleaseWizard({
             </div>
           ) : null}
 
-          {step === 5 ? (
+          {step === 6 ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
                 <span className="text-caption text-[var(--nexo-text-muted)]">Copyright year</span>
@@ -751,7 +829,7 @@ export function ReleaseWizard({
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-caption text-[var(--nexo-text-muted)]">UPC (optional — never auto-generated)</span>
+                <span className="text-caption text-[var(--nexo-text-muted)]">UPC (required before distribution — never fabricated)</span>
                 <Input
                   value={rights.upc}
                   onChange={(e) => setRights({ ...rights, upc: e.target.value })}
@@ -777,7 +855,7 @@ export function ReleaseWizard({
             </div>
           ) : null}
 
-          {step === 6 ? (
+          {step === 7 ? (
             <div className="space-y-3">
               <Alert title="Distribution">
                 Nexo manages delivery after your release passes quality control.
@@ -791,7 +869,7 @@ export function ReleaseWizard({
             </div>
           ) : null}
 
-          {step === 7 ? (
+          {step === 8 ? (
             <div className="space-y-3 text-small">
               <p>
                 <strong>Type:</strong> {type}
@@ -843,4 +921,27 @@ export function ReleaseWizard({
       </Card>
     </div>
   );
+}
+
+
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const width = image.naturalWidth;
+      const height = image.naturalHeight;
+      URL.revokeObjectURL(url);
+      if (!width || !height) {
+        reject(new Error("Invalid image dimensions"));
+        return;
+      }
+      resolve({ width, height });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Invalid image"));
+    };
+    image.src = url;
+  });
 }
