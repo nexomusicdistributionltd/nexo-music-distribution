@@ -7,7 +7,6 @@ import {
   assertCanSubmitRelease,
 } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { getProviderConnectionState } from "@/lib/provider";
 import {
   canDuplicate,
   canRequestTakedown,
@@ -898,11 +897,29 @@ export async function deleteDraftRelease(
 export async function tryProviderSubmit(
   releaseId: string
 ): Promise<ActionResult<{ message: string }>> {
-  void releaseId;
-  await requireArtistOrLabel();
-  const state = await getProviderConnectionState();
-  if (!state.connected) {
-    return { ok: false, error: state.message };
+  const ctx = await requireArtistOrLabel();
+  const supabase = await createClient();
+  const { data: release } = await supabase
+    .from("releases")
+    .select("id,status")
+    .eq("id", releaseId)
+    .eq("owner_user_id", ctx.userId)
+    .maybeSingle();
+
+  if (!release) return { ok: false, error: "Release not found." };
+
+  if (release.status === "draft" || release.status === "changes_requested") {
+    return {
+      ok: false,
+      error: "Submit this release to Nexo QC first. Distribution delivery begins only after administrator approval.",
+    };
   }
-  return { ok: false, error: "Provider not connected." };
+
+  return {
+    ok: true,
+    data: {
+      message:
+        "This release is in the Nexo QC/distribution workflow. Artists and labels do not submit directly to the upstream delivery provider.",
+    },
+  };
 }
