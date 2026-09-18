@@ -257,6 +257,26 @@ export async function upsertRoyaltyImportRowAction(input: {
   return { ok: true, data };
 }
 
+export async function postRoyaltyImportBatchAction(
+  batchId: string
+): Promise<ActionResult> {
+  await RequireAdminPermission("admin:royalties");
+  const rl = checkRateLimit({
+    key: "admin:royalty:post",
+    ...RATE_LIMITS.royaltyImport,
+  });
+  if (!rl.ok) return { ok: false, error: "Too many royalty posting attempts. Try again later." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("post_royalty_import_batch", {
+    p_batch_id: batchId,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidateFinance();
+  return { ok: true, data };
+}
+
 export async function publishStatementAction(input: {
   ownerUserId: string;
   periodStart: string;
