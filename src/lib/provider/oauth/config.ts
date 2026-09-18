@@ -10,6 +10,8 @@ export type DistributionOAuthConfig = {
   scope: string | null;
 };
 
+export const DISTRIBUTION_OAUTH_CALLBACK_PATH = "/api/admin/distribution/oauth/callback";
+
 function required(name: string): string {
   const value = (process.env[name] ?? "").trim();
   if (!value) throw new Error(`Missing required server environment variable: ${name}`);
