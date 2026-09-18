@@ -49,8 +49,16 @@ export function PayoutMethodsManager({ methods }: { methods: Row[] }) {
         setMessage(result.error);
         return;
       }
-      setMessage("Payout method saved. Refreshing secure method list…");
-      window.location.reload();
+      setRows((current) => [
+        ...(result.data.is_preferred ? current.map((row) => ({ ...row, is_preferred: false })) : current),
+        result.data,
+      ]);
+      setMessage("Payout method saved.");
+      setLabel("");
+      setDestination("");
+      setAccountHolder("");
+      setBankName("");
+      setCountry("");
     } finally {
       setBusy(false);
     }
