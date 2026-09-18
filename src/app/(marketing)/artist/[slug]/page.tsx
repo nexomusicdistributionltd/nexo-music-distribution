@@ -47,6 +47,7 @@ export default async function ArtistDetailPage({ params }: Props) {
   );
   const byType = {
     album: releases.filter((r) => r.release_type === "album"),
+    compilation: releases.filter((r) => r.release_type === "compilation"),
     ep: releases.filter((r) => r.release_type === "ep"),
     single: releases.filter((r) => r.release_type === "single" || !r.release_type),
   };
@@ -153,13 +154,19 @@ export default async function ArtistDetailPage({ params }: Props) {
               description="Published releases for this artist will appear here."
             />
           ) : (
-            (["album", "ep", "single"] as const).map((type) => {
+            (["album", "compilation", "ep", "single"] as const).map((type) => {
               const list = byType[type];
               if (!list.length) return null;
               return (
                 <Reveal key={type}>
                   <div>
-                    <h3 className="text-h4 capitalize">{type === "ep" ? "EPs" : `${type}s`}</h3>
+                    <h3 className="text-h4 capitalize">
+                      {type === "ep"
+                        ? "EPs"
+                        : type === "compilation"
+                          ? "Compilations"
+                          : `${type}s`}
+                    </h3>
                     <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {list.map((r) => (
                         <li key={r.id}>
