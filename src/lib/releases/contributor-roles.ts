@@ -40,7 +40,7 @@ export const CONTRIBUTOR_ROLE_OPTIONS: Array<{
   { value: "mastering_engineer", label: "Mastering Engineer", category: "production" },
   { value: "mixer", label: "Mixer", category: "production" },
   { value: "engineer", label: "Engineer", category: "production" },
-  { value: "graphic_designer", label: "Graphic Designer", category: "production" },
+  { value: "graphic_designer", label: "Graphic Designer", category: "administrative" },
 
   { value: "publisher", label: "Publisher", category: "administrative" },
   { value: "a_and_r", label: "A&R", category: "administrative" },
