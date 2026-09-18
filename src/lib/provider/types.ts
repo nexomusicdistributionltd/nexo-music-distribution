@@ -45,10 +45,18 @@ export type ProviderReleasePayload = {
   metadata?: Record<string, unknown>;
 };
 
+export type ProviderAssignedTrackIdentifier = {
+  trackNumber?: number;
+  providerTrackId?: string;
+  isrc?: string;
+};
+
 export type ProviderStatusResult = {
   providerReleaseId: string;
   status: string;
   message?: string;
+  upc?: string;
+  tracks?: ProviderAssignedTrackIdentifier[];
   updatedAt: string;
 };
 
