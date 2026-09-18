@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
-import { Bell, Building2, Menu, MessageSquare, X } from "lucide-react";
+import { Bell, Building2, Menu, MessageSquare, X, CirclePlus, Link2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { LogoutButton } from "@/components/app/LogoutButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -89,6 +89,12 @@ export function PortalChrome({
           </p>
           <h1 className="truncate text-h4 leading-tight">{title}</h1>
         </div>
+        <Link href="/dashboard/releases/new" className="hidden h-9 items-center gap-2 rounded-full bg-[var(--nexo-text)] px-4 text-[0.72rem] font-semibold [color:var(--nexo-text-inverse)] hover:opacity-90 md:inline-flex">
+          <CirclePlus className="h-4 w-4" /> New release
+        </Link>
+        <Link href="/dashboard/fanlinks" aria-label="Fanlinks" className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--nexo-radius-sm)] text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)]">
+          <Link2 className="h-4 w-4" />
+        </Link>
         <Link
           href="/dashboard/notifications"
           aria-label={unreadNotifications ? `Notifications (${unreadNotifications} unread)` : "Notifications"}
