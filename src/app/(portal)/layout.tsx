@@ -60,6 +60,7 @@ export default async function PortalLayout({
           workspaceKind={workspaceKind}
           unreadNotifications={unread}
           labelName={labelName}
+          identityVerified={Boolean(ctx.profile?.identity_verified_at)}
         />
         <RealtimeRefresh userId={ctx.userId} />
         <main className="flex-1 px-4 py-5 sm:px-6 lg:ml-[18.5rem] lg:px-8">{children}</main>
