@@ -1,7 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { decryptDistributionSecret, encryptDistributionSecret } from "./crypto";
-import type { DistributionOAuthToken } from "./token";
+import { refreshDistributionAccessToken, type DistributionOAuthToken } from "./token";
 
 type StoredCredential = {
   access_token_ciphertext: string;
@@ -43,5 +43,15 @@ export async function loadDistributionAccessToken(): Promise<string | null> {
     .eq("connection_key", "primary")
     .maybeSingle<StoredCredential>();
   if (error || !data) return null;
+  const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : null;
+  const shouldRefresh = expiresAt !== null && expiresAt <= Date.now() + 60_000;
+  if (shouldRefresh && data.refresh_token_ciphertext) {
+    const refreshed = await refreshDistributionAccessToken(
+      decryptDistributionSecret(data.refresh_token_ciphertext)
+    );
+    await saveDistributionToken(refreshed);
+    return refreshed.access_token;
+  }
+  if (shouldRefresh) return null;
   return decryptDistributionSecret(data.access_token_ciphertext);
 }
