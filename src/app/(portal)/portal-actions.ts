@@ -202,9 +202,13 @@ export async function reviseServiceRequestAction(input: {
 
   const urlRaw = (input.related_url ?? "").trim();
   if (urlRaw) {
-    const parsed = new URL(urlRaw);
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      return { ok: false, error: "Reference URL must be http(s)." };
+    try {
+      const parsed = new URL(urlRaw);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        return { ok: false, error: "Reference URL must be http(s)." };
+      }
+    } catch {
+      return { ok: false, error: "Reference URL must be a valid http(s) URL." };
     }
   }
 
