@@ -135,7 +135,6 @@ export async function createReleaseDraft(input: {
       territories: ["WW"],
       distribution_settings: {
         worldwide: true,
-        provider: "not_connected",
       },
     })
     .select("id")
@@ -796,7 +795,6 @@ export async function duplicateRelease(
       territories: source.territories,
       distribution_settings: {
         ...(source.distribution_settings as object),
-        provider: "not_connected",
       },
       status: "draft",
     })
