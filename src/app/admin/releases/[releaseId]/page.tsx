@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RequireAdminPermission } from "@/lib/auth/guards";
+import { hasAdminPermission } from "@/lib/admin/permissions";
 import { QcDecisionForm } from "@/components/admin/QcDecisionForm";
 import { AdminReleaseMetadataForm } from "@/components/admin/AdminReleaseMetadataForm";
 import { PostApprovalReviewForm } from "@/components/admin/PostApprovalReviewForm";
@@ -25,7 +26,8 @@ export default async function AdminReleaseDetailPage({
 }: {
   params: Promise<{ releaseId: string }>;
 }) {
-  await RequireAdminPermission("admin:releases");
+  const adminContext = await RequireAdminPermission("admin:releases");
+  const canOperateDistribution = hasAdminPermission(adminContext.roles, "admin:distribution");
   const { releaseId } = await params;
   const detail = await getReleaseDetail(releaseId);
   if (!detail) notFound();
@@ -130,7 +132,10 @@ export default async function AdminReleaseDetailPage({
       extra={
         <div className="space-y-8">
           {adminMetadataEditable ? <AdminReleaseMetadataForm release={release} /> : null}
-          {release.status === "approved" ? <PostApprovalReviewForm releaseId={release.id} /> : null}
+          {canOperateDistribution &&
+          ["approved", "scheduled", "failed"].includes(release.status) ? (
+            <PostApprovalReviewForm releaseId={release.id} />
+          ) : null}
           <section className="space-y-3">
             <h2 className="text-h4">Listen</h2>
             {trackPlayers.length === 0 ? (
