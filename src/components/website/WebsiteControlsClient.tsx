@@ -32,6 +32,9 @@ type ArtistRow = {
   website_published: boolean;
   website_featured: boolean;
   public_tagline: string | null;
+  avatar_url: string | null;
+  cover_url: string | null;
+  entzopedia_url: string | null;
 };
 
 export function WebsiteControlsClient({
@@ -47,6 +50,21 @@ export function WebsiteControlsClient({
   const [dsp, setDsp] = useState<
     Record<string, { spotify?: string; apple?: string; youtube?: string }>
   >({});
+  const [artistFields, setArtistFields] = useState<
+    Record<string, { avatarUrl: string; coverUrl: string; entzopediaUrl: string; tagline: string }>
+  >(() =>
+    Object.fromEntries(
+      artists.map((artist) => [
+        artist.id,
+        {
+          avatarUrl: artist.avatar_url ?? "",
+          coverUrl: artist.cover_url ?? "",
+          entzopediaUrl: artist.entzopedia_url ?? "",
+          tagline: artist.public_tagline ?? "",
+        },
+      ])
+    )
+  );
 
   return (
     <div className="space-y-10">
@@ -225,67 +243,124 @@ export function WebsiteControlsClient({
           {artists.map((a) => {
             const name = a.artist_name || a.stage_name || a.id;
             return (
-              <li
-                key={a.id}
-                className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-small"
-              >
-                <div>
-                  <p className="font-medium">{name}</p>
-                  <p className="text-caption text-[var(--nexo-text-muted)]">
-                    slug={a.public_slug || "—"} published=
-                    {String(a.website_published)}
-                    {" · "}
-                    <Link href={`/admin/artists/${a.id}`} className="underline">
-                      Edit bio
-                    </Link>
-                    {a.public_slug ? (
-                      <>
-                        {" · "}
-                        <Link
-                          href={`/artist/${a.public_slug}`}
-                          className="underline"
-                          target="_blank"
-                        >
-                          preview
-                        </Link>
-                      </>
-                    ) : null}
-                  </p>
+              <li key={a.id} className="space-y-3 px-4 py-4 text-small">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium">{name}</p>
+                    <p className="text-caption text-[var(--nexo-text-muted)]">
+                      slug={a.public_slug || "—"} published={String(a.website_published)}
+                      {a.public_slug ? (
+                        <>
+                          {" · "}
+                          <Link
+                            href={`/artist/${a.public_slug}`}
+                            className="underline"
+                            target="_blank"
+                          >
+                            preview
+                          </Link>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={pending}
+                      onClick={() =>
+                        start(async () => {
+                          const res = await setArtistWebsiteAction({
+                            artistProfileId: a.id,
+                            featured: !a.website_featured,
+                          });
+                          setMsg(res.ok ? "Artist featured toggled." : res.error);
+                        })
+                      }
+                    >
+                      {a.website_featured ? "Unfeature" : "Feature"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={pending}
+                      onClick={() =>
+                        start(async () => {
+                          const res = await setArtistWebsiteAction({
+                            artistProfileId: a.id,
+                            published: !a.website_published,
+                            slug: a.public_slug || String(name),
+                          });
+                          setMsg(res.ok ? "Artist website updated." : res.error);
+                        })
+                      }
+                    >
+                      {a.website_published ? "Unpublish" : "Publish"}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={pending}
-                    onClick={() =>
-                      start(async () => {
-                        const res = await setArtistWebsiteAction({
-                          artistProfileId: a.id,
-                          featured: !a.website_featured,
-                        });
-                        setMsg(res.ok ? "Artist featured toggled." : res.error);
-                      })
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Artist image URL"
+                    value={artistFields[a.id]?.avatarUrl ?? ""}
+                    onChange={(e) =>
+                      setArtistFields((current) => ({
+                        ...current,
+                        [a.id]: { ...current[a.id], avatarUrl: e.target.value },
+                      }))
                     }
-                  >
-                    {a.website_featured ? "Unfeature" : "Feature"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={pending}
-                    onClick={() =>
-                      start(async () => {
-                        const res = await setArtistWebsiteAction({
-                          artistProfileId: a.id,
-                          published: !a.website_published,
-                          slug: a.public_slug || String(name),
-                        });
-                        setMsg(res.ok ? "Artist website updated." : res.error);
-                      })
+                  />
+                  <Input
+                    placeholder="Cover image URL"
+                    value={artistFields[a.id]?.coverUrl ?? ""}
+                    onChange={(e) =>
+                      setArtistFields((current) => ({
+                        ...current,
+                        [a.id]: { ...current[a.id], coverUrl: e.target.value },
+                      }))
                     }
-                  >
-                    {a.website_published ? "Unpublish" : "Publish"}
-                  </Button>
+                  />
+                  <Input
+                    placeholder="Entzopedia profile URL"
+                    value={artistFields[a.id]?.entzopediaUrl ?? ""}
+                    onChange={(e) =>
+                      setArtistFields((current) => ({
+                        ...current,
+                        [a.id]: { ...current[a.id], entzopediaUrl: e.target.value },
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Public artist tagline"
+                    value={artistFields[a.id]?.tagline ?? ""}
+                    onChange={(e) =>
+                      setArtistFields((current) => ({
+                        ...current,
+                        [a.id]: { ...current[a.id], tagline: e.target.value },
+                      }))
+                    }
+                  />
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      const fields = artistFields[a.id];
+                      const res = await setArtistWebsiteAction({
+                        artistProfileId: a.id,
+                        avatarUrl: fields?.avatarUrl || null,
+                        coverUrl: fields?.coverUrl || null,
+                        entzopediaUrl: fields?.entzopediaUrl || null,
+                        tagline: fields?.tagline || "",
+                      });
+                      setMsg(res.ok ? "Artist profile media and Entzopedia link saved." : res.error);
+                    })
+                  }
+                >
+                  {pending ? "Saving…" : "Save artist profile"}
+                </Button>
               </li>
             );
           })}
