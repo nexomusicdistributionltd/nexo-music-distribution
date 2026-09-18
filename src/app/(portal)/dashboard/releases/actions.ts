@@ -820,7 +820,7 @@ export async function registerUploadedAsset(input: {
       channels == null
         ? "Nexo could not verify the FLAC technical metadata. Re-export the master and upload it again."
         : duration_ms < 5000
-          ? "TooLost requires audio tracks to be at least 5 seconds long."
+          ? "Nexo requires audio tracks to be at least 5 seconds long."
           : bit_depth < 16
             ? "Audio must be at least 16-bit."
             : sample_rate_hz < 44100
@@ -847,7 +847,7 @@ export async function registerUploadedAsset(input: {
         ok: false,
         error:
           width != null && height != null
-            ? `Artwork is ${width}×${height}px. TooLost requires square artwork between 3000×3000 and 5000×5000px.`
+            ? `Artwork is ${width}×${height}px. Nexo requires square artwork between 3000×3000 and 5000×5000px.`
             : "Artwork dimensions could not be verified. Upload a valid JPG, PNG, or TIFF image.",
       };
     }
