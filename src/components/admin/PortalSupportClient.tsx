@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -38,6 +39,7 @@ export function CreateTicketForm() {
 }
 
 export function TicketReplyForm({ ticketId }: { ticketId: string }) {
+  const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   return (
@@ -51,7 +53,7 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
         const r = await replySupportTicket(ticketId, new FormData(form));
         setPending(false);
         if (!r.ok) setError(r.error);
-        else window.location.reload();
+        else router.refresh();
       }}
     >
       <Textarea name="body" rows={3} required placeholder="Reply" />
