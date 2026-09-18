@@ -235,6 +235,8 @@ export async function setAccountStatusAction(input: {
     p_reason: input.reason.trim(),
     p_restriction: input.restriction ?? null,
   });
+  if (error) return { ok: false, error: error.message };
+
   try {
     const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
     const { data: target } = await supabase
@@ -262,10 +264,12 @@ export async function setAccountStatusAction(input: {
         payload: {
           FIRST_NAME: target.display_name || target.full_name || "there",
           ACCOUNT_STATUS: input.status,
+          STATUS: input.status.replace(/_/g, " "),
           RESTRICTION: input.restriction ?? "none",
+          REASON: input.reason.trim(),
           CTA_URL: "https://nexomusicdistribution.com/dashboard",
           CTA_LABEL: "Open workspace",
-          PREHEADER: "Account update",
+          PREHEADER: `Account ${input.status.replace(/_/g, " ")} — ${input.reason.trim()}`,
         },
         idempotencyKey: `ACCOUNT:${templateKey}:${target.id}:${input.status}:${input.restriction ?? "none"}:${Date.now()}`,
       });
@@ -800,7 +804,7 @@ export async function updateTicketAction(input: {
         const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
         const { data: ticket } = await supabase
           .from("support_tickets")
-          .select("id, subject, requester_user_id")
+          .select("id, subject, status, requester_user_id")
           .eq("id", input.ticketId)
           .maybeSingle();
         if (ticket?.requester_user_id) {
@@ -820,10 +824,14 @@ export async function updateTicketAction(input: {
               relatedEntityId: ticket.id,
               payload: {
                 FIRST_NAME: requester.display_name || "there",
+                SUPPORT_TICKET_ID: ticket.id,
                 TICKET_SUBJECT: ticket.subject ?? "Support",
+                STATUS: ticket.status ?? "open",
+                REASON: input.reply.trim(),
+                REPLY_BODY: input.reply.trim(),
                 CTA_URL: "https://nexomusicdistribution.com/support",
                 CTA_LABEL: "View reply",
-                PREHEADER: "New reply on your ticket",
+                PREHEADER: `New support reply — ${ticket.subject ?? "Support"}`,
               },
               idempotencyKey: `SUPPORT_TICKET_REPLY:${ticket.id}:${Date.now()}`,
               createdBy: ctx.userId,
