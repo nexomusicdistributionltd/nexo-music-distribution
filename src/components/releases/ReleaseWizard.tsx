@@ -141,6 +141,9 @@ export function ReleaseWizard({
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState<string | null>(null);
+  const [acceptTerms, setAcceptTerms] = React.useState(false);
+  const [confirmRights, setConfirmRights] = React.useState(false);
+  const [confirmYoutubeRights, setConfirmYoutubeRights] = React.useState(false);
 
   async function ensureDraft(): Promise<string> {
     if (releaseId) return releaseId;
@@ -190,7 +193,7 @@ export function ReleaseWizard({
     if (!res.ok) throw new Error(res.error);
   }
 
-  async function saveTracks(id: string) {
+  async function saveTracks(id: string): Promise<ReleaseTrackRow[]> {
     const res = await replaceTracks(
       id,
       tracks.map((t, i) => ({
@@ -203,9 +206,10 @@ export function ReleaseWizard({
       }))
     );
     if (!res.ok) throw new Error(res.error);
-    if (res.data.tracks?.length) {
+    const persisted = res.data.tracks ?? [];
+    if (persisted.length) {
       setTracks(
-        res.data.tracks.map((t) => ({
+        persisted.map((t) => ({
           id: t.id,
           track_number: t.track_number,
           title: t.title,
@@ -215,6 +219,7 @@ export function ReleaseWizard({
         }))
       );
     }
+    return persisted;
   }
 
   async function saveContributors(id: string) {
@@ -264,7 +269,12 @@ export function ReleaseWizard({
     }
   }
 
-  async function onUpload(kind: "audio" | "artwork", file: File, trackId?: string) {
+  async function onUpload(
+    kind: "audio" | "artwork",
+    file: File,
+    trackId?: string,
+    trackIndex?: number
+  ) {
     setError(null);
     const check = kind === "audio" ? assertAudioFile(file) : assertArtworkFile(file);
     if (check) {
@@ -274,6 +284,15 @@ export function ReleaseWizard({
     const id = await ensureDraft();
     setUploadProgress(`Uploading ${file.name}…`);
     try {
+      let effectiveTrackId = trackId ?? null;
+      if (kind === "audio" && !effectiveTrackId && typeof trackIndex === "number") {
+        const persisted = await saveTracks(id);
+        effectiveTrackId = persisted[trackIndex]?.id ?? null;
+        if (!effectiveTrackId) {
+          throw new Error("Save the track title before uploading its audio.");
+        }
+      }
+
       const prep = await prepareAssetUpload({ releaseId: id, kind, filename: file.name });
       if (!prep.ok) throw new Error(prep.error);
       const supabase = createClient();
@@ -283,7 +302,7 @@ export function ReleaseWizard({
       if (upErr) throw upErr;
       const reg = await registerUploadedAsset({
         releaseId: id,
-        trackId: trackId ?? null,
+        trackId: effectiveTrackId,
         kind,
         storagePath: prep.data.path,
         filename: file.name,
@@ -296,7 +315,7 @@ export function ReleaseWizard({
         {
           id: reg.data.id,
           release_id: id,
-          track_id: trackId ?? null,
+          track_id: effectiveTrackId,
           kind,
           storage_bucket: prep.data.bucket,
           storage_path: prep.data.path,
@@ -333,7 +352,11 @@ export function ReleaseWizard({
       await saveInfo(id);
       await saveTracks(id);
       await saveContributors(id);
-      const res = await submitRelease(id);
+      const res = await submitRelease(id, {
+        acceptTerms,
+        confirmRights,
+        confirmYoutubeRights,
+      });
       if (!res.ok) throw new Error(res.error);
       router.push(`/dashboard/releases/${id}`);
       router.refresh();
@@ -583,7 +606,7 @@ export function ReleaseWizard({
                       accept="audio/*,.wav,.flac,.mp3,.aiff,.m4a"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
-                        if (f) void onUpload("audio", f, t.id);
+                        if (f) void onUpload("audio", f, t.id, idx);
                       }}
                     />
                     {audioAssets.length ? (
@@ -817,6 +840,47 @@ export function ReleaseWizard({
               <Alert title="Submit to QC">
                 Submitting locks this release. You cannot self-approve or mark it delivered/live.
               </Alert>
+              <div className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] p-4">
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={confirmRights}
+                    onChange={(e) => setConfirmRights(e.target.checked)}
+                  />
+                  <span>
+                    I confirm that I own or control the rights required to distribute this release,
+                    including the recordings, compositions, artwork, samples, and featured performances.
+                  </span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={confirmYoutubeRights}
+                    onChange={(e) => setConfirmYoutubeRights(e.target.checked)}
+                  />
+                  <span>
+                    I confirm that I have the rights required for YouTube and UGC delivery/monetization
+                    for this release.
+                  </span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                  />
+                  <span>
+                    I agree that this release submission is subject to the{" "}
+                    <Link href="/terms" target="_blank" className="underline underline-offset-4">
+                      Nexo Terms of Service
+                    </Link>{" "}
+                    and distribution policies.
+                  </span>
+                </label>
+              </div>
             </div>
           ) : null}
 
@@ -829,7 +893,10 @@ export function ReleaseWizard({
                 {busy ? "Saving…" : "Continue"}
               </Button>
             ) : (
-              <Button onClick={() => void onSubmit()} disabled={busy}>
+              <Button
+                onClick={() => void onSubmit()}
+                disabled={busy || !acceptTerms || !confirmRights || !confirmYoutubeRights}
+              >
                 {busy ? "Submitting…" : mode === "edit" ? "Save & submit to QC" : "Submit to QC"}
               </Button>
             )}
