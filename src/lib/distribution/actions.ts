@@ -3,7 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getProvider, getProviderConnectionState } from "@/lib/provider";
-import type { ProviderReleasePayload } from "@/lib/provider/types";
+import type { ProviderReleasePayload, ProviderStatusResult } from "@/lib/provider/types";
 import {
   toProviderErrorPayload,
   PROVIDER_DELIVERY_VALIDATION_CODE,
@@ -125,6 +125,24 @@ function providerPayloadFromRelease(release: DistributionReleaseRecord): Provide
     territories: release.territories ?? [],
     deliverySettings: release.distribution_settings ?? {},
   };
+}
+
+async function persistProviderAssignedIdentifiers(
+  releaseId: string,
+  status: ProviderStatusResult
+): Promise<void> {
+  if (!status.upc && !(status.tracks ?? []).some((track) => track.isrc || track.providerTrackId)) {
+    return;
+  }
+  const service = createServiceClient();
+  const { error } = await service.rpc("apply_provider_assigned_identifiers", {
+    p_release_id: releaseId,
+    p_upc: status.upc ?? null,
+    p_track_identifiers: status.tracks ?? [],
+  });
+  if (error) {
+    throw new Error(`Could not reconcile provider-assigned UPC/ISRC values: ${error.message}`);
+  }
 }
 
 function validateProviderPayloadBeforeAttempt(payload: ProviderReleasePayload): string | null {
@@ -267,6 +285,7 @@ export async function syncReleaseStatus(jobId: string): Promise<DistActionResult
   const provider = getProvider();
   try {
     const status = await provider.syncRelease(job.provider_release_id);
+    await persistProviderAssignedIdentifiers(job.release_id, status);
     const mapped = mapProviderStatusToRelease(status.status);
 
     if (mapped) {
