@@ -190,6 +190,7 @@ describe("SQL: canonical enqueue path (latest migrations)", () => {
     expect(enqueueSql).toContain("p_recipient_user_id <> resolved_user_id");
     expect(enqueueSql).toContain("Transactional email requires exactly one recipient address");
     expect(enqueueSql).toContain("Cannot enqueue transactional email for another user");
+    expect(enqueueSql).toContain("Explicit recipient transactional email requires staff or service role");
     expect(enqueueSql).toContain("public.is_staff(auth.uid())");
     expect(recipientIntegrity).toContain("Release lifecycle/QC email can never trust a caller-supplied address");
   });
