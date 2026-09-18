@@ -17,7 +17,7 @@ async function notifyUser(input: {
   const db = createServiceClient();
   await db.from("notifications").insert({
     user_id: input.userId,
-    type: "service_update",
+    type: "system",
     title: input.title,
     body: input.body,
     entity_type: input.entityType,
