@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 export default async function QueuePage() {
   await RequireAdmin();
-  const provider = getProviderConnectionState();
+  const provider = await getProviderConnectionState();
   const jobs = await listDistributionJobs({ status: "queued", limit: 50 });
   const supabase = await createClient();
   const { data: approved } = await supabase
