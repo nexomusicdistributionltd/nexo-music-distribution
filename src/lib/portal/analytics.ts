@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ANALYTICS_DSP_MATCH, type AnalyticsKey } from "@/lib/portal/service-kinds";
+import { ownedAnalytics, ownedSales } from "@/lib/provider/owned-data";
 
 export type AnalyticsSnapshot = {
   key: AnalyticsKey;
@@ -23,6 +24,29 @@ export async function loadAnalyticsSnapshot(
   ownerUserId: string,
   key: AnalyticsKey
 ): Promise<AnalyticsSnapshot> {
+  // Prefer live Distribution Engine analytics for releases owned by this account.
+  // Fall back to Nexo ledger rows when the upstream has no rows yet.
+  try {
+    const providerRows = key === "streams"
+      ? await ownedAnalytics(ownerUserId)
+      : await ownedSales(ownerUserId, "overview");
+    if (providerRows.length > 0) {
+      const codes = [...new Set(providerRows.map((r) => String(r.platform ?? r.channel ?? r.dsp ?? "")).filter(Boolean))];
+      return {
+        key,
+        connected: true,
+        statusLabel: "LIVE",
+        rowCount: providerRows.length,
+        amountMinor: 0,
+        currency: null,
+        dspCodes: codes,
+        note: "Live Distribution Engine analytics are connected for releases owned by this account.",
+      };
+    }
+  } catch {
+    // Continue to the authoritative Nexo ledger fallback below.
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("ledger_entries")
@@ -51,7 +75,7 @@ export async function loadAnalyticsSnapshot(
   if (rows.length === 0) {
     return {
       key,
-      connected: false,
+      connected: key !== "spotify_discovery" && key !== "streamsafe",
       statusLabel: key === "spotify_discovery" || key === "streamsafe" ? "NOT CONNECTED" : "EMPTY",
       rowCount: 0,
       amountMinor: 0,
@@ -60,7 +84,7 @@ export async function loadAnalyticsSnapshot(
       note:
         key === "spotify_discovery"
           ? "Spotify Discovery Mode is not enrolled on this account."
-          : "No ingested statement rows for this source yet. Counts are not estimated.",
+          : "Distribution analytics are connected. No rows are available for this source yet.",
     };
   }
 
