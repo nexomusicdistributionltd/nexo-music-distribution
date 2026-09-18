@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import {
   distributionReference,
+  providerAnalyticsRows,
   providerRows,
   type ProviderSalesPageQuery,
 } from "@/lib/provider/distribution-reference";
@@ -39,6 +40,17 @@ function releaseIdFromRow(row: Row): string {
 function isrcFromRow(row: Row): string {
   return String(row.isrc ?? row.ISRC ?? row.track_isrc ?? "").trim().toUpperCase();
 }
+
+function analyticsReleaseIdFromRow(row: Row): string {
+  return String(
+    row.release_id ??
+      row.releaseId ??
+      row.provider_release_id ??
+      row.providerReleaseId ??
+      ""
+  ).trim();
+}
+
 
 function artistFromRow(row: Row): string {
   return normalize(
@@ -218,33 +230,100 @@ export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<
   return [];
 }
 
-export async function ownedAnalytics(userId: string): Promise<Row[]> {
+export type OwnedAnalyticsResult = {
+  rows: Row[];
+  connected: boolean;
+  hasCatalogScope: boolean;
+  providerErrors: number;
+};
+
+/**
+ * Returns live provider analytics that can be proven to belong to the signed-in
+ * Nexo account. Aggregate provider-wide rows are never exposed unless they carry
+ * an owned release id or ISRC. Track-detail calls are made only for locally-owned
+ * ISRCs and are annotated with that ISRC before normalization.
+ */
+export async function ownedAnalytics(userId: string): Promise<OwnedAnalyticsResult> {
   const scope = await ownedDistributionScope(userId);
-  if (!scope.isrcs.size && !scope.providerIds.size) return [];
+  const hasCatalogScope = scope.isrcs.size > 0 || scope.providerIds.size > 0;
 
-  const settled = await Promise.allSettled([
-    distributionReference.analyticsOverview(),
-    distributionReference.analyticsTracks(),
-    distributionReference.analyticsPlatformData(),
-  ]);
+  const aggregateRequests: Array<{
+    source: string;
+    run: () => Promise<unknown>;
+  }> = [
+    { source: "overview", run: () => distributionReference.analyticsOverview() },
+    { source: "tracks", run: () => distributionReference.analyticsTracks() },
+    { source: "track_charts", run: () => distributionReference.analyticsTrackCharts() },
+    { source: "platform_data", run: () => distributionReference.analyticsPlatformData() },
+  ];
 
-  const seen = new Set<string>();
-  const rows = settled
-    .flatMap((result) => (result.status === "fulfilled" ? providerRows(result.value) : []))
-    .filter((row) => {
-      const releaseId = releaseIdFromRow(row);
+  const aggregateSettled = await Promise.allSettled(
+    aggregateRequests.map((request) => request.run())
+  );
+
+  let connected = aggregateSettled.some((result) => result.status === "fulfilled");
+  let providerErrors = aggregateSettled.filter((result) => result.status === "rejected").length;
+
+  const ownedAggregateRows = aggregateSettled.flatMap((result, index) => {
+    if (result.status !== "fulfilled") return [];
+    const source = aggregateRequests[index]?.source ?? "analytics";
+    return providerAnalyticsRows(result.value, { _analytics_source: source }).filter((row) => {
+      const releaseId = analyticsReleaseIdFromRow(row);
       const isrc = isrcFromRow(row);
       return (
         (Boolean(releaseId) && scope.providerIds.has(releaseId)) ||
         (Boolean(isrc) && scope.isrcs.has(isrc))
       );
-    })
-    .filter((row) => {
-      const key = JSON.stringify(row);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
     });
+  });
 
-  return rows;
+  const representedIsrcs = new Set(
+    ownedAggregateRows.map((row) => isrcFromRow(row)).filter(Boolean)
+  );
+
+  // Detail endpoints are the safest way to expose nested platform metrics because
+  // the request itself is scoped to an ISRC owned by this Nexo user. Limit one
+  // interactive render to 50 detail calls to stay inside provider burst/quota limits.
+  const detailIsrcs = [...scope.isrcs]
+    .filter((isrc) => !representedIsrcs.has(isrc))
+    .slice(0, 50);
+
+  const detailRows: Row[] = [];
+  for (let startIndex = 0; startIndex < detailIsrcs.length; startIndex += 5) {
+    const batch = detailIsrcs.slice(startIndex, startIndex + 5);
+    const settled = await Promise.allSettled(
+      batch.map(async (isrc) => {
+        const raw = await distributionReference.analyticsTrack(isrc);
+        return providerAnalyticsRows(raw, {
+          isrc,
+          _analytics_source: "track_detail",
+        });
+      })
+    );
+
+    for (const result of settled) {
+      if (result.status === "fulfilled") {
+        connected = true;
+        detailRows.push(...result.value);
+      } else {
+        providerErrors += 1;
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  const rows = [...detailRows, ...ownedAggregateRows].filter((row) => {
+    const key = JSON.stringify(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return {
+    rows,
+    connected,
+    hasCatalogScope,
+    providerErrors,
+  };
 }
+

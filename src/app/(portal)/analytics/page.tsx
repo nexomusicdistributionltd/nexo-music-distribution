@@ -24,7 +24,7 @@ export default async function AnalyticsHubPage() {
     <div className="space-y-6">
       <PageIntro
         title="Analytics"
-        description="Verified distribution analytics and statement-backed rows only. Nexo never invents stream counts."
+        description="Live distribution analytics from the connected provider, scoped to catalog owned by this artist or label. Nexo never invents metrics."
       />
       <ul className="divide-y divide-[var(--nexo-divider)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
         {(section?.items ?? []).map((item) => (

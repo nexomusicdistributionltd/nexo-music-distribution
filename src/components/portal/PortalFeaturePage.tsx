@@ -72,64 +72,118 @@ export async function PortalFeaturePage({ href }: { href: string }) {
       );
     }
     const snap = await loadAnalyticsSnapshot(ctx.userId, def.analyticsKey);
+    const metricEntries = Object.entries(snap.metricTotals);
     return (
       <div className="space-y-6">
         <PageIntro eyebrow="Analytics" title={def.label} description={def.description} />
-        <Alert variant={snap.statusLabel === "LIVE" ? "success" : "default"} title={snap.statusLabel}>
+        <Alert
+          variant={
+            snap.statusLabel === "LIVE"
+              ? "success"
+              : snap.statusLabel === "UNAVAILABLE"
+                ? "warning"
+                : "default"
+          }
+          title={snap.statusLabel}
+        >
           {snap.note}
         </Alert>
-        {snap.rowCount === 0 ? (
-          <EmptyState
-            title="No verified rows yet"
-            description="Nexo does not invent stream counts or DSP credentials."
-          />
-        ) : (
-          <div className="space-y-4">
-            <dl className="grid gap-3 sm:grid-cols-3">
-              <Stat label="Posted rows" value={String(snap.rowCount)} />
-              <Stat
-                label={snap.amountMinor === null ? "Financial total" : "Ledger total"}
-                value={snap.amountMinor === null ? "Not provided by this analytics feed" : snap.currency ? formatMinorUnits(snap.amountMinor, snap.currency) : String(snap.amountMinor)}
-              />
-              <Stat label="DSP codes" value={snap.dspCodes.join(", ") || "—"} />
-            </dl>
 
-            {Object.keys(snap.streamCounts).length > 0 ? (
-              <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
-                <h2 className="text-h4">Verified DSP streams</h2>
-                <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-                  Counts and trends appear only when returned by the connected provider.
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {Object.entries(snap.streamCounts).map(([dsp, streams]) => {
-                    const iconName = analyticsDspIcon(dsp);
-                    const trend = snap.trendPercentByDsp[dsp];
-                    return (
-                      <div
-                        key={dsp}
-                        className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
-                      >
-                        <div className="flex items-center gap-2">
-                          {iconName ? <DspIcon name={iconName} className="h-5 w-5" /> : null}
-                          <p className="truncate text-small font-medium">{analyticsDspLabel(dsp)}</p>
-                        </div>
-                        <p className="mt-3 text-2xl font-semibold tabular-nums">
-                          {new Intl.NumberFormat("en-US").format(streams)}
-                        </p>
-                        <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-                          streams
-                          {Number.isFinite(trend)
-                            ? ` · ${trend > 0 ? "+" : ""}${trend.toFixed(2)}%`
-                            : ""}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-          </div>
-        )}
+        <dl className="grid gap-3 sm:grid-cols-3">
+          <Stat label="Provider rows" value={String(snap.rowCount)} />
+          <Stat
+            label="Reported sources"
+            value={snap.dspCodes.length > 0 ? snap.dspCodes.map(analyticsDspLabel).join(", ") : snap.connected ? "Connected" : "Unavailable"}
+          />
+          <Stat label="Last provider update" value={formatAnalyticsUpdatedAt(snap.updatedAt)} />
+        </dl>
+
+        {metricEntries.length > 0 ? (
+          <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
+            <h2 className="text-h4">Live metrics</h2>
+            <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+              Metrics below are returned by the connected distribution analytics feed for this account&apos;s catalog.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {metricEntries.map(([metric, value]) => (
+                <Stat key={metric} label={analyticsMetricLabel(metric)} value={formatAnalyticsMetric(metric, value)} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {def.analyticsKey === "streams" ? (
+          <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
+            <h2 className="text-h4">Streams by DSP</h2>
+            <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+              Each card uses the latest stream value returned for the signed-in account&apos;s owned catalog. Missing provider data is shown as pending, never as a made-up zero.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {STREAM_ANALYTICS_DSPS.map((dsp) => {
+                const streams = analyticsStreamValue(snap.streamCounts, dsp.aliases);
+                const trend = analyticsTrendValue(snap.trendPercentByDsp, dsp.aliases);
+                return (
+                  <div
+                    key={dsp.label}
+                    className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <DspIcon name={dsp.icon} className="h-5 w-5" />
+                      <p className="truncate text-small font-medium">{dsp.label}</p>
+                    </div>
+                    <p className="mt-3 text-2xl font-semibold tabular-nums">
+                      {streams == null ? "—" : new Intl.NumberFormat("en-US").format(streams)}
+                    </p>
+                    <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                      {streams == null
+                        ? "Awaiting provider report"
+                        : `streams${Number.isFinite(trend) ? ` · ${trend! > 0 ? "+" : ""}${trend!.toFixed(2)}%` : ""}`}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : Object.keys(snap.streamCounts).length > 0 ? (
+          <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
+            <h2 className="text-h4">Provider stream context</h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {Object.entries(snap.streamCounts).map(([dsp, streams]) => {
+                const iconName = analyticsDspIcon(dsp);
+                const trend = snap.trendPercentByDsp[dsp];
+                return (
+                  <div
+                    key={dsp}
+                    className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)] p-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      {iconName ? <DspIcon name={iconName} className="h-5 w-5" /> : null}
+                      <p className="truncate text-small font-medium">{analyticsDspLabel(dsp)}</p>
+                    </div>
+                    <p className="mt-3 text-2xl font-semibold tabular-nums">
+                      {new Intl.NumberFormat("en-US").format(streams)}
+                    </p>
+                    <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+                      streams
+                      {Number.isFinite(trend)
+                        ? ` · ${trend > 0 ? "+" : ""}${trend.toFixed(2)}%`
+                        : ""}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {snap.rowCount === 0 && snap.statusLabel === "CONNECTED" ? (
+          <section className="rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
+            <h2 className="text-h4">Provider connected</h2>
+            <p className="mt-2 text-small text-[var(--nexo-text-muted)]">
+              This analytics source is live. Data will populate automatically when the provider reports activity for the account&apos;s distributed catalog.
+            </p>
+          </section>
+        ) : null}
       </div>
     );
   }
@@ -183,6 +237,79 @@ export async function PortalFeaturePage({ href }: { href: string }) {
   if (def.pageKind === "artist-self") return <ArtistSelfView userId={ctx.userId} />;
 
   notFound();
+}
+
+const STREAM_ANALYTICS_DSPS = [
+  { label: "Audiomack", icon: "audiomack", aliases: ["audiomack"] },
+  { label: "Spotify", icon: "spotify", aliases: ["spotify"] },
+  { label: "Apple Music", icon: "apple_music", aliases: ["apple_music", "apple"] },
+  { label: "YouTube", icon: "youtube", aliases: ["youtube"] },
+  { label: "Amazon Music", icon: "amazon_music", aliases: ["amazon_music", "amazon"] },
+  { label: "Deezer", icon: "deezer", aliases: ["deezer"] },
+  { label: "Tidal", icon: "tidal", aliases: ["tidal"] },
+  { label: "Pandora", icon: "pandora", aliases: ["pandora"] },
+] as const;
+
+function analyticsStreamValue(
+  values: Record<string, number>,
+  aliases: readonly string[]
+): number | null {
+  for (const [key, value] of Object.entries(values)) {
+    if (aliases.some((alias) => key === alias || key.includes(alias))) return value;
+  }
+  return null;
+}
+
+function analyticsTrendValue(
+  values: Record<string, number>,
+  aliases: readonly string[]
+): number | null {
+  for (const [key, value] of Object.entries(values)) {
+    if (aliases.some((alias) => key === alias || key.includes(alias))) return value;
+  }
+  return null;
+}
+
+function analyticsMetricLabel(metric: string): string {
+  const labels: Record<string, string> = {
+    streams: "Streams",
+    downloads: "Downloads",
+    video_creations: "Video creations",
+    views: "Views",
+    likes: "Likes",
+    comments: "Comments",
+    shares: "Shares",
+    listeners: "Listeners",
+    saves: "Saves",
+    skips: "Skips",
+    playlist_adds: "Playlist adds",
+    first_time_listeners: "First-time listeners",
+    discovery_mode_streams: "Discovery Mode streams",
+    completion_rate: "Completion rate",
+    shuffle_rate: "Shuffle rate",
+    weekly_engagement: "Weekly engagement",
+    hourly_engagement: "Hourly engagement",
+    suspicious_streams: "Suspicious streams",
+    artificial_streams: "Artificial / invalid streams",
+    suspicious_rate: "Suspicious rate",
+  };
+  return labels[metric] ?? analyticsDspLabel(metric);
+}
+
+function formatAnalyticsMetric(metric: string, value: number): string {
+  if (metric.endsWith("_rate")) return `${value.toFixed(2)}%`;
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
+}
+
+function formatAnalyticsUpdatedAt(value: string | null): string {
+  if (!value) return "Latest provider response";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(parsed);
 }
 
 function analyticsDspIcon(value: string): string | null {

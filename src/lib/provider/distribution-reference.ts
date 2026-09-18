@@ -102,6 +102,15 @@ async function api(path: string): Promise<unknown> {
   return cachedApiGet(path);
 }
 
+/**
+ * Analytics must reflect the freshest data exposed by the provider. We deliberately
+ * bypass the generic 60-second reference cache here. The upstream provider can still
+ * have its own reporting delay; Nexo never fabricates values between provider refreshes.
+ */
+async function apiLive(path: string): Promise<unknown> {
+  return apiUncached(path);
+}
+
 function rows(value: unknown): Json[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is Json => Boolean(item && typeof item === "object"));
@@ -208,14 +217,14 @@ export const distributionReference = {
   streamRateTerritories: (service: string, query?: ProviderSalesPageQuery) =>
     api(withQuery(`/sales/stream-rates/${id(service)}/territories`, salesQuery(query))),
 
-  analyticsOverview: () => api("/analytics/overview"),
-  analyticsTracks: () => api("/analytics/tracks"),
-  analyticsTrackCharts: () => api("/analytics/tracks/charts"),
-  analyticsTrack: (isrc: string) => api(`/analytics/tracks/${id(isrc)}`),
-  analyticsPlatforms: () => api("/analytics/platforms"),
-  analyticsPlatformData: () => api("/analytics/platforms/data"),
+  analyticsOverview: () => apiLive("/analytics/overview"),
+  analyticsTracks: () => apiLive("/analytics/tracks"),
+  analyticsTrackCharts: () => apiLive("/analytics/tracks/charts"),
+  analyticsTrack: (isrc: string) => apiLive(`/analytics/tracks/${id(isrc)}`),
+  analyticsPlatforms: () => apiLive("/analytics/platforms"),
+  analyticsPlatformData: () => apiLive("/analytics/platforms/data"),
   /** Compatibility alias used by existing Nexo analytics loaders. */
-  analytics: () => api("/analytics/overview"),
+  analytics: () => apiLive("/analytics/overview"),
 
   preferences: () => api("/preferences"),
 };
@@ -238,6 +247,147 @@ export async function distributionDashboardData() {
     genres: value(genres),
     languages: value(languages),
   };
+}
+
+const ANALYTICS_PLATFORM_HINTS = new Set([
+  "spotify",
+  "apple",
+  "apple_music",
+  "itunes",
+  "youtube",
+  "youtube_ugc",
+  "yt_ugc",
+  "amazon",
+  "amazon_music",
+  "audiomack",
+  "deezer",
+  "tidal",
+  "pandora",
+  "soundcloud",
+  "meta",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "streamsafe",
+  "spotify_discovery",
+  "spotify_discovery_mode",
+  "spotify_engagement",
+]);
+
+const ANALYTICS_SECTION_HINTS = [
+  "discovery",
+  "engagement",
+  "ugc",
+  "content_id",
+  "contentid",
+  "fraud",
+  "artificial",
+  "suspicious",
+  "streamsafe",
+  "download",
+  "social",
+  "daily",
+  "weekly",
+  "hourly",
+];
+
+function analyticsHint(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function isScalar(value: unknown): boolean {
+  return (
+    value == null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  );
+}
+
+function numberLike(value: unknown): boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "string" || !value.trim()) return false;
+  return Number.isFinite(Number(value));
+}
+
+function deepAnalyticsRows(
+  value: unknown,
+  inherited: Json = {},
+  parentKey = ""
+): Json[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => deepAnalyticsRows(item, inherited, parentKey));
+  }
+  if (!value || typeof value !== "object") return [];
+
+  const object = value as Json;
+  const scalar: Json = {};
+  const nested: Array<[string, unknown]> = [];
+
+  for (const [key, entry] of Object.entries(object)) {
+    if (isScalar(entry)) scalar[key] = entry;
+    else nested.push([key, entry]);
+  }
+
+  const row: Json = { ...inherited, ...scalar };
+  const normalizedParent = analyticsHint(parentKey);
+  if (
+    normalizedParent &&
+    ANALYTICS_PLATFORM_HINTS.has(normalizedParent) &&
+    !row.platform &&
+    !row.channel &&
+    !row.dsp &&
+    !row.store
+  ) {
+    row.platform = normalizedParent;
+  }
+  if (
+    normalizedParent &&
+    ANALYTICS_SECTION_HINTS.some((hint) => normalizedParent.includes(hint)) &&
+    !row.analytics_section
+  ) {
+    row.analytics_section = normalizedParent;
+  }
+
+  const scalarKeys = Object.keys(scalar);
+  const hasNumericMetric = scalarKeys.some((key) => numberLike(scalar[key]));
+  const hasKnownDimension = [
+    "platform",
+    "channel",
+    "dsp",
+    "store",
+    "isrc",
+    "ISRC",
+    "release_id",
+    "releaseId",
+    "provider_release_id",
+    "providerReleaseId",
+    "date",
+    "day",
+    "week",
+    "month",
+    "period",
+    "metric",
+    "category",
+    "type",
+  ].some((key) => row[key] != null);
+
+  const output: Json[] = [];
+  if (hasNumericMetric && (hasKnownDimension || nested.length === 0)) {
+    output.push(row);
+  }
+
+  for (const [key, entry] of nested) {
+    output.push(...deepAnalyticsRows(entry, row, key));
+  }
+
+  return output;
+}
+
+export function providerAnalyticsRows(value: unknown, seed: Json = {}): Json[] {
+  const flattened = deepAnalyticsRows(value, seed);
+  if (flattened.length > 0) return flattened;
+  return rows(value).map((row) => ({ ...seed, ...row }));
 }
 
 export function providerRows(value: unknown): Json[] {
