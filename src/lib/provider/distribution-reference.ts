@@ -170,52 +170,52 @@ export const distributionReference = {
   languages: () => api("/lookup/languages"),
 
   salesOverview: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/overview", salesQuery(query))),
+    apiLive(withQuery("/sales/overview", salesQuery(query))),
   salesTracks: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/tracks", salesQuery(query))),
+    apiLive(withQuery("/sales/tracks", salesQuery(query))),
   salesTrackOverview: (isrc: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/tracks/${id(isrc)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/tracks/${id(isrc)}/overview`, salesQuery(query))),
   salesTrackChannels: (isrc: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/tracks/${id(isrc)}/channels`, salesQuery(query))),
+    apiLive(withQuery(`/sales/tracks/${id(isrc)}/channels`, salesQuery(query))),
   salesTrackTerritories: (isrc: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/tracks/${id(isrc)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/tracks/${id(isrc)}/territories`, salesQuery(query))),
 
   salesReleases: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/releases", salesQuery(query))),
+    apiLive(withQuery("/sales/releases", salesQuery(query))),
   salesReleaseOverview: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/releases/${id(releaseId)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/releases/${id(releaseId)}/overview`, salesQuery(query))),
   salesReleaseChannels: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/releases/${id(releaseId)}/channels`, salesQuery(query))),
+    apiLive(withQuery(`/sales/releases/${id(releaseId)}/channels`, salesQuery(query))),
   salesReleaseTerritories: (releaseId: string | number, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/releases/${id(releaseId)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/releases/${id(releaseId)}/territories`, salesQuery(query))),
 
   salesArtists: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/artists", salesQuery(query))),
+    apiLive(withQuery("/sales/artists", salesQuery(query))),
   salesArtistOverview: (artist: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/artists/${id(artist)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/artists/${id(artist)}/overview`, salesQuery(query))),
   salesArtistChannels: (artist: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/artists/${id(artist)}/channels`, salesQuery(query))),
+    apiLive(withQuery(`/sales/artists/${id(artist)}/channels`, salesQuery(query))),
   salesArtistTerritories: (artist: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/artists/${id(artist)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/artists/${id(artist)}/territories`, salesQuery(query))),
 
   salesChannels: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/channels", salesQuery(query))),
+    apiLive(withQuery("/sales/channels", salesQuery(query))),
   salesChannelOverview: (channel: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/channels/${id(channel)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/channels/${id(channel)}/overview`, salesQuery(query))),
   salesChannelReleases: (channel: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/channels/${id(channel)}/releases`, salesQuery(query))),
+    apiLive(withQuery(`/sales/channels/${id(channel)}/releases`, salesQuery(query))),
   salesChannelTerritories: (channel: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/channels/${id(channel)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/channels/${id(channel)}/territories`, salesQuery(query))),
 
   salesTerritories: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/territories", salesQuery(query))),
+    apiLive(withQuery("/sales/territories", salesQuery(query))),
 
   streamRates: (query?: ProviderSalesPageQuery) =>
-    api(withQuery("/sales/stream-rates", salesQuery(query))),
+    apiLive(withQuery("/sales/stream-rates", salesQuery(query))),
   streamRateOverview: (service: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/stream-rates/${id(service)}/overview`, salesQuery(query))),
+    apiLive(withQuery(`/sales/stream-rates/${id(service)}/overview`, salesQuery(query))),
   streamRateTerritories: (service: string, query?: ProviderSalesPageQuery) =>
-    api(withQuery(`/sales/stream-rates/${id(service)}/territories`, salesQuery(query))),
+    apiLive(withQuery(`/sales/stream-rates/${id(service)}/territories`, salesQuery(query))),
 
   analyticsOverview: () => apiLive("/analytics/overview"),
   analyticsTracks: () => apiLive("/analytics/tracks"),
