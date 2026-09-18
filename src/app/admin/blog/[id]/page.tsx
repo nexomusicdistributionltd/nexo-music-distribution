@@ -31,6 +31,8 @@ export default async function EditBlogPostPage({
           excerpt: post.excerpt,
           body_html: post.body_html,
           status: post.status,
+          cover_image_url: post.cover_image_url,
+          tags: post.tags,
         }}
       />
     </div>
