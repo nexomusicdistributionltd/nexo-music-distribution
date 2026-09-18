@@ -106,3 +106,91 @@ export async function adminSetPreferredPayoutMethodAction(input: {
   revalidatePath("/earnings/payouts");
   return { ok: true };
 }
+
+
+export async function adminSavePayoutMethodOptionAction(input: {
+  id?: string;
+  code: string;
+  displayName: string;
+  methodType: string;
+  destinationLabel: string;
+  instructions?: string;
+  requiresInstitution: boolean;
+  requiresCountry: boolean;
+  requiresCurrency: boolean;
+  requiresReview: boolean;
+  allowedCountries?: string[];
+  allowedCurrencies?: string[];
+  enabled: boolean;
+  sortOrder?: number;
+}): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
+  const ctx = await RequireAdminPermission("admin:payouts");
+  const code = input.code.trim().toLowerCase();
+  const displayName = input.displayName.trim();
+  const destinationLabel = input.destinationLabel.trim();
+  if (!/^[a-z0-9][a-z0-9_-]{1,63}$/.test(code)) {
+    return { ok: false, error: "Code must use lowercase letters, numbers, dashes or underscores." };
+  }
+  if (!TYPES.has(input.methodType)) return { ok: false, error: "Invalid payout method type." };
+  if (displayName.length < 2 || displayName.length > 120) return { ok: false, error: "Display name must be 2–120 characters." };
+  if (destinationLabel.length < 2 || destinationLabel.length > 120) return { ok: false, error: "Destination label must be 2–120 characters." };
+
+  const countries = (input.allowedCountries ?? [])
+    .map((value) => value.trim().toUpperCase())
+    .filter((value) => /^[A-Z]{2}$/.test(value));
+  const currencies = (input.allowedCurrencies ?? [])
+    .map((value) => value.trim().toUpperCase())
+    .filter((value) => /^[A-Z]{3}$/.test(value));
+
+  const db = createServiceClient();
+  const payload = {
+    code,
+    display_name: displayName,
+    method_type: input.methodType,
+    destination_label: destinationLabel,
+    instructions: input.instructions?.trim().slice(0, 2000) || null,
+    requires_institution: input.requiresInstitution,
+    requires_country: input.requiresCountry,
+    requires_currency: input.requiresCurrency,
+    requires_review: input.requiresReview,
+    allowed_countries: countries.length ? [...new Set(countries)] : null,
+    allowed_currencies: currencies.length ? [...new Set(currencies)] : null,
+    is_enabled: input.enabled,
+    sort_order: Number.isFinite(input.sortOrder) ? Math.max(0, Math.min(10000, Number(input.sortOrder))) : 100,
+    updated_by: ctx.userId,
+    updated_at: new Date().toISOString(),
+  };
+
+  const query = input.id
+    ? db.from("payout_method_options").update(payload).eq("id", input.id)
+    : db.from("payout_method_options").insert({ ...payload, created_by: ctx.userId });
+  const { data, error } = await query.select("id").single();
+  if (error || !data) return { ok: false, error: error?.message || "Could not save payout option." };
+
+  revalidatePath("/admin/finance/payout-methods");
+  revalidatePath("/earnings/payouts");
+  revalidatePath("/wallet");
+  return { ok: true, data: { id: data.id } };
+}
+
+export async function adminTogglePayoutMethodOptionAction(input: {
+  id: string;
+  enabled: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await RequireAdminPermission("admin:payouts");
+  const db = createServiceClient();
+  const { error } = await db
+    .from("payout_method_options")
+    .update({
+      is_enabled: input.enabled,
+      updated_by: ctx.userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/finance/payout-methods");
+  revalidatePath("/earnings/payouts");
+  revalidatePath("/wallet");
+  return { ok: true };
+}
