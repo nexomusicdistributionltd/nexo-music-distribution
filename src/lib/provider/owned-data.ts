@@ -412,30 +412,35 @@ export async function ownedSales(userId: string, kind: OwnedSalesKind): Promise<
   }
 
   if (kind === "artists") {
-    const artists = [...scope.artistNames].slice(0, 50);
-    if (artists.length === 0) return [];
+    if (providerIds.length === 0) return [];
 
-    return settleRows(
-      artists.map((artist) => async () => {
-        const raw = await distributionReference.salesArtistOverview(artist, {
+    const rows = await settleRows(
+      providerIds.map((providerReleaseId) => async () => {
+        const local = scope.releaseByProviderId.get(providerReleaseId);
+        const artist = local?.primary_artist_name?.trim();
+        if (!artist) return [];
+
+        const raw = await distributionReference.salesReleaseOverview(providerReleaseId, {
           page: 1,
           perPage: 100,
         });
-        const rows = providerRows(raw);
-        if (rows.length === 0) return [];
+        return annotate(providerRows(raw), {
+          provider_release_id: providerReleaseId,
+          artist,
+          artist_name: artist,
+          name: artist,
+        });
+      })
+    );
 
-        const total = sumTotals(rows);
-        return [
-          {
-            id: artist,
-            artist,
-            artist_name: artist,
-            name: artist,
-            dividends: total,
-            total,
-            date: latestDate(rows),
-          },
-        ];
+    return aggregateBy(
+      rows,
+      (row) => String(row.artist ?? row.artist_name ?? row.name ?? "").trim(),
+      (artist) => ({
+        id: artist,
+        artist,
+        artist_name: artist,
+        name: artist,
       })
     );
   }
