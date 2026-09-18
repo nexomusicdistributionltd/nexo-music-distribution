@@ -250,23 +250,25 @@ export async function setAccountPlanOverrideAction(input: {
   );
   if (error) return { ok: false, error: error.message };
 
-  try {
-    await db.rpc("write_audit_log", {
-      p_action: "billing_plan_override",
-      p_entity_type: "profile",
-      p_entity_id: input.userId,
-      p_metadata: {
-        actor: ctx.userId,
-        account_type: input.accountType,
-        plan_id: input.planId,
-        billing_interval: billingInterval,
-        status: input.status,
-        ends_at: normalizedEndsAt,
-        reason,
-      },
-    });
-  } catch {
-    // The billing update remains authoritative if an older audit enum rejects the event.
+  const { error: auditError } = await db.from("audit_logs").insert({
+    actor_user_id: ctx.userId,
+    action: "billing_plan_override",
+    entity_type: "profile",
+    entity_id: input.userId,
+    metadata: {
+      account_type: input.accountType,
+      plan_id: input.planId,
+      billing_interval: billingInterval,
+      status: input.status,
+      ends_at: normalizedEndsAt,
+      reason,
+    },
+  });
+  if (auditError) {
+    return {
+      ok: false,
+      error: `Plan changed, but audit logging failed: ${auditError.message}`,
+    };
   }
 
   revalidateAdmin([
@@ -307,19 +309,21 @@ export async function clearAccountPlanOverrideAction(input: {
     .eq("user_id", input.userId);
   if (error) return { ok: false, error: error.message };
 
-  try {
-    await db.rpc("write_audit_log", {
-      p_action: "billing_plan_override_cleared",
-      p_entity_type: "profile",
-      p_entity_id: input.userId,
-      p_metadata: {
-        actor: ctx.userId,
-        previous: current,
-        reason: input.reason?.trim() || "Returned to Paddle billing truth",
-      },
-    });
-  } catch {
-    // Clearing the override is independent of audit enum availability.
+  const { error: auditError } = await db.from("audit_logs").insert({
+    actor_user_id: ctx.userId,
+    action: "billing_plan_override_cleared",
+    entity_type: "profile",
+    entity_id: input.userId,
+    metadata: {
+      previous: current,
+      reason: input.reason?.trim() || "Returned to Paddle billing truth",
+    },
+  });
+  if (auditError) {
+    return {
+      ok: false,
+      error: `Override cleared, but audit logging failed: ${auditError.message}`,
+    };
   }
 
   revalidateAdmin([
