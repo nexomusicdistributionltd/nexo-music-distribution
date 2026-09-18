@@ -79,7 +79,7 @@ export function ReleaseDetailView({
         </div>
       </div>
 
-      <ProviderBanner connected={release.provider_connected} />
+      {variant === "admin" ? <ProviderBanner connected={release.provider_connected} /> : null}
 
       {release.changes_requested_reason ? (
         <Alert variant="warning" title="Changes requested">
@@ -197,15 +197,17 @@ export function ReleaseDetailView({
         <TabsContent value="distribution">
           <dl className="grid gap-3 sm:grid-cols-2">
             <Meta label="Status" value={release.status.replace(/_/g, " ")} />
-            <Meta
-              label="Provider"
-              value={
-                release.provider_connected
-                  ? release.provider_name || "Connected"
-                  : "Not connected — delivery is queued inside Nexo only"
-              }
-            />
-            <Meta label="Provider status" value={release.provider_status || "—"} />
+            {variant === "admin" ? (
+              <>
+                <Meta
+                  label="Distribution Engine"
+                  value={release.provider_connected ? "Connected" : "Awaiting authorization or delivery"}
+                />
+                <Meta label="Engine status" value={release.provider_status || "—"} />
+              </>
+            ) : (
+              <Meta label="Delivery status" value={release.provider_status || release.status.replace(/_/g, " ")} />
+            )}
             <Meta label="Territories" value={(release.territories ?? []).join(", ") || "—"} />
           </dl>
         </TabsContent>
