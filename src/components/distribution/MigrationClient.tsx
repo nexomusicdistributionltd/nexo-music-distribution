@@ -12,6 +12,7 @@ export function MigrationClient() {
   const [ownerUserId, setOwnerUserId] = useState("");
   const [title, setTitle] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [migrationId, setMigrationId] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   return (
@@ -36,11 +37,20 @@ export function MigrationClient() {
                 ownerUserId: ownerUserId.trim(),
                 title: title.trim() || undefined,
               });
-              setMsg(
-                r.ok
-                  ? "Migration created (status unavailable until external catalog connected)."
-                  : r.error
-              );
+              if (r.ok) {
+                const id =
+                  r.data && typeof r.data === "object" && "id" in r.data
+                    ? String((r.data as { id: unknown }).id)
+                    : null;
+                setMigrationId(id);
+                setMsg(
+                  id
+                    ? "Migration created. Live TooLost catalog discovery is ready."
+                    : "Migration created."
+                );
+              } else {
+                setMsg(r.error);
+              }
             })
           }
         >
@@ -49,42 +59,46 @@ export function MigrationClient() {
         <Button
           size="sm"
           variant="secondary"
-          disabled={pending}
+          disabled={pending || !migrationId}
           onClick={() =>
             start(async () => {
-              const r = await discoverCatalogAction("spotify");
+              const r = await discoverCatalogAction("spotify", migrationId ?? undefined);
               setMsg(
                 r.available
-                  ? `Discovered ${r.items.length} items`
+                  ? r.note ??
+                    `Found ${r.items.length} live TooLost release(s) with Spotify delivery metadata; ${r.importedIntoMigration} new item(s) added to this migration.`
                   : r.reason
               );
             })
           }
         >
-          Discover Spotify
+          Discover Spotify via TooLost
         </Button>
         <Button
           size="sm"
           variant="secondary"
-          disabled={pending}
+          disabled={pending || !migrationId}
           onClick={() =>
             start(async () => {
-              const r = await discoverCatalogAction("apple_music");
+              const r = await discoverCatalogAction("apple_music", migrationId ?? undefined);
               setMsg(
                 r.available
-                  ? `Discovered ${r.items.length} items`
+                  ? r.note ??
+                    `Found ${r.items.length} live TooLost release(s) with Apple Music delivery metadata; ${r.importedIntoMigration} new item(s) added to this migration.`
                   : r.reason
               );
             })
           }
         >
-          Discover Apple Music
+          Discover Apple Music via TooLost
         </Button>
       </div>
       {msg ? <p className="text-caption text-[var(--nexo-text-muted)]">{msg}</p> : null}
       <p className="text-caption text-[var(--nexo-text-muted)]">
-        Artists use <strong>Dashboard → Move In</strong> for Search→Select→Review→MOVE IN with
-        JSON/CSV/manual import when external APIs are not connected.
+        Create the migration first, then discovery reads Nexo&apos;s live TooLost catalog and
+        stores only real provider rows in the migration review queue. Artist/label Move In remains
+        ownership-scoped and can use JSON/CSV/manual import when no dedicated external catalog API
+        is connected.
       </p>
     </div>
   );
