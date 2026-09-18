@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default async function DistributionHubPage() {
   await RequireAdmin();
-  const provider = getProviderConnectionState();
+  const provider = await getProviderConnectionState();
   const counts = await getDistributionOverviewCounts();
   const recent = await listDistributionJobs({ limit: 15 });
 
