@@ -59,7 +59,7 @@ export function pickReleaseUpdateFields(
       delete cleaned.provider_connected;
       delete cleaned.provider_release_id;
       delete cleaned.provider_status;
-      cleaned.provider = "not_connected";
+      delete cleaned.provider;
       safe.distribution_settings = cleaned;
     }
   }
