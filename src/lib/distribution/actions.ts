@@ -33,6 +33,41 @@ export async function submitQueuedRelease(
 ): Promise<DistActionResult> {
   const supabase = await createClient();
   const service = createServiceClient();
+  const provider = getProvider();
+  const state = await getProviderConnectionState();
+
+  if (!state.connected || !provider.connected) {
+    return {
+      ok: false,
+      error: "Distribution Engine authorization is unavailable.",
+      code: PROVIDER_NOT_CONNECTED_CODE,
+    };
+  }
+
+  // Older queued rows may have been created before the live Distribution Engine
+  // was authorized and therefore carry the placeholder provider name. Normalize
+  // the private job identity before the idempotent submission record is created.
+  const { data: existingJob, error: jobReadError } = await service
+    .from("distribution_jobs")
+    .select("id,release_id,provider_name")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (jobReadError || !existingJob) {
+    return { ok: false, error: "Distribution job not found." };
+  }
+  if (existingJob.provider_name !== provider.name) {
+    const { error: normalizeError } = await service
+      .from("distribution_jobs")
+      .update({ provider_name: provider.name, updated_at: new Date().toISOString() })
+      .eq("id", jobId);
+    if (normalizeError) {
+      return {
+        ok: false,
+        error: "Could not prepare the distribution job for delivery.",
+      };
+    }
+  }
+
   const { data: begin, error: beginErr } = await supabase.rpc("begin_submit_queued_release", {
     p_job_id: jobId,
     p_idempotency_key: idempotencyKey,
@@ -51,27 +86,6 @@ export async function submitQueuedRelease(
     return { ok: true, data: began };
   }
 
-  const provider = getProvider();
-  const state = await getProviderConnectionState();
-
-  if (!state.connected || !provider.connected) {
-    const { data, error } = await service.rpc("complete_submit_queued_release", {
-      p_submission_id: began.submission_id,
-      p_ok: false,
-      p_error_code: PROVIDER_NOT_CONNECTED_CODE,
-      p_error_message:
-        "Distribution Engine authorization is unavailable. Connect it from the secure admin integration.",
-    });
-    if (error) return { ok: false, error: error.message, code: PROVIDER_NOT_CONNECTED_CODE };
-    return {
-      ok: false,
-      error: "Provider Not Connected",
-      code: PROVIDER_NOT_CONNECTED_CODE,
-      data,
-    };
-  }
-
-  // Load release payload
   const { data: release } = await supabase
     .from("releases")
     .select("*, release_tracks(*)")
@@ -97,20 +111,19 @@ export async function submitQueuedRelease(
       upc: release.upc,
       releaseDate: release.release_date,
       tracks: (release.release_tracks ?? []).map(
-        (t: {
+        (track: {
           track_number: number;
           title: string;
           isrc: string | null;
         }) => ({
-          trackNumber: t.track_number,
-          title: t.title,
-          isrc: t.isrc,
+          trackNumber: track.track_number,
+          title: track.title,
+          isrc: track.isrc,
         })
       ),
       territories: release.territories ?? [],
     });
 
-    // Success finalize is service_role only — never forge via staff JWT.
     const { data, error } = await service.rpc("complete_submit_queued_release", {
       p_submission_id: began.submission_id,
       p_ok: true,
