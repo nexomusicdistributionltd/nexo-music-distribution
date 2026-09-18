@@ -6,6 +6,7 @@ import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Alert } from "@/components/ui/Alert";
 import { ServiceRequestForm } from "@/components/portal/ServiceRequestForm";
+import { ServiceRequestRevisionForm } from "@/components/portal/ServiceRequestRevisionForm";
 import {
   AssignmentForm,
   EnrollmentButton,
@@ -293,6 +294,13 @@ export async function PortalFeaturePage({ href }: { href: string }) {
                 ) : null}
                 {r.admin_note ? (
                   <p className="mt-2 text-small text-[var(--nexo-text-muted)]">Nexo operations: {r.admin_note}</p>
+                ) : null}
+                {r.status === "needs_info" || r.status === "rejected" ? (
+                  <ServiceRequestRevisionForm
+                    requestId={r.id}
+                    defaultBody={r.body}
+                    defaultUrl={r.related_url}
+                  />
                 ) : null}
               </li>
             ))}
