@@ -87,6 +87,17 @@ begin
     return null;
   end if;
 
+  -- An authenticated non-staff caller may only enqueue user-scoped mail to
+  -- themselves. Staff can act on the affected account; service-role calls have
+  -- no auth.uid() and are trusted server-side.
+  if resolved_user_id is not null
+     and auth.uid() is not null
+     and auth.uid() <> resolved_user_id
+     and not public.is_staff(auth.uid()) then
+    raise exception 'Cannot enqueue transactional email for another user'
+      using errcode = '42501';
+  end if;
+
   -- One outbox event = one mailbox. Explicit broadcasts/newsletters must enqueue
   -- one event per recipient instead of passing a recipient list in one string.
   if to_addr ~ E'[\\r\\n,;]' then
