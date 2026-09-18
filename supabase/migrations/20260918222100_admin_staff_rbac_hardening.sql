@@ -444,21 +444,35 @@ drop policy if exists "email_templates_staff_delete" on public.email_templates;
 create policy "email_templates_staff_delete" on public.email_templates
   for delete to authenticated using (public.is_administrator(auth.uid()));
 
-drop policy if exists "email_inbox_staff" on public.email_inbox_messages;
-create policy "email_inbox_staff" on public.email_inbox_messages
-  for all to authenticated
-  using (public.is_administrator(auth.uid()))
-  with check (public.is_administrator(auth.uid()));
-drop policy if exists "email_inbox_attachments_staff" on public.email_inbox_attachments;
-create policy "email_inbox_attachments_staff" on public.email_inbox_attachments
-  for all to authenticated
-  using (public.is_administrator(auth.uid()))
-  with check (public.is_administrator(auth.uid()));
-drop policy if exists "email_drafts_staff" on public.email_drafts;
-create policy "email_drafts_staff" on public.email_drafts
-  for all to authenticated
-  using (public.is_administrator(auth.uid()) and created_by = auth.uid())
-  with check (public.is_administrator(auth.uid()) and created_by = auth.uid());
+-- The email inbox module is optional in some deployed schemas. Harden it
+-- when present without making the whole RBAC migration depend on that module.
+do $rbac$
+begin
+  if to_regclass('public.email_inbox_messages') is not null then
+    execute 'drop policy if exists "email_inbox_staff" on public.email_inbox_messages';
+    execute 'create policy "email_inbox_staff" on public.email_inbox_messages
+      for all to authenticated
+      using (public.is_administrator(auth.uid()))
+      with check (public.is_administrator(auth.uid()))';
+  end if;
+
+  if to_regclass('public.email_inbox_attachments') is not null then
+    execute 'drop policy if exists "email_inbox_attachments_staff" on public.email_inbox_attachments';
+    execute 'create policy "email_inbox_attachments_staff" on public.email_inbox_attachments
+      for all to authenticated
+      using (public.is_administrator(auth.uid()))
+      with check (public.is_administrator(auth.uid()))';
+  end if;
+
+  if to_regclass('public.email_drafts') is not null then
+    execute 'drop policy if exists "email_drafts_staff" on public.email_drafts';
+    execute 'create policy "email_drafts_staff" on public.email_drafts
+      for all to authenticated
+      using (public.is_administrator(auth.uid()) and created_by = auth.uid())
+      with check (public.is_administrator(auth.uid()) and created_by = auth.uid())';
+  end if;
+end
+$rbac$;
 drop policy if exists "email_inbox_attachments_storage_staff" on storage.objects;
 create policy "email_inbox_attachments_storage_staff" on storage.objects
   for all to authenticated
