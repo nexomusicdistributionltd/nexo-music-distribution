@@ -238,7 +238,7 @@ export function RecoupmentForm() {
         void s.run(async () => {
           const r = await createRecoupmentAction({
             title: String(fd.get("title") || ""),
-            amountMinor: Number(fd.get("amount_minor")),
+            amountMinor: Math.round(Number(fd.get("amount_display")) * 100),
             currency: String(fd.get("currency") || "USD"),
             notes: String(fd.get("notes") || ""),
           });
@@ -382,10 +382,9 @@ export function PayoutRequestForm({
       <Alert variant="warning">{paymentMessage}</Alert>
       {s.error ? <Alert variant="error">{s.error}</Alert> : null}
       {s.ok ? <Alert variant="success">Request submitted for staff review.</Alert> : null}
-      <p className="text-caption text-[var(--nexo-text-muted)]">
-        Available {availableMinor} {currency} minor units. Enter the amount in minor units.
-      </p>
-      <Input name="amount_minor" type="number" required min={1} placeholder="Amount (minor units)" />
+      <p className="text-caption text-[var(--nexo-text-muted)]">Available balance: {(availableMinor / 100).toLocaleString(undefined, { style: "currency", currency })}</p>
+      <label className="block space-y-1"><span className="text-caption text-[var(--nexo-text-muted)]">Payout amount ({currency})</span><Input name="amount_display" type="number" required min={0.01} max={availableMinor / 100} step="0.01" placeholder="0.00" /></label>
+      <input type="hidden" name="amount_minor" value="" />
       <Input name="method_note" placeholder="Method note (optional)" />
       <Button type="submit" disabled={s.pending || availableMinor <= 0}>
         {s.pending ? "Submitting…" : "Request payment"}
