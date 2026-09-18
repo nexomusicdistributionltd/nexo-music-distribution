@@ -7,7 +7,6 @@ import { Alert } from "@/components/ui/Alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
 import { ReleaseRowActions } from "@/components/releases/ReleaseRowActions";
-import { ProviderBanner } from "@/components/releases/ProviderBanner";
 import type {
   ReleaseAssetRow,
   ReleaseContributorRow,
@@ -78,8 +77,6 @@ export function ReleaseDetailView({
           ) : null}
         </div>
       </div>
-
-      {variant === "admin" ? <ProviderBanner connected={release.provider_connected} /> : null}
 
       {release.changes_requested_reason ? (
         <Alert variant="warning" title="Changes requested">
@@ -201,7 +198,7 @@ export function ReleaseDetailView({
               <>
                 <Meta
                   label="Distribution Engine"
-                  value={release.provider_connected ? "Connected" : "Awaiting authorization or delivery"}
+                  value={release.provider_status ? "Delivery active" : "Ready for delivery"}
                 />
                 <Meta label="Engine status" value={release.provider_status || "—"} />
               </>
