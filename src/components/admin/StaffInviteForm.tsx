@@ -136,16 +136,20 @@ export function StaffInviteForm({
         placeholder="team@nexomusicdistribution.com"
       />
 
-      {allowAdministratorLevel ? (
-        <div className="space-y-2">
+      <div className="space-y-2">
           <p className="text-caption font-medium text-[var(--nexo-text-muted)]">
             Account access level
           </p>
           <div className="grid gap-2 md:grid-cols-3">
-            {availableBaseRoles.map((item) => (
+            {BASE_ROLES.map((item) => {
+              const disabled = !availableBaseRoles.some((allowed) => allowed.role === item.role);
+              return (
               <label
                 key={item.role}
-                className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3"
+                className={[
+                  "rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] p-3",
+                  disabled ? "opacity-50" : "",
+                ].join(" ")}
               >
                 <span className="flex items-center gap-2 font-medium">
                   <input
@@ -153,7 +157,8 @@ export function StaffInviteForm({
                     name="base-role"
                     value={item.role}
                     checked={baseRole === item.role}
-                    onChange={() => setBaseRole(item.role)}
+                    disabled={disabled}
+                    onChange={() => !disabled && setBaseRole(item.role)}
                   />
                   {item.label}
                 </span>
@@ -161,10 +166,15 @@ export function StaffInviteForm({
                   {item.description}
                 </span>
               </label>
-            ))}
+              );
+            })}
           </div>
+          {!allowAdministratorLevel ? (
+            <p className="text-caption text-[var(--nexo-text-muted)]">
+              Administrator and Super Admin invitations are restricted to Super Admin accounts.
+            </p>
+          ) : null}
         </div>
-      ) : null}
 
       {baseRole === "support" ? (
         <div className="space-y-2">
