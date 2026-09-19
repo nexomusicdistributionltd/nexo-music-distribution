@@ -419,10 +419,23 @@ async function prepareProviderRelease(
       `Release language "${normalizeProviderText(input.language) ?? input.language}" is not a supported ISO language value.`
     );
   }
+  const rawLicenseType = normalizeProviderText(input.licenseType)?.toLowerCase();
+  const defaultCopyrightLicense = Boolean(
+    rawLicenseType &&
+      ["copyright", "(c)", "c", "©"].includes(rawLicenseType)
+  );
   const normalizedLicenseType = normalizeProviderLicenseType(input.licenseType);
-  if (input.licenseType && !normalizedLicenseType) {
+  if (input.licenseType && !defaultCopyrightLicense && !normalizedLicenseType) {
     throw new ProviderDeliveryValidationError(
       "Release license type is not supported. Choose Copyright or Creative Commons."
+    );
+  }
+  if (
+    normalizedLicenseType === "Creative Commons" &&
+    !normalizeProviderText(input.licenseInfo)
+  ) {
+    throw new ProviderDeliveryValidationError(
+      "Creative Commons requires a valid CC 3.0 license clause in license information."
     );
   }
   const normalizedTimeZone = normalizeProviderTimeZone(input.timeZone);
@@ -584,10 +597,26 @@ function validateSubmission(input: ProviderReleasePayload): void {
       "Release language must use a supported ISO language value."
     );
   }
-  if (input.licenseType && !normalizeProviderLicenseType(input.licenseType)) {
-    throw new ProviderDeliveryValidationError(
-      "Release license type must be Copyright or Creative Commons."
+  if (input.licenseType) {
+    const rawLicenseType = normalizeProviderText(input.licenseType)?.toLowerCase();
+    const isDefaultCopyright = Boolean(
+      rawLicenseType &&
+        ["copyright", "(c)", "c", "©"].includes(rawLicenseType)
     );
+    const normalizedLicenseType = normalizeProviderLicenseType(input.licenseType);
+    if (!isDefaultCopyright && !normalizedLicenseType) {
+      throw new ProviderDeliveryValidationError(
+        "Release license type must be Copyright or Creative Commons."
+      );
+    }
+    if (
+      normalizedLicenseType === "Creative Commons" &&
+      !normalizeProviderText(input.licenseInfo)
+    ) {
+      throw new ProviderDeliveryValidationError(
+        "Creative Commons requires a valid CC 3.0 license clause in license information."
+      );
+    }
   }
   if (input.timeZone && !normalizeProviderTimeZone(input.timeZone)) {
     throw new ProviderDeliveryValidationError(
