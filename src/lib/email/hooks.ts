@@ -1,5 +1,7 @@
 import "server-only";
 
+import { after } from "next/server";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueueEmailEvent } from "@/lib/email/enqueue";
 import { processEmailEvent } from "@/lib/email/outbox";
@@ -56,9 +58,25 @@ export async function enqueueTransactionalEmail(opts: {
     if (!enq.id) return { enqueued: false, id: null };
     if (opts.process !== false) {
       try {
-        await processEmailEvent(opts.supabase, enq.id);
+        // Email delivery must not hold a user/admin button open. Next.js after()
+        // keeps this work attached to the request lifecycle but runs it after
+        // the primary response has finished streaming.
+        after(async () => {
+          try {
+            const { createServiceClient } = await import("@/lib/supabase/admin");
+            await processEmailEvent(createServiceClient(), enq.id as string);
+          } catch {
+            /* stays queued for the next outbox drain */
+          }
+        });
       } catch {
-        /* stays queued */
+        // Non-request callers (tests/scripts) keep the previous synchronous
+        // behavior instead of losing the delivery attempt.
+        try {
+          await processEmailEvent(opts.supabase, enq.id);
+        } catch {
+          /* stays queued */
+        }
       }
     }
     return { enqueued: true, id: enq.id };
