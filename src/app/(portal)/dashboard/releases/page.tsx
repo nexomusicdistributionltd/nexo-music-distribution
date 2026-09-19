@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ReleaseCatalogTable } from "@/components/releases/ReleaseCatalogTable";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -56,8 +57,12 @@ export default async function ReleasesPage({
     loadError = e instanceof Error ? e.message : "Could not load catalog.";
   }
 
-  const artwork = await mapArtworkUrls(items.map((r) => r.id)).catch(() => ({} as Record<string, string | null>));
   const query = { q, status, type, sort, order };
+  if (!loadError && total > 0 && page > pageCount) {
+    redirect(buildQueryHref("/dashboard/releases", query, { page: pageCount }));
+  }
+
+  const artwork = await mapArtworkUrls(items.map((r) => r.id)).catch(() => ({} as Record<string, string | null>));
 
   return (
     <div className="space-y-6">
