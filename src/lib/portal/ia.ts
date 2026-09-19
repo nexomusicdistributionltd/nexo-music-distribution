@@ -668,6 +668,12 @@ function helpGroups(): PortalNavItem[][] {
         description: "Open a support ticket with Nexo staff.",
       }),
       item({
+        href: "/dashboard/notifications",
+        label: "Notifications",
+        pageKind: "existing",
+        description: "Unread account, release, royalty, and distribution notifications.",
+      }),
+      item({
         href: "/help/knowledge-base",
         label: "Knowledge Base",
         pageKind: "knowledge",
