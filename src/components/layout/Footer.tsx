@@ -109,8 +109,12 @@ export async function Footer() {
           </div>
           <p className="pub-body mt-5 max-w-sm">{brandText}</p>
           <p className="mt-4 text-small leading-6 text-[var(--nexo-text-muted)]">
-            Contact: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
-            <br />
+            {contactEmail !== supportEmail ? (
+              <>
+                Contact: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+                <br />
+              </>
+            ) : null}
             Support: <a href={`mailto:${supportEmail}`}>{supportEmail}</a>
             {inquiriesEmail !== contactEmail && inquiriesEmail !== supportEmail ? (
               <>
