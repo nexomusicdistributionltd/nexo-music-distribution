@@ -74,6 +74,8 @@ export function FooterSettingsClient({ initial }: { initial: Record<string, unkn
     brand_text: String(initial.brand_text ?? ""),
     contact_email: String(initial.contact_email ?? ""),
     inquiries_email: String(initial.inquiries_email ?? ""),
+    support_email: String(initial.support_email ?? initial.contact_email ?? ""),
+    dmca_email: String(initial.dmca_email ?? ""),
     website_url: String(initial.website_url ?? ""),
     services_links: linksToText(initial.services_links, DEFAULT_SERVICES),
     company_links: linksToText(initial.company_links, DEFAULT_COMPANY),
@@ -88,6 +90,8 @@ export function FooterSettingsClient({ initial }: { initial: Record<string, unkn
         brand_text: form.brand_text.trim() || null,
         contact_email: form.contact_email.trim() || null,
         inquiries_email: form.inquiries_email.trim() || null,
+        support_email: form.support_email.trim() || null,
+        dmca_email: form.dmca_email.trim() || null,
         website_url: form.website_url.trim() || null,
         services_links: textToLinks(form.services_links),
         company_links: textToLinks(form.company_links),
@@ -118,7 +122,7 @@ export function FooterSettingsClient({ initial }: { initial: Record<string, unkn
         />
       </label>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <label className="text-caption">
           Contact email
           <Input
@@ -133,6 +137,26 @@ export function FooterSettingsClient({ initial }: { initial: Record<string, unkn
             className="mt-1"
             value={form.inquiries_email}
             onChange={(e) => setForm((f) => ({ ...f, inquiries_email: e.target.value }))}
+          />
+        </label>
+        <label className="text-caption">
+          Support email
+          <Input
+            type="email"
+            className="mt-1"
+            value={form.support_email}
+            onChange={(e) => setForm((f) => ({ ...f, support_email: e.target.value }))}
+            placeholder="support@nexomusicdistribution.com"
+          />
+        </label>
+        <label className="text-caption">
+          DMCA email
+          <Input
+            type="email"
+            className="mt-1"
+            value={form.dmca_email}
+            onChange={(e) => setForm((f) => ({ ...f, dmca_email: e.target.value }))}
+            placeholder="dmca@nexomusicdistribution.com"
           />
         </label>
         <label className="text-caption">
