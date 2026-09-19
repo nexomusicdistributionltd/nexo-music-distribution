@@ -7,7 +7,7 @@ import { LEGAL_UPDATED, PRIVACY_SECTIONS } from "@/lib/legal/copy";
 const fallbackMetadata = legalMetadata({
   title: "Privacy Policy",
   description:
-    "Privacy Policy for NEXO MUSIC DISTRIBUTION LTD explaining how we process account, catalog, and billing data. Contact ${SUPPORT_EMAIL}.",
+    `Privacy Policy for NEXO MUSIC DISTRIBUTION LTD explaining how we process account, catalog, and billing data. Contact ${SUPPORT_EMAIL}.`,
   path: "/privacy",
 });
 
