@@ -1780,9 +1780,11 @@ export function ReleaseWizard({
                 <span className="text-caption text-[var(--nexo-text-muted)]">License type</span>
                 <Select
                   value={providerMeta.licenseType}
-                  onChange={(e) =>
-                    setProviderMeta((current) => ({ ...current, licenseType: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    const licenseType =
+                      e.target.value === "Creative Commons" ? "Creative Commons" : "Copyright";
+                    setProviderMeta((current) => ({ ...current, licenseType }));
+                  }}
                 >
                   <option value="Copyright">Copyright</option>
                   <option value="Creative Commons">Creative Commons</option>
