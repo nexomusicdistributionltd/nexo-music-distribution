@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { pickReleaseUpdateFields } from "@/lib/releases/safe-update";
@@ -366,12 +367,14 @@ export async function postApprovalReviewAction(input: {
   });
   if (error) return { ok: false, error: error.message };
 
-  try {
-    const { drainQueuedOutbox } = await import("@/lib/email/hooks");
-    await drainQueuedOutbox(10);
-  } catch {
-    // The database state + in-app notification are authoritative even if email is delayed.
-  }
+  after(async () => {
+    try {
+      const { drainQueuedOutbox } = await import("@/lib/email/hooks");
+      await drainQueuedOutbox(10);
+    } catch {
+      // The database state + in-app notification are authoritative even if email is delayed.
+    }
+  });
 
   revalidateRelease(input.releaseId);
   revalidatePath("/dashboard/releases");
