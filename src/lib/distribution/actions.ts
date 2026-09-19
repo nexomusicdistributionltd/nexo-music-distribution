@@ -401,6 +401,23 @@ export async function submitQueuedRelease(
   if (releaseError) return { ok: false, error: releaseError.message };
   if (!release) return { ok: false, error: "Release not found." };
 
+  const { data: holdCase } = await service
+    .from("admin_ops_cases")
+    .select("id,title")
+    .eq("subject_user_id", release.owner_user_id)
+    .eq("distribution_hold", true)
+    .not("status", "in", "(resolved,closed)")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (holdCase) {
+    return {
+      ok: false,
+      error: `Distribution is on an active operations hold (${holdCase.title}). Resolve the case before provider submission.`,
+      code: "ACCOUNT_DISTRIBUTION_HOLD",
+    };
+  }
+
   const providerPayload = providerPayloadFromRelease(release as unknown as DistributionReleaseRecord);
   const preflightError = validateProviderPayloadBeforeAttempt(providerPayload);
   if (preflightError) {
