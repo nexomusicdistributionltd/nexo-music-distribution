@@ -121,6 +121,12 @@ export function StaffInviteForm({
         </p>
       </div>
 
+      {teamRoles.length === 0 ? (
+        <Alert variant="warning" title="No functional roles available">
+          The staff role library is empty or unavailable. Refresh this page after the role
+          catalog is restored before inviting a Team Staff account.
+        </Alert>
+      ) : null}
       {error ? (
         <Alert variant="warning" title="Invitation not sent">
           {error}
@@ -208,7 +214,7 @@ export function StaffInviteForm({
         type="submit"
         disabled={
           pending ||
-          (baseRole === "support" && selectedTeams.length === 0)
+          (baseRole === "support" && (teamRoles.length === 0 || selectedTeams.length === 0))
         }
         aria-busy={pending}
       >
