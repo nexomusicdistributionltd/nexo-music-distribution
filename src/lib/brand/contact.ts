@@ -24,3 +24,12 @@ export function isBrandedFromAddress(address: string): boolean {
   const domain = lower.slice(at + 1).replace(/>$/, "");
   return (BRANDED_FROM_DOMAINS as readonly string[]).includes(domain);
 }
+
+
+export function isPublicBrandedEmail(address: string): boolean {
+  const lower = address.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lower)) return false;
+  const at = lower.lastIndexOf("@");
+  const domain = at >= 0 ? lower.slice(at + 1) : "";
+  return (BRANDED_FROM_DOMAINS as readonly string[]).includes(domain);
+}
