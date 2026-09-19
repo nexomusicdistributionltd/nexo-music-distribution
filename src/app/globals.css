@@ -373,6 +373,11 @@
   margin-top: 0;
 }
 
+.nexo-blog-article > .nexo-blog-inline-cover:first-child {
+  display: none;
+}
+
+
 .nexo-blog-article > :last-child {
   margin-bottom: 0;
 }
