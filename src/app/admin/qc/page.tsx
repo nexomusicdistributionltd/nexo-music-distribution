@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -42,6 +43,14 @@ export default async function QcQueuePage({
     page: normalizePageNumber(sp.page),
   });
   const pageCount = Math.max(1, Math.ceil(total / 25));
+  if (!loadError && total > 0 && page > pageCount) {
+    const params = new URLSearchParams();
+    if (sp.status) params.set("status", sp.status);
+    if (sp.priority) params.set("priority", sp.priority);
+    if (assigned !== "all") params.set("assigned", assigned);
+    if (pageCount > 1) params.set("page", String(pageCount));
+    redirect(params.size ? `/admin/qc?${params.toString()}` : "/admin/qc");
+  }
 
   const chips: Array<[string, string, boolean]> = [
     ["/admin/qc?status=all", "All open", !sp.status || sp.status === "all"],
