@@ -149,7 +149,7 @@ const ARTICLES: KnowledgeArticle[] = [
     sections: [
       {
         heading: "Where to send",
-        body: "Email contact@nexomusicdistro.space with subject “DMCA”. Include the work, URLs, your contact details, and a good-faith statement. Additional inquiries: nexomusicdistribution@gmail.com.",
+        body: "Email dmca@nexomusicdistribution.com with subject “DMCA”. Include the work, URLs, your contact details, and a good-faith statement. For general support, use support@nexomusicdistribution.com.",
       },
       {
         heading: "What happens next",
