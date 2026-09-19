@@ -1137,6 +1137,10 @@ declare
   title text;
   body text;
   template text := 'PAYOUT_UPDATE';
+  source_precision integer := 2;
+  destination_precision integer := 2;
+  amount_display text;
+  net_display text;
 begin
   title := case p_event
     when 'requested' then 'Payout request received'
@@ -1166,6 +1170,15 @@ begin
 
   template := 'PAYOUT_UPDATE';
 
+  select coalesce(decimal_precision,2) into source_precision
+  from public.payout_currencies where code=p_payout.source_currency;
+  select coalesce(decimal_precision,2) into destination_precision
+  from public.payout_currencies where code=p_payout.destination_currency;
+  amount_display := (coalesce(p_payout.gross_amount_minor,p_payout.amount_minor)::numeric
+    / power(10::numeric,source_precision))::text;
+  net_display := (coalesce(p_payout.net_amount_minor,p_payout.amount_minor)::numeric
+    / power(10::numeric,destination_precision))::text;
+
   insert into public.notifications(user_id,type,title,body,entity_type,entity_id,metadata)
   values (
     p_payout.owner_user_id,
@@ -1192,10 +1205,10 @@ begin
       'MESSAGE',body,
       'PAYOUT_ID',p_payout.id,
       'PAYOUT_REFERENCE',p_payout.payout_reference,
-      'AMOUNT_MINOR',p_payout.gross_amount_minor,
+      'AMOUNT',amount_display,
       'CURRENCY',p_payout.source_currency,
       'DESTINATION_CURRENCY',p_payout.destination_currency,
-      'NET_AMOUNT_MINOR',p_payout.net_amount_minor,
+      'NET_AMOUNT',net_display,
       'STATUS',p_payout.status::text,
       'DESTINATION_MASK',p_payout.destination_mask,
       'PROVIDER',p_payout.provider_name,
