@@ -28,6 +28,14 @@ export function DeliveryFailurePanel({
       </div>
 
       <dl className="grid gap-3">
+        {diagnosis.field ? (
+          <div>
+            <dt className="font-semibold">Affected field</dt>
+            <dd className="mt-1 font-medium text-[var(--nexo-text-secondary)]">
+              {diagnosis.field}
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt className="font-semibold">Why it failed</dt>
           <dd className="mt-1 whitespace-pre-wrap text-[var(--nexo-text-secondary)]">
