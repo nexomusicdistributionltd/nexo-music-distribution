@@ -317,18 +317,14 @@ set value =
 where key='footer';
 
 update public.cms_pages
-set body_html = replace(
-      replace(
-        body_html,
-        'contact@nexomusicdistro.space',
-        'support@nexomusicdistribution.com'
-      ),
-      'nexomusicdistribution@gmail.com',
-      'support@nexomusicdistribution.com'
-    ),
+set body_html =
+      '<h2>Reach us</h2>' ||
+      '<p><strong>NEXO MUSIC DISTRIBUTION LTD</strong></p>' ||
+      '<p>Public website: <a href="https://nexomusicdistribution.com">nexomusicdistribution.com</a></p>' ||
+      '<p>Artist &amp; label support: <a href="mailto:support@nexomusicdistribution.com">support@nexomusicdistribution.com</a></p>' ||
+      '<p>DMCA / copyright notices: <a href="mailto:dmca@nexomusicdistribution.com">dmca@nexomusicdistribution.com</a></p>' ||
+      '<p>You can also use the message form on this page.</p>',
+    status='published'::public.cms_page_status,
+    published_at=coalesce(published_at,now()),
     updated_at=now()
-where slug='contact'
-  and (
-    body_html ilike '%contact@nexomusicdistro.space%'
-    or body_html ilike '%nexomusicdistribution@gmail.com%'
-  );
+where slug='contact';
