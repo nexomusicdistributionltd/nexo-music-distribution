@@ -5,6 +5,7 @@ import { NewsletterForm } from "@/components/newsletter/NewsletterForm";
 import { COMPANY_LEGAL, PUBLISHING_DIVISION, SITE_URL } from "@/lib/site";
 import { LEGAL_CONTACT_EMAIL, LEGAL_INQUIRIES_EMAIL } from "@/lib/legal/copy";
 import { getWebsiteSetting } from "@/lib/website/queries";
+import { DMCA_EMAIL, SUPPORT_EMAIL } from "@/lib/brand/contact";
 
 type FooterLink = { href: string; label: string };
 
@@ -88,6 +89,8 @@ export async function Footer() {
   );
   const contactEmail = text(value.contact_email, LEGAL_CONTACT_EMAIL);
   const inquiriesEmail = text(value.inquiries_email, LEGAL_INQUIRIES_EMAIL);
+  const supportEmail = text(value.support_email, SUPPORT_EMAIL);
+  const dmcaEmail = text(value.dmca_email, DMCA_EMAIL);
   const websiteUrl = text(value.website_url, SITE_URL);
   const services = links(value.services_links, SERVICES);
   const company = links(value.company_links, COMPANY);
@@ -105,11 +108,18 @@ export async function Footer() {
             <Logo height={28} />
           </div>
           <p className="pub-body mt-5 max-w-sm">{brandText}</p>
-          <p className="mt-4 text-small text-[var(--nexo-text-muted)]">
-            <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+          <p className="mt-4 text-small leading-6 text-[var(--nexo-text-muted)]">
+            Contact: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
             <br />
-            Additional inquiries:{" "}
-            <a href={`mailto:${inquiriesEmail}`}>{inquiriesEmail}</a>
+            Support: <a href={`mailto:${supportEmail}`}>{supportEmail}</a>
+            {inquiriesEmail !== contactEmail && inquiriesEmail !== supportEmail ? (
+              <>
+                <br />
+                Inquiries: <a href={`mailto:${inquiriesEmail}`}>{inquiriesEmail}</a>
+              </>
+            ) : null}
+            <br />
+            DMCA: <a href={`mailto:${dmcaEmail}`}>{dmcaEmail}</a>
             <br />
             <a href={websiteUrl} rel="noopener noreferrer">
               {websiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
