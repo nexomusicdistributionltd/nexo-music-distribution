@@ -96,7 +96,6 @@ function AccordionSection({
                       prefetch={false}
                       onPointerEnter={() => onIntent?.(item.href)}
                       onPointerDown={() => onIntent?.(item.href)}
-                      onTouchStart={() => onIntent?.(item.href)}
                       onFocus={() => onIntent?.(item.href)}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
