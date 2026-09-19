@@ -38,6 +38,14 @@ import {
 } from "@/lib/storage/release-assets";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 import { getProviderConnectionState } from "@/lib/provider";
+import {
+  normalizeProviderLanguage,
+  normalizeProviderLicenseType,
+  normalizeProviderMinuteSecond,
+  normalizeProviderReleaseTime,
+  normalizeProviderText,
+  normalizeProviderTimeZone,
+} from "@/lib/provider/metadata-normalization";
 import { preflightReleaseForDistribution } from "@/lib/distribution/actions";
 import { formatDeliveryCorrection } from "@/lib/distribution/delivery-diagnostics";
 
@@ -1038,6 +1046,68 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
     };
   }
 
+  const rawLicenseType = normalizeProviderText(
+    typeof currentSettings.licenseType === "string" ? currentSettings.licenseType : null
+  )?.toLowerCase();
+  const isDefaultCopyright =
+    !rawLicenseType || ["copyright", "(c)", "c", "©"].includes(rawLicenseType);
+  if (
+    !isDefaultCopyright &&
+    !normalizeProviderLicenseType(
+      typeof currentSettings.licenseType === "string" ? currentSettings.licenseType : null
+    )
+  ) {
+    return {
+      ok: false,
+      error:
+        "License type is not supported by the distribution provider. Choose Copyright or Creative Commons before submitting.",
+    };
+  }
+
+  if (release.language && !normalizeProviderLanguage(release.language)) {
+    return {
+      ok: false,
+      error:
+        "Release language is not supported by the distribution provider. Select a supported language before submitting.",
+    };
+  }
+
+  const releaseTime =
+    typeof currentSettings.releaseTime === "string" ? currentSettings.releaseTime : null;
+  if (releaseTime && !normalizeProviderReleaseTime(releaseTime)) {
+    return {
+      ok: false,
+      error: "Release time must use 24-hour HH:MM format before submitting.",
+    };
+  }
+
+  const timeZone =
+    typeof currentSettings.timeZone === "string" ? currentSettings.timeZone : null;
+  if (timeZone && !normalizeProviderTimeZone(timeZone)) {
+    return {
+      ok: false,
+      error: "Release time zone is invalid. Select a valid time zone before submitting.",
+    };
+  }
+
+  const additional =
+    currentSettings.additional &&
+    typeof currentSettings.additional === "object" &&
+    !Array.isArray(currentSettings.additional)
+      ? (currentSettings.additional as Record<string, unknown>)
+      : {};
+  const usesExclusiveRightsDelivery =
+    additional.youtube === true ||
+    additional.facebook === true ||
+    additional.soundcloud === true;
+  if (usesExclusiveRightsDelivery && currentSettings.additionalRightsConfirmed !== true) {
+    return {
+      ok: false,
+      error:
+        "Confirm that you control 100% of the exclusive rights required for the selected content-identification / monetization services before submitting.",
+    };
+  }
+
   const [{ data: tracks }, { data: assets }, { data: contributors }] = await Promise.all([
     supabase.from("release_tracks").select("*").eq("release_id", releaseId),
     supabase.from("release_assets").select("*").eq("release_id", releaseId),
@@ -1052,6 +1122,24 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
   });
   if (issues.length) {
     return { ok: false, error: issues.map((i) => i.message).join(" ") };
+  }
+
+  for (const track of tracks ?? []) {
+    if (track.language && !normalizeProviderLanguage(track.language)) {
+      return {
+        ok: false,
+        error: `Track ${track.track_number} language is not supported by the distribution provider. Select a supported language before submitting.`,
+      };
+    }
+    if (
+      track.tiktok_start_time &&
+      !normalizeProviderMinuteSecond(track.tiktok_start_time)
+    ) {
+      return {
+        ok: false,
+        error: `Track ${track.track_number} TikTok start time must use minute:second format, for example 0:08 or 9:40.`,
+      };
+    }
   }
 
   const providerState = await getProviderConnectionState();

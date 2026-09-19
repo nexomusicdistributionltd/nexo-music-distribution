@@ -135,19 +135,12 @@ export default async function AdminReleaseDetailPage({
         isQcableStatus(release.status) ? (
           <QcDecisionForm releaseId={release.id} />
         ) : canOperateDistribution &&
-          ["approved", "scheduled", "failed"].includes(release.status) ? (
-          <PostApprovalReviewForm releaseId={release.id} />
-        ) : release.status === "changes_requested" ? (
-          <section className="space-y-3 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
-            <h2 className="text-h4">Admin release control</h2>
-            <Alert variant="warning" title="Already declined — waiting for correction">
-              This release is already returned to the artist or label. They can edit the release now
-              and submit it back to QC when the correction is complete.
-              {release.changes_requested_reason
-                ? ` Current reason: ${release.changes_requested_reason}`
-                : ""}
-            </Alert>
-          </section>
+          ["approved", "scheduled", "failed", "changes_requested"].includes(release.status) ? (
+          <PostApprovalReviewForm
+            releaseId={release.id}
+            initialReason={release.changes_requested_reason ?? ""}
+            alreadyDeclined={release.status === "changes_requested"}
+          />
         ) : null
       }
       ddexPanel={
