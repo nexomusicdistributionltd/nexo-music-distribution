@@ -47,6 +47,14 @@ function artistFacingDeliveryCorrection(message: string): string {
   ].join("\n");
 }
 
+function isProviderAccountConfigurationFailure(message: string): boolean {
+  const value = message.toLowerCase();
+  return (
+    value.includes("even account") &&
+    (value.includes("not connected") || value.includes("connect an even account"))
+  );
+}
+
 function revalidateAdmin(paths: string[] = []) {
   revalidatePath("/admin");
   for (const p of paths) revalidatePath(p);
@@ -172,7 +180,10 @@ export async function performQcDecisionAction(input: {
         );
 
         if (!submitted.ok) {
-          if (submitted.code === PROVIDER_DELIVERY_VALIDATION_CODE) {
+          if (
+            submitted.code === PROVIDER_DELIVERY_VALIDATION_CODE &&
+            !isProviderAccountConfigurationFailure(submitted.error)
+          ) {
             const artistVisibleCorrection = artistFacingDeliveryCorrection(submitted.error);
             const { data: returned, error: returnError } = await supabase.rpc(
               "admin_reopen_release_for_corrections",
@@ -190,6 +201,9 @@ export async function performQcDecisionAction(input: {
               distributionWarning =
                 `Delivery validation failed: ${submitted.error} Nexo could not automatically return the release for correction: ${returnError.message}`;
             }
+          } else if (isProviderAccountConfigurationFailure(submitted.error)) {
+            distributionWarning =
+              "Release passed QC, but a provider-linked optional delivery service was rejected. Nexo kept this as an operations/delivery issue instead of returning it to the artist or label. Retry delivery after the provider setting is cleared.";
           } else {
             distributionWarning =
               `Release approved and queued, but TooLost submission needs attention: ${submitted.error}`;

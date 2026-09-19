@@ -317,7 +317,10 @@ export async function getDistributionPreferenceDefaults(
           hook: deliveries.delivery_hook === true || deliveries.hook === true,
           lyricfind:
             deliveries.delivery_lyricfind === true || deliveries.lyricfind === true,
-          even: deliveries.delivery_even === true || deliveries.even === true,
+          // EVEN requires a separately connected EVEN account upstream. Do not
+          // auto-enable it from saved TooLost preferences unless Nexo gains a
+          // documented connection-state/linking flow for that service.
+          even: false,
         },
       },
     };
