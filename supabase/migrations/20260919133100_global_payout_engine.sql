@@ -1136,7 +1136,7 @@ as $$
 declare
   title text;
   body text;
-  template text := 'payout_status_update';
+  template text := 'PAYOUT_UPDATE';
 begin
   title := case p_event
     when 'requested' then 'Payout request received'
@@ -1164,13 +1164,7 @@ begin
     else 'Your payout status has changed.'
   end;
 
-  template := case p_event
-    when 'requested' then 'payout_requested'
-    when 'paid' then 'payout_paid'
-    when 'failed' then 'payout_failed'
-    when 'rejected' then 'payout_rejected'
-    else 'payout_status_update'
-  end;
+  template := 'PAYOUT_UPDATE';
 
   insert into public.notifications(user_id,type,title,body,entity_type,entity_id,metadata)
   values (
@@ -1193,17 +1187,19 @@ begin
     pr.email,
     template,
     jsonb_strip_nulls(jsonb_build_object(
-      'event',p_event,
-      'payout_id',p_payout.id,
-      'payout_reference',p_payout.payout_reference,
-      'amount_minor',p_payout.gross_amount_minor,
-      'currency',p_payout.source_currency,
-      'destination_currency',p_payout.destination_currency,
-      'net_amount_minor',p_payout.net_amount_minor,
-      'status',p_payout.status::text,
-      'destination_mask',p_payout.destination_mask,
-      'provider',p_payout.provider_name,
-      'reason',p_reason
+      'EVENT',p_event,
+      'STATUS_LABEL',title,
+      'MESSAGE',body,
+      'PAYOUT_ID',p_payout.id,
+      'PAYOUT_REFERENCE',p_payout.payout_reference,
+      'AMOUNT_MINOR',p_payout.gross_amount_minor,
+      'CURRENCY',p_payout.source_currency,
+      'DESTINATION_CURRENCY',p_payout.destination_currency,
+      'NET_AMOUNT_MINOR',p_payout.net_amount_minor,
+      'STATUS',p_payout.status::text,
+      'DESTINATION_MASK',p_payout.destination_mask,
+      'PROVIDER',p_payout.provider_name,
+      'REASON',p_reason
     )),
     'pending',
     'payout',
