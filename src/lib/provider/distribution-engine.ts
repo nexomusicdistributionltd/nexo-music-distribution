@@ -21,6 +21,7 @@ import {
   normalizeProviderLanguage,
   normalizeProviderLicenseType,
   normalizeProviderReleaseTime,
+  normalizeProviderMinuteSecond,
   normalizeProviderText,
   normalizeProviderTimeZone,
   normalizeRightsText,
@@ -535,7 +536,7 @@ async function prepareProviderRelease(
           normalizeProviderLanguage(track.language) ??
           normalizeProviderLanguage(input.language),
         audioFileKey,
-        tiktokStartTime: nonEmpty(track.tiktokStartTime),
+        tiktokStartTime: normalizeProviderMinuteSecond(track.tiktokStartTime),
         lyrics: track.lyrics
           ? {
               content: track.lyrics,
@@ -653,6 +654,14 @@ function validateSubmission(input: ProviderReleasePayload): void {
     if (track.audioMimeType !== PROVIDER_AUDIO_MIME) {
       throw new ProviderDeliveryValidationError(
         `Track ${track.trackNumber} must use lossless FLAC audio for Nexo delivery. Re-upload this track as FLAC before retrying.`
+      );
+    }
+    if (
+      track.tiktokStartTime &&
+      !normalizeProviderMinuteSecond(track.tiktokStartTime)
+    ) {
+      throw new ProviderDeliveryValidationError(
+        `Track ${track.trackNumber} TikTok start time must use MM:SS from 00:00 to 59:59.`
       );
     }
   }
