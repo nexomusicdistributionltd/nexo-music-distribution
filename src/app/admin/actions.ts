@@ -1055,6 +1055,26 @@ export async function savePublicContactMailboxesAction(input: {
   });
   if (error) return { ok: false, error: error.message };
 
+  const contactBody = [
+    "<h2>Reach us</h2>",
+    "<p><strong>NEXO MUSIC DISTRIBUTION LTD</strong></p>",
+    '<p>Public website: <a href="https://nexomusicdistribution.com">nexomusicdistribution.com</a></p>',
+    `<p>Artist &amp; label support: <a href="mailto:${values.support_email}">${values.support_email}</a></p>`,
+    `<p>DMCA / copyright notices: <a href="mailto:${values.dmca_email}">${values.dmca_email}</a></p>`,
+    "<p>You can also use the message form on this page.</p>",
+  ].join("");
+
+  const { error: contactPageError } = await supabase
+    .from("cms_pages")
+    .update({
+      body_html: contactBody,
+      status: "published",
+      published_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("slug", "contact");
+  if (contactPageError) return { ok: false, error: contactPageError.message };
+
   await supabase.rpc("write_audit_log", {
     p_action: "settings_update",
     p_entity_type: "website_settings",
