@@ -46,7 +46,7 @@ export default async function BlogPostPage({ params }: Props) {
         ]}
         showAside={false}
       />
-      <article className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <article className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
         {post.cover_image_url ? (
           <figure className="mb-10 overflow-hidden rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] shadow-[var(--nexo-shadow-sm)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -60,22 +60,27 @@ export default async function BlogPostPage({ params }: Props) {
           </figure>
         ) : null}
 
-        <div className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--nexo-border)] pb-5 text-caption text-[var(--nexo-text-muted)]">
-          {post.published_at ? (
-            <time dateTime={post.published_at}>
-              {new Date(post.published_at).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </time>
-          ) : null}
-          {Array.isArray(post.tags) && post.tags.length > 0 ? (
-            <span>{post.tags.join(" · ")}</span>
-          ) : null}
-        </div>
+        <div className="mx-auto max-w-3xl">
+          <div className="mb-9 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--nexo-border)] pb-5 text-caption text-[var(--nexo-text-muted)]">
+            <span className="font-medium text-[var(--nexo-text-secondary)]">
+              Nexo Music Distribution
+            </span>
+            {post.published_at ? (
+              <time dateTime={post.published_at}>
+                {new Date(post.published_at).toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </time>
+            ) : null}
+            {Array.isArray(post.tags) && post.tags.length > 0 ? (
+              <span>{post.tags.join(" · ")}</span>
+            ) : null}
+          </div>
 
-        <SafeHtml html={post.body_html} className="nexo-blog-article" />
+          <SafeHtml html={post.body_html} className="nexo-blog-article" />
+        </div>
       </article>
     </>
   );
