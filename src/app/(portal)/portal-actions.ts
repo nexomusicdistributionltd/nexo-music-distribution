@@ -18,6 +18,7 @@ import {
 import type { SplitShareInput } from "@/lib/finance/splits";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { marketingServiceSpec } from "@/lib/marketing/services";
+import { encryptPayoutPayload, PayoutEncryptionUnavailableError } from "@/lib/finance/payout-crypto";
 
 export type PortalActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -586,16 +587,36 @@ export async function saveTaxDetailsAction(input: {
   const ctx = await requirePortal();
   const parsed = validateTaxInput(input);
   if (!parsed.ok) return parsed;
-  const supabase = await createClient();
-  const { error } = await supabase.from("account_tax_details").upsert({
+
+  let encryptedTaxId: string | null = null;
+  let taxIdMask: string | null = null;
+  if (parsed.tax_id) {
+    try {
+      encryptedTaxId = encryptPayoutPayload({ tax_id: parsed.tax_id });
+      const compact = parsed.tax_id.replace(/\s+/g, "");
+      taxIdMask = compact.length > 4 ? `••••${compact.slice(-4)}` : "••••";
+    } catch (error) {
+      if (error instanceof PayoutEncryptionUnavailableError) {
+        return { ok: false, error: "Secure tax storage is not configured. Please contact Nexo Support." };
+      }
+      return { ok: false, error: "Could not securely protect the tax identifier." };
+    }
+  }
+
+  const service = createServiceClient();
+  const { error } = await service.from("account_tax_details").upsert({
     owner_user_id: ctx.userId,
     legal_name: parsed.legal_name,
     country: parsed.country,
-    tax_id: parsed.tax_id,
+    tax_id: null,
+    tax_id_encrypted: encryptedTaxId,
+    tax_id_mask: taxIdMask,
+    updated_by: ctx.userId,
     updated_at: new Date().toISOString(),
   });
-  if (error) return { ok: false, error: publicErrorMessage(error.message) };
+  if (error) return { ok: false, error: "Could not update tax information." };
   revalidatePath("/account/payment-tax");
+  revalidatePath("/earnings/tax-information");
   return { ok: true, data: true };
 }
 
@@ -637,24 +658,40 @@ export async function createPayoutRequestAction(input: {
 
   const payoutMethodId = input.payoutMethodId.trim();
   if (!/^[0-9a-f-]{36}$/i.test(payoutMethodId)) {
-    return { ok: false, error: "Select an approved payout method." };
+    return { ok: false, error: "Select an active payout method." };
   }
 
   const supabase = await createClient();
   const idempotencyKey =
-    `portal:${ctx.userId}:${parsed.currency}:${parsed.amountMinor}:${payoutMethodId}:${Date.now()}`;
+    `legacy-portal:${ctx.userId}:${parsed.currency}:${parsed.amountMinor}:${payoutMethodId}:${Date.now()}`;
 
-  const { data, error } = await supabase.rpc("create_payout_request_with_method", {
+  const { data, error } = await supabase.rpc("create_configured_payout_request", {
     p_owner_user_id: ctx.userId,
-    p_amount_minor: parsed.amountMinor,
-    p_currency: parsed.currency,
+    p_amount_minor: String(parsed.amountMinor),
+    p_source_currency: parsed.currency,
     p_payout_method_id: payoutMethodId,
     p_idempotency_key: idempotencyKey,
   });
 
-  if (error) return { ok: false, error: publicErrorMessage(error.message) };
+  if (error || !data) {
+    const message = error?.message ?? "";
+    return {
+      ok: false,
+      error: /identity/i.test(message)
+        ? "Complete identity verification before requesting a payout."
+        : /tax/i.test(message)
+          ? "Complete the required tax information before requesting a payout."
+          : /balance/i.test(message)
+            ? "Your available royalty balance is not sufficient for this payout."
+            : /securely updated|security hold/i.test(message)
+              ? "Review or update your payout method before requesting a payout."
+              : "We could not submit this payout request. Review your payout details and try again.",
+    };
+  }
 
   revalidatePath("/earnings/payouts");
+  revalidatePath("/earnings/request-payout");
+  revalidatePath("/earnings/payout-history");
   revalidatePath("/earnings");
   return { ok: true, data: { id: data.id } };
 }
