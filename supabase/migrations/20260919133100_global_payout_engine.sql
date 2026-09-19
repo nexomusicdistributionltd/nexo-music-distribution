@@ -856,6 +856,13 @@ cross join beneficiaries b
 join public.payout_providers p on p.code='manual_bank_transfer'
 on conflict (country_code,currency_code,method_id,beneficiary_type,provider_id) do nothing;
 
+-- Map eligible legacy method codes after the catalog seed. Legacy rows keep their
+-- current data and must be re-saved before encrypted_details can be required.
+update public.payout_methods pm
+set route_method_id=mc.id
+from public.payout_method_catalog mc
+where pm.route_method_id is null and mc.code=pm.method_type;
+
 -- GreyTag is independently routable/configurable.
 with greytag_routes(country_code,currency_code) as (
   values
@@ -908,7 +915,7 @@ cross join lateral (values
    'text',true,2,200,null,false,20,false,false,'[]'),
   ('bank_name','Bank name','text',true,2,160,null,false,30,false,false,'[]'),
   ('account_number','Account number','text',true,4,34,'^[0-9A-Za-z]+$',false,40,true,true,'[]'),
-  ('account_type','Account type','select',true,0,0,null,false,50,false,false,
+  ('account_type','Account type','select',true,null,null,null,false,50,false,false,
    case when b.beneficiary_type='business'
      then '[{"value":"business_checking","label":"Business checking"},{"value":"checking","label":"Checking"},{"value":"savings","label":"Savings"}]'
      else '[{"value":"checking","label":"Checking"},{"value":"savings","label":"Savings"}]' end),
@@ -918,7 +925,7 @@ cross join lateral (values
   ('state','State','text',true,2,80,null,false,90,false,false,'[]'),
   ('postal_code','ZIP code','text',true,5,10,'^[0-9]{5}(?:-[0-9]{4})?$',false,100,false,false,'[]'),
   ('country','Country','country',true,2,2,'^US$',false,110,false,false,'[]'),
-  ('payment_scheme','Payment scheme','select',true,0,0,null,false,120,false,false,
+  ('payment_scheme','Payment scheme','select',true,null,null,null,false,120,false,false,
    case when m.code='ach'
      then '[{"value":"ach","label":"ACH"}]'
      else '[{"value":"wire","label":"Wire"}]' end)
@@ -1000,7 +1007,1408 @@ from routes r cross join b cross join m
 cross join (values
   ('beneficiary_name','Recipient legal name','text',true,2,200,null,false,10,false,false),
   ('mobile_money_number','Mobile number','phone',true,7,20,'^[+0-9 ]{7,20}$',false,20,true,true),
-  ('country_calling_code','Country calling code','text',true,2,6,'^\\+[0-9]{1,4}$',false,30,false,false),
+  ('country_calling_code','Country calling code','text',true,2,6,'^\+[0-9]{1,4},false,30,false,false),
+  ('mobile_money_network','Mobile network','mobile_network_selector',true,2,80,null,false,40,false,false)
+) as v(field_key,label,input_type,required,min_len,max_len,regex,numeric_only,ord,encrypted,masked)
+on conflict (country_code,currency_code,method_id,beneficiary_type,field_key) do nothing;
+
+-- India bank transfer.
+with b(beneficiary_type) as (values ('individual'::text),('business'::text)),
+m as (select id from public.payout_method_catalog where code='bank_transfer')
+insert into public.payout_method_fields
+(country_code,currency_code,method_id,beneficiary_type,field_key,display_label,input_type,required,minimum_length,maximum_length,validation_regex,numeric_only,display_order,encrypted,masked)
+select 'IN','INR',m.id,b.beneficiary_type,v.field_key,v.label,v.input_type,v.required,v.min_len,v.max_len,v.regex,v.numeric_only,v.ord,v.encrypted,v.masked
+from b cross join m
+cross join lateral (values
+  (case when b.beneficiary_type='business' then 'business_name' else 'beneficiary_name' end,
+   case when b.beneficiary_type='business' then 'Legal business name' else 'Recipient legal name' end,
+   'text',true,2,200,null,false,10,false,false),
+  ('bank_name','Bank name','text',true,2,160,null,false,20,false,false),
+  ('account_number','Account number','text',true,6,34,'^[0-9]+$',true,30,true,true),
+  ('ifsc','IFSC code','text',true,11,11,'^[A-Z]{4}0[A-Z0-9]{6}$',false,40,true,true),
+  ('address_line_1','Address','text',false,2,200,null,false,50,false,false)
+) as v(field_key,label,input_type,required,min_len,max_len,regex,numeric_only,ord,encrypted,masked)
+on conflict (country_code,currency_code,method_id,beneficiary_type,field_key) do nothing;
+
+-- Generic bank fields for Kenya, Ghana and South Africa; still route-specific/configurable.
+with routes(country_code,currency_code) as (
+  values ('KE'::char(2),'KES'::char(3)),('GH'::char(2),'GHS'::char(3)),('ZA'::char(2),'ZAR'::char(3))
+), b(beneficiary_type) as (values ('individual'::text),('business'::text)),
+m as (select id from public.payout_method_catalog where code='bank_transfer')
+insert into public.payout_method_fields
+(country_code,currency_code,method_id,beneficiary_type,field_key,display_label,input_type,required,minimum_length,maximum_length,validation_regex,numeric_only,display_order,encrypted,masked)
+select r.country_code,r.currency_code,m.id,b.beneficiary_type,v.field_key,v.label,v.input_type,v.required,v.min_len,v.max_len,v.regex,v.numeric_only,v.ord,v.encrypted,v.masked
+from routes r cross join b cross join m
+cross join (values
+  ('beneficiary_name','Account holder legal name','text',true,2,200,null,false,10,false,false),
+  ('bank_name','Bank name','text',true,2,160,null,false,20,false,false),
+  ('account_number','Account number','text',true,4,34,'^[0-9A-Za-z]+$',false,30,true,true),
+  ('branch_code','Branch code','text',false,2,30,'^[0-9A-Za-z-]+$',false,40,true,true),
+  ('swift_bic','SWIFT / BIC','text',false,8,11,'^[A-Z0-9]{8}(?:[A-Z0-9]{3})?$',false,50,true,true)
+) as v(field_key,label,input_type,required,min_len,max_len,regex,numeric_only,ord,encrypted,masked)
+on conflict (country_code,currency_code,method_id,beneficiary_type,field_key) do nothing;
+
+-- Preserve the existing USD minimum as a configurable rule.
+do $$
+declare
+  v_min bigint := 5000;
+  raw text;
+begin
+  select value #>> '{}' into raw
+  from public.admin_settings
+  where key='finance.min_payout_minor_usd';
+  if raw ~ '^[0-9]+$' then
+    v_min := raw::bigint;
+  end if;
+
+  if not exists (
+    select 1 from public.payout_limit_rules
+    where name='Legacy USD minimum'
+  ) then
+    insert into public.payout_limit_rules(name,currency_code,minimum_payout_minor,priority)
+    values ('Legacy USD minimum','USD',v_min,900);
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Plan segment / messaging helpers
+-- ---------------------------------------------------------------------------
+create or replace function public.resolve_payout_plan_segment(p_owner uuid)
+returns text
+language plpgsql
+stable
+security definer
+set search_path=public
+as $$
+declare
+  account_kind text;
+  paid boolean := false;
+begin
+  select account_type into account_kind from public.profiles where id=p_owner;
+  if account_kind='artist' then
+    paid :=
+      exists (
+        select 1 from public.billing_entitlement_overrides o
+        where o.user_id=p_owner
+          and o.status in ('active','trialing')
+          and (o.ends_at is null or o.ends_at>now())
+          and o.plan_id='artist_pro'
+      )
+      or exists (
+        select 1 from public.billing_subscriptions s
+        where s.user_id=p_owner
+          and s.status in ('active','trialing')
+          and s.plan_id='artist_pro'
+      );
+  elsif account_kind='label' then
+    paid :=
+      exists (
+        select 1 from public.billing_entitlement_overrides o
+        where o.user_id=p_owner
+          and o.status in ('active','trialing')
+          and (o.ends_at is null or o.ends_at>now())
+          and o.plan_id in ('label_starter','label_pro')
+      )
+      or exists (
+        select 1 from public.billing_subscriptions s
+        where s.user_id=p_owner
+          and s.status in ('active','trialing')
+          and s.plan_id in ('label_starter','label_pro')
+      );
+  end if;
+  return case when paid then 'paid' else 'free' end;
+end;
+$$;
+
+revoke all on function public.resolve_payout_plan_segment(uuid) from public,anon;
+grant execute on function public.resolve_payout_plan_segment(uuid) to authenticated,service_role;
+
+create or replace function public.queue_payout_user_message(
+  p_payout public.payouts,
+  p_event text,
+  p_reason text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  title text;
+  body text;
+  template text := 'payout_status_update';
+begin
+  title := case p_event
+    when 'requested' then 'Payout request received'
+    when 'approved' then 'Payout approved'
+    when 'additional_information_requested' then 'Payout information required'
+    when 'processing' then 'Payout processing'
+    when 'paid' then 'Payout completed'
+    when 'failed' then 'Payout could not be completed'
+    when 'rejected' then 'Payout request rejected'
+    when 'returned' then 'Payout returned'
+    when 'cancelled' then 'Payout cancelled'
+    else 'Payout update'
+  end;
+
+  body := case p_event
+    when 'requested' then 'Your payout request has been received and is awaiting review.'
+    when 'approved' then 'Your payout has been approved and is awaiting processing.'
+    when 'additional_information_requested' then coalesce(p_reason,'Additional information is required before this payout can continue.')
+    when 'processing' then 'Your payout is being processed.'
+    when 'paid' then 'Your payout has been completed.'
+    when 'failed' then 'We could not complete this payout. Review the details or contact Nexo Support.'
+    when 'rejected' then coalesce(p_reason,'Your payout request was not approved.')
+    when 'returned' then coalesce(p_reason,'This payout was returned after processing.')
+    when 'cancelled' then 'This payout request has been cancelled.'
+    else 'Your payout status has changed.'
+  end;
+
+  template := case p_event
+    when 'requested' then 'payout_requested'
+    when 'paid' then 'payout_paid'
+    when 'failed' then 'payout_failed'
+    when 'rejected' then 'payout_rejected'
+    else 'payout_status_update'
+  end;
+
+  insert into public.notifications(user_id,type,title,body,entity_type,entity_id,metadata)
+  values (
+    p_payout.owner_user_id,
+    'payout_update'::public.notification_type,
+    title,
+    body,
+    'payout',
+    p_payout.id,
+    jsonb_build_object(
+      'payout_reference',p_payout.payout_reference,
+      'status',p_payout.status::text,
+      'href','/earnings/payout-history/'||p_payout.id::text
+    )
+  );
+
+  insert into public.email_outbound_events
+  (to_email,template_key,payload,status,related_entity_type,related_entity_id)
+  select
+    pr.email,
+    template,
+    jsonb_strip_nulls(jsonb_build_object(
+      'event',p_event,
+      'payout_id',p_payout.id,
+      'payout_reference',p_payout.payout_reference,
+      'amount_minor',p_payout.gross_amount_minor,
+      'currency',p_payout.source_currency,
+      'destination_currency',p_payout.destination_currency,
+      'net_amount_minor',p_payout.net_amount_minor,
+      'status',p_payout.status::text,
+      'destination_mask',p_payout.destination_mask,
+      'provider',p_payout.provider_name,
+      'reason',p_reason
+    )),
+    'pending',
+    'payout',
+    p_payout.id
+  from public.profiles pr
+  where pr.id=p_payout.owner_user_id
+    and pr.email is not null;
+end;
+$$;
+
+revoke all on function public.queue_payout_user_message(public.payouts,text,text) from public,anon,authenticated;
+grant execute on function public.queue_payout_user_message(public.payouts,text,text) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Balance view: UNDER_REVIEW is also reserved. Paid remains reserved while its
+-- ledger debit lives in the paid bucket; failed/rejected/cancelled/returned release it.
+-- ---------------------------------------------------------------------------
+create or replace view public.ledger_balances
+with (security_invoker=true)
+as
+with ledger as (
+  select
+    owner_user_id,
+    currency,
+    coalesce(sum(amount_minor) filter (where balance_bucket='available'),0)::bigint as raw_available_minor,
+    coalesce(sum(amount_minor) filter (where balance_bucket='pending'),0)::bigint as pending_minor,
+    coalesce(sum(amount_minor) filter (where balance_bucket='paid'),0)::bigint as paid_minor,
+    coalesce(sum(amount_minor) filter (where balance_bucket='held'),0)::bigint as held_minor,
+    coalesce(sum(amount_minor),0)::bigint as total_minor
+  from public.ledger_entries
+  group by owner_user_id,currency
+), reserved as (
+  select
+    owner_user_id,
+    currency,
+    coalesce(sum(amount_minor) filter (
+      where status in ('pending','under_review','approved','processing','on_hold','paid')
+    ),0)::bigint as reserved_minor
+  from public.payouts
+  group by owner_user_id,currency
+)
+select
+  l.owner_user_id,
+  l.currency,
+  greatest(l.raw_available_minor-coalesce(r.reserved_minor,0),0)::bigint as available_minor,
+  l.pending_minor,
+  l.paid_minor,
+  l.held_minor,
+  l.total_minor,
+  coalesce(r.reserved_minor,0)::bigint as reserved_payout_minor
+from ledger l
+left join reserved r
+  on r.owner_user_id=l.owner_user_id
+ and r.currency=l.currency;
+
+comment on view public.ledger_balances is
+  'Derived append-only ledger balances. available_minor excludes every live payout reservation including UNDER_REVIEW.';
+
+-- ---------------------------------------------------------------------------
+-- Protect immutable payout reference and trusted final financial transitions.
+-- ---------------------------------------------------------------------------
+create or replace function public.protect_payout_row()
+returns trigger
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  trusted text := coalesce(current_setting('nexo.trusted_financial_transition',true),'0');
+begin
+  if tg_op='DELETE' then
+    raise exception 'Payouts cannot be deleted; use lifecycle transitions and compensating ledger entries' using errcode='42501';
+  end if;
+
+  if tg_op='UPDATE' then
+    if new.payout_reference is distinct from old.payout_reference then
+      raise exception 'Payout reference is immutable' using errcode='42501';
+    end if;
+
+    if new.status='paid' then
+      if new.payment_reference is null or btrim(new.payment_reference)=''
+         or new.paid_at is null then
+        raise exception 'PAID requires payment reference and paid timestamp' using errcode='P0001';
+      end if;
+      if old.status is distinct from 'paid' and trusted<>'1' then
+        raise exception 'PAID requires trusted financial transition' using errcode='42501';
+      end if;
+    end if;
+
+    if new.status='returned'
+       and old.status is distinct from 'returned'
+       and trusted<>'1' then
+      raise exception 'RETURNED requires trusted compensating transition' using errcode='42501';
+    end if;
+
+    if old.status='paid' and new.status not in ('paid','returned') then
+      raise exception 'Paid payout can only become RETURNED through a compensating operation' using errcode='42501';
+    end if;
+
+    if old.status='returned' and new.status<>'returned' then
+      raise exception 'Returned payout history is immutable; create a new retry payout' using errcode='42501';
+    end if;
+
+    if old.status in ('paid','returned')
+       and (
+         new.amount_minor is distinct from old.amount_minor
+         or new.currency is distinct from old.currency
+         or new.gross_amount_minor is distinct from old.gross_amount_minor
+         or new.source_currency is distinct from old.source_currency
+         or new.destination_currency is distinct from old.destination_currency
+         or new.payout_method_id is distinct from old.payout_method_id
+       ) then
+      raise exception 'Completed payout financial snapshot is immutable' using errcode='42501';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+-- Existing trigger already points to protect_payout_row; reconcile explicitly.
+drop trigger if exists payouts_protect on public.payouts;
+drop trigger if exists protect_payouts on public.payouts;
+create trigger payouts_protect
+before update or delete on public.payouts
+for each row execute function public.protect_payout_row();
+
+-- ---------------------------------------------------------------------------
+-- Race-safe configured payout creation.
+-- ---------------------------------------------------------------------------
+create or replace function public.create_configured_payout_request(
+  p_owner_user_id uuid,
+  p_amount_minor bigint,
+  p_source_currency text,
+  p_payout_method_id uuid,
+  p_idempotency_key text
+)
+returns public.payouts
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  actor uuid := auth.uid();
+  profile_row public.profiles;
+  method_row public.payout_methods;
+  method_catalog public.payout_method_catalog;
+  route_row public.payout_provider_routes;
+  provider_row public.payout_providers;
+  country_row public.payout_countries;
+  source_currency_row public.payout_currencies;
+  destination_currency_row public.payout_currencies;
+  security_row public.payout_security_settings;
+  limit_row public.payout_limit_rules;
+  provider_fee_rule public.payout_fee_rules;
+  nexo_fee_rule public.payout_fee_rules;
+  fx_row public.payout_fx_rates;
+  existing public.payouts;
+  created public.payouts;
+  plan_segment text;
+  available_value bigint := 0;
+  minimum_value bigint := 0;
+  maximum_value bigint;
+  provider_fee_value bigint := 0;
+  nexo_fee_value bigint := 0;
+  fx_fee_value bigint := 0;
+  recipient_provider_fee bigint := 0;
+  recipient_nexo_fee bigint := 0;
+  recipient_fx_fee bigint := 0;
+  net_source bigint;
+  net_destination bigint;
+  account_id uuid;
+  daily_sum bigint := 0;
+  weekly_sum bigint := 0;
+  monthly_sum bigint := 0;
+  daily_count integer := 0;
+  weekly_count integer := 0;
+  monthly_count integer := 0;
+  require_identity boolean := false;
+  require_tax boolean := false;
+  global_enabled text;
+begin
+  if actor is null or actor<>p_owner_user_id then
+    raise exception 'Not authorized' using errcode='42501';
+  end if;
+  if p_amount_minor is null or p_amount_minor<=0 then
+    raise exception 'Payout amount must be positive' using errcode='P0001';
+  end if;
+  if p_source_currency is null or upper(btrim(p_source_currency)) !~ '^[A-Z]{3}$' then
+    raise exception 'Valid source currency required' using errcode='P0001';
+  end if;
+  if p_idempotency_key is null or char_length(btrim(p_idempotency_key))<8 then
+    raise exception 'Idempotency key required' using errcode='P0001';
+  end if;
+
+  select * into existing
+  from public.payouts
+  where owner_user_id=p_owner_user_id and idempotency_key=p_idempotency_key;
+  if found then return existing; end if;
+
+  perform pg_advisory_xact_lock(hashtext(p_owner_user_id::text||':'||upper(btrim(p_source_currency))));
+
+  select * into profile_row from public.profiles where id=p_owner_user_id for share;
+  if not found or profile_row.account_status<>'active' then
+    raise exception 'Account is not eligible for payouts' using errcode='P0001';
+  end if;
+  if profile_row.account_type not in ('artist','label') then
+    raise exception 'Payouts are available to Artist and Label accounts' using errcode='P0001';
+  end if;
+  if coalesce(profile_row.restriction_kind::text,'none') in ('login_restricted','read_only') then
+    raise exception 'Account restriction blocks payouts' using errcode='P0001';
+  end if;
+
+  select coalesce(value #>> '{}','true') into global_enabled
+  from public.admin_settings where key='finance.payouts_enabled';
+  if global_enabled is not null and lower(global_enabled) in ('false','0','no') then
+    raise exception 'Payout requests are temporarily unavailable' using errcode='P0001';
+  end if;
+
+  if exists (
+    select 1 from public.payout_compliance_holds h
+    where h.owner_user_id=p_owner_user_id and h.active=true
+  ) then
+    raise exception 'A payout hold is active on this account' using errcode='P0001';
+  end if;
+
+  select * into method_row
+  from public.payout_methods
+  where id=p_payout_method_id and user_id=p_owner_user_id
+  for share;
+  if not found or method_row.status<>'active' then
+    raise exception 'Select an approved payout method' using errcode='P0001';
+  end if;
+  if method_row.route_method_id is null
+     or method_row.country_code is null
+     or method_row.currency is null
+     or method_row.beneficiary_type is null then
+    raise exception 'This payout method must be updated before it can be used' using errcode='P0001';
+  end if;
+  if method_row.security_hold_until is not null and method_row.security_hold_until>now() then
+    raise exception 'This payout method is temporarily on a security hold after a recent change' using errcode='P0001';
+  end if;
+
+  select * into method_catalog
+  from public.payout_method_catalog
+  where id=method_row.route_method_id and enabled=true and maintenance_mode=false;
+  if not found then
+    raise exception 'This payout method is not currently available' using errcode='P0001';
+  end if;
+
+  select * into country_row
+  from public.payout_countries
+  where iso2=method_row.country_code and enabled=true;
+  if not found then
+    raise exception 'Payouts are not currently available for this country' using errcode='P0001';
+  end if;
+  if method_row.beneficiary_type='individual' and not country_row.individual_enabled then
+    raise exception 'Individual beneficiaries are not enabled for this country' using errcode='P0001';
+  end if;
+  if method_row.beneficiary_type='business' and not country_row.business_enabled then
+    raise exception 'Business beneficiaries are not enabled for this country' using errcode='P0001';
+  end if;
+
+  select * into source_currency_row
+  from public.payout_currencies
+  where code=upper(btrim(p_source_currency)) and enabled=true;
+  if not found then
+    raise exception 'Source currency is not enabled for payouts' using errcode='P0001';
+  end if;
+
+  select * into destination_currency_row
+  from public.payout_currencies
+  where code=method_row.currency and enabled=true;
+  if not found then
+    raise exception 'Destination currency is not enabled for payouts' using errcode='P0001';
+  end if;
+
+  select r.* into route_row
+  from public.payout_provider_routes r
+  join public.payout_providers pp on pp.id=r.provider_id
+  where r.country_code=method_row.country_code
+    and r.currency_code=method_row.currency
+    and r.method_id=method_row.route_method_id
+    and r.beneficiary_type=method_row.beneficiary_type
+    and r.enabled=true
+    and pp.enabled=true
+    and pp.maintenance_mode=false
+  order by r.is_backup asc,r.priority asc,pp.priority asc
+  limit 1;
+  if not found then
+    raise exception 'No payout provider route is currently available for this method' using errcode='P0001';
+  end if;
+
+  select * into provider_row from public.payout_providers where id=route_row.provider_id;
+  if provider_row.api_enabled=false and provider_row.manual_payout_enabled=false then
+    raise exception 'Selected payout provider is not available for processing' using errcode='P0001';
+  end if;
+
+  select * into security_row from public.payout_security_settings where id='default';
+  require_identity :=
+    coalesce(security_row.require_identity_verification,false)
+    or country_row.identity_verification_required
+    or route_row.identity_verification_required;
+  if require_identity and not exists (
+    select 1 from public.identity_verifications iv
+    where iv.user_id=p_owner_user_id and iv.status='verified'
+  ) then
+    raise exception 'Identity verification must be completed before requesting a payout' using errcode='P0001';
+  end if;
+
+  require_tax :=
+    country_row.tax_information_required
+    or route_row.tax_information_required
+    or exists (
+      select 1 from public.payout_tax_rules tr
+      where tr.enabled=true
+        and tr.required=true
+        and tr.blocks_payout=true
+        and (tr.country_code is null or tr.country_code=method_row.country_code)
+        and (tr.account_type is null or tr.account_type=profile_row.account_type)
+        and (tr.beneficiary_type is null or tr.beneficiary_type=method_row.beneficiary_type)
+    );
+  if require_tax and coalesce(security_row.tax_information_can_block,true) and not exists (
+    select 1 from public.account_tax_details td
+    where td.owner_user_id=p_owner_user_id and td.tax_form_status='complete'
+  ) then
+    raise exception 'Required tax information must be completed before requesting a payout' using errcode='P0001';
+  end if;
+
+  select coalesce(available_minor,0) into available_value
+  from public.ledger_balances
+  where owner_user_id=p_owner_user_id
+    and currency=upper(btrim(p_source_currency));
+  if coalesce(available_value,0)<p_amount_minor then
+    raise exception 'Requested amount exceeds available royalty balance' using errcode='P0001';
+  end if;
+
+  plan_segment := public.resolve_payout_plan_segment(p_owner_user_id);
+
+  select lr.* into limit_row
+  from public.payout_limit_rules lr
+  where lr.enabled=true
+    and (lr.account_type is null or lr.account_type=profile_row.account_type)
+    and (lr.plan_segment is null or lr.plan_segment=plan_segment)
+    and (lr.country_code is null or lr.country_code=method_row.country_code)
+    and (lr.currency_code is null or lr.currency_code=upper(btrim(p_source_currency)))
+    and (lr.method_id is null or lr.method_id=method_row.route_method_id)
+    and (lr.provider_id is null or lr.provider_id=route_row.provider_id)
+  order by
+    ((lr.account_type is not null)::int
+     +(lr.plan_segment is not null)::int
+     +(lr.country_code is not null)::int
+     +(lr.currency_code is not null)::int
+     +(lr.method_id is not null)::int
+     +(lr.provider_id is not null)::int) desc,
+    lr.priority asc
+  limit 1;
+
+  minimum_value := greatest(
+    coalesce(source_currency_row.minimum_payout_minor,0),
+    case
+      when method_row.currency=upper(btrim(p_source_currency))
+      then coalesce(country_row.minimum_payout_minor,0)
+      else 0
+    end,
+    case
+      when method_row.currency=upper(btrim(p_source_currency))
+      then coalesce(route_row.minimum_payout_minor,0)
+      else 0
+    end,
+    coalesce(limit_row.minimum_payout_minor,0)
+  );
+  if p_amount_minor<minimum_value then
+    raise exception 'Requested amount is below the minimum payout' using errcode='P0001';
+  end if;
+
+  maximum_value := null;
+  select min(v) into maximum_value
+  from unnest(array[
+    source_currency_row.maximum_payout_minor,
+    case when method_row.currency=upper(btrim(p_source_currency)) then country_row.maximum_payout_minor else null end,
+    case when method_row.currency=upper(btrim(p_source_currency)) then route_row.maximum_payout_minor else null end,
+    limit_row.maximum_payout_minor
+  ]::bigint[]) v
+  where v is not null;
+  if maximum_value is not null and p_amount_minor>maximum_value then
+    raise exception 'Requested amount exceeds the maximum payout' using errcode='P0001';
+  end if;
+
+  select
+    coalesce(sum(amount_minor),0)::bigint,
+    count(*)::integer
+  into daily_sum,daily_count
+  from public.payouts
+  where owner_user_id=p_owner_user_id
+    and currency=upper(btrim(p_source_currency))
+    and created_at>=date_trunc('day',now())
+    and status not in ('rejected','cancelled','failed','returned','draft');
+
+  select
+    coalesce(sum(amount_minor),0)::bigint,
+    count(*)::integer
+  into weekly_sum,weekly_count
+  from public.payouts
+  where owner_user_id=p_owner_user_id
+    and currency=upper(btrim(p_source_currency))
+    and created_at>=date_trunc('week',now())
+    and status not in ('rejected','cancelled','failed','returned','draft');
+
+  select
+    coalesce(sum(amount_minor),0)::bigint,
+    count(*)::integer
+  into monthly_sum,monthly_count
+  from public.payouts
+  where owner_user_id=p_owner_user_id
+    and currency=upper(btrim(p_source_currency))
+    and created_at>=date_trunc('month',now())
+    and status not in ('rejected','cancelled','failed','returned','draft');
+
+  if limit_row.daily_maximum_minor is not null and daily_sum+p_amount_minor>limit_row.daily_maximum_minor then
+    raise exception 'Daily payout limit would be exceeded' using errcode='P0001';
+  end if;
+  if limit_row.weekly_maximum_minor is not null and weekly_sum+p_amount_minor>limit_row.weekly_maximum_minor then
+    raise exception 'Weekly payout limit would be exceeded' using errcode='P0001';
+  end if;
+  if limit_row.monthly_maximum_minor is not null and monthly_sum+p_amount_minor>limit_row.monthly_maximum_minor then
+    raise exception 'Monthly payout limit would be exceeded' using errcode='P0001';
+  end if;
+  if limit_row.daily_request_count is not null and daily_count>=limit_row.daily_request_count then
+    raise exception 'Daily payout request limit reached' using errcode='P0001';
+  end if;
+  if limit_row.weekly_request_count is not null and weekly_count>=limit_row.weekly_request_count then
+    raise exception 'Weekly payout request limit reached' using errcode='P0001';
+  end if;
+  if limit_row.monthly_request_count is not null and monthly_count>=limit_row.monthly_request_count then
+    raise exception 'Monthly payout request limit reached' using errcode='P0001';
+  end if;
+
+  select fr.* into provider_fee_rule
+  from public.payout_fee_rules fr
+  where fr.enabled=true and fr.fee_kind='provider'
+    and (fr.account_type is null or fr.account_type=profile_row.account_type)
+    and (fr.plan_segment is null or fr.plan_segment=plan_segment)
+    and (fr.country_code is null or fr.country_code=method_row.country_code)
+    and (fr.currency_code is null or fr.currency_code=upper(btrim(p_source_currency)))
+    and (fr.method_id is null or fr.method_id=method_row.route_method_id)
+    and (fr.provider_id is null or fr.provider_id=route_row.provider_id)
+  order by
+    ((fr.account_type is not null)::int
+     +(fr.plan_segment is not null)::int
+     +(fr.country_code is not null)::int
+     +(fr.currency_code is not null)::int
+     +(fr.method_id is not null)::int
+     +(fr.provider_id is not null)::int) desc,
+    fr.priority asc
+  limit 1;
+
+  select fr.* into nexo_fee_rule
+  from public.payout_fee_rules fr
+  where fr.enabled=true and fr.fee_kind='nexo'
+    and (fr.account_type is null or fr.account_type=profile_row.account_type)
+    and (fr.plan_segment is null or fr.plan_segment=plan_segment)
+    and (fr.country_code is null or fr.country_code=method_row.country_code)
+    and (fr.currency_code is null or fr.currency_code=upper(btrim(p_source_currency)))
+    and (fr.method_id is null or fr.method_id=method_row.route_method_id)
+    and (fr.provider_id is null or fr.provider_id=route_row.provider_id)
+  order by
+    ((fr.account_type is not null)::int
+     +(fr.plan_segment is not null)::int
+     +(fr.country_code is not null)::int
+     +(fr.currency_code is not null)::int
+     +(fr.method_id is not null)::int
+     +(fr.provider_id is not null)::int) desc,
+    fr.priority asc
+  limit 1;
+
+  provider_fee_value :=
+    coalesce(provider_fee_rule.fixed_fee_minor,0)
+    + round((p_amount_minor::numeric*coalesce(provider_fee_rule.percentage_bps,0)::numeric)/10000)::bigint;
+  nexo_fee_value :=
+    coalesce(nexo_fee_rule.fixed_fee_minor,0)
+    + round((p_amount_minor::numeric*coalesce(nexo_fee_rule.percentage_bps,0)::numeric)/10000)::bigint;
+
+  recipient_provider_fee := case coalesce(provider_fee_rule.fee_payer,'recipient')
+    when 'nexo' then 0
+    when 'split' then round((provider_fee_value::numeric*coalesce(provider_fee_rule.split_recipient_bps,5000))/10000)::bigint
+    else provider_fee_value
+  end;
+  recipient_nexo_fee := case coalesce(nexo_fee_rule.fee_payer,'recipient')
+    when 'nexo' then 0
+    when 'split' then round((nexo_fee_value::numeric*coalesce(nexo_fee_rule.split_recipient_bps,5000))/10000)::bigint
+    else nexo_fee_value
+  end;
+
+  if method_row.currency<>upper(btrim(p_source_currency)) then
+    if not source_currency_row.fx_enabled or not destination_currency_row.fx_enabled then
+      raise exception 'Currency conversion is not enabled for this payout route' using errcode='P0001';
+    end if;
+    select fx.* into fx_row
+    from public.payout_fx_rates fx
+    where fx.source_currency=upper(btrim(p_source_currency))
+      and fx.destination_currency=method_row.currency
+      and fx.enabled=true
+      and fx.effective_at<=now()
+      and (fx.expires_at is null or fx.expires_at>now())
+    order by fx.effective_at desc
+    limit 1;
+    if not found then
+      raise exception 'A current exchange rate is not available for this payout route' using errcode='P0001';
+    end if;
+    fx_fee_value :=
+      round((p_amount_minor::numeric*source_currency_row.fx_fee_bps::numeric)/10000)::bigint;
+    nexo_fee_value := nexo_fee_value
+      + round((p_amount_minor::numeric*source_currency_row.nexo_fx_markup_bps::numeric)/10000)::bigint;
+    recipient_fx_fee := case source_currency_row.fx_fee_payer
+      when 'nexo' then 0
+      when 'split' then round((fx_fee_value::numeric*source_currency_row.fx_split_recipient_bps)/10000)::bigint
+      else fx_fee_value
+    end;
+  end if;
+
+  net_source := p_amount_minor-recipient_provider_fee-recipient_nexo_fee-recipient_fx_fee;
+  if net_source<=0 then
+    raise exception 'Configured fees exceed the payout amount' using errcode='P0001';
+  end if;
+
+  if method_row.currency=upper(btrim(p_source_currency)) then
+    net_destination := net_source;
+  else
+    net_destination :=
+      round((net_source::numeric*fx_row.rate_numerator::numeric)/fx_row.rate_denominator::numeric)::bigint;
+    if net_destination<=0 then
+      raise exception 'FX conversion produced an invalid recipient amount' using errcode='P0001';
+    end if;
+  end if;
+
+  insert into public.ledger_accounts(owner_user_id,currency,label)
+  values (p_owner_user_id,upper(btrim(p_source_currency)),'default')
+  on conflict (owner_user_id,currency,label) do nothing;
+
+  select id into account_id from public.ledger_accounts
+  where owner_user_id=p_owner_user_id
+    and currency=upper(btrim(p_source_currency))
+    and label='default';
+
+  insert into public.payouts(
+    owner_user_id,amount_minor,currency,status,method,idempotency_key,
+    created_by,ledger_account_id,min_threshold_minor,eligibility_notes,
+    payout_method_id,destination_mask,provider_name,provider_id,route_id,
+    account_type,beneficiary_type,country_code,source_currency,destination_currency,
+    gross_amount_minor,provider_fee_minor,nexo_fee_minor,fx_fee_minor,
+    fx_rate_numerator,fx_rate_denominator,net_amount_minor,
+    available_balance_at_request_minor,requested_at
+  ) values (
+    p_owner_user_id,p_amount_minor,upper(btrim(p_source_currency)),'pending',
+    method_catalog.code,btrim(p_idempotency_key),actor,account_id,minimum_value,
+    jsonb_build_object(
+      'plan_segment',plan_segment,
+      'identity_required',require_identity,
+      'tax_required',require_tax
+    )::text,
+    method_row.id,method_row.destination_mask,provider_row.name,provider_row.id,route_row.id,
+    profile_row.account_type,method_row.beneficiary_type,method_row.country_code,
+    upper(btrim(p_source_currency)),method_row.currency,
+    p_amount_minor,provider_fee_value,nexo_fee_value,fx_fee_value,
+    case when fx_row.id is null then 1 else fx_row.rate_numerator end,
+    case when fx_row.id is null then 1 else fx_row.rate_denominator end,
+    net_destination,available_value,now()
+  ) returning * into created;
+
+  insert into public.payout_events(
+    payout_id,owner_user_id,event_type,status,actor_user_id,actor_role,description,metadata
+  ) values (
+    created.id,created.owner_user_id,'requested',created.status,actor,profile_row.account_type,
+    'Payout requested',
+    jsonb_build_object('payout_reference',created.payout_reference)
+  );
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (
+    actor,'payout_create','payout',created.id,
+    jsonb_build_object(
+      'payout_reference',created.payout_reference,
+      'amount_minor',created.gross_amount_minor,
+      'currency',created.source_currency,
+      'method_id',created.payout_method_id,
+      'provider_id',created.provider_id
+    )
+  );
+
+  perform public.queue_payout_user_message(created,'requested',null);
+  return created;
+end;
+$$;
+
+revoke all on function public.create_configured_payout_request(uuid,bigint,text,uuid,text)
+from public,anon;
+grant execute on function public.create_configured_payout_request(uuid,bigint,text,uuid,text)
+to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Admin lifecycle. PAID and RETURNED remain dedicated atomic operations.
+-- ---------------------------------------------------------------------------
+create or replace function public.transition_payout_status(
+  p_payout_id uuid,
+  p_new_status public.payout_status,
+  p_reason text default null
+)
+returns public.payouts
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  actor uuid := auth.uid();
+  p public.payouts;
+  old_status public.payout_status;
+  allowed boolean := false;
+  event_name text;
+  audit_name public.audit_action;
+begin
+  if actor is null or not public.has_staff_permission(actor,'admin:payouts') then
+    raise exception 'Not authorized' using errcode='42501';
+  end if;
+
+  select * into p from public.payouts where id=p_payout_id for update;
+  if not found then raise exception 'Payout not found' using errcode='P0002'; end if;
+  old_status := p.status;
+
+  if p_new_status in ('paid','returned','draft') then
+    raise exception 'This status requires a dedicated financial operation' using errcode='42501';
+  end if;
+
+  allowed := case p.status
+    when 'pending' then p_new_status in ('under_review','approved','cancelled','on_hold','rejected')
+    when 'under_review' then p_new_status in ('approved','rejected','cancelled','on_hold','pending')
+    when 'approved' then p_new_status in ('processing','cancelled','on_hold','rejected')
+    when 'processing' then p_new_status in ('failed','on_hold')
+    when 'on_hold' then p_new_status in ('pending','under_review','approved','cancelled','rejected')
+    when 'failed' then p_new_status in ('under_review','cancelled')
+    else false
+  end;
+
+  if not allowed then
+    raise exception 'Invalid payout transition from % to %',p.status,p_new_status using errcode='P0001';
+  end if;
+
+  if p_new_status in ('rejected','failed','on_hold') and coalesce(btrim(p_reason),'')='' then
+    raise exception 'Reason is required for this payout status' using errcode='P0001';
+  end if;
+
+  update public.payouts
+  set status=p_new_status,
+      reviewed_by=case when p_new_status in ('under_review','approved','rejected','on_hold') then actor else reviewed_by end,
+      reviewed_at=case when p_new_status in ('under_review','approved','rejected','on_hold') then now() else reviewed_at end,
+      approved_at=case when p_new_status='approved' then now() else approved_at end,
+      processing_at=case when p_new_status='processing' then now() else processing_at end,
+      failed_at=case when p_new_status='failed' then now() else failed_at end,
+      cancelled_at=case when p_new_status='cancelled' then now() else cancelled_at end,
+      rejected_reason=case when p_new_status='rejected' then btrim(p_reason) else rejected_reason end,
+      failure_reason=case when p_new_status='failed' then btrim(p_reason) else failure_reason end,
+      additional_information_reason=case
+        when p_new_status='on_hold' then btrim(p_reason)
+        when p_new_status in ('pending','under_review','approved') then null
+        else additional_information_reason
+      end,
+      updated_at=now()
+  where id=p_payout_id
+  returning * into p;
+
+  event_name := case
+    when p_new_status='approved' then 'approved'
+    when p_new_status='processing' then 'processing'
+    when p_new_status='failed' then 'failed'
+    when p_new_status='rejected' then 'rejected'
+    when p_new_status='cancelled' then 'cancelled'
+    when p_new_status='on_hold' then 'additional_information_requested'
+    when p_new_status='under_review' then 'review_started'
+    else 'resubmitted'
+  end;
+
+  audit_name := case
+    when p_new_status='approved' then 'payout_approve'::public.audit_action
+    when p_new_status='failed' then 'payout_failed'::public.audit_action
+    when p_new_status='rejected' then 'payout_reject'::public.audit_action
+    when p_new_status='on_hold' then 'payout_info_request'::public.audit_action
+    else 'payout_status_change'::public.audit_action
+  end;
+
+  insert into public.payout_events(
+    payout_id,owner_user_id,event_type,status,actor_user_id,actor_role,
+    description,internal_note,metadata
+  ) values (
+    p.id,p.owner_user_id,event_name,p.status,actor,'staff',
+    replace(initcap(replace(event_name,'_',' ')),'Payout ',''),
+    case when p_new_status in ('failed','rejected','on_hold') then p_reason else null end,
+    jsonb_build_object('previous_status',old_status::text,'new_status',p.status::text)
+  );
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (
+    actor,audit_name,'payout',p.id,
+    jsonb_strip_nulls(jsonb_build_object(
+      'payout_reference',p.payout_reference,
+      'previous_status',old_status::text,
+      'new_status',p.status::text,
+      'reason',p_reason
+    ))
+  );
+
+  if p_new_status in ('approved','processing','failed','rejected','cancelled','on_hold') then
+    perform public.queue_payout_user_message(p,event_name,p_reason);
+  end if;
+  return p;
+end;
+$$;
+
+revoke all on function public.transition_payout_status(uuid,public.payout_status,text) from public,anon;
+grant execute on function public.transition_payout_status(uuid,public.payout_status,text) to authenticated;
+
+create or replace function public.resubmit_payout_after_information(p_payout_id uuid)
+returns public.payouts
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  actor uuid := auth.uid();
+  p public.payouts;
+  pm public.payout_methods;
+begin
+  select * into p from public.payouts where id=p_payout_id for update;
+  if not found or p.owner_user_id<>actor then
+    raise exception 'Payout not found' using errcode='P0002';
+  end if;
+  if p.status<>'on_hold' then
+    raise exception 'Payout is not waiting for additional information' using errcode='P0001';
+  end if;
+  select * into pm from public.payout_methods where id=p.payout_method_id and user_id=actor;
+  if not found or pm.status<>'active' then
+    raise exception 'An active payout method is required' using errcode='P0001';
+  end if;
+  if pm.security_hold_until is not null and pm.security_hold_until>now() then
+    raise exception 'This payout method is temporarily on a security hold after a recent change' using errcode='P0001';
+  end if;
+
+  update public.payouts
+  set status='pending',additional_information_reason=null,updated_at=now()
+  where id=p.id returning * into p;
+
+  insert into public.payout_events(
+    payout_id,owner_user_id,event_type,status,actor_user_id,actor_role,description
+  ) values (p.id,p.owner_user_id,'information_resubmitted',p.status,actor,'account','Information resubmitted');
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (actor,'payout_status_change','payout',p.id,jsonb_build_object('new_status','pending','reason','information_resubmitted'));
+
+  perform public.queue_payout_user_message(p,'resubmitted',null);
+  return p;
+end;
+$$;
+
+revoke all on function public.resubmit_payout_after_information(uuid) from public,anon;
+grant execute on function public.resubmit_payout_after_information(uuid) to authenticated;
+
+create or replace function public.retry_failed_payout(p_payout_id uuid,p_reason text default null)
+returns public.payouts
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  actor uuid:=auth.uid();
+  p public.payouts;
+  available_value bigint:=0;
+begin
+  if actor is null or not public.has_staff_permission(actor,'admin:payouts') then
+    raise exception 'Not authorized' using errcode='42501';
+  end if;
+  select * into p from public.payouts where id=p_payout_id for update;
+  if not found then raise exception 'Payout not found' using errcode='P0002'; end if;
+  if p.status<>'failed' then
+    raise exception 'Only failed payouts can be retried' using errcode='P0001';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext(p.owner_user_id::text||':'||p.currency));
+  select coalesce(available_minor,0) into available_value
+  from public.ledger_balances
+  where owner_user_id=p.owner_user_id and currency=p.currency;
+  if available_value<p.amount_minor then
+    raise exception 'Available balance is no longer sufficient to retry this payout' using errcode='P0001';
+  end if;
+
+  update public.payouts
+  set status='pending',failure_code=null,failure_reason=null,failed_at=null,updated_at=now()
+  where id=p.id returning * into p;
+
+  insert into public.payout_events(
+    payout_id,owner_user_id,event_type,status,actor_user_id,actor_role,description,internal_note
+  ) values (p.id,p.owner_user_id,'retried',p.status,actor,'staff','Failed payout returned to review',p_reason);
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (actor,'payout_retry','payout',p.id,jsonb_build_object('payout_reference',p.payout_reference,'reason',coalesce(p_reason,'')));
+
+  perform public.queue_payout_user_message(p,'requested',null);
+  return p;
+end;
+$$;
+
+revoke all on function public.retry_failed_payout(uuid,text) from public,anon;
+grant execute on function public.retry_failed_payout(uuid,text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Manual Grey / manual provider recording: APPROVED -> PROCESSING only.
+-- This records real admin-entered payment evidence; it never pretends an API call occurred.
+-- ---------------------------------------------------------------------------
+create or replace function public.record_manual_payout_payment(
+  p_payout_id uuid,
+  p_provider_id uuid,
+  p_provider_reference text,
+  p_amount_sent_minor bigint,
+  p_currency_sent text,
+  p_recipient_amount_minor bigint,
+  p_recipient_currency text,
+  p_provider_fee_minor bigint default 0,
+  p_nexo_fee_minor bigint default 0,
+  p_fx_fee_minor bigint default 0,
+  p_fx_rate_numerator bigint default null,
+  p_fx_rate_denominator bigint default null,
+  p_sent_at timestamptz default now(),
+  p_admin_note text default null
+)
+returns public.payout_payment_records
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  actor uuid:=auth.uid();
+  p public.payouts;
+  provider public.payout_providers;
+  record_row public.payout_payment_records;
+  attempt integer;
+begin
+  if actor is null or not public.has_staff_permission(actor,'admin:payouts') then
+    raise exception 'Not authorized' using errcode='42501';
+  end if;
+  if coalesce(btrim(p_provider_reference),'')='' then
+    raise exception 'Provider transaction/reference ID is required' using errcode='P0001';
+  end if;
+  if p_amount_sent_minor<=0 or p_recipient_amount_minor<0
+     or p_provider_fee_minor<0 or p_nexo_fee_minor<0 or p_fx_fee_minor<0 then
+    raise exception 'Payment amounts are invalid' using errcode='P0001';
+  end if;
+  if upper(btrim(p_currency_sent)) !~ '^[A-Z]{3}$'
+     or upper(btrim(p_recipient_currency)) !~ '^[A-Z]{3}$' then
+    raise exception 'Valid ISO currencies are required' using errcode='P0001';
+  end if;
+
+  select * into p from public.payouts where id=p_payout_id for update;
+  if not found then raise exception 'Payout not found' using errcode='P0002'; end if;
+  if p.status='paid' then
+    raise exception 'This payout has already been processed' using errcode='P0001';
+  end if;
+  if p.status not in ('approved','processing') then
+    raise exception 'Payout must be approved before recording payment' using errcode='P0001';
+  end if;
+
+  select * into provider from public.payout_providers where id=p_provider_id;
+  if not found or not provider.enabled or not provider.manual_payout_enabled then
+    raise exception 'Provider is not enabled for manual payout processing' using errcode='P0001';
+  end if;
+
+  if exists (
+    select 1 from public.payout_payment_records
+    where provider_id=p_provider_id and provider_reference=btrim(p_provider_reference)
+      and payout_id<>p_payout_id
+  ) then
+    raise exception 'Provider reference is already attached to another payout' using errcode='23505';
+  end if;
+
+  select coalesce(max(attempt_no),0)+1 into attempt
+  from public.payout_payment_records where payout_id=p_payout_id;
+
+  insert into public.payout_payment_records(
+    payout_id,attempt_no,provider_id,provider_reference,
+    amount_sent_minor,currency_sent,recipient_amount_minor,recipient_currency,
+    provider_fee_minor,nexo_fee_minor,fx_fee_minor,
+    fx_rate_numerator,fx_rate_denominator,sent_at,admin_note,recorded_by
+  ) values (
+    p.id,attempt,provider.id,btrim(p_provider_reference),
+    p_amount_sent_minor,upper(btrim(p_currency_sent)),
+    p_recipient_amount_minor,upper(btrim(p_recipient_currency)),
+    p_provider_fee_minor,p_nexo_fee_minor,p_fx_fee_minor,
+    p_fx_rate_numerator,p_fx_rate_denominator,p_sent_at,
+    nullif(btrim(p_admin_note),''),actor
+  ) returning * into record_row;
+
+  update public.payouts
+  set status='processing',
+      provider_id=provider.id,
+      provider_name=provider.name,
+      provider_transaction_id=btrim(p_provider_reference),
+      provider_payout_id=btrim(p_provider_reference),
+      provider_fee_minor=p_provider_fee_minor,
+      nexo_fee_minor=p_nexo_fee_minor,
+      fx_fee_minor=p_fx_fee_minor,
+      net_amount_minor=p_recipient_amount_minor,
+      destination_currency=upper(btrim(p_recipient_currency)),
+      fx_rate_numerator=coalesce(p_fx_rate_numerator,fx_rate_numerator),
+      fx_rate_denominator=coalesce(p_fx_rate_denominator,fx_rate_denominator),
+      processing_at=coalesce(processing_at,now()),
+      payment_recorded_at=now(),
+      payment_recorded_by=actor,
+      admin_note=coalesce(nullif(btrim(p_admin_note),''),admin_note),
+      updated_at=now()
+  where id=p.id
+  returning * into p;
+
+  insert into public.payout_events(
+    payout_id,owner_user_id,event_type,status,actor_user_id,actor_role,description,internal_note,
+    metadata
+  ) values (
+    p.id,p.owner_user_id,'payment_recorded',p.status,actor,'staff','Payment recorded with provider',
+    p_admin_note,
+    jsonb_build_object('provider_id',provider.id,'provider_reference',btrim(p_provider_reference),'attempt_no',attempt)
+  );
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (
+    actor,'payout_payment_record','payout',p.id,
+    jsonb_build_object(
+      'payout_reference',p.payout_reference,
+      'provider_id',provider.id,
+      'provider_reference',btrim(p_provider_reference),
+      'attempt_no',attempt
+    )
+  );
+
+  perform public.queue_payout_user_message(p,'processing',null);
+  return record_row;
+end;
+$$;
+
+revoke all on function public.record_manual_payout_payment(
+  uuid,uuid,text,bigint,text,bigint,text,bigint,bigint,bigint,bigint,bigint,timestamptz,text
+) from public,anon;
+grant execute on function public.record_manual_payout_payment(
+  uuid,uuid,text,bigint,text,bigint,text,bigint,bigint,bigint,bigint,bigint,timestamptz,text
+) to authenticated;
+
+-- Atomic paid settlement, idempotent on payout ID.
+create or replace function public.complete_payout_paid(
+  p_payout_id uuid,
+  p_payment_reference text,
+  p_provider_name text default null,
+  p_provider_payout_id text default null
+)
+returns public.payouts
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  actor uuid:=auth.uid();
+  p public.payouts;
+  account_id uuid;
+begin
+  if actor is null or not public.has_staff_permission(actor,'admin:payouts') then
+    raise exception 'Not authorized' using errcode='42501';
+  end if;
+  if coalesce(btrim(p_payment_reference),'')='' then
+    raise exception 'Provider payment reference is required' using errcode='P0001';
+  end if;
+
+  select * into p from public.payouts where id=p_payout_id for update;
+  if not found then raise exception 'Payout not found' using errcode='P0002'; end if;
+  if p.status='paid' then return p; end if;
+  if p.status<>'processing' then
+    raise exception 'PAID is only allowed from PROCESSING' using errcode='P0001';
+  end if;
+
+  if coalesce(p.provider_name,p_provider_name,'') in ('Grey Business','manual','Manual Bank Transfer')
+     and not exists (
+       select 1 from public.payout_payment_records r
+       where r.payout_id=p.id
+         and r.provider_reference=btrim(p_payment_reference)
+     ) then
+    raise exception 'Record the manual provider payment before marking this payout paid' using errcode='P0001';
+  end if;
+
+  perform set_config('nexo.trusted_financial_transition','1',true);
+
+  update public.payouts
+  set status='paid',
+      payment_reference=btrim(p_payment_reference),
+      provider_name=coalesce(nullif(btrim(p_provider_name),''),provider_name),
+      provider_payout_id=coalesce(nullif(btrim(p_provider_payout_id),''),provider_payout_id,btrim(p_payment_reference)),
+      provider_transaction_id=coalesce(provider_transaction_id,nullif(btrim(p_provider_payout_id),''),btrim(p_payment_reference)),
+      paid_at=now(),
+      updated_at=now()
+  where id=p.id
+  returning * into p;
+
+  perform set_config('nexo.trusted_financial_transition','0',true);
+
+  insert into public.ledger_accounts(owner_user_id,currency,label)
+  values (p.owner_user_id,p.currency,'default')
+  on conflict (owner_user_id,currency,label) do nothing;
+
+  select id into account_id from public.ledger_accounts
+  where owner_user_id=p.owner_user_id and currency=p.currency and label='default';
+
+  if not exists (
+    select 1 from public.ledger_entries le
+    where le.payout_id=p.id and le.kind='payout'
+  ) then
+    insert into public.ledger_entries(
+      account_id,owner_user_id,kind,amount_minor,currency,description,
+      reference_type,reference_id,created_by,balance_bucket,payout_id,
+      net_minor,gross_minor,metadata
+    ) values (
+      account_id,p.owner_user_id,'payout',-p.amount_minor,p.currency,
+      'Payout '||p.payout_reference,'payout',p.id,actor,'paid',p.id,
+      -p.amount_minor,-p.amount_minor,
+      jsonb_build_object(
+        'transaction_type','PAYOUT',
+        'payout_reference',p.payout_reference,
+        'provider',p.provider_name,
+        'provider_reference',p.payment_reference
+      )
+    );
+  end if;
+
+  insert into public.payout_events(
+    payout_id,owner_user_id,event_type,status,actor_user_id,actor_role,description,
+    metadata
+  ) values (
+    p.id,p.owner_user_id,'paid',p.status,actor,'staff','Payout completed',
+    jsonb_build_object('provider_reference',p.payment_reference)
+  );
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (
+    actor,'payout_paid','payout',p.id,
+    jsonb_build_object(
+      'payout_reference',p.payout_reference,
+      'provider',p.provider_name,
+      'provider_reference',p.payment_reference
+    )
+  );
+
+  perform public.queue_payout_user_message(p,'paid',null);
+  return p;
+end;
+$$;
+
+revoke all on function public.complete_payout_paid(uuid,text,text,text) from public,anon;
+grant execute on function public.complete_payout_paid(uuid,text,text,text) to authenticated;
+
+-- Returned payments preserve the original payout debit and post a new compensating
+-- ledger entry in the paid bucket. Because RETURNED is not reserved, available
+-- balance returns to the pre-payout amount without rewriting history.
+create or replace function public.mark_payout_returned(
+  p_payout_id uuid,
+  p_reason text,
+  p_provider_reference text default null
+)
+returns public.payouts
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  actor uuid:=auth.uid();
+  p public.payouts;
+  account_id uuid;
+  payout_entry uuid;
+begin
+  if actor is null or not public.has_staff_permission(actor,'admin:payouts') then
+    raise exception 'Not authorized' using errcode='42501';
+  end if;
+  if coalesce(btrim(p_reason),'')='' then
+    raise exception 'Return reason is required' using errcode='P0001';
+  end if;
+
+  select * into p from public.payouts where id=p_payout_id for update;
+  if not found then raise exception 'Payout not found' using errcode='P0002'; end if;
+  if p.status='returned' then return p; end if;
+  if p.status<>'paid' then
+    raise exception 'Only a paid payout can be marked returned' using errcode='P0001';
+  end if;
+
+  select le.id,le.account_id into payout_entry,account_id
+  from public.ledger_entries le
+  where le.payout_id=p.id and le.kind='payout'
+  order by le.created_at desc
+  limit 1;
+  if payout_entry is null then
+    raise exception 'Original payout ledger entry not found' using errcode='P0001';
+  end if;
+
+  if not exists (
+    select 1 from public.ledger_entries le
+    where le.payout_id=p.id
+      and le.kind='refund'
+      and le.compensating_for=payout_entry
+  ) then
+    insert into public.ledger_entries(
+      account_id,owner_user_id,kind,amount_minor,currency,description,
+      reference_type,reference_id,created_by,balance_bucket,payout_id,
+      compensating_for,net_minor,gross_minor,metadata
+    ) values (
+      account_id,p.owner_user_id,'refund',p.amount_minor,p.currency,
+      'Returned payout '||p.payout_reference,'payout_return',p.id,actor,'paid',p.id,
+      payout_entry,p.amount_minor,p.amount_minor,
+      jsonb_build_object(
+        'transaction_type','PAYOUT_RETURNED',
+        'payout_reference',p.payout_reference,
+        'return_reason',btrim(p_reason)
+      )
+    );
+  end if;
+
+  perform set_config('nexo.trusted_financial_transition','1',true);
+  update public.payouts
+  set status='returned',
+      returned_at=now(),
+      failure_reason=btrim(p_reason),
+      provider_transaction_id=coalesce(nullif(btrim(p_provider_reference),''),provider_transaction_id),
+      updated_at=now()
+  where id=p.id returning * into p;
+  perform set_config('nexo.trusted_financial_transition','0',true);
+
+  insert into public.payout_events(
+    payout_id,owner_user_id,event_type,status,actor_user_id,actor_role,description,internal_note
+  ) values (
+    p.id,p.owner_user_id,'returned',p.status,actor,'staff','Payout returned',btrim(p_reason)
+  );
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (
+    actor,'payout_returned','payout',p.id,
+    jsonb_build_object('payout_reference',p.payout_reference,'reason',btrim(p_reason))
+  );
+
+  perform public.queue_payout_user_message(p,'returned',btrim(p_reason));
+  return p;
+end;
+$$;
+
+revoke all on function public.mark_payout_returned(uuid,text,text) from public,anon;
+grant execute on function public.mark_payout_returned(uuid,text,text) to authenticated;
+
+-- Security hold override never deletes the evidence.
+create or replace function public.override_payout_method_security_hold(
+  p_method_id uuid,
+  p_reason text
+)
+returns public.payout_methods
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  actor uuid:=auth.uid();
+  pm public.payout_methods;
+begin
+  if actor is null or not public.has_staff_permission(actor,'admin:payouts') then
+    raise exception 'Not authorized' using errcode='42501';
+  end if;
+  if coalesce(btrim(p_reason),'')='' then
+    raise exception 'Override reason is required' using errcode='P0001';
+  end if;
+
+  update public.payout_methods
+  set security_hold_until=null,updated_by_admin=actor,updated_at=now()
+  where id=p_method_id
+  returning * into pm;
+  if not found then raise exception 'Payout method not found' using errcode='P0002'; end if;
+
+  insert into public.audit_logs(actor_user_id,action,entity_type,entity_id,metadata)
+  values (
+    actor,'payout_security_override','payout_method',pm.id,
+    jsonb_build_object('owner_user_id',pm.user_id,'reason',btrim(p_reason))
+  );
+  return pm;
+end;
+$$;
+
+revoke all on function public.override_payout_method_security_hold(uuid,text) from public,anon;
+grant execute on function public.override_payout_method_security_hold(uuid,text) to authenticated;
+
+-- Helpful indexes for admin search/filter pages.
+create index if not exists payouts_owner_status_created_idx
+  on public.payouts(owner_user_id,status,created_at desc);
+create index if not exists payouts_paid_at_idx
+  on public.payouts(paid_at desc) where paid_at is not null;
+create index if not exists payouts_provider_reference_search_idx
+  on public.payouts(provider_transaction_id) where provider_transaction_id is not null;
+create index if not exists payout_methods_beneficiary_name_idx
+  on public.payout_methods(lower(beneficiary_name));
+
+-- Realtime uses existing focused portal/admin refresh components.
+alter publication supabase_realtime add table public.payout_events;
+,false,30,false,false),
   ('mobile_money_network','Mobile network','mobile_network_selector',true,2,80,null,false,40,false,false)
 ) as v(field_key,label,input_type,required,min_len,max_len,regex,numeric_only,ord,encrypted,masked)
 on conflict (country_code,currency_code,method_id,beneficiary_type,field_key) do nothing;
