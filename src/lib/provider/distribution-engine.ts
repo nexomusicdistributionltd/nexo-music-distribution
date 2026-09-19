@@ -587,7 +587,8 @@ async function prepareProviderRelease(
       /tiktokstarttime/i.test(error.message)
     ) {
       const withoutTikTokStartTime = providerTracks.map((track) => {
-        const { tiktokStartTime: _ignored, ...rest } = track;
+        const rest = { ...track };
+        delete rest.tiktokStartTime;
         return rest;
       });
       await request(
@@ -682,7 +683,7 @@ function validateSubmission(input: ProviderReleasePayload): void {
       !normalizeProviderMinuteSecond(track.tiktokStartTime)
     ) {
       throw new ProviderDeliveryValidationError(
-        `Track ${track.trackNumber} TikTok start time must use MM:SS from 00:00 to 59:59.`
+        `Track ${track.trackNumber} TikTok start time must use minute:second format, for example 0:08 or 9:40.`
       );
     }
   }
