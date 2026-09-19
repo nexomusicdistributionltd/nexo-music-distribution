@@ -23,6 +23,14 @@ function trackLabel(message: string): string {
   return match ? `Track ${match[1]}` : "Affected track";
 }
 
+function extractProviderField(message: string): string | undefined {
+  const afterStatus = message.split(/\(HTTP\s+\d+\)\s*:\s*/i)[1] ?? message;
+  const match = afterStatus.match(
+    /(?:^|;\s*)([a-zA-Z][a-zA-Z0-9_.\[\]-]{1,100})\s*:\s*[^;]+/
+  );
+  return match?.[1]?.replace(/^data\./i, "");
+}
+
 export function diagnoseDeliveryFailure(message: string): DeliveryFailureDiagnosis {
   const raw = message.trim() || "Unknown delivery failure.";
   const lower = raw.toLowerCase();
@@ -49,7 +57,7 @@ export function diagnoseDeliveryFailure(message: string): DeliveryFailureDiagnos
     };
   }
 
-  if (includesAny(lower, ["license type", "licensetype", "creative commons", "copyright"])) {
+  if (includesAny(lower, ["license type", "licensetype", "creative commons", "selected license"])) {
     return {
       summary: "Licensing metadata was rejected",
       stage,
@@ -284,6 +292,7 @@ export function diagnoseDeliveryFailure(message: string): DeliveryFailureDiagnos
   return {
     summary: "Delivery failed and needs review",
     stage,
+    field: extractProviderField(raw),
     reason: raw,
     fix: "Use the provider reason above to identify the rejected field. If it names release metadata, correct it in the Admin metadata editor. If it names a track, contributor, audio file, artwork, or delivery option, return the release for that specific correction.",
     where: "Admin release page → Delivery needs attention and the matching release/track section",
