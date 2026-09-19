@@ -126,15 +126,15 @@ async function queueMethodSecurityMessage(input: {
   if (profile?.email) {
     await service.from("email_outbound_events").insert({
       to_email: profile.email,
-      template_key: "payout_method_changed",
+      template_key: "PAYOUT_METHOD_CHANGED",
       payload: {
-        event: input.event,
-        payout_method_id: input.payoutMethodId,
-        date: new Date().toISOString(),
-        country: input.countryCode,
-        currency: input.currency,
-        payment_method: input.methodName,
-        masked_account: input.destinationMask,
+        EVENT: input.event,
+        PAYOUT_METHOD_ID: input.payoutMethodId,
+        DATE: new Date().toISOString(),
+        COUNTRY: input.countryCode,
+        CURRENCY: input.currency,
+        PAYMENT_METHOD: input.methodName,
+        MASKED_ACCOUNT: input.destinationMask,
       },
       status: "pending",
       related_entity_type: "payout_method",
