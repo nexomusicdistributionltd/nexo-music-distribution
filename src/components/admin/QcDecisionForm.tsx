@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
@@ -20,7 +19,6 @@ const LABELS: Record<(typeof QC_CHECKLIST_KEYS)[number], string> = {
 };
 
 export function QcDecisionForm({ releaseId }: { releaseId: string }) {
-  const router = useRouter();
   const [checklist, setChecklist] = React.useState<QcChecklist>({});
   const [reason, setReason] = React.useState("");
   const [internal, setInternal] = React.useState("");
@@ -76,7 +74,6 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
         }
       }
 
-      router.refresh();
     } catch (err) {
       setError(
         err instanceof Error && err.message
