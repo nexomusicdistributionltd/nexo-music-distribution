@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import {
   addOpsCaseNoteAction,
   addOpsEvidenceAction,
+  uploadOpsEvidenceAction,
   createOpsCaseAction,
   updateOpsCaseAction,
 } from "@/app/admin/operations/actions";
@@ -52,6 +54,17 @@ export async function OpsCaseCenter({ caseType, createLabel = "Open case" }: Pro
       : Promise.resolve({ data: [] }),
   ]);
 
+  const service = createServiceClient();
+  const evidenceWithUrls = await Promise.all(
+    (evidence ?? []).map(async (item) => {
+      if (!item.storage_path) return { ...item, signed_url: null as string | null };
+      const { data } = await service.storage
+        .from("compliance-evidence")
+        .createSignedUrl(item.storage_path, 600);
+      return { ...item, signed_url: data?.signedUrl ?? null };
+    })
+  );
+
   return (
     <div className="space-y-6">
       <details className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4">
@@ -81,7 +94,7 @@ export async function OpsCaseCenter({ caseType, createLabel = "Open case" }: Pro
         <div className="space-y-4">
           {(cases ?? []).map((row) => {
             const rowEvents = (events ?? []).filter((event) => event.case_id === row.id).slice(0, 5);
-            const rowEvidence = (evidence ?? []).filter((item) => item.case_id === row.id).slice(0, 5);
+            const rowEvidence = evidenceWithUrls.filter((item) => item.case_id === row.id).slice(0, 5);
             return (
               <article key={row.id} className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -140,18 +153,29 @@ export async function OpsCaseCenter({ caseType, createLabel = "Open case" }: Pro
                         {rowEvidence.map((item) => (
                           <li key={item.id} className="rounded border border-[var(--nexo-border)] p-2 text-caption">
                             <span className="font-medium">{item.label}</span>
-                            {item.evidence_url ? <a className="ml-2 underline" href={item.evidence_url} target="_blank" rel="noreferrer">Open</a> : null}
+                            {item.evidence_url ? <a className="ml-2 underline" href={item.evidence_url} target="_blank" rel="noreferrer">Open link</a> : null}
+                            {item.signed_url ? <a className="ml-2 underline" href={item.signed_url} target="_blank" rel="noreferrer">Open file</a> : null}
                             {item.notes ? <span className="mt-1 block text-[var(--nexo-text-muted)]">{item.notes}</span> : null}
                           </li>
                         ))}
                       </ul>
-                      <form action={addOpsEvidenceAction} className="mt-3 space-y-2">
+                      <form action={uploadOpsEvidenceAction} className="mt-3 space-y-2">
                         <input type="hidden" name="case_id" value={row.id} />
                         <Input name="label" required placeholder="Evidence label" />
-                        <Input name="evidence_url" type="url" placeholder="https://… (optional)" />
-                        <Textarea name="notes" placeholder="Evidence notes / reference" />
-                        <Button type="submit" size="sm" variant="secondary">Add evidence</Button>
+                        <Input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.mp3,.wav,.txt" required />
+                        <Textarea name="notes" placeholder="Evidence notes" />
+                        <Button type="submit" size="sm" variant="secondary">Upload private evidence</Button>
                       </form>
+                      <details className="mt-3">
+                        <summary className="cursor-pointer text-caption text-[var(--nexo-text-muted)]">Add external evidence link</summary>
+                        <form action={addOpsEvidenceAction} className="mt-2 space-y-2">
+                          <input type="hidden" name="case_id" value={row.id} />
+                          <Input name="label" required placeholder="Evidence label" />
+                          <Input name="evidence_url" type="url" placeholder="https://…" required />
+                          <Textarea name="notes" placeholder="Evidence notes / reference" />
+                          <Button type="submit" size="sm" variant="secondary">Add evidence link</Button>
+                        </form>
+                      </details>
                     </div>
                   </div>
                 </details>
