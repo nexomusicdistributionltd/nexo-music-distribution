@@ -47,6 +47,7 @@ const nextConfig: NextConfig = {
     ],
   },
   outputFileTracingIncludes: {
+    "/*": ["./emails/templates/**", "./emails/shells/**", "./emails/fragments/**"],
     "/admin/ddex/**": ["./src/lib/ddex/xsd/**"],
     "/admin/ddex/download/**": ["./src/lib/ddex/xsd/**"],
   },

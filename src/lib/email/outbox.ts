@@ -207,9 +207,10 @@ export async function processEmailEvent(
         stored = null;
       }
     } catch {
-      // Rendering below remains authoritative; a missing catalog file will fail
-      // normally instead of sending a partial/unknown operational template.
-      stored = null;
+      // Production serverless bundles may not contain repo-root HTML files.
+      // A stored operational template is still authoritative and safe to render
+      // from the database; do not discard it just because the filesystem copy
+      // is unavailable.
     }
   }
 

@@ -111,6 +111,18 @@ export function normalizeProviderReleaseTime(value: string | null | undefined): 
   return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : undefined;
 }
 
+export function normalizeProviderMinuteSecond(
+  value: string | null | undefined
+): string | undefined {
+  const text = normalizeProviderText(value);
+  if (!text) return undefined;
+  const match = text.match(/^(\d{1,2}):([0-5]\d)$/);
+  if (!match) return undefined;
+  const minutes = Number(match[1]);
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) return undefined;
+  return `${String(minutes).padStart(2, "0")}:${match[2]}`;
+}
+
 export function normalizeProviderDate(value: string | null | undefined): string | undefined {
   const text = normalizeProviderText(value);
   if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(text)) return undefined;

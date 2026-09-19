@@ -300,3 +300,17 @@ export function diagnoseDeliveryFailure(message: string): DeliveryFailureDiagnos
     nextAction: "Correct the named issue first, then retry delivery. Do not retry repeatedly without changing the rejected value.",
   };
 }
+
+
+export function formatDeliveryCorrection(message: string): string {
+  const diagnosis = diagnoseDeliveryFailure(message);
+  return [
+    diagnosis.summary,
+    diagnosis.field ? `Affected field: ${diagnosis.field}` : "",
+    `Why it failed: ${diagnosis.reason}`,
+    `What to fix: ${diagnosis.fix}`,
+    `Where to fix it: ${diagnosis.where}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}

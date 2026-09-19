@@ -21,6 +21,7 @@ import {
   normalizeProviderLanguage,
   normalizeProviderLicenseType,
   normalizeProviderReleaseTime,
+  normalizeProviderMinuteSecond,
   normalizeProviderText,
   normalizeProviderTimeZone,
   normalizeRightsText,
@@ -535,7 +536,7 @@ async function prepareProviderRelease(
           normalizeProviderLanguage(track.language) ??
           normalizeProviderLanguage(input.language),
         audioFileKey,
-        tiktokStartTime: nonEmpty(track.tiktokStartTime),
+        tiktokStartTime: normalizeProviderMinuteSecond(track.tiktokStartTime),
         lyrics: track.lyrics
           ? {
               content: track.lyrics,
@@ -655,6 +656,14 @@ function validateSubmission(input: ProviderReleasePayload): void {
         `Track ${track.trackNumber} must use lossless FLAC audio for Nexo delivery. Re-upload this track as FLAC before retrying.`
       );
     }
+    if (
+      track.tiktokStartTime &&
+      !normalizeProviderMinuteSecond(track.tiktokStartTime)
+    ) {
+      throw new ProviderDeliveryValidationError(
+        `Track ${track.trackNumber} TikTok start time must use MM:SS from 00:00 to 59:59.`
+      );
+    }
   }
 }
 
@@ -667,11 +676,18 @@ export class DistributionEngineProvider implements DistributionProvider {
   readonly name = INTERNAL_PROVIDER_KEY;
   readonly connected = true;
 
-  async submitRelease(input: ProviderReleasePayload): Promise<{ providerReleaseId: string }> {
+  async prepareRelease(input: ProviderReleasePayload): Promise<{ providerReleaseId: string }> {
     validateSubmission(input);
 
     const providerReleaseId = await createOrResumeDraft(input);
     await prepareProviderRelease(providerReleaseId, input);
+    await rememberProviderDraft(input.releaseId, providerReleaseId, "draft");
+
+    return { providerReleaseId };
+  }
+
+  async submitRelease(input: ProviderReleasePayload): Promise<{ providerReleaseId: string }> {
+    const { providerReleaseId } = await this.prepareRelease(input);
 
     await request(
       `/releases/${encodeURIComponent(providerReleaseId)}/submit`,

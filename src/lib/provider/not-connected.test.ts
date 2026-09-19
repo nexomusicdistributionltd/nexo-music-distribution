@@ -12,6 +12,16 @@ describe("NotConnectedProvider", () => {
 
   it("throws clear not-connected on all operations (no fake delivery)", async () => {
     await expect(
+      p.prepareRelease({
+        releaseId: "r0",
+        title: "t",
+        type: "single",
+        primaryArtistName: "a",
+        tracks: [],
+      })
+    ).rejects.toBeInstanceOf(ProviderNotConnectedError);
+
+    await expect(
       p.submitRelease({
         releaseId: "r1",
         title: "t",
