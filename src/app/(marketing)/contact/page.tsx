@@ -5,7 +5,8 @@ import { Section, Eyebrow } from "@/components/marketing/Section";
 import { ContactForm } from "@/components/marketing/ContactForm";
 import { Button } from "@/components/ui/Button";
 import { SITE_URL, COMPANY_LEGAL } from "@/lib/site";
-import { LEGAL_CONTACT_EMAIL, LEGAL_INQUIRIES_EMAIL } from "@/lib/legal/copy";
+import { LEGAL_CONTACT_EMAIL } from "@/lib/legal/copy";
+import { getWebsiteSetting } from "@/lib/website/queries";
 import { SafeHtml } from "@/components/cms/SafeHtml";
 import { getPublishedPageBySlug } from "@/lib/cms/pages";
 
@@ -17,8 +18,25 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const cmsPage = await getPublishedPageBySlug("contact");
+  const [cmsPage, footerSetting] = await Promise.all([
+    getPublishedPageBySlug("contact"),
+    getWebsiteSetting("footer"),
+  ]);
   const hasCmsBody = Boolean(cmsPage?.body_html?.trim());
+  const footer =
+    footerSetting?.value && typeof footerSetting.value === "object" && !Array.isArray(footerSetting.value)
+      ? (footerSetting.value as Record<string, unknown>)
+      : {};
+  const supportEmail =
+    typeof footer.support_email === "string" && footer.support_email.trim()
+      ? footer.support_email.trim()
+      : typeof footer.contact_email === "string" && footer.contact_email.trim()
+        ? footer.contact_email.trim()
+        : LEGAL_CONTACT_EMAIL;
+  const dmcaEmail =
+    typeof footer.dmca_email === "string" && footer.dmca_email.trim()
+      ? footer.dmca_email.trim()
+      : "dmca@nexomusicdistribution.com";
 
   return (
     <>
@@ -54,23 +72,26 @@ export default async function Page() {
                     nexomusicdistribution.com
                   </a>
                 </p>
-                <p className="mt-4 text-small text-[var(--nexo-text-muted)]">
-                  Email{" "}
-                  <a
-                    href={`mailto:${LEGAL_CONTACT_EMAIL}`}
-                    className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
-                  >
-                    {LEGAL_CONTACT_EMAIL}
-                  </a>{" "}
-                  or use the form. Additional inquiries:{" "}
-                  <a
-                    href={`mailto:${LEGAL_INQUIRIES_EMAIL}`}
-                    className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
-                  >
-                    {LEGAL_INQUIRIES_EMAIL}
-                  </a>
-                  .
-                </p>
+                <div className="mt-5 grid gap-3 text-small text-[var(--nexo-text-muted)] sm:grid-cols-2">
+                  <div>
+                    <p className="text-caption font-semibold uppercase tracking-wide">Support</p>
+                    <a
+                      href={`mailto:${supportEmail}`}
+                      className="mt-1 inline-block break-all underline underline-offset-4 hover:text-[var(--nexo-text)]"
+                    >
+                      {supportEmail}
+                    </a>
+                  </div>
+                  <div>
+                    <p className="text-caption font-semibold uppercase tracking-wide">DMCA notices</p>
+                    <a
+                      href={`mailto:${dmcaEmail}`}
+                      className="mt-1 inline-block break-all underline underline-offset-4 hover:text-[var(--nexo-text)]"
+                    >
+                      {dmcaEmail}
+                    </a>
+                  </div>
+                </div>
               </>
             )}
             <Link href="/get-started" className="mt-6 inline-flex">
