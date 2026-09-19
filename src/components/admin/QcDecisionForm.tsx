@@ -29,49 +29,63 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
   const [pending, setPending] = React.useState(false);
 
   async function run(decision: QcDecision) {
+    if (pending) return;
     setPending(true);
     setError(null);
     setNotice(null);
-    const res = await performQcDecisionAction({
-      releaseId,
-      decision,
-      checklist,
-      artistVisibleReason: reason,
-      internalNote: internal,
-    });
-    setPending(false);
-    if (!res.ok) {
-      setError(res.error);
-      if (decision === "approve" && !reason.trim()) {
-        const correction = res.error.split("\n\n").slice(1).join("\n\n").trim();
-        if (correction) setReason(correction);
+
+    try {
+      const res = await performQcDecisionAction({
+        releaseId,
+        decision,
+        checklist,
+        artistVisibleReason: reason,
+        internalNote: internal,
+      });
+
+      if (!res.ok) {
+        setError(res.error);
+        if (decision === "approve" && !reason.trim()) {
+          const correction = res.error.split("\n\n").slice(1).join("\n\n").trim();
+          if (correction) setReason(correction);
+        }
+        return;
       }
-      return;
-    }
-    if (decision === "approve") {
-      if (res.data.distribution?.returnedForChanges) {
-        setNotice({
-          kind: "warning",
-          title: "Declined — returned for changes",
-          text:
-            res.data.distributionWarning ??
-            "The release was returned to the artist or label for correction and can be edited and resubmitted.",
-        });
-      } else if (res.data.distributionWarning) {
-        setNotice({
-          kind: "warning",
-          title: "Approved — distribution needs attention",
-          text: res.data.distributionWarning,
-        });
-      } else {
-        setNotice({
-          kind: "success",
-          title: "Distribution started",
-          text: "Release approved and submitted to TooLost for distribution. Delivery status will continue syncing automatically.",
-        });
+
+      if (decision === "approve") {
+        if (res.data.distribution?.returnedForChanges) {
+          setNotice({
+            kind: "warning",
+            title: "Declined — returned for changes",
+            text:
+              res.data.distributionWarning ??
+              "The release was returned to the artist or label for correction and can be edited and resubmitted.",
+          });
+        } else if (res.data.distributionWarning) {
+          setNotice({
+            kind: "warning",
+            title: "Approved — distribution needs attention",
+            text: res.data.distributionWarning,
+          });
+        } else {
+          setNotice({
+            kind: "success",
+            title: "Distribution started",
+            text: "Release approved and submitted to TooLost for distribution. Delivery status will continue syncing automatically.",
+          });
+        }
       }
+
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "The QC action could not be completed. Please retry."
+      );
+    } finally {
+      setPending(false);
     }
-    router.refresh();
   }
 
   return (
