@@ -18,7 +18,7 @@ import {
 import type { SplitShareInput } from "@/lib/finance/splits";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { marketingServiceSpec } from "@/lib/marketing/services";
-import { getUserOperationalHolds, isFeatureEnabled } from "@/lib/admin/feature-flags";
+import { getUserOperationalHolds, hasAcceptedRequiredPolicies, isFeatureEnabled } from "@/lib/admin/feature-flags";
 
 export type PortalActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -44,6 +44,9 @@ export async function createServiceRequestAction(input: {
   release_id?: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  if (!(await hasAcceptedRequiredPolicies(ctx.userId))) {
+    return { ok: false, error: "Review and accept the current Nexo policies in Account → Policies & Agreements before using this service." };
+  }
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {
@@ -263,6 +266,9 @@ export async function createMusicVideoAction(input: {
   release_id?: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  if (!(await hasAcceptedRequiredPolicies(ctx.userId))) {
+    return { ok: false, error: "Review and accept the current Nexo policies in Account → Policies & Agreements before submitting video distribution." };
+  }
   if (!(await isFeatureEnabled("video_distribution", true))) {
     return { ok: false, error: "Video distribution submissions are temporarily paused by Nexo operations." };
   }
@@ -630,6 +636,9 @@ export async function createPayoutRequestAction(input: {
   payoutMethodId: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  if (!(await hasAcceptedRequiredPolicies(ctx.userId))) {
+    return { ok: false, error: "Review and accept the current Nexo policies in Account → Policies & Agreements before requesting a payout." };
+  }
   const [payoutsEnabled, holds] = await Promise.all([
     isFeatureEnabled("payout_requests", true),
     getUserOperationalHolds(ctx.userId),
