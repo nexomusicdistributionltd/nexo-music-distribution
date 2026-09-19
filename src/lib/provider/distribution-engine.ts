@@ -573,13 +573,34 @@ async function prepareProviderRelease(
     );
   }
 
-  await request(
-    `/releases/${encodeURIComponent(providerReleaseId)}/tracks`,
-    {
-      method: "PUT",
-      body: JSON.stringify({ tracks: providerTracks }),
+  try {
+    await request(
+      `/releases/${encodeURIComponent(providerReleaseId)}/tracks`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ tracks: providerTracks }),
+      }
+    );
+  } catch (error) {
+    if (
+      error instanceof ProviderDeliveryValidationError &&
+      /tiktokstarttime/i.test(error.message)
+    ) {
+      const withoutTikTokStartTime = providerTracks.map((track) => {
+        const { tiktokStartTime: _ignored, ...rest } = track;
+        return rest;
+      });
+      await request(
+        `/releases/${encodeURIComponent(providerReleaseId)}/tracks`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ tracks: withoutTikTokStartTime }),
+        }
+      );
+    } else {
+      throw error;
     }
-  );
+  }
 }
 
 function validateSubmission(input: ProviderReleasePayload): void {
