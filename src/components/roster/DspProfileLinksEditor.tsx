@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
@@ -26,7 +25,6 @@ export function DspProfileLinksEditor({
   artistProfileId: string;
   initial: ArtistDspLink[];
 }) {
-  const router = useRouter();
   const byKey = new Map(initial.map((l) => [l.dsp_key, l]));
   const [rows, setRows] = React.useState<Record<string, RowState>>(() => {
     const out: Record<string, RowState> = {};
@@ -90,7 +88,6 @@ export function DspProfileLinksEditor({
         if (!res.ok) setError(res.error);
         else {
           setOk(`Saved ${res.data.saved} DSP profile settings. Release targeting is updated immediately.`);
-          router.refresh();
         }
       }}
     >
