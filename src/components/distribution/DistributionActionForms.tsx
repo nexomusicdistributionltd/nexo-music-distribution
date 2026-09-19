@@ -37,7 +37,6 @@ export function QueueReleaseButton({ releaseId }: { releaseId: string }) {
         Queue for distribution
       </Button>
       <Result msg={msg} />
-      {diagnosis ? <DeliveryFailurePanel diagnosis={diagnosis} /> : null}
     </div>
   );
 }
@@ -140,6 +139,7 @@ export function RetryJobButton({ jobId }: { jobId: string }) {
         {pending ? "Retrying…" : "Retry Nexo delivery"}
       </Button>
       <Result msg={msg} />
+      {diagnosis ? <DeliveryFailurePanel diagnosis={diagnosis} /> : null}
     </div>
   );
 }
