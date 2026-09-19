@@ -10,6 +10,7 @@ import { mapArtworkUrls } from "@/lib/releases/artwork";
 import type { ReleaseStatus } from "@/lib/releases/types";
 import { RELEASE_STATUSES } from "@/lib/releases/types";
 import { buildQueryHref } from "@/components/workspace/QueryPagination";
+import { normalizePageNumber } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Admin releases",
@@ -24,7 +25,7 @@ export default async function AdminReleasesPage({
   await RequireAdmin();
   const sp = await searchParams;
   const status = (sp.status as ReleaseStatus | "all" | undefined) ?? "all";
-  const page = Number(sp.page || 1);
+  const page = normalizePageNumber(sp.page);
   let items: Awaited<ReturnType<typeof listAdminReleases>>["items"] = [];
   let total = 0;
   let pageCount = 1;
