@@ -55,7 +55,7 @@ describe("public legal and pricing pages", () => {
   it("legal copy uses company, public site, mailbox, and official social", () => {
     expect(COMPANY_LEGAL).toBe("NEXO MUSIC DISTRIBUTION LTD");
     expect(BRAND_PUBLIC_URL).toBe("https://nexomusicdistribution.com");
-    expect(LEGAL_CONTACT_EMAIL).toBe("contact@nexomusicdistro.space");
+    expect(LEGAL_CONTACT_EMAIL).toBe("support@nexomusicdistribution.com");
     const blob = [
       flatten(TERMS_SECTIONS),
       flatten(PRIVACY_SECTIONS),
@@ -63,8 +63,8 @@ describe("public legal and pricing pages", () => {
       flatten(COOKIES_SECTIONS),
     ].join("\n");
     expect(blob).toContain("nexomusicdistribution.com");
-    expect(blob).toContain("contact@nexomusicdistro.space");
-    expect(blob).toContain("nexomusicdistribution@gmail.com");
+    expect(blob).toContain("support@nexomusicdistribution.com");
+    expect(blob).not.toContain("nexomusicdistribution@gmail.com");
     expect(blob).toContain("nexo music distribution ltd");
     for (const social of BRAND_SOCIAL_LINKS) {
       expect(blob).toContain(social.href.toLowerCase());
