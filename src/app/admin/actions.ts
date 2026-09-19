@@ -47,11 +47,19 @@ function artistFacingDeliveryCorrection(message: string): string {
   ].join("\n");
 }
 
-function isProviderAccountConfigurationFailure(message: string): boolean {
+function isProviderInternalOperationsFailure(message: string): boolean {
   const value = message.toLowerCase();
   return (
-    value.includes("even account") &&
-    (value.includes("not connected") || value.includes("connect an even account"))
+    (
+      value.includes("even") &&
+      (value.includes("not connected") || value.includes("connect an even account"))
+    ) ||
+    value.includes("delivery target has been disabled for this release") ||
+    value.includes("please enter the store or additional store") ||
+    (
+      value.includes("tiktokstarttime") &&
+      value.includes("does not match the format")
+    )
   );
 }
 
@@ -182,7 +190,7 @@ export async function performQcDecisionAction(input: {
         if (!submitted.ok) {
           if (
             submitted.code === PROVIDER_DELIVERY_VALIDATION_CODE &&
-            !isProviderAccountConfigurationFailure(submitted.error)
+            !isProviderInternalOperationsFailure(submitted.error)
           ) {
             const artistVisibleCorrection = artistFacingDeliveryCorrection(submitted.error);
             const { data: returned, error: returnError } = await supabase.rpc(
@@ -201,9 +209,9 @@ export async function performQcDecisionAction(input: {
               distributionWarning =
                 `Delivery validation failed: ${submitted.error} Nexo could not automatically return the release for correction: ${returnError.message}`;
             }
-          } else if (isProviderAccountConfigurationFailure(submitted.error)) {
+          } else if (isProviderInternalOperationsFailure(submitted.error)) {
             distributionWarning =
-              "Release passed QC, but a provider-linked optional delivery service was rejected. Nexo kept this as an operations/delivery issue instead of returning it to the artist or label. Retry delivery after the provider setting is cleared.";
+              "Release passed QC, but an internal/provider routing or formatting issue blocked delivery. Nexo kept the release in admin operations instead of returning it to the artist or label. Fix the delivery target/format internally, then retry distribution.";
           } else {
             distributionWarning =
               `Release approved and queued, but TooLost submission needs attention: ${submitted.error}`;
