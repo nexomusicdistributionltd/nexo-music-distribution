@@ -56,7 +56,6 @@ export default async function BlogPostPage({ params }: Props) {
               className="aspect-[16/9] w-full object-cover"
               loading="eager"
               decoding="async"
-              referrerPolicy="no-referrer"
             />
           </figure>
         ) : null}
