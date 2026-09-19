@@ -51,7 +51,7 @@ function AccordionSection({
   onIntent?: (href: string) => void;
 }) {
   const groups = section.groups?.length ? section.groups : [section.items];
-  const flatItems = groups.flat();
+  const flatItems = React.useMemo(() => groups.flat(), [groups]);
   const hasActive = flatItems.some((item) => isNavActive(pathname, item.href));
   const sectionCount = flatItems.reduce((sum, item) => sum + (item.count ?? 0), 0);
   const [open, setOpen] = React.useState(hasActive);
@@ -59,6 +59,16 @@ function AccordionSection({
   React.useEffect(() => {
     if (hasActive) setOpen(true);
   }, [hasActive, pathname]);
+
+  React.useEffect(() => {
+    if (!open || !onIntent) return;
+    const timer = window.setTimeout(() => {
+      for (const item of flatItems) {
+        onIntent(item.href);
+      }
+    }, 40);
+    return () => window.clearTimeout(timer);
+  }, [open, flatItems, onIntent]);
 
   return (
     <div className="border-b border-[var(--nexo-border)]">
@@ -94,6 +104,8 @@ function AccordionSection({
                       href={item.href}
                       prefetch={false}
                       onPointerEnter={() => onIntent?.(item.href)}
+                      onPointerDown={() => onIntent?.(item.href)}
+                      onTouchStart={() => onIntent?.(item.href)}
                       onFocus={() => onIntent?.(item.href)}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
