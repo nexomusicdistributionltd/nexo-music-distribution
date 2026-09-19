@@ -523,6 +523,28 @@ export async function updateReleaseInfo(
     if (ds === null || typeof ds !== "object" || Array.isArray(ds)) {
       return { ok: false, error: "Invalid distribution settings." };
     }
+
+    const normalized = { ...(ds as Record<string, unknown>) };
+    const rawLicenseType =
+      typeof normalized.licenseType === "string"
+        ? normalized.licenseType.trim().toLowerCase().replace(/_/g, " ")
+        : "";
+
+    // Copyright is the provider default. Remove stale/legacy Creative Commons
+    // metadata when the wizard explicitly saves Copyright, including the null
+    // value produced by the UI for provider-default licensing.
+    if (
+      normalized.licenseType == null ||
+      rawLicenseType === "" ||
+      ["copyright", "(c)", "c", "©"].includes(rawLicenseType)
+    ) {
+      delete normalized.licenseType;
+      delete normalized.licenseInfo;
+    } else if (["creative commons", "creative-commons", "cc"].includes(rawLicenseType)) {
+      normalized.licenseType = "cc";
+    }
+
+    safe.distribution_settings = normalized;
   }
 
   if (Object.keys(safe).length === 0) {
