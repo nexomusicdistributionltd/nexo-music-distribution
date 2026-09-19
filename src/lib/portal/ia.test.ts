@@ -95,6 +95,7 @@ describe("portal IA", () => {
       "Account Members",
       "Enrollments",
       "Labels",
+      "Policies & Agreements",
       "My profile",
     ]);
   });
