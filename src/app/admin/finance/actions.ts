@@ -203,7 +203,7 @@ export async function updateRoyaltyCommissionPolicyAction(input: {
     updatedAt: string | null;
   }>
 > {
-  await RequireAdminPermission("admin:royalties");
+  const ctx = await RequireAdminPermission("admin:royalties");
   const rl = checkRateLimit({
     key: "admin:royalty:commission-policy",
     ...RATE_LIMITS.adminMutation,
@@ -233,6 +233,69 @@ export async function updateRoyaltyCommissionPolicyAction(input: {
   }
 
   const supabase = await createClient();
+
+  const approvalPayload = {
+    artist_paid_bps: input.artistPaidBps,
+    artist_free_bps: input.artistFreeBps,
+    label_paid_bps: input.labelPaidBps,
+    label_free_bps: input.labelFreeBps,
+  };
+  let approvalRequestId: string | null = null;
+
+  const { data: dualApprovalFlag } = await supabase
+    .from("admin_feature_flags")
+    .select("enabled")
+    .eq("key", "high_risk_dual_approval")
+    .maybeSingle();
+
+  if (dualApprovalFlag?.enabled === true) {
+    const { data: approved } = await supabase
+      .from("admin_high_risk_requests")
+      .select("id,requested_by,reviewed_by")
+      .eq("action_type", "royalty_commission_change")
+      .eq("target_type", "royalty_commission_policy")
+      .eq("target_id", "default")
+      .eq("status", "approved")
+      .contains("payload", approvalPayload)
+      .order("reviewed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!approved?.id) {
+      const { data: pending } = await supabase
+        .from("admin_high_risk_requests")
+        .select("id")
+        .eq("action_type", "royalty_commission_change")
+        .eq("target_type", "royalty_commission_policy")
+        .eq("target_id", "default")
+        .eq("status", "pending")
+        .eq("requested_by", ctx.userId)
+        .contains("payload", approvalPayload)
+        .limit(1)
+        .maybeSingle();
+
+      if (!pending?.id) {
+        const { error: requestError } = await supabase.rpc("create_admin_high_risk_request", {
+          p_action_type: "royalty_commission_change",
+          p_target_type: "royalty_commission_policy",
+          p_target_id: "default",
+          p_payload: approvalPayload,
+          p_reason: input.reason?.trim() || "Royalty commission policy change",
+        });
+        if (requestError) return { ok: false, error: requestError.message };
+      }
+
+      revalidatePath("/admin/approvals");
+      return {
+        ok: false,
+        error:
+          "Second-admin approval is enabled. This commission change is now pending in High-Risk Approvals. After another authorized administrator approves it, submit the same percentages again to execute the approved change.",
+      };
+    }
+
+    approvalRequestId = approved.id;
+  }
+
   const { data, error } = await supabase.rpc("update_royalty_commission_policy", {
     p_artist_paid_bps: input.artistPaidBps,
     p_artist_free_bps: input.artistFreeBps,
@@ -243,8 +306,23 @@ export async function updateRoyaltyCommissionPolicyAction(input: {
 
   if (error) return { ok: false, error: error.message };
 
+  if (approvalRequestId) {
+    const { error: markError } = await supabase.rpc("mark_admin_high_risk_request_executed", {
+      p_id: approvalRequestId,
+      p_note: "Approved royalty commission policy change executed.",
+    });
+    if (markError) {
+      return {
+        ok: false,
+        error:
+          "Commission policy was updated, but the approval record could not be marked executed. Review High-Risk Approvals before making another change.",
+      };
+    }
+  }
+
   const row = Array.isArray(data) ? data[0] : data;
   revalidateFinance();
+  revalidatePath("/admin/approvals");
 
   return {
     ok: true,

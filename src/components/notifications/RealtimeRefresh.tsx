@@ -149,6 +149,16 @@ export function RealtimeRefresh({
           ...(staff ? {} : { filter: `user_id=eq.${userId}` }),
         },
         () => scheduleRefresh()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "admin_announcements" },
+        () => scheduleRefresh()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "admin_feature_flags" },
+        () => scheduleRefresh()
       );
 
     if (staff) {
@@ -186,6 +196,51 @@ export function RealtimeRefresh({
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "user_roles" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_ops_cases" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_ops_case_events" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_high_risk_requests" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "email_suppressions" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "tax_compliance_profiles" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "distribution_store_capabilities" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_risk_signals" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "catalog_conflict_candidates" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_email_broadcasts" },
           () => scheduleRefresh()
         );
     }

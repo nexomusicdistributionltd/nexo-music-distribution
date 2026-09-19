@@ -18,6 +18,7 @@ import {
 import type { SplitShareInput } from "@/lib/finance/splits";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { marketingServiceSpec } from "@/lib/marketing/services";
+import { getUserOperationalHolds, hasAcceptedRequiredPolicies, isFeatureEnabled } from "@/lib/admin/feature-flags";
 
 export type PortalActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -43,6 +44,9 @@ export async function createServiceRequestAction(input: {
   release_id?: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  if (!(await hasAcceptedRequiredPolicies(ctx.userId))) {
+    return { ok: false, error: "Review and accept the current Nexo policies in Account → Policies & Agreements before using this service." };
+  }
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {
@@ -52,6 +56,9 @@ export async function createServiceRequestAction(input: {
   if (!rl.ok) return { ok: false, error: "Too many requests. Try again later." };
   const parsed = validateServiceRequestInput(input);
   if (!parsed.ok) return parsed;
+  if (parsed.kind === "fan_blast" && !(await isFeatureEnabled("fan_blast", true))) {
+    return { ok: false, error: "Fan Blast is temporarily paused by Nexo operations." };
+  }
 
   const supabase = await createClient();
   const spec = marketingServiceSpec(parsed.kind);
@@ -259,6 +266,12 @@ export async function createMusicVideoAction(input: {
   release_id?: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  if (!(await hasAcceptedRequiredPolicies(ctx.userId))) {
+    return { ok: false, error: "Review and accept the current Nexo policies in Account → Policies & Agreements before submitting video distribution." };
+  }
+  if (!(await isFeatureEnabled("video_distribution", true))) {
+    return { ok: false, error: "Video distribution submissions are temporarily paused by Nexo operations." };
+  }
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {
@@ -623,6 +636,19 @@ export async function createPayoutRequestAction(input: {
   payoutMethodId: string;
 }): Promise<PortalActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  if (!(await hasAcceptedRequiredPolicies(ctx.userId))) {
+    return { ok: false, error: "Review and accept the current Nexo policies in Account → Policies & Agreements before requesting a payout." };
+  }
+  const [payoutsEnabled, holds] = await Promise.all([
+    isFeatureEnabled("payout_requests", true),
+    getUserOperationalHolds(ctx.userId),
+  ]);
+  if (!payoutsEnabled) {
+    return { ok: false, error: "Payout requests are temporarily paused by Nexo operations." };
+  }
+  if (holds.payoutHold) {
+    return { ok: false, error: "Payouts are temporarily on hold for this account. Contact Nexo Support for the case or compliance status." };
+  }
   const rl = checkRateLimit({
     key: `payout:req:${ctx.userId}`,
     ...RATE_LIMITS.payoutCreate,

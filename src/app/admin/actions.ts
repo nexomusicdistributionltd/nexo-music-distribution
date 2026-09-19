@@ -292,16 +292,100 @@ export async function setAccountStatusAction(input: {
   reason: string;
   restriction?: "none" | "submit_blocked" | "login_restricted" | "read_only";
 }): Promise<ActionResult> {
-  await RequireAdminPermission("admin:users");
+  const ctx = await RequireAdminPermission("admin:users");
   if (!input.reason.trim()) return { ok: false, error: "Reason required." };
+
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_set_account_status", {
-    p_target: input.userId,
-    p_status: input.status,
-    p_reason: input.reason.trim(),
-    p_restriction: input.restriction ?? null,
-  });
-  if (error) return { ok: false, error: error.message };
+  const destructive = input.status === "suspended" || input.status === "deactivated";
+  let data: unknown;
+
+  if (destructive) {
+    const { data: flag } = await supabase
+      .from("admin_feature_flags")
+      .select("enabled")
+      .eq("key", "high_risk_dual_approval")
+      .maybeSingle();
+
+    if (flag?.enabled === true) {
+      const approvalPayload = {
+        user_id: input.userId,
+        status: input.status,
+        restriction: input.restriction ?? "none",
+      };
+
+      const { data: approved } = await supabase
+        .from("admin_high_risk_requests")
+        .select("id")
+        .eq("action_type", "account_status_destructive")
+        .eq("target_type", "profile")
+        .eq("target_id", input.userId)
+        .eq("status", "approved")
+        .contains("payload", approvalPayload)
+        .order("reviewed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!approved?.id) {
+        const { data: pending } = await supabase
+          .from("admin_high_risk_requests")
+          .select("id")
+          .eq("action_type", "account_status_destructive")
+          .eq("target_type", "profile")
+          .eq("target_id", input.userId)
+          .eq("status", "pending")
+          .eq("requested_by", ctx.userId)
+          .contains("payload", approvalPayload)
+          .limit(1)
+          .maybeSingle();
+
+        if (!pending?.id) {
+          const { error: requestError } = await supabase.rpc(
+            "create_admin_high_risk_request",
+            {
+              p_action_type: "account_status_destructive",
+              p_target_type: "profile",
+              p_target_id: input.userId,
+              p_payload: approvalPayload,
+              p_reason: input.reason.trim(),
+            }
+          );
+          if (requestError) return { ok: false, error: requestError.message };
+        }
+
+        revalidatePath("/admin/approvals");
+        return {
+          ok: false,
+          error:
+            "Second-admin approval is enabled. This suspension/deactivation is pending in High-Risk Approvals. After another authorized administrator approves it, submit the same account action again to execute it.",
+        };
+      }
+
+      const { data: executed, error: executeError } = await supabase.rpc(
+        "execute_approved_account_status_request",
+        { p_request_id: approved.id }
+      );
+      if (executeError) return { ok: false, error: executeError.message };
+      data = executed;
+    } else {
+      const { data: changed, error } = await supabase.rpc("admin_set_account_status", {
+        p_target: input.userId,
+        p_status: input.status,
+        p_reason: input.reason.trim(),
+        p_restriction: input.restriction ?? null,
+      });
+      if (error) return { ok: false, error: error.message };
+      data = changed;
+    }
+  } else {
+    const { data: changed, error } = await supabase.rpc("admin_set_account_status", {
+      p_target: input.userId,
+      p_status: input.status,
+      p_reason: input.reason.trim(),
+      p_restriction: input.restriction ?? null,
+    });
+    if (error) return { ok: false, error: error.message };
+    data = changed;
+  }
 
   try {
     const { enqueueTransactionalEmail } = await import("@/lib/email/hooks");
@@ -343,7 +427,8 @@ export async function setAccountStatusAction(input: {
   } catch {
     /* account change is independent of SMTP */
   }
-  revalidateAdmin(["/admin/users", "/admin/artists", "/admin/labels"]);
+
+  revalidateAdmin(["/admin/users", "/admin/artists", "/admin/labels", "/admin/approvals"]);
   return { ok: true, data };
 }
 

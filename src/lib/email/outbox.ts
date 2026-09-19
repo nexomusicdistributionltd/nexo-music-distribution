@@ -193,6 +193,18 @@ export async function processEmailEvent(
     return { status: "failed", error: msg };
   }
 
+  const { data: suppression } = await supabase
+    .from("email_suppressions")
+    .select("reason")
+    .eq("email", to.toLowerCase())
+    .eq("active", true)
+    .maybeSingle();
+  if (suppression) {
+    const reason = `Recipient suppressed: ${suppression.reason}`;
+    await markStatus(supabase, row.id, "skipped", { error: reason });
+    return { status: "skipped", error: reason };
+  }
+
   const vars = normalizedTemplateVars(row, payload);
   let stored = await tryLoadStoredTemplate(supabase, row.template_key);
   const entry = getCatalogEntry(row.template_key);

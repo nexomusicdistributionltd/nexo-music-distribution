@@ -16,6 +16,9 @@ import { isBlockedStatus } from "@/lib/auth/types";
 import { redirect } from "next/navigation";
 import { getIdentityVerificationForUser } from "@/lib/identity/queries";
 import { createClient } from "@/lib/supabase/server";
+import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
+import { PortalPolicyNotice } from "@/components/portal/PortalPolicyNotice";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +53,7 @@ export default async function PortalLayout({
   const accountLabel = ctx.roles.map((r) => r.replace(/_/g, " ")).join(" · ");
   const isPortalWorkspace = workspaceKind === "artist" || workspaceKind === "label";
 
-  const [badgeCounts, label, identityVerification, agreementReady] = await Promise.all([
+  const [badgeCounts, label, identityVerification, agreementReady, maintenanceMode, identityRequired] = await Promise.all([
     getNavBadgeCounts(),
     workspaceKind === "label"
       ? getLabelProfileForUser(ctx.userId)
@@ -61,6 +64,8 @@ export default async function PortalLayout({
     isPortalWorkspace
       ? hasCurrentDistributionAgreement(ctx.userId)
       : Promise.resolve(true),
+    isFeatureEnabled("maintenance_mode", false),
+    isFeatureEnabled("identity_verification_required", true),
   ]);
   const sections = applyNavBadgeCounts(rawSections, badgeCounts);
   const unread = navCountForHref(badgeCounts, "/dashboard/notifications");
@@ -73,7 +78,7 @@ export default async function PortalLayout({
     labelName = label.label_name;
   }
 
-  if (isPortalWorkspace && identityVerification?.status !== "verified") {
+  if (isPortalWorkspace && identityRequired && identityVerification?.status !== "verified") {
     redirect("/verify-identity");
   }
 
@@ -95,7 +100,16 @@ export default async function PortalLayout({
           identityVerified={identityVerification?.status === "verified"}
         />
         <RealtimeRefresh userId={ctx.userId} />
-        <main className="flex-1 px-4 py-5 sm:px-6 lg:ml-[18.5rem] lg:px-8">{children}</main>
+        <main className="flex-1 px-4 py-5 sm:px-6 lg:ml-[18.5rem] lg:px-8">
+          {maintenanceMode ? (
+            <div className="mb-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-warning)]/40 bg-[var(--nexo-warning-bg)] px-4 py-3 text-small">
+              Nexo maintenance mode is active. Some services may be temporarily unavailable.
+            </div>
+          ) : null}
+          <PortalPolicyNotice userId={ctx.userId} />
+          <PortalAnnouncements userId={ctx.userId} />
+          {children}
+        </main>
       </div>
     );
   }
