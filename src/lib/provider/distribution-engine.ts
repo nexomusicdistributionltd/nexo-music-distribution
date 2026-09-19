@@ -53,33 +53,76 @@ async function request(path: string, init: RequestInit = {}): Promise<unknown> {
 
   if (!response.ok) {
     const raw = await response.text();
+
+    const flattenProviderError = (
+      value: unknown,
+      pathParts: string[] = [],
+      depth = 0
+    ): string[] => {
+      if (depth > 5 || value == null) return [];
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        const text = String(value).trim();
+        if (!text) return [];
+        return [pathParts.length ? `${pathParts.join(".")}: ${text}` : text];
+      }
+      if (Array.isArray(value)) {
+        return value.flatMap((item) => flattenProviderError(item, pathParts, depth + 1));
+      }
+      if (typeof value !== "object") return [];
+
+      const record = value as Record<string, unknown>;
+      const explicitField =
+        typeof record.field === "string"
+          ? record.field
+          : typeof record.path === "string"
+            ? record.path
+            : typeof record.attribute === "string"
+              ? record.attribute
+              : null;
+      const explicitMessage =
+        typeof record.message === "string"
+          ? record.message
+          : typeof record.detail === "string"
+            ? record.detail
+            : typeof record.reason === "string"
+              ? record.reason
+              : null;
+
+      const lines: string[] = [];
+      if (explicitMessage?.trim()) {
+        lines.push(
+          explicitField
+            ? `${explicitField}: ${explicitMessage.trim()}`
+            : explicitMessage.trim()
+        );
+      }
+
+      for (const [key, nested] of Object.entries(record)) {
+        if (["field", "path", "attribute", "message", "detail", "reason", "status", "code"].includes(key)) {
+          continue;
+        }
+        const nextPath =
+          ["errors", "error", "validation", "violations"].includes(key.toLowerCase())
+            ? pathParts
+            : [...pathParts, key];
+        lines.push(...flattenProviderError(nested, nextPath, depth + 1));
+      }
+      return lines;
+    };
+
     let detail = "";
     if (raw) {
       try {
-        const parsed = JSON.parse(raw) as Record<string, unknown>;
-        const candidate =
-          typeof parsed.message === "string"
-            ? parsed.message
-            : typeof parsed.error === "string"
-              ? parsed.error
-              : Array.isArray(parsed.errors)
-                ? parsed.errors
-                    .map((item) =>
-                      typeof item === "string"
-                        ? item
-                        : item && typeof item === "object" && "message" in item
-                          ? String((item as { message?: unknown }).message ?? "")
-                          : ""
-                    )
-                    .filter(Boolean)
-                    .join("; ")
-                : "";
-        detail = candidate.trim();
+        const parsed = JSON.parse(raw) as unknown;
+        const lines = [...new Set(flattenProviderError(parsed))]
+          .filter((line) => line && !/^\d{3}$/.test(line))
+          .slice(0, 8);
+        detail = lines.join("; ").trim();
       } catch {
         detail = raw.trim();
       }
     }
-    if (detail.length > 500) detail = `${detail.slice(0, 500)}…`;
+    if (detail.length > 900) detail = `${detail.slice(0, 900)}…`;
 
     const stage =
       path.endsWith("/metadata")
@@ -376,10 +419,23 @@ async function prepareProviderRelease(
       `Release language "${normalizeProviderText(input.language) ?? input.language}" is not a supported ISO language value.`
     );
   }
+  const rawLicenseType = normalizeProviderText(input.licenseType)?.toLowerCase();
+  const defaultCopyrightLicense = Boolean(
+    rawLicenseType &&
+      ["copyright", "(c)", "c", "©"].includes(rawLicenseType)
+  );
   const normalizedLicenseType = normalizeProviderLicenseType(input.licenseType);
-  if (input.licenseType && !normalizedLicenseType) {
+  if (input.licenseType && !defaultCopyrightLicense && !normalizedLicenseType) {
     throw new ProviderDeliveryValidationError(
       "Release license type is not supported. Choose Copyright or Creative Commons."
+    );
+  }
+  if (
+    normalizedLicenseType === "Creative Commons" &&
+    !normalizeProviderText(input.licenseInfo)
+  ) {
+    throw new ProviderDeliveryValidationError(
+      "Creative Commons requires a valid CC 3.0 license clause in license information."
     );
   }
   const normalizedTimeZone = normalizeProviderTimeZone(input.timeZone);
@@ -541,10 +597,26 @@ function validateSubmission(input: ProviderReleasePayload): void {
       "Release language must use a supported ISO language value."
     );
   }
-  if (input.licenseType && !normalizeProviderLicenseType(input.licenseType)) {
-    throw new ProviderDeliveryValidationError(
-      "Release license type must be Copyright or Creative Commons."
+  if (input.licenseType) {
+    const rawLicenseType = normalizeProviderText(input.licenseType)?.toLowerCase();
+    const isDefaultCopyright = Boolean(
+      rawLicenseType &&
+        ["copyright", "(c)", "c", "©"].includes(rawLicenseType)
     );
+    const normalizedLicenseType = normalizeProviderLicenseType(input.licenseType);
+    if (!isDefaultCopyright && !normalizedLicenseType) {
+      throw new ProviderDeliveryValidationError(
+        "Release license type must be Copyright or Creative Commons."
+      );
+    }
+    if (
+      normalizedLicenseType === "Creative Commons" &&
+      !normalizeProviderText(input.licenseInfo)
+    ) {
+      throw new ProviderDeliveryValidationError(
+        "Creative Commons requires a valid CC 3.0 license clause in license information."
+      );
+    }
   }
   if (input.timeZone && !normalizeProviderTimeZone(input.timeZone)) {
     throw new ProviderDeliveryValidationError(

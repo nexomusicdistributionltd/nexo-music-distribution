@@ -187,12 +187,14 @@ export function ReleaseWizard({
       ? initialDistribution.platforms.filter((value): value is string => typeof value === "string")
       : []
   );
+  const initialApplePreorderDate =
+    typeof initialDistribution.applePreorderDate === "string"
+      ? initialDistribution.applePreorderDate.trim()
+      : "";
   const [providerMeta, setProviderMeta] = React.useState({
-    applePreorder: initialDistribution.applePreorder === true,
-    applePreorderDate:
-      typeof initialDistribution.applePreorderDate === "string"
-        ? initialDistribution.applePreorderDate
-        : "",
+    applePreorder:
+      initialDistribution.applePreorder === true && Boolean(initialApplePreorderDate),
+    applePreorderDate: initialApplePreorderDate,
     licenseType:
       typeof initialDistribution.licenseType === "string"
         ? initialDistribution.licenseType
@@ -576,10 +578,20 @@ export function ReleaseWizard({
         confirmYoutubeRights:
           providerMeta.additional.youtube && providerMeta.youtubeRightsConfirmed,
         additionalRightsConfirmed: providerMeta.youtubeRightsConfirmed,
-        applePreorder: providerMeta.applePreorder,
-        applePreorderDate: providerMeta.applePreorderDate || null,
-        licenseType: providerMeta.licenseType || null,
-        licenseInfo: providerMeta.licenseInfo || null,
+        applePreorder:
+          providerMeta.applePreorder && Boolean(providerMeta.applePreorderDate),
+        applePreorderDate:
+          providerMeta.applePreorder && providerMeta.applePreorderDate
+            ? providerMeta.applePreorderDate
+            : null,
+        licenseType:
+          providerMeta.licenseType === "Copyright"
+            ? null
+            : providerMeta.licenseType || null,
+        licenseInfo:
+          providerMeta.licenseType === "Creative Commons"
+            ? providerMeta.licenseInfo || null
+            : null,
         reviewNote: providerMeta.reviewNote || null,
         releaseTime: providerMeta.releaseTime || null,
         timeZone: providerMeta.timeZone || null,
@@ -860,7 +872,17 @@ export function ReleaseWizard({
     setBusy(true);
     try {
       if (providerMeta.applePreorder && !providerMeta.applePreorderDate) {
-        throw new Error("Choose an Apple Music pre-order date or turn off Apple Music pre-order before submitting.");
+        throw new Error(
+          "Apple Music pre-order is enabled but no pre-order date is set. Add a date in Distribution → Apple Music pre-order, or turn pre-order off."
+        );
+      }
+      if (
+        providerMeta.licenseType === "Creative Commons" &&
+        !providerMeta.licenseInfo.trim()
+      ) {
+        throw new Error(
+          "Creative Commons requires a license clause. Add the CC 3.0 clause in Distribution → License information, or choose Copyright."
+        );
       }
       const usesExclusiveRightsDelivery =
         providerMeta.additional.youtube ||
@@ -2175,6 +2197,12 @@ export function ReleaseWizard({
                 Submitting locks this release for review before delivery.
               </Alert>
             </div>
+          ) : null}
+
+          {step === STEPS.length - 1 && error ? (
+            <Alert variant="error" title="Could not submit to QC">
+              {error}
+            </Alert>
           ) : null}
 
           <div className="flex justify-between gap-2 pt-2">

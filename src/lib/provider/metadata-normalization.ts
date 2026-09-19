@@ -65,12 +65,13 @@ export function normalizeProviderLanguage(value: string | null | undefined): str
 
 export function normalizeProviderLicenseType(
   value: string | null | undefined
-): "(c)" | "cc" | undefined {
+): "Creative Commons" | undefined {
   const text = normalizeProviderText(value)?.toLowerCase();
   if (!text) return undefined;
-  if (["copyright", "(c)", "c", "©"].includes(text)) return "(c)";
+  // Copyright is the provider default and is safest omitted from the metadata PATCH.
+  if (["copyright", "(c)", "c", "©"].includes(text)) return undefined;
   if (["creative commons", "creative_commons", "creative-commons", "cc"].includes(text)) {
-    return "cc";
+    return "Creative Commons";
   }
   return undefined;
 }

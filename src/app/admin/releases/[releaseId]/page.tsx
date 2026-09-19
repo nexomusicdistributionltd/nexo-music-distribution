@@ -17,6 +17,8 @@ import { DdexReadinessPanel } from "@/components/ddex/DdexReadinessPanel";
 import { DspTargetingPanel } from "@/components/roster/DspTargetingPanel";
 import { RetryJobButton } from "@/components/distribution/DistributionActionForms";
 import { Alert } from "@/components/ui/Alert";
+import { DeliveryFailurePanel } from "@/components/distribution/DeliveryFailurePanel";
+import { diagnoseDeliveryFailure } from "@/lib/distribution/delivery-diagnostics";
 
 export const metadata: Metadata = {
   title: "Release review",
@@ -154,9 +156,9 @@ export default async function AdminReleaseDetailPage({
                 the artist actually needs to change metadata or assets.
               </Alert>
               {latestDistributionJob.last_error ? (
-                <p className="whitespace-pre-wrap text-small text-[var(--nexo-text-muted)]">
-                  {latestDistributionJob.last_error}
-                </p>
+                <DeliveryFailurePanel
+                  diagnosis={diagnoseDeliveryFailure(latestDistributionJob.last_error)}
+                />
               ) : null}
               <RetryJobButton jobId={latestDistributionJob.id} />
             </section>

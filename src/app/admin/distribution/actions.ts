@@ -19,6 +19,10 @@ import {
   rotateRuntimeProviderWebhookSecret,
 } from "@/lib/provider/webhook-secret";
 import { verifyProviderWebhookSignature } from "@/lib/distribution/webhook";
+import {
+  diagnoseDeliveryFailure,
+  type DeliveryFailureDiagnosis,
+} from "@/lib/distribution/delivery-diagnostics";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -64,11 +68,40 @@ export async function syncJobAction(jobId: string): Promise<ActionResult> {
   return res;
 }
 
-export async function retryJobAction(jobId: string): Promise<ActionResult> {
+export type RetryJobActionResult =
+  | { ok: true; data: unknown }
+  | {
+      ok: false;
+      error: string;
+      code?: string;
+      diagnosis: DeliveryFailureDiagnosis;
+    };
+
+export async function retryJobAction(jobId: string): Promise<RetryJobActionResult> {
   await RequireAdminPermission("admin:distribution");
+
+  const supabase = await createClient();
+  const { data: jobBeforeRetry } = await supabase
+    .from("distribution_jobs")
+    .select("release_id")
+    .eq("id", jobId)
+    .maybeSingle();
+
   const res = await retryFailedJob(jobId);
   revalidateDist();
-  return res;
+
+  if (jobBeforeRetry?.release_id) {
+    revalidatePath(`/admin/releases/${jobBeforeRetry.release_id}`);
+  }
+
+  if (res.ok) return { ok: true, data: res.data };
+
+  return {
+    ok: false,
+    error: res.error,
+    code: res.code,
+    diagnosis: diagnoseDeliveryFailure(res.error),
+  };
 }
 
 export async function takedownAction(
