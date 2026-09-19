@@ -46,24 +46,12 @@ import {
   normalizeProviderText,
   normalizeProviderTimeZone,
 } from "@/lib/provider/metadata-normalization";
-import { preflightReleaseForDistribution } from "@/lib/distribution/actions";
-import { formatDeliveryCorrection } from "@/lib/distribution/delivery-diagnostics";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
 type ProviderLookupOption = { value: string; label: string };
-
-function providerValidationIsInvalid(payload: unknown): boolean {
-  if (!payload || typeof payload !== "object") return false;
-  const outer = payload as Record<string, unknown>;
-  const data =
-    outer.data && typeof outer.data === "object" && !Array.isArray(outer.data)
-      ? (outer.data as Record<string, unknown>)
-      : outer;
-  return data.valid === false;
-}
 
 function normalizeProviderLookup(payload: unknown, keys: string[]): ProviderLookupOption[] {
   const outer =
@@ -1160,6 +1148,27 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
     return { ok: false, error: issues.map((i) => i.message).join(" ") };
   }
 
+  if (additional.even === true) {
+    return {
+      ok: false,
+      error:
+        "EVEN delivery is not available unless the provider account has an EVEN connection. Turn EVEN off before submitting to QC.",
+    };
+  }
+
+  if (
+    additional.lyricfind === true &&
+    !(tracks ?? []).some(
+      (track) => typeof track.lyrics === "string" && track.lyrics.trim().length > 0
+    )
+  ) {
+    return {
+      ok: false,
+      error:
+        "LyricFind delivery requires lyrics on at least one track. Add lyrics or turn LyricFind off before submitting to QC.",
+    };
+  }
+
   for (const track of tracks ?? []) {
     if (track.language && !normalizeProviderLanguage(track.language)) {
       return {
@@ -1178,44 +1187,11 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
     }
   }
 
-  const providerState = await getProviderConnectionState();
-  if (providerState.connected) {
-    try {
-      const { distributionReference } = await import("@/lib/provider/distribution-reference");
-      if (release.upc) {
-        const checked = await distributionReference.validateUpc(release.upc);
-        if (providerValidationIsInvalid(checked)) {
-          return { ok: false, error: "The connected distribution provider rejected this UPC." };
-        }
-      }
-      for (const track of tracks ?? []) {
-        if (!track.isrc) continue;
-        const checked = await distributionReference.validateIsrc(track.isrc);
-        if (providerValidationIsInvalid(checked)) {
-          return {
-            ok: false,
-            error: `The connected distribution provider rejected the ISRC on track ${track.track_number}.`,
-          };
-        }
-      }
-    } catch {
-      return {
-        ok: false,
-        error:
-          "Nexo could not validate the supplied UPC/ISRC codes with the connected distribution provider. Try again before submitting.",
-      };
-    }
-  }
-
-  const providerPreflight = await preflightReleaseForDistribution(releaseId);
-  if (!providerPreflight.ok) {
-    return {
-      ok: false,
-      error:
-        `Distribution validation must pass before QC submission.\n\n${formatDeliveryCorrection(providerPreflight.error)}`,
-    };
-  }
-
+  // Artist/label QC submission must stay local and fast. The documented flow is:
+  // draft -> local validation -> Nexo QC -> provider draft/upload on approval.
+  // Do not upload FLAC, create/update an upstream draft, or depend on provider
+  // network health here; those operations can exceed the server-action request
+  // lifetime and surface to the artist as a generic "Load failed".
   const transitionCheck = canTransition({
     from: release.status as ReleaseStatus,
     to: "submitted",
