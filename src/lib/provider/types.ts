@@ -111,6 +111,7 @@ export interface DistributionProvider {
   readonly name: string;
   readonly connected: boolean;
 
+  prepareRelease(input: ProviderReleasePayload): Promise<{ providerReleaseId: string }>;
   submitRelease(input: ProviderReleasePayload): Promise<{ providerReleaseId: string }>;
   updateRelease(
     providerReleaseId: string,
