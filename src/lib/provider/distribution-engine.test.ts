@@ -51,7 +51,7 @@ describe("TooLost documented delivery contract", () => {
     const track = JSON.parse(String(trackCall.init?.body)).tracks[0];
     expect(track.writers).toEqual([{ name: "Writer", role: ["instrumentalist", "lyricist"] }]);
     expect(track.audioFileKey).toBe("audio/song.flac");
-    expect(track.tiktokStartTime).toBe("0:08");
+    expect(track.tiktokStartTime).toBe("00:08");
     const upload = calls.find((call) => call.url === "https://storage.test/upload")!;
     expect(upload.init?.method).toBe("PUT");
     expect(new Headers(upload.init?.headers).get("Content-Type")).toBe("audio/flac");

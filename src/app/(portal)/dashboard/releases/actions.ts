@@ -644,6 +644,17 @@ export async function replaceTracks(
   }
 
   for (const t of tracks) {
+    const rawTiktokStartTime = t.tiktok_start_time?.trim() || null;
+    const normalizedTiktokStartTime = rawTiktokStartTime
+      ? normalizeProviderMinuteSecond(rawTiktokStartTime)
+      : undefined;
+    if (rawTiktokStartTime && !normalizedTiktokStartTime) {
+      return {
+        ok: false,
+        error: `Track ${t.track_number} TikTok start time must use MM:SS format, for example 00:08 or 09:40.`,
+      };
+    }
+
     const row = {
       release_id: releaseId,
       track_number: t.track_number,
@@ -652,7 +663,7 @@ export async function replaceTracks(
       isrc: t.isrc ?? null,
       iswc: t.iswc?.trim() || null,
       liner_note: t.liner_note?.trim() || null,
-      tiktok_start_time: t.tiktok_start_time?.trim() || null,
+      tiktok_start_time: normalizedTiktokStartTime ?? null,
       duration_ms: t.duration_ms ?? null,
       explicit: t.explicit ?? false,
       clean_version: t.clean_version ?? false,
@@ -1162,7 +1173,7 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
     ) {
       return {
         ok: false,
-        error: `Track ${track.track_number} TikTok start time must use minute:second format, for example 0:08 or 9:40.`,
+        error: `Track ${track.track_number} TikTok start time must use MM:SS format, for example 00:08 or 09:40.`,
       };
     }
   }

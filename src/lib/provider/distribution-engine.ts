@@ -692,7 +692,7 @@ function validateSubmission(input: ProviderReleasePayload): void {
       !normalizeProviderMinuteSecond(track.tiktokStartTime)
     ) {
       throw new ProviderDeliveryValidationError(
-        `Track ${track.trackNumber} TikTok start time must use minute:second format, for example 0:08 or 9:40.`
+        `Track ${track.trackNumber} TikTok start time must use MM:SS format, for example 00:08 or 09:40.`
       );
     }
   }
