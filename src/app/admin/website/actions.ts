@@ -134,6 +134,34 @@ export async function upsertFooterSettingsAction(
     p_value: value,
   });
   if (error) return { ok: false, error: error.message };
+
+  const supportEmail =
+    typeof value.support_email === "string" ? value.support_email.trim().toLowerCase() : "";
+  const dmcaEmail =
+    typeof value.dmca_email === "string" ? value.dmca_email.trim().toLowerCase() : "";
+
+  if (supportEmail && dmcaEmail) {
+    const contactBody = [
+      "<h2>Reach us</h2>",
+      "<p><strong>NEXO MUSIC DISTRIBUTION LTD</strong></p>",
+      '<p>Public website: <a href="https://nexomusicdistribution.com">nexomusicdistribution.com</a></p>',
+      `<p>Artist &amp; label support: <a href="mailto:${supportEmail}">${supportEmail}</a></p>`,
+      `<p>DMCA / copyright notices: <a href="mailto:${dmcaEmail}">${dmcaEmail}</a></p>`,
+      "<p>You can also use the message form on this page.</p>",
+    ].join("");
+
+    const { error: contactPageError } = await supabase
+      .from("cms_pages")
+      .update({
+        body_html: contactBody,
+        status: "published",
+        published_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("slug", "contact");
+    if (contactPageError) return { ok: false, error: contactPageError.message };
+  }
+
   revalidatePath("/admin/pages");
   revalidatePath("/admin/website");
   revalidatePath("/admin/settings");
