@@ -46,7 +46,7 @@ export default async function BlogPostPage({ params }: Props) {
         ]}
         showAside={false}
       />
-      <article className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <article className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
         {post.cover_image_url ? (
           <figure className="mb-10 overflow-hidden rounded-[var(--nexo-radius-xl)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] shadow-[var(--nexo-shadow-sm)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -75,7 +75,7 @@ export default async function BlogPostPage({ params }: Props) {
           ) : null}
         </div>
 
-        <SafeHtml html={post.body_html} className="nexo-blog-article" />
+        <div className="mx-auto max-w-3xl"><SafeHtml html={post.body_html} className="nexo-blog-article" /></div>
       </article>
     </>
   );

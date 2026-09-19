@@ -16,7 +16,7 @@ export function PartnerLogoMarquee({
   return (
     <section
       className={cn(
-        "border-y border-[var(--nexo-border)] bg-[var(--nexo-surface)] py-8",
+        "border-y border-[var(--nexo-border)] bg-[var(--nexo-surface)] py-10 sm:py-12",
         className
       )}
       aria-label="Partners"
@@ -52,16 +52,16 @@ export function PartnerLogoMarquee({
 
 function PartnerChip({ partner }: { partner: WebsitePartner }) {
   const inner = (
-    <span className="mx-4 inline-flex h-12 shrink-0 items-center gap-2.5 opacity-80 transition-opacity hover:opacity-100">
+    <span className="mx-5 inline-flex h-20 min-w-[180px] shrink-0 items-center justify-center gap-3 rounded-[var(--nexo-radius)] px-4 opacity-90 transition-opacity hover:opacity-100 sm:mx-7 sm:h-24 sm:min-w-[220px]">
       {partner.logo_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={partner.logo_url}
           alt=""
-          className="h-8 w-auto max-w-[120px] object-contain"
+          className="h-12 w-auto max-w-[170px] object-contain sm:h-16 sm:max-w-[220px]"
         />
       ) : null}
-      <span className="whitespace-nowrap text-small font-medium tracking-wide text-[var(--nexo-text-secondary)]">
+      <span className="whitespace-nowrap text-small font-semibold tracking-wide text-[var(--nexo-text-secondary)]">
         {partner.name}
       </span>
     </span>

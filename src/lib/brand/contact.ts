@@ -4,8 +4,10 @@
  * verified @nexomusicdistro.space mailbox unless EMAIL_FROM overrides it.
  */
 
-export const PRIMARY_CONTACT_EMAIL = "contact@nexomusicdistro.space";
-export const INQUIRIES_EMAIL = "nexomusicdistribution@gmail.com";
+export const PRIMARY_CONTACT_EMAIL = "support@nexomusicdistribution.com";
+export const INQUIRIES_EMAIL = "support@nexomusicdistribution.com";
+export const SUPPORT_EMAIL = "support@nexomusicdistribution.com";
+export const DMCA_EMAIL = "dmca@nexomusicdistribution.com";
 
 /** @deprecated Use PRIMARY_CONTACT_EMAIL — kept as the legal/support mailbox alias. */
 export const LEGAL_CONTACT_EMAIL = PRIMARY_CONTACT_EMAIL;
