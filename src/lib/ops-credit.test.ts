@@ -36,9 +36,9 @@ describe("admin billing catalog visibility", () => {
 });
 
 describe("public contact mailboxes", () => {
-  it("uses space primary + gmail inquiries and branded from domains", () => {
-    expect(PRIMARY_CONTACT_EMAIL).toBe("contact@nexomusicdistro.space");
-    expect(INQUIRIES_EMAIL).toBe("nexomusicdistribution@gmail.com");
+  it("uses branded public support mailboxes and branded from domains", () => {
+    expect(PRIMARY_CONTACT_EMAIL).toBe("support@nexomusicdistribution.com");
+    expect(INQUIRIES_EMAIL).toBe("support@nexomusicdistribution.com");
     expect(isBrandedFromAddress("Nexo <contact@nexomusicdistro.space>")).toBe(true);
     expect(isBrandedFromAddress("ops@nexomusicdistribution.com")).toBe(true);
     expect(isBrandedFromAddress("other@gmail.com")).toBe(false);
