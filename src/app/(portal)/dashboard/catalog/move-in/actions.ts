@@ -8,6 +8,7 @@ import type { ArtistProvidedCatalogItem, MoveInImportMethod } from "@/lib/migrat
 import { hasCatalogMigrationAccess } from "@/lib/billing/feature-access";
 import { safeGetEntitlementsForAuth } from "@/lib/billing/queries";
 import type { AuthUserContext } from "@/lib/auth/types";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -22,6 +23,9 @@ function revalidateMoveIn(id?: string) {
 async function requireCatalogMigrationEntitlement(
   ctx: AuthUserContext
 ): Promise<{ ok: false; error: string } | null> {
+  if (!(await isFeatureEnabled("move_in_catalog", true))) {
+    return { ok: false, error: "Move-In catalog migration is temporarily paused by Nexo operations." };
+  }
   const entitlements = await safeGetEntitlementsForAuth(ctx);
   if (!hasCatalogMigrationAccess(entitlements)) {
     return {
