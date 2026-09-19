@@ -673,8 +673,13 @@ export function ReleaseWizard({
     setBusy(true);
     try {
       if (step === 0) {
+        const alreadyPersisted = Boolean(releaseId);
         const id = await ensureDraft();
-        await updateReleaseInfo(id, { release_type: type });
+        // New drafts are created with the selected release type already. Avoid
+        // a second Server Action/network roundtrip on the very first Continue.
+        if (alreadyPersisted) {
+          await updateReleaseInfo(id, { release_type: type });
+        }
       } else if (step === 1) {
         const id = await ensureDraft();
         await saveInfo(id);
