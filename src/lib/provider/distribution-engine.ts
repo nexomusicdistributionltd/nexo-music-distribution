@@ -390,9 +390,21 @@ async function uploadTrackAudio(
   return fileKey;
 }
 
+async function assertProviderDraft(providerReleaseId: string): Promise<void> {
+  const current = unwrapData(await request(`/releases/${encodeURIComponent(providerReleaseId)}`));
+  if (firstString(current, ["status", "release_status"])?.toLowerCase() !== "draft") {
+    throw new ProviderUnavailableError(
+      "The linked TooLost release is no longer a draft. Sync its current status and contact distribution support for corrections; it cannot be overwritten through the draft API."
+    );
+  }
+}
+
 async function createOrResumeDraft(input: ProviderReleasePayload): Promise<string> {
   const remembered = await existingProviderDraft(input.releaseId);
-  if (remembered) return remembered;
+  if (remembered) {
+    await assertProviderDraft(remembered);
+    return remembered;
+  }
 
   const created = await request("/releases", {
     method: "POST",
@@ -573,35 +585,10 @@ async function prepareProviderRelease(
     );
   }
 
-  try {
-    await request(
-      `/releases/${encodeURIComponent(providerReleaseId)}/tracks`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ tracks: providerTracks }),
-      }
-    );
-  } catch (error) {
-    if (
-      error instanceof ProviderDeliveryValidationError &&
-      /tiktokstarttime/i.test(error.message)
-    ) {
-      const withoutTikTokStartTime = providerTracks.map((track) => {
-        const rest = { ...track };
-        delete rest.tiktokStartTime;
-        return rest;
-      });
-      await request(
-        `/releases/${encodeURIComponent(providerReleaseId)}/tracks`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ tracks: withoutTikTokStartTime }),
-        }
-      );
-    } else {
-      throw error;
-    }
-  }
+  await request(
+    `/releases/${encodeURIComponent(providerReleaseId)}/tracks`,
+    { method: "PUT", body: JSON.stringify({ tracks: providerTracks }) }
+  );
 }
 
 function validateSubmission(input: ProviderReleasePayload): void {
@@ -663,6 +650,16 @@ function validateSubmission(input: ProviderReleasePayload): void {
   }
 
   for (const track of input.tracks) {
+    if (!track.writers?.some((writer) => writer.name.trim() && writer.role.includes("instrumentalist"))) {
+      throw new ProviderDeliveryValidationError(
+        `Track ${track.trackNumber} needs a songwriter or composer credit before delivery.`
+      );
+    }
+    if (track.writers.some((writer) => writer.role.some((role) => !["instrumentalist", "lyricist"].includes(role)))) {
+      throw new ProviderDeliveryValidationError(
+        `Track ${track.trackNumber} contains an unsupported writer role. Correct its composition credits before delivery.`
+      );
+    }
     if (!track.title.trim()) {
       throw new ProviderDeliveryValidationError(
         `Track ${track.trackNumber} needs a title before delivery.`
@@ -733,6 +730,7 @@ export class DistributionEngineProvider implements DistributionProvider {
     providerReleaseId: string,
     input: Partial<ProviderReleasePayload>
   ): Promise<void> {
+    await assertProviderDraft(providerReleaseId);
     const preorderDate = normalizeProviderDate(input.applePreorderDate);
     const preorderEnabled = input.applePreorder === true && Boolean(preorderDate);
     const metadata = compactObject({

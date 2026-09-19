@@ -41,7 +41,7 @@ import { publicBillingCatalog } from "./catalog";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const paidEnv = {
+const paidEnv = { NODE_ENV: "test",
   PADDLE_PRICE_ARTIST_PRO_MONTHLY: "pri_artist_pro_m",
   PADDLE_PRICE_ARTIST_PRO_ANNUAL: "pri_artist_pro_y",
   PADDLE_PRICE_LABEL_STARTER_MONTHLY: "pri_label_starter_m",
@@ -65,7 +65,7 @@ describe("canonical plan mapping", () => {
 
   it("resolves approved price IDs only from env", () => {
     expect(resolveApprovedPriceId("artist_pro", "month", paidEnv)).toBe("pri_artist_pro_m");
-    expect(resolveApprovedPriceId("artist_pro", "month", {})).toBeNull();
+    expect(resolveApprovedPriceId("artist_pro", "month", { NODE_ENV: "test" })).toBeNull();
     expect(planFromApprovedPriceId("pri_label_pro_y", paidEnv)).toEqual({
       tierId: "label_pro",
       interval: "year",
@@ -121,7 +121,7 @@ describe("checkout authorization", () => {
   it("never trusts client priceId, amount, userId, customerId, or accountType", () => {
     const base = {
       authenticated: true,
-      roles: ["artist"] as const,
+      roles: ["artist"] as Array<"artist">,
       request: { planId: "artist_pro", interval: "month" as const },
       env: paidEnv,
     };
@@ -147,7 +147,7 @@ describe("checkout authorization", () => {
       authenticated: true,
       roles: ["label"],
       request: { planId: "label_pro", interval: "month" },
-      env: {},
+      env: { NODE_ENV: "test" },
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe(503);
@@ -164,24 +164,24 @@ describe("env fail-loud", () => {
 
   it("throws when PADDLE_ENVIRONMENT is unset — no silent sandbox default", () => {
     delete process.env.PADDLE_ENVIRONMENT;
-    expect(() => requirePaddleEnvironment({})).toThrow(PaddleEnvError);
-    expect(() => requirePaddleEnvironment({})).toThrow(/No silent default/);
+    expect(() => requirePaddleEnvironment({ NODE_ENV: "test" })).toThrow(PaddleEnvError);
+    expect(() => requirePaddleEnvironment({ NODE_ENV: "test" })).toThrow(/No silent default/);
   });
 
   it("rejects NEXT_PUBLIC paddle secrets", () => {
     expect(() =>
-      assertNoSecretInPublicEnv({ NEXT_PUBLIC_PADDLE_API_KEY: "pdl_live" } as NodeJS.ProcessEnv)
+      assertNoSecretInPublicEnv({ NODE_ENV: "test", NEXT_PUBLIC_PADDLE_API_KEY: "pdl_live" } as NodeJS.ProcessEnv)
     ).toThrow(/must never be set/);
   });
 
   it("maps PADDLE_ENVIRONMENT onto Paddle.js without a silent default", () => {
-    expect(paddleJsEnvironmentFromEnv({ PADDLE_ENVIRONMENT: "production" } as NodeJS.ProcessEnv)).toBe(
+    expect(paddleJsEnvironmentFromEnv({ NODE_ENV: "test", PADDLE_ENVIRONMENT: "production" } as NodeJS.ProcessEnv)).toBe(
       "production"
     );
-    expect(paddleJsEnvironmentFromEnv({ PADDLE_ENVIRONMENT: "sandbox" } as NodeJS.ProcessEnv)).toBe(
+    expect(paddleJsEnvironmentFromEnv({ NODE_ENV: "test", PADDLE_ENVIRONMENT: "sandbox" } as NodeJS.ProcessEnv)).toBe(
       "sandbox"
     );
-    expect(paddleJsEnvironmentFromEnv({} as NodeJS.ProcessEnv)).toBeNull();
+    expect(paddleJsEnvironmentFromEnv({ NODE_ENV: "test",} as NodeJS.ProcessEnv)).toBeNull();
     expect(paddleJsEnvironmentFromClientToken("live_abc")).toBe("production");
     expect(paddleJsEnvironmentFromClientToken("test_abc")).toBe("sandbox");
     expect(paddleJsEnvironmentFromClientToken("other")).toBeNull();
@@ -393,12 +393,12 @@ describe("secrets and env example", () => {
   });
 
   it("catalog is not ready without price IDs", () => {
-    const catalog = publicBillingCatalog({ PADDLE_ENVIRONMENT: "sandbox" } as NodeJS.ProcessEnv);
+    const catalog = publicBillingCatalog({ NODE_ENV: "test", PADDLE_ENVIRONMENT: "sandbox" } as NodeJS.ProcessEnv);
     expect(catalog.catalogReady).toBe(false);
   });
 
   it("still publishes USD list prices without Paddle client token or price IDs", () => {
-    const catalog = publicBillingCatalog({} as NodeJS.ProcessEnv);
+    const catalog = publicBillingCatalog({ NODE_ENV: "test",} as NodeJS.ProcessEnv);
     expect(catalog.displayUsd.artist_pro.month).toBe("$9.99");
     expect(catalog.displayUsd.artist_pro.year).toBe("$99");
     expect(catalog.displayUsd.label_starter.month).toBe("$19.99");
@@ -409,7 +409,7 @@ describe("secrets and env example", () => {
   });
 
   it("with a Live client token still waits for env-mapped Price IDs", () => {
-    const catalog = publicBillingCatalog({
+    const catalog = publicBillingCatalog({ NODE_ENV: "test",
       PADDLE_ENVIRONMENT: "production",
       NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "live_nexo_client_token",
     } as NodeJS.ProcessEnv);
@@ -420,7 +420,7 @@ describe("secrets and env example", () => {
   });
 
   it("missing NEXT_PUBLIC_PADDLE_CLIENT_TOKEN does not crash catalog and keeps checkout unready", () => {
-    const env = {
+    const env = { NODE_ENV: "test",
       PADDLE_ENVIRONMENT: "production",
       PADDLE_PRICE_ARTIST_PRO_MONTHLY: "pri_artist_pro_m",
       PADDLE_PRICE_ARTIST_PRO_ANNUAL: "pri_artist_pro_y",
@@ -438,11 +438,11 @@ describe("secrets and env example", () => {
   });
 
   it("keeps Live Price ID env mappings empty until real IDs exist", () => {
-    expect(unsetCatalogEnvNames({} as NodeJS.ProcessEnv)).toEqual(catalogEnvNames());
+    expect(unsetCatalogEnvNames({ NODE_ENV: "test",} as NodeJS.ProcessEnv)).toEqual(catalogEnvNames());
     const env = readFileSync(join(process.cwd(), ".env.example"), "utf8");
     for (const name of catalogEnvNames()) {
       expect(env).toMatch(new RegExp(`^${name}=$`, "m"));
     }
-    expect(resolveApprovedPriceId("artist_pro", "month", {})).toBeNull();
+    expect(resolveApprovedPriceId("artist_pro", "month", { NODE_ENV: "test" })).toBeNull();
   });
 });

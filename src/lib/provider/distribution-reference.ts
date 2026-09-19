@@ -16,6 +16,14 @@ export type ProviderPageQuery = {
   perPage?: number;
 };
 
+export type AnalyticsPeriod =
+  | "allTime" | "lastSevenDays" | "lastThirtyDays" | "lastMonth"
+  | "lastThreeMonths" | "lastSixMonths" | "lastYear";
+
+function analyticsQuery(period: AnalyticsPeriod = "lastThirtyDays"): URLSearchParams {
+  return new URLSearchParams({ period });
+}
+
 export type ProviderSalesPageQuery = {
   page?: number;
   perPage?: number;
@@ -302,14 +310,32 @@ export const distributionReference = {
   streamRateTerritories: (service: string, query?: ProviderSalesPageQuery) =>
     apiLive(withQuery(`/sales/stream-rates/${id(service)}/territories`, salesQuery(query))),
 
-  analyticsOverview: () => apiLive("/analytics/overview"),
-  analyticsTracks: () => apiLive("/analytics/tracks"),
-  analyticsTrackCharts: () => apiLive("/analytics/tracks/charts"),
-  analyticsTrack: (isrc: string) => apiLive(`/analytics/tracks/${id(isrc)}`),
+  analyticsOverview: (period?: AnalyticsPeriod) =>
+    apiLive(withQuery("/analytics/overview", analyticsQuery(period))),
+  analyticsTracks: (query?: ProviderPageQuery & { period?: AnalyticsPeriod }) => {
+    const qs = analyticsQuery(query?.period);
+    qs.set("page", String(clampPage(query?.page) ?? 1));
+    qs.set("perPage", String(clampPerPage(query?.perPage) ?? 100));
+    return apiLive(withQuery("/analytics/tracks", qs));
+  },
+  analyticsTrackCharts: (period?: AnalyticsPeriod) =>
+    apiLive(withQuery("/analytics/tracks/charts", analyticsQuery(period))),
+  analyticsTrack: (isrc: string, period?: AnalyticsPeriod) =>
+    apiLive(withQuery(`/analytics/tracks/${id(isrc)}`, analyticsQuery(period))),
   analyticsPlatforms: () => apiLive("/analytics/platforms"),
-  analyticsPlatformData: () => apiLive("/analytics/platforms/data"),
+  analyticsPlatformData: (platform: string, period?: AnalyticsPeriod, release?: number) => {
+    if (!platform.trim()) throw new Error("An analytics platform is required.");
+    const qs = analyticsQuery(period);
+    qs.set("platform", platform);
+    if (release != null) {
+      if (!Number.isInteger(release) || release < 1) throw new Error("Invalid analytics release ID.");
+      qs.set("release", String(release));
+    }
+    return apiLive(withQuery("/analytics/platforms/data", qs));
+  },
   /** Compatibility alias used by existing Nexo analytics loaders. */
-  analytics: () => apiLive("/analytics/overview"),
+  analytics: (period?: AnalyticsPeriod) =>
+    apiLive(withQuery("/analytics/overview", analyticsQuery(period))),
 
   preferences: () => api("/preferences"),
   artistPreference: () => api("/preferences/artist"),

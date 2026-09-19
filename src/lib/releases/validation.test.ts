@@ -56,7 +56,7 @@ describe("validateReleaseForSubmit", () => {
       assets: [],
     });
     expect(issues.some((i) => i.field === "artwork")).toBe(true);
-    expect(issues.some((i) => i.field === "audio")).toBe(true);
+    expect(issues.some((i) => i.field === "track.1.audio")).toBe(true);
   });
 
   it("requires provider-compatible lossless audio", () => {
@@ -67,7 +67,7 @@ describe("validateReleaseForSubmit", () => {
         { kind: "audio", track_id: "t1", mime_type: "audio/mpeg", filename: "song.mp3" },
       ],
     });
-    expect(issues.some((i) => i.field === "audio" && i.message.includes("FLAC"))).toBe(true);
+    expect(issues.some((i) => i.field === "track.1.audio" && i.message.includes("FLAC"))).toBe(true);
   });
 
   it("enforces track counts by type", () => {
@@ -165,6 +165,23 @@ describe("validateReleaseForSubmit", () => {
       ],
     });
     expect(issues.some((i) => i.field === "track.1.audio")).toBe(false);
+  });
+
+  it("requires the documented writer credit even for spoken-word releases", () => {
+    const issues = validateReleaseForSubmit({
+      ...base,
+      release: { ...base.release, genre: "Spoken Word" },
+      contributors: [{ name: "Narrator", role: "primary_artist", track_id: null }],
+    });
+    expect(issues.some((issue) => issue.field === "track.1.contributors")).toBe(true);
+  });
+
+  it("blocks invalid dates and documented release field limits before review", () => {
+    const issues = validateReleaseForSubmit({
+      ...base,
+      release: { ...base.release, title: "x".repeat(121), release_date: "2026-02-30", copyright_year: 2101 },
+    });
+    expect(issues.map((issue) => issue.field)).toEqual(expect.arrayContaining(["title", "release_date", "copyright_year"]));
   });
 
   it("rejects AUTO upc tokens", () => {

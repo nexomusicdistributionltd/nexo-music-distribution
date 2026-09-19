@@ -9,8 +9,8 @@ describe("TooLost participant role mapping", () => {
     expect(providerRoleForContributor("primary_artist")).toBe("primary");
     expect(providerRoleForContributor("featured_artist")).toBe("featuring");
     expect(providerRoleForContributor("background_vocals")).toBe("performer");
-    expect(providerRoleForContributor("songwriter")).toBe("composer");
-    expect(providerRoleForContributor("lyricist")).toBe("author");
+    expect(providerRoleForContributor("songwriter")).toBe("instrumentalist");
+    expect(providerRoleForContributor("lyricist")).toBe("lyricist");
     expect(providerRoleForContributor("recording_engineer")).toBeNull();
   });
 
@@ -21,7 +21,7 @@ describe("TooLost participant role mapping", () => {
         { name: "Writer", role: "lyricist" },
         { name: "Engineer", role: "recording_engineer" },
       ])
-    ).toEqual([{ name: "Writer", role: ["composer", "author"] }]);
+    ).toEqual([{ name: "Writer", role: ["instrumentalist", "lyricist"] }]);
   });
 
   it("always places the primary artist first", () => {

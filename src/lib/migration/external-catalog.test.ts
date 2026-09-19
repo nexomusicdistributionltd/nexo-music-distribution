@@ -22,6 +22,7 @@ describe("external catalog discovery", () => {
     const r = await discoverExternalCatalog({ source: "spotify" });
     expect(r.available).toBe(false);
     expect(r.items).toEqual([]);
+    if (r.available) throw new Error("Expected unavailable catalog");
     expect(r.reason).toMatch(/not connected/i);
   });
 

@@ -127,7 +127,9 @@ export function normalizeProviderDate(value: string | null | undefined): string 
   const text = normalizeProviderText(value);
   if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(text)) return undefined;
   const parsed = new Date(`${text}T00:00:00Z`);
-  return Number.isNaN(parsed.getTime()) ? undefined : text;
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== text
+    ? undefined
+    : text;
 }
 
 export function normalizeRightsText(value: string | null | undefined): string | undefined {

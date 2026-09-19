@@ -4,7 +4,7 @@ import { evaluateRoleAssignment, normalizeRoleList } from "./roles";
 const base = {
   actorId: "admin-1",
   targetId: "user-1",
-  currentRoles: ["artist"] as const,
+  currentRoles: ["artist"] as Array<"artist">,
   nextRoles: ["artist", "support"] as const,
   superAdminCount: 2,
   hasLabelRoster: false,

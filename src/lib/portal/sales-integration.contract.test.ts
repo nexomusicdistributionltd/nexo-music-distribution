@@ -12,8 +12,8 @@ describe("TooLost sales portal contract", () => {
     expect(source).toContain('cache: "no-store"');
     expect(source).toContain('apiLive(withQuery("/sales/overview"');
     expect(source).toContain('apiLive(withQuery("/sales/stream-rates"');
-    expect(source).toContain('analyticsOverview: () => apiLive("/analytics/overview")');
-    expect(source).toContain('analyticsPlatformData: () => apiLive("/analytics/platforms/data")');
+    expect(source).toContain('apiLive(withQuery("/analytics/overview", analyticsQuery(period)))');
+    expect(source).toContain('apiLive(withQuery("/analytics/platforms/data", qs))');
   });
 
   it("scopes release, track and artist sales with direct owned-catalog lookups", () => {

@@ -357,17 +357,13 @@ export function ReleaseWizard({
   );
   const worldwideTerritories = selectedTerritoryCodes.includes("WW");
 
-  const contributorRoleSet = React.useMemo(
-    () =>
-      new Set(
-        contributors
-          .filter((contributor) => contributor.name.trim())
-          .map((contributor) => contributor.role)
-      ),
-    [contributors]
+  const compositionCreditsReady = tracks.length > 0 && tracks.every((track) =>
+    contributors.some((contributor) =>
+      contributor.name.trim() &&
+      (!contributor.track_id || contributor.track_id === track.id) &&
+      ["composer", "songwriter"].includes(contributor.role)
+    )
   );
-  const compositionCreditsReady =
-    contributorRoleSet.has("composer") || contributorRoleSet.has("songwriter");
   const contributorCount = contributors.filter((contributor) => contributor.name.trim()).length;
 
   React.useEffect(() => {
@@ -1551,7 +1547,7 @@ export function ReleaseWizard({
                 <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3">
                   <p className="text-small font-medium">Songwriter / composer</p>
                   <p className="text-caption text-[var(--nexo-text-muted)]">
-                    {compositionCreditsReady ? "Credit added" : "Add one for each music track"}
+                    {compositionCreditsReady ? "All tracks credited" : "Add one for every track"}
                   </p>
                 </div>
                 <div className="rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-3">

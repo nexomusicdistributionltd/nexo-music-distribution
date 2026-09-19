@@ -22,12 +22,12 @@ describe("Paddle.js client token wiring", () => {
     expect(() =>
       resolvePaddleJsInit({
         environment: "production",
-        env: { PADDLE_ENVIRONMENT: "production" } as NodeJS.ProcessEnv,
+        env: { NODE_ENV: "test", PADDLE_ENVIRONMENT: "production" } as NodeJS.ProcessEnv,
       })
     ).not.toThrow();
     const result = resolvePaddleJsInit({
       environment: "production",
-      env: {} as NodeJS.ProcessEnv,
+      env: { NODE_ENV: "test",} as NodeJS.ProcessEnv,
       token: "",
     });
     expect(result.ok).toBe(false);
@@ -41,7 +41,7 @@ describe("Paddle.js client token wiring", () => {
     const logger = { error: vi.fn() };
     const result = resolvePaddleJsInit({
       environment: "production",
-      env: {} as NodeJS.ProcessEnv,
+      env: { NODE_ENV: "test",} as NodeJS.ProcessEnv,
       token: null,
     });
     warnIfPaddleClientTokenMissing(result, { nodeEnv: "development", logger });
@@ -52,7 +52,7 @@ describe("Paddle.js client token wiring", () => {
     const logger = { error: vi.fn() };
     const result = resolvePaddleJsInit({
       environment: "sandbox",
-      env: {} as NodeJS.ProcessEnv,
+      env: { NODE_ENV: "test",} as NodeJS.ProcessEnv,
     });
     warnIfPaddleClientTokenMissing(result, { nodeEnv: "production", logger });
     expect(logger.error).not.toHaveBeenCalled();
@@ -70,7 +70,7 @@ describe("Paddle.js client token wiring", () => {
     });
     const sandbox = resolvePaddleJsInit({
       environment: "sandbox",
-      env: { NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "test_public_client_token" } as NodeJS.ProcessEnv,
+      env: { NODE_ENV: "test", NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "test_public_client_token" } as NodeJS.ProcessEnv,
     });
     expect(sandbox).toMatchObject({ ok: true, environment: "sandbox", token: "test_public_client_token" });
     const inferredLive = resolvePaddleJsInit({
@@ -96,7 +96,7 @@ describe("Paddle.js client token wiring", () => {
     const initialize = vi.fn();
     const result = await getPaddleBrowserClient({
       environment: "production",
-      env: {} as NodeJS.ProcessEnv,
+      env: { NODE_ENV: "test",} as NodeJS.ProcessEnv,
       token: "",
       initialize,
     });

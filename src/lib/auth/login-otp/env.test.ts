@@ -13,7 +13,7 @@ describe("login OTP env", () => {
   it("uses a dedicated pepper when set", () => {
     expect(OTP_PEPPER_ENV_NAME).toBe("NEXO_OTP_PEPPER");
     expect(
-      getOtpPepper({
+      getOtpPepper({ NODE_ENV: "test",
         NEXO_OTP_PEPPER: "pepper",
         SUPABASE_SERVICE_ROLE_KEY: "sr",
       } as NodeJS.ProcessEnv)
@@ -22,14 +22,14 @@ describe("login OTP env", () => {
 
   it("falls back to the service role key, including aliases", () => {
     expect(
-      getOtpPepper({
+      getOtpPepper({ NODE_ENV: "test",
         SUPABASE_SERVICE_ROLE: "sr-alias",
       } as NodeJS.ProcessEnv)
     ).toBe("sr-alias");
   });
 
   it("reports send/verify readiness without leaking secrets", () => {
-    const missing = loginOtpHealthSnapshot({} as NodeJS.ProcessEnv, true);
+    const missing = loginOtpHealthSnapshot({ NODE_ENV: "test",} as NodeJS.ProcessEnv, true);
     expect(missing.serviceRole).toBe("absent");
     expect(missing.smtp).toBe("present");
     expect(missing.pepper).toBe("absent");
@@ -37,7 +37,7 @@ describe("login OTP env", () => {
     expect(missing.verifyReady).toBe(false);
 
     const ready = loginOtpHealthSnapshot(
-      { SUPABASE_SERVICE_ROLE_KEY: "sr-key" } as NodeJS.ProcessEnv,
+      { NODE_ENV: "test", SUPABASE_SERVICE_ROLE_KEY: "sr-key" } as NodeJS.ProcessEnv,
       true
     );
     expect(ready.serviceRole).toBe("present");
