@@ -55,7 +55,7 @@ export async function submitJobAction(
   idempotencyKey?: string
 ): Promise<ActionResult> {
   await RequireAdminPermission("admin:distribution");
-  const key = idempotencyKey?.trim() || `submit:${jobId}`;
+  const key = idempotencyKey?.trim() || `submit:${jobId}:${Date.now()}`;
   const res = await submitQueuedRelease(jobId, key);
   revalidateDist();
   return res;
