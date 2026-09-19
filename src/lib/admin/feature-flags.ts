@@ -34,3 +34,13 @@ export async function getUserOperationalHolds(userId: string): Promise<{
     activeCaseCount: Number(value.active_case_count ?? 0) || 0,
   };
 }
+
+
+export async function hasAcceptedRequiredPolicies(userId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("nexo_required_policies_satisfied", {
+    p_user_id: userId,
+  });
+  if (error) return false;
+  return data === true;
+}
