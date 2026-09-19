@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
@@ -14,7 +13,6 @@ export function ArtistBioForm({
   artistProfileId: string;
   initialBio: string | null;
 }) {
-  const router = useRouter();
   const [bio, setBio] = React.useState(initialBio ?? "");
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -34,7 +32,6 @@ export function ArtistBioForm({
         if (!res.ok) setError(res.error);
         else {
           setOk(true);
-          router.refresh();
         }
       }}
     >
