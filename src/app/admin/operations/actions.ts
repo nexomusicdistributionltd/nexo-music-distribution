@@ -226,7 +226,7 @@ export async function setAnnouncementActiveAction(formData: FormData) {
 }
 
 export async function createHighRiskRequestAction(formData: FormData) {
-  const ctx = await RequireAdminPermission("admin:operations");
+  await RequireAdminPermission("admin:operations");
   const actionType = text(formData, "action_type");
   const reason = text(formData, "reason");
   if (!actionType || !reason) return;
@@ -238,43 +238,28 @@ export async function createHighRiskRequestAction(formData: FormData) {
     throw new Error("Payload must be valid JSON.");
   }
   const supabase = await createClient();
-  const { error } = await supabase.from("admin_high_risk_requests").insert({
-    action_type: actionType,
-    target_type: text(formData, "target_type") || null,
-    target_id: text(formData, "target_id") || null,
-    payload,
-    reason,
-    requested_by: ctx.userId,
+  const { error } = await supabase.rpc("create_admin_high_risk_request", {
+    p_action_type: actionType,
+    p_target_type: text(formData, "target_type") || null,
+    p_target_id: text(formData, "target_id") || null,
+    p_payload: payload,
+    p_reason: reason,
   });
   if (error) throw new Error(error.message);
   revalidateOps();
 }
 
 export async function reviewHighRiskRequestAction(formData: FormData) {
-  const ctx = await RequireAdminPermission("admin:operations");
+  await RequireAdminPermission("admin:operations");
   const id = uuidOrNull(text(formData, "id"));
   const status = text(formData, "status");
   if (!id || !["approved", "rejected", "cancelled"].includes(status)) return;
   const supabase = await createClient();
-  const { data: row, error: readError } = await supabase
-    .from("admin_high_risk_requests")
-    .select("requested_by")
-    .eq("id", id)
-    .maybeSingle();
-  if (readError) throw new Error(readError.message);
-  if (status === "approved" && row?.requested_by === ctx.userId) {
-    throw new Error("The requesting administrator cannot approve the same high-risk request.");
-  }
-  const { error } = await supabase
-    .from("admin_high_risk_requests")
-    .update({
-      status,
-      reviewed_by: ctx.userId,
-      reviewed_at: new Date().toISOString(),
-      execution_note: text(formData, "execution_note") || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  const { error } = await supabase.rpc("review_admin_high_risk_request", {
+    p_id: id,
+    p_status: status,
+    p_execution_note: text(formData, "execution_note") || null,
+  });
   if (error) throw new Error(error.message);
   revalidateOps();
 }
