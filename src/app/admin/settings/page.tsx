@@ -29,25 +29,24 @@ export default async function AdminSettingsPage() {
         title="Settings"
         description="Allowlisted operational settings only. Secrets never live in client-visible settings."
       />
-      <Alert title="Secrets">
-        Service role keys, DB passwords, and provider credentials stay in server env / secret
-        stores — not in this table.
-      </Alert>
-      <SettingsForm />
-      {(settings ?? []).length === 0 ? (
-        <EmptyState title="No settings stored yet" />
-      ) : (
-        <ul className="divide-y divide-[var(--nexo-border)] rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] text-small">
-          {(settings ?? []).map((s) => (
-            <li key={s.key} className="px-4 py-3">
-              <p className="font-medium">{s.key}</p>
-              <pre className="mt-1 overflow-x-auto text-caption text-[var(--nexo-text-muted)]">
-                {JSON.stringify(s.value)}
-              </pre>
-            </li>
-          ))}
-        </ul>
-      )}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4">
+          <p className="text-caption uppercase tracking-wide text-[var(--nexo-text-muted)]">Configuration</p>
+          <p className="mt-2 text-2xl font-semibold">{(settings ?? []).length}</p>
+          <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">Stored operational settings</p>
+        </div>
+        <div className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4">
+          <p className="text-caption uppercase tracking-wide text-[var(--nexo-text-muted)]">Email activity</p>
+          <p className="mt-2 text-2xl font-semibold">{(emailEvents ?? []).length}</p>
+          <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">Recent outbound events loaded</p>
+        </div>
+        <div className="rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-4">
+          <p className="text-caption uppercase tracking-wide text-[var(--nexo-text-muted)]">Security</p>
+          <p className="mt-2 text-small font-semibold">Server-only secrets</p>
+          <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">Provider keys and credentials never appear here.</p>
+        </div>
+      </section>
+      <SettingsForm settings={(settings ?? []).map((row) => ({ key: row.key, value: row.value }))} />
       <section>
         <h2 className="mb-2 text-h4">Outbound email events</h2>
         <p className="mb-3 text-small text-[var(--nexo-text-muted)]">
