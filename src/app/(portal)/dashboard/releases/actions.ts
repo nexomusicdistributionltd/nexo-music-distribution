@@ -38,6 +38,7 @@ import {
 } from "@/lib/storage/release-assets";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 import { getProviderConnectionState } from "@/lib/provider";
+import { preflightReleaseForDistribution } from "@/lib/distribution/actions";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -1079,6 +1080,15 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
           "Nexo could not validate the supplied UPC/ISRC codes with the connected distribution provider. Try again before submitting.",
       };
     }
+  }
+
+  const providerPreflight = await preflightReleaseForDistribution(releaseId);
+  if (!providerPreflight.ok) {
+    return {
+      ok: false,
+      error:
+        `Distribution validation must pass before QC submission. ${providerPreflight.error}`,
+    };
   }
 
   const transitionCheck = canTransition({
