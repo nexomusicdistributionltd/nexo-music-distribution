@@ -977,7 +977,7 @@ export async function createComplianceCaseAction(input: {
 
 export async function saveAdminSettingAction(input: {
   key: string;
-  value: unknown;
+  value: string | number | boolean | null;
 }): Promise<ActionResult> {
   const ctx = await RequireAdminPermission("admin:settings");
   const key = input.key.trim().toLowerCase();
