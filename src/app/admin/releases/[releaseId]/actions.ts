@@ -352,11 +352,11 @@ export async function postApprovalReviewAction(input: {
   if (readError) return { ok: false, error: readError.message };
   if (!release) return { ok: false, error: "Release not found." };
 
-  if (!["approved", "scheduled", "failed"].includes(release.status)) {
+  if (!["approved", "scheduled", "failed", "changes_requested"].includes(release.status)) {
     return {
       ok: false,
       error:
-        "This release can no longer be reopened from the approval queue. If TooLost delivery has started, use the provider edit/takedown workflow.",
+        "This release is not in a state that can be returned for artist/label correction.",
     };
   }
 
