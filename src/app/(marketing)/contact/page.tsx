@@ -69,15 +69,17 @@ export default async function Page() {
                   </a>
                 </p>
                 <div className="mt-5 space-y-2 text-small text-[var(--nexo-text-muted)]">
-                  <p>
-                    General contact:{" "}
-                    <a
-                      href={`mailto:${contactEmail}`}
-                      className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
-                    >
-                      {contactEmail}
-                    </a>
-                  </p>
+                  {contactEmail !== supportEmail ? (
+                    <p>
+                      General contact:{" "}
+                      <a
+                        href={`mailto:${contactEmail}`}
+                        className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+                      >
+                        {contactEmail}
+                      </a>
+                    </p>
+                  ) : null}
                   <p>
                     Artist & label support:{" "}
                     <a
