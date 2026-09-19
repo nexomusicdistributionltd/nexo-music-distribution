@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { RequireAdminPermission } from "@/lib/auth/guards";
+import type { AdminPermission } from "@/lib/admin/permissions";
 import { createClient } from "@/lib/supabase/server";
 
 function text(formData: FormData, key: string) {
@@ -16,6 +17,31 @@ function bool(formData: FormData, key: string) {
 
 function uuidOrNull(value: string) {
   return /^[0-9a-f-]{36}$/i.test(value) ? value : null;
+}
+
+function permissionForCaseType(caseType: string): AdminPermission {
+  if (["rights_claim", "fraud_review", "catalog_conflict", "privacy_request"].includes(caseType)) {
+    return "admin:compliance";
+  }
+  if (caseType === "security_review") return "admin:users";
+  if (caseType === "tax_compliance") return "admin:finance";
+  if (caseType === "email_deliverability") return "admin:emails";
+  return "admin:operations";
+}
+
+async function requireCasePermission(caseType: string) {
+  return RequireAdminPermission(permissionForCaseType(caseType));
+}
+
+async function caseTypeForId(id: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("admin_ops_cases")
+    .select("case_type")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data?.case_type) return null;
+  return data.case_type;
 }
 
 function revalidateOps() {
@@ -40,8 +66,8 @@ function revalidateOps() {
 }
 
 export async function createOpsCaseAction(formData: FormData) {
-  const ctx = await RequireAdminPermission("admin:operations");
   const caseType = text(formData, "case_type");
+  const ctx = await requireCasePermission(caseType);
   const title = text(formData, "title");
   if (!title) return;
   const supabase = await createClient();
@@ -76,9 +102,11 @@ export async function createOpsCaseAction(formData: FormData) {
 }
 
 export async function updateOpsCaseAction(formData: FormData) {
-  const ctx = await RequireAdminPermission("admin:operations");
   const id = uuidOrNull(text(formData, "id"));
   if (!id) return;
+  const caseType = await caseTypeForId(id);
+  if (!caseType) return;
+  const ctx = await requireCasePermission(caseType);
   const status = text(formData, "status");
   const now = new Date().toISOString();
   const supabase = await createClient();
@@ -107,10 +135,12 @@ export async function updateOpsCaseAction(formData: FormData) {
 }
 
 export async function addOpsCaseNoteAction(formData: FormData) {
-  const ctx = await RequireAdminPermission("admin:operations");
   const caseId = uuidOrNull(text(formData, "case_id"));
   const message = text(formData, "message");
   if (!caseId || !message) return;
+  const caseType = await caseTypeForId(caseId);
+  if (!caseType) return;
+  const ctx = await requireCasePermission(caseType);
   const supabase = await createClient();
   const { error } = await supabase.from("admin_ops_case_events").insert({
     case_id: caseId,
@@ -124,10 +154,12 @@ export async function addOpsCaseNoteAction(formData: FormData) {
 }
 
 export async function addOpsEvidenceAction(formData: FormData) {
-  const ctx = await RequireAdminPermission("admin:operations");
   const caseId = uuidOrNull(text(formData, "case_id"));
   const label = text(formData, "label");
   if (!caseId || !label) return;
+  const caseType = await caseTypeForId(caseId);
+  if (!caseType) return;
+  const ctx = await requireCasePermission(caseType);
   const supabase = await createClient();
   const { error } = await supabase.from("admin_ops_case_evidence").insert({
     case_id: caseId,
