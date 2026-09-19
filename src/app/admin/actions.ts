@@ -20,7 +20,7 @@ import {
   queueApprovedRelease,
   submitQueuedRelease,
   syncReleaseStatus,
-  preflightReleaseForDistribution,
+  validateReleaseForDistributionLocally,
 } from "@/lib/distribution/actions";
 import { PROVIDER_DELIVERY_VALIDATION_CODE } from "@/lib/provider/errors";
 import { formatDeliveryCorrection } from "@/lib/distribution/delivery-diagnostics";
@@ -136,7 +136,7 @@ export async function performQcDecisionAction(input: {
   const supabase = await createClient();
 
   if (input.decision === "approve") {
-    const preflight = await preflightReleaseForDistribution(input.releaseId);
+    const preflight = await validateReleaseForDistributionLocally(input.releaseId);
     if (!preflight.ok) {
       return {
         ok: false,
