@@ -51,13 +51,12 @@ export function PartnersAdminClient({ partners }: { partners: WebsitePartner[] }
         <div>
           <h2 className="text-h4">Add partner</h2>
           <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-            Upload partner logos into Nexo CMS media for reliable public rendering. Active partners
-            appear on the homepage partner marquee immediately after save.
+            Upload a partner logo into Nexo CMS media for reliable public rendering. The partner name is optional; active partners with a logo appear logo-only on the homepage marquee immediately after save.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Input
-            placeholder="Partner name"
+            placeholder="Partner name (optional)"
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
@@ -90,7 +89,7 @@ export function PartnersAdminClient({ partners }: { partners: WebsitePartner[] }
             />
           </label>
           <Button
-            disabled={pending || uploading || !form.name.trim()}
+            disabled={pending || uploading || (!form.logoUrl.trim() && !form.name.trim())}
             onClick={() =>
               start(async () => {
                 const result = await upsertPartnerAction({
@@ -159,7 +158,7 @@ function PartnerEditor({
   const [pending, start] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
-    name: partner.name,
+    name: partner.name === "Partner" ? "" : partner.name,
     logoUrl: partner.logo_url || "",
     websiteUrl: partner.website_url || "",
     sortOrder: String(partner.sort_order),
@@ -205,7 +204,7 @@ function PartnerEditor({
           )}
         </div>
         <div>
-          <p className="font-medium">{partner.name}</p>
+          <p className="font-medium">{form.name.trim() || "Logo-only partner"}</p>
           <p className="text-caption text-[var(--nexo-text-muted)]">
             {partner.is_active ? "Published live" : "Inactive"} · order {partner.sort_order}
           </p>
@@ -213,7 +212,7 @@ function PartnerEditor({
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <Input placeholder="Partner name (optional)" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
         <Input
           placeholder="Logo URL"
           value={form.logoUrl}
@@ -245,7 +244,7 @@ function PartnerEditor({
         <Button
           size="sm"
           variant="secondary"
-          disabled={pending || uploading || !form.name.trim()}
+          disabled={pending || uploading || (!form.logoUrl.trim() && !form.name.trim())}
           onClick={() =>
             start(async () => {
               const result = await upsertPartnerAction({

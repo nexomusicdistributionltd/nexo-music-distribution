@@ -230,7 +230,7 @@ export async function upsertWebsiteVideoAction(input: {
 
 export async function upsertPartnerAction(input: {
   id?: string;
-  name: string;
+  name?: string;
   logoUrl?: string;
   websiteUrl?: string;
   sortOrder?: number;
@@ -238,13 +238,21 @@ export async function upsertPartnerAction(input: {
 }): Promise<ActionResult> {
   await RequireAdminPermission("admin:website");
   const supabase = await createClient();
+  const providedName = input.name?.trim() || "";
+  const logoUrl = input.logoUrl?.trim() || null;
+  if (!providedName && !logoUrl) {
+    return { ok: false, error: "Add a partner logo or partner name." };
+  }
+  // website_partners.name is intentionally kept non-null for compatibility.
+  // Logo-only partners use a neutral internal fallback that is not rendered beside the logo.
+  const storedName = providedName || "Partner";
   const row = {
-    name: input.name.trim(),
-    logo_url: input.logoUrl?.trim() || null,
+    name: storedName,
+    logo_url: logoUrl,
     website_url: input.websiteUrl?.trim() || null,
     sort_order: input.sortOrder ?? 0,
     is_active: input.isActive ?? true,
-    slug: slugify(input.name),
+    slug: slugify(storedName),
   };
   if (input.id) {
     const { error } = await supabase.from("website_partners").update(row).eq("id", input.id);

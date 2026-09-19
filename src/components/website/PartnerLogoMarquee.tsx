@@ -52,18 +52,19 @@ export function PartnerLogoMarquee({
 
 function PartnerChip({ partner }: { partner: WebsitePartner }) {
   const inner = (
-    <span className="mx-5 inline-flex h-20 min-w-[180px] shrink-0 items-center justify-center gap-3 rounded-[var(--nexo-radius)] px-4 opacity-90 transition-opacity hover:opacity-100 sm:mx-7 sm:h-24 sm:min-w-[220px]">
+    <span className="mx-5 inline-flex h-24 min-w-[220px] shrink-0 items-center justify-center rounded-[var(--nexo-radius)] px-5 opacity-95 transition-opacity hover:opacity-100 sm:mx-7 sm:h-28 sm:min-w-[280px] sm:px-6">
       {partner.logo_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={partner.logo_url}
-          alt=""
-          className="h-12 w-auto max-w-[170px] object-contain sm:h-16 sm:max-w-[220px]"
+          alt={partner.name && partner.name !== "Partner" ? `${partner.name} logo` : "Partner logo"}
+          className="max-h-16 w-auto max-w-[210px] object-contain sm:max-h-20 sm:max-w-[270px]"
         />
-      ) : null}
-      <span className="whitespace-nowrap text-small font-semibold tracking-wide text-[var(--nexo-text-secondary)]">
-        {partner.name}
-      </span>
+      ) : (
+        <span className="whitespace-nowrap text-small font-semibold tracking-wide text-[var(--nexo-text-secondary)]">
+          {partner.name}
+        </span>
+      )}
     </span>
   );
 
