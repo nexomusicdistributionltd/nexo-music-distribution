@@ -3,6 +3,7 @@ import {
   normalizeProviderLanguage,
   normalizeProviderLicenseType,
   normalizeProviderReleaseTime,
+  normalizeProviderMinuteSecond,
   normalizeProviderTimeZone,
   normalizeProviderText,
   normalizeRightsText,
@@ -26,6 +27,13 @@ describe("TooLost outbound metadata normalization", () => {
     expect(normalizeProviderTimeZone("chicago")).toBe("America/Chicago");
     expect(normalizeProviderTimeZone("Africa/Lagos")).toBe("Africa/Lagos");
     expect(normalizeProviderTimeZone("not-a-zone")).toBeUndefined();
+  });
+
+  it("normalizes TikTok minute-second values", () => {
+    expect(normalizeProviderMinuteSecond("0:08")).toBe("00:08");
+    expect(normalizeProviderMinuteSecond("9:40")).toBe("09:40");
+    expect(normalizeProviderMinuteSecond("59:59")).toBe("59:59");
+    expect(normalizeProviderMinuteSecond("60:00")).toBeUndefined();
   });
 
   it("validates release time and sanitizes rights text", () => {
