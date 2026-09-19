@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -25,6 +26,15 @@ export default async function AuditPage({
     toDate: sp.to,
     action: sp.action,
   });
+
+  if (total > 0 && page > pageCount) {
+    const params = new URLSearchParams();
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
+    if (sp.action) params.set("action", sp.action);
+    if (pageCount > 1) params.set("page", String(pageCount));
+    redirect(params.size ? `/admin/audit?${params.toString()}` : "/admin/audit");
+  }
 
   return (
     <div>
