@@ -17,6 +17,7 @@ import { redirect } from "next/navigation";
 import { getIdentityVerificationForUser } from "@/lib/identity/queries";
 import { createClient } from "@/lib/supabase/server";
 import { PortalAnnouncements } from "@/components/portal/PortalAnnouncements";
+import { PortalPolicyNotice } from "@/components/portal/PortalPolicyNotice";
 import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +106,7 @@ export default async function PortalLayout({
               Nexo maintenance mode is active. Some services may be temporarily unavailable.
             </div>
           ) : null}
+          <PortalPolicyNotice userId={ctx.userId} />
           <PortalAnnouncements userId={ctx.userId} />
           {children}
         </main>
