@@ -42,6 +42,10 @@ export function QcDecisionForm({ releaseId }: { releaseId: string }) {
     setPending(false);
     if (!res.ok) {
       setError(res.error);
+      if (decision === "approve" && !reason.trim()) {
+        const correction = res.error.split("\n\n").slice(1).join("\n\n").trim();
+        if (correction) setReason(correction);
+      }
       return;
     }
     if (decision === "approve") {
