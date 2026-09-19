@@ -358,3 +358,181 @@
     transform: none;
   }
 }
+
+
+/* Professional long-form CMS/blog typography.
+   Explicit styles are used instead of relying on the optional Tailwind Typography plugin. */
+.nexo-blog-article {
+  color: var(--nexo-text-secondary);
+  font-size: 1.0625rem;
+  line-height: 1.82;
+  overflow-wrap: anywhere;
+}
+
+.nexo-blog-article > :first-child {
+  margin-top: 0;
+}
+
+.nexo-blog-article > :last-child {
+  margin-bottom: 0;
+}
+
+.nexo-blog-article p {
+  margin: 0 0 1.35rem;
+}
+
+.nexo-blog-article h1,
+.nexo-blog-article h2,
+.nexo-blog-article h3,
+.nexo-blog-article h4,
+.nexo-blog-article h5,
+.nexo-blog-article h6 {
+  color: var(--nexo-text);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.22;
+  text-wrap: balance;
+}
+
+.nexo-blog-article h1 {
+  margin: 3rem 0 1.25rem;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+}
+
+.nexo-blog-article h2 {
+  margin: 2.6rem 0 1rem;
+  font-size: clamp(1.55rem, 3vw, 2rem);
+}
+
+.nexo-blog-article h3 {
+  margin: 2.1rem 0 0.8rem;
+  font-size: 1.3rem;
+}
+
+.nexo-blog-article h4,
+.nexo-blog-article h5,
+.nexo-blog-article h6 {
+  margin: 1.75rem 0 0.7rem;
+  font-size: 1.08rem;
+}
+
+.nexo-blog-article ul,
+.nexo-blog-article ol {
+  margin: 0 0 1.5rem;
+  padding-left: 1.6rem;
+}
+
+.nexo-blog-article ul {
+  list-style: disc;
+}
+
+.nexo-blog-article ol {
+  list-style: decimal;
+}
+
+.nexo-blog-article li {
+  margin: 0.45rem 0;
+  padding-left: 0.2rem;
+}
+
+.nexo-blog-article li::marker {
+  color: var(--nexo-text-muted);
+}
+
+.nexo-blog-article blockquote {
+  margin: 2rem 0;
+  border-left: 3px solid var(--nexo-border-strong);
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  color: var(--nexo-text-secondary);
+  font-size: 1.08em;
+  font-style: italic;
+}
+
+.nexo-blog-article a {
+  color: var(--nexo-text);
+  font-weight: 550;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.nexo-blog-article strong {
+  color: var(--nexo-text);
+  font-weight: 650;
+}
+
+.nexo-blog-article hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--nexo-border);
+}
+
+.nexo-blog-article img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 2rem auto;
+  border: 1px solid var(--nexo-border);
+  border-radius: var(--nexo-radius-lg);
+  background: var(--nexo-elevated);
+  object-fit: cover;
+}
+
+.nexo-blog-article pre {
+  margin: 1.75rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--nexo-border);
+  border-radius: var(--nexo-radius-lg);
+  background: var(--nexo-elevated);
+  padding: 1rem 1.1rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.nexo-blog-article code {
+  border-radius: 0.3rem;
+  background: var(--nexo-elevated);
+  padding: 0.12rem 0.35rem;
+  font-size: 0.9em;
+}
+
+.nexo-blog-article pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.nexo-blog-article table {
+  width: 100%;
+  margin: 2rem 0;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.nexo-blog-article th,
+.nexo-blog-article td {
+  border: 1px solid var(--nexo-border);
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.nexo-blog-article th {
+  background: var(--nexo-elevated);
+  color: var(--nexo-text);
+  font-weight: 650;
+}
+
+@media (max-width: 640px) {
+  .nexo-blog-article {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  .nexo-blog-article h1 {
+    margin-top: 2.25rem;
+  }
+
+  .nexo-blog-article h2 {
+    margin-top: 2rem;
+  }
+}
