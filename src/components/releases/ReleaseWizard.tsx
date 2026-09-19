@@ -689,7 +689,6 @@ export function ReleaseWizard({
         await saveInfo(id);
       }
       setStep((s) => Math.min(s + 1, STEPS.length - 1));
-      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save step");
     } finally {
@@ -858,7 +857,6 @@ export function ReleaseWizard({
       setUploadState((current) =>
         current ? { ...current, percent: 100, status: "success" } : current
       );
-      router.refresh();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Upload failed";
       setError(message);
@@ -904,7 +902,6 @@ export function ReleaseWizard({
         id,
         title: info.title.trim() || res.data.title || "Your release",
       });
-      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Submit failed");
     } finally {
