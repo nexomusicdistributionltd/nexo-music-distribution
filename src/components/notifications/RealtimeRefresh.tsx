@@ -170,6 +170,11 @@ export function RealtimeRefresh({
         )
         .on(
           "postgres_changes",
+          { event: "*", schema: "public", table: "distribution_jobs" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
           { event: "*", schema: "public", table: "provider_webhook_events" },
           () => scheduleRefresh()
         )
