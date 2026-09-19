@@ -27,17 +27,11 @@ async function requirePortal() {
   return RequireVerifiedPortal();
 }
 
-function revalidatePortal() {
-  revalidatePath("/dashboard");
-  revalidatePath("/catalog", "layout");
+function revalidatePortalServiceRequests() {
+  // Service requests only affect Marketing/Rights request views and the staff
+  // marketing queue. Avoid invalidating every portal section on each submit.
   revalidatePath("/marketing", "layout");
-  revalidatePath("/analytics", "layout");
   revalidatePath("/rights", "layout");
-  revalidatePath("/help", "layout");
-  revalidatePath("/splitshare", "layout");
-  revalidatePath("/account", "layout");
-  revalidatePath("/earnings", "layout");
-  revalidatePath("/dashboard/videos");
   revalidatePath("/admin/marketing");
 }
 
@@ -174,7 +168,7 @@ export async function createServiceRequestAction(input: {
     .select("id")
     .single();
   if (error) return { ok: false, error: publicErrorMessage(error.message) };
-  revalidatePortal();
+  revalidatePortalServiceRequests();
   return { ok: true, data: { id: data.id } };
 }
 
@@ -242,7 +236,7 @@ export async function reviseServiceRequestAction(input: {
     .eq("owner_user_id", ctx.userId);
 
   if (error) return { ok: false, error: publicErrorMessage(error.message) };
-  revalidatePortal();
+  revalidatePortalServiceRequests();
   return { ok: true, data: { id: requestId } };
 }
 

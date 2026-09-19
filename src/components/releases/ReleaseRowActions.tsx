@@ -48,7 +48,6 @@ export function ReleaseRowActions({
         router.push(`/dashboard/releases/${res.data.id}`);
         return;
       }
-      router.refresh();
     } finally {
       setBusy(null);
       setConfirm(null);

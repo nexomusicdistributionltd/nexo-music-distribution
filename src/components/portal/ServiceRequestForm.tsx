@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -24,7 +23,6 @@ export function ServiceRequestForm({
   requiresRelease?: boolean;
   guidance?: string;
 }) {
-  const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState(false);
@@ -53,7 +51,6 @@ export function ServiceRequestForm({
         }
         (e.target as HTMLFormElement).reset();
         setOk(true);
-        router.refresh();
       }}
     >
       <h2 className="text-h4">New request</h2>

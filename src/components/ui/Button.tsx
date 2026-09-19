@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * (That conflict made size="sm" primary CTAs blank: bg matches inherited text.)
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--nexo-radius)] text-[length:0.875rem] leading-none tracking-[0.01em] font-medium transition-colors duration-[var(--nexo-duration)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex touch-manipulation select-none items-center justify-center gap-2 whitespace-nowrap rounded-[var(--nexo-radius)] text-[length:0.875rem] leading-none tracking-[0.01em] font-medium transition-[background-color,color,border-color,opacity,transform] duration-[var(--nexo-duration)] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexo-ring)] disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100",
   {
     variants: {
       variant: {

@@ -57,7 +57,6 @@ export function RosterArtistForm({
       return;
     }
     router.push(mode === "create" ? "/app/artists" : `/app/artists/${res.data.id}`);
-    router.refresh();
   }
 
   return (

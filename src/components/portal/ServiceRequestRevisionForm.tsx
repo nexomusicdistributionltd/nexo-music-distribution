@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -17,7 +16,6 @@ export function ServiceRequestRevisionForm({
   defaultBody?: string | null;
   defaultUrl?: string | null;
 }) {
-  const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState(false);
@@ -43,7 +41,6 @@ export function ServiceRequestRevisionForm({
           return;
         }
         setOk(true);
-        router.refresh();
       }}
     >
       <p className="text-small font-medium">Provide the requested information</p>

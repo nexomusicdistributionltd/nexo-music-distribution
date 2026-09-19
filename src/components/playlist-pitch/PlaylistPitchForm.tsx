@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -13,7 +12,6 @@ export function PlaylistPitchForm({
 }: {
   releases: { id: string; title: string | null }[];
 }) {
-  const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -38,7 +36,6 @@ export function PlaylistPitchForm({
           return;
         }
         (e.target as HTMLFormElement).reset();
-        router.refresh();
       }}
     >
       <h2 className="text-h4">New pitch</h2>
@@ -73,7 +70,6 @@ export function PlaylistPitchForm({
 }
 
 export function SubmitPitchButton({ id }: { id: string }) {
-  const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   return (
@@ -88,7 +84,7 @@ export function SubmitPitchButton({ id }: { id: string }) {
           const res = await submitPlaylistPitch(id);
           setPending(false);
           if (!res.ok) setError(res.error);
-          else router.refresh();
+          else setError(null);
         }}
       >
         {pending ? "Submitting…" : "Submit for review"}

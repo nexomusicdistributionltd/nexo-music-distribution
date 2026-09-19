@@ -60,6 +60,7 @@ function AccordionSection({
     if (hasActive) setOpen(true);
   }, [hasActive, pathname]);
 
+
   return (
     <div className="border-b border-[var(--nexo-border)]">
       <button
@@ -94,6 +95,7 @@ function AccordionSection({
                       href={item.href}
                       prefetch={false}
                       onPointerEnter={() => onIntent?.(item.href)}
+                      onPointerDown={() => onIntent?.(item.href)}
                       onFocus={() => onIntent?.(item.href)}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
