@@ -68,6 +68,14 @@ function ensureRightsPrefix(value: string | null | undefined, symbol: "Â©" | "â„
   return `${symbol} ${body}`;
 }
 
+function wizardLicenseType(value: unknown): "Copyright" | "Creative Commons" {
+  const normalized =
+    typeof value === "string" ? value.trim().toLowerCase().replace(/_/g, " ") : "";
+  return ["creative commons", "creative-commons", "cc"].includes(normalized)
+    ? "Creative Commons"
+    : "Copyright";
+}
+
 function parseTimestamp(value: string) {
   const raw = value.trim();
   if (!raw) return 0;
@@ -194,10 +202,7 @@ export function ReleaseWizard({
     applePreorder:
       initialDistribution.applePreorder === true && Boolean(initialApplePreorderDate),
     applePreorderDate: initialApplePreorderDate,
-    licenseType:
-      typeof initialDistribution.licenseType === "string"
-        ? initialDistribution.licenseType
-        : "Copyright",
+    licenseType: wizardLicenseType(initialDistribution.licenseType),
     licenseInfo:
       typeof initialDistribution.licenseInfo === "string"
         ? initialDistribution.licenseInfo
