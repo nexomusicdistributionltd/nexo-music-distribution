@@ -53,7 +53,6 @@ export default async function BlogIndexPage() {
                         className="aspect-[16/9] h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02] md:aspect-auto"
                         loading="lazy"
                         decoding="async"
-                        referrerPolicy="no-referrer"
                       />
                     </div>
                   ) : (
