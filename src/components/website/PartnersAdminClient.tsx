@@ -158,7 +158,7 @@ function PartnerEditor({
   const [pending, start] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
-    name: partner.name,
+    name: partner.name === "Partner" ? "" : partner.name,
     logoUrl: partner.logo_url || "",
     websiteUrl: partner.website_url || "",
     sortOrder: String(partner.sort_order),
@@ -204,7 +204,7 @@ function PartnerEditor({
           )}
         </div>
         <div>
-          <p className="font-medium">{partner.name}</p>
+          <p className="font-medium">{form.name.trim() || "Logo-only partner"}</p>
           <p className="text-caption text-[var(--nexo-text-muted)]">
             {partner.is_active ? "Published live" : "Inactive"} · order {partner.sort_order}
           </p>
