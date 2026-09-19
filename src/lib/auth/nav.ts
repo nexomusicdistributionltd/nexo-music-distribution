@@ -36,6 +36,7 @@ export type NavItem = {
   icon?: NavIconId;
   external?: boolean;
   badge?: "NEW";
+  count?: number;
 };
 
 export type NavSection = {
