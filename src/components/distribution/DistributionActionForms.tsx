@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { DeliveryFailurePanel } from "@/components/distribution/DeliveryFailurePanel";
 import type { DeliveryFailureDiagnosis } from "@/lib/distribution/delivery-diagnostics";
@@ -48,7 +47,6 @@ export function SubmitJobButton({
   jobId: string;
   providerConnected: boolean;
 }) {
-  const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   return (
@@ -67,7 +65,6 @@ export function SubmitJobButton({
                   ? "Distribution Engine authorization required."
                   : r.error
             );
-            router.refresh();
           })
         }
       >
@@ -115,7 +112,6 @@ export function SyncJobButton({
 }
 
 export function RetryJobButton({ jobId }: { jobId: string }) {
-  const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [diagnosis, setDiagnosis] = useState<DeliveryFailureDiagnosis | null>(null);
@@ -134,7 +130,6 @@ export function RetryJobButton({ jobId }: { jobId: string }) {
             } else {
               setDiagnosis(r.diagnosis);
             }
-            router.refresh();
           })
         }
       >
