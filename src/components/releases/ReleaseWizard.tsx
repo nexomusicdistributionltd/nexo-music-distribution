@@ -53,7 +53,6 @@ const ADDITIONAL_DELIVERY_OPTIONS = [
   { key: "trackLibs", label: "Tracklib" },
   { key: "hook", label: "Hook" },
   { key: "lyricfind", label: "LyricFind" },
-  { key: "even", label: "EVEN" },
 ] as const;
 
 type UploadState = {
@@ -234,7 +233,8 @@ export function ReleaseWizard({
       trackLibs: initialAdditional.trackLibs === true,
       hook: initialAdditional.hook === true,
       lyricfind: initialAdditional.lyricfind === true,
-      even: initialAdditional.even === true,
+      // EVEN is account-linked upstream; keep it off until Nexo has a documented connection check.
+      even: false,
     },
     coverSongs: Array.isArray(initialDistribution.coverSongs)
       ? initialDistribution.coverSongs
