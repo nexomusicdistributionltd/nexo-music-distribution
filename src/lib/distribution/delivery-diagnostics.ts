@@ -70,6 +70,25 @@ export function diagnoseDeliveryFailure(message: string): DeliveryFailureDiagnos
     };
   }
 
+  if (
+    includesAny(lower, [
+      "delivery target has been disabled for this release",
+      "please enter the store or additional store",
+      "tiktokstarttime does not match the format",
+    ])
+  ) {
+    return {
+      summary: "Internal delivery routing needs attention",
+      stage,
+      field: "Delivery routing",
+      reason: raw,
+      fix: "Keep the artist metadata unchanged unless it is independently wrong. Adjust the incompatible store/additional-delivery target or Nexo provider formatting internally.",
+      where: "Admin → Distribution Engine / release delivery settings",
+      owner: "system",
+      nextAction: "Fix the internal delivery target or provider payload, then retry distribution. Do not return the release to the artist or label for this error.",
+    };
+  }
+
   if (includesAny(lower, ["language", "locale"])) {
     return {
       summary: "Language metadata was rejected",
