@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { isSafeHttpUrl, sanitizeCmsHtml, slugify } from "@/lib/website/sanitize";
+import { isPublicBrandedEmail } from "@/lib/brand/contact";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data?: T }
@@ -115,14 +116,57 @@ export async function upsertFooterSettingsAction(
   value: Record<string, unknown>
 ): Promise<ActionResult> {
   await RequireAdminPermission("admin:website");
+
+  for (const key of ["contact_email", "inquiries_email", "support_email", "dmca_email"] as const) {
+    const raw = value[key];
+    if (raw == null || raw === "") continue;
+    if (typeof raw !== "string" || !isPublicBrandedEmail(raw)) {
+      return {
+        ok: false,
+        error: `${key.replace(/_/g, " ")} must use a Nexo branded email domain.`,
+      };
+    }
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_upsert_website_setting", {
     p_key: "footer",
     p_value: value,
   });
   if (error) return { ok: false, error: error.message };
+
+  const supportEmail =
+    typeof value.support_email === "string" ? value.support_email.trim().toLowerCase() : "";
+  const dmcaEmail =
+    typeof value.dmca_email === "string" ? value.dmca_email.trim().toLowerCase() : "";
+
+  if (supportEmail && dmcaEmail) {
+    const now = new Date().toISOString();
+    const contactBody = [
+      "<h2>Reach us</h2>",
+      "<p><strong>NEXO MUSIC DISTRIBUTION LTD</strong></p>",
+      '<p>Public website: <a href="https://nexomusicdistribution.com">nexomusicdistribution.com</a></p>',
+      `<p>Artist &amp; label support: <a href="mailto:${supportEmail}">${supportEmail}</a></p>`,
+      `<p>DMCA / copyright notices: <a href="mailto:${dmcaEmail}">${dmcaEmail}</a></p>`,
+      "<p>You can also use the message form on this page.</p>",
+    ].join("");
+
+    const { error: contactError } = await supabase
+      .from("cms_pages")
+      .update({
+        body_html: contactBody,
+        status: "published",
+        published_at: now,
+        updated_at: now,
+      })
+      .eq("slug", "contact");
+    if (contactError) return { ok: false, error: contactError.message };
+  }
+
   revalidatePath("/admin/pages");
   revalidatePath("/admin/website");
+  revalidatePath("/admin/settings");
+  revalidatePath("/contact");
   revalidatePath("/", "layout");
   return { ok: true, data };
 }

@@ -1,203 +1,363 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { ADMIN_SETTING_KEYS, type AdminSettingKey } from "@/lib/admin/settings";
-import { saveAdminSettingAction } from "@/app/admin/actions";
+import { Alert } from "@/components/ui/Alert";
+import {
+  saveAdminSettingAction,
+  savePublicContactMailboxesAction,
+} from "@/app/admin/actions";
 
-type SettingRow = {
-  key: string;
-  value: unknown;
-};
+type SettingRow = { key: string; value: unknown };
 
-const META: Record<
-  AdminSettingKey,
-  { label: string; description: string; group: string; placeholder: string }
-> = {
-  "qc.default_priority": {
-    label: "Default QC priority",
-    description: "Default priority applied to new quality-control work.",
-    group: "Quality control",
-    placeholder: '{"priority":"normal"}',
-  },
-  "qc.auto_claim": {
-    label: "Automatic QC claiming",
-    description: "Controls whether eligible QC work may be automatically claimed.",
-    group: "Quality control",
-    placeholder: '{"enabled":false}',
-  },
-  "support.sla_hours": {
-    label: "Support SLA",
-    description: "Target response window for support operations.",
-    group: "Support & contact",
-    placeholder: '{"hours":24}',
-  },
-  "contact.auto_assign": {
-    label: "Contact auto assignment",
-    description: "Controls automatic assignment of new website contact messages.",
-    group: "Support & contact",
-    placeholder: '{"enabled":false}',
-  },
-  "operations.maintenance_notice": {
-    label: "Maintenance notice",
-    description: "Operational maintenance notice configuration.",
-    group: "Operations",
-    placeholder: '{"enabled":false,"message":""}',
-  },
-  "reports.retention_days": {
-    label: "Report retention",
-    description: "Retention window for generated operational reports.",
-    group: "Operations",
-    placeholder: '{"days":90}',
-  },
-  "finance.min_payout_minor_usd": {
-    label: "Minimum payout",
-    description: "Minimum payout amount in USD minor units.",
-    group: "Finance",
-    placeholder: '{"amount":5000}',
-  },
-  "finance.payouts_enabled": {
-    label: "Payout requests",
-    description: "Master switch for payout-request availability.",
-    group: "Finance",
-    placeholder: '{"enabled":true}',
-  },
-};
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
 
-function valueText(value: unknown, placeholder: string) {
-  if (value === undefined || value === null) return placeholder;
-  return JSON.stringify(value, null, 2);
+function scalar(value: unknown, fallback: string): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return fallback;
+}
+
+function boolFrom(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return fallback;
 }
 
 export function SettingsForm({ settings = [] }: { settings?: SettingRow[] }) {
-  const router = useRouter();
   const stored = React.useMemo(
     () => new Map(settings.map((row) => [row.key, row.value])),
     [settings]
   );
-  const [key, setKey] = React.useState<AdminSettingKey>("qc.default_priority");
-  const [value, setValue] = React.useState(() =>
-    valueText(stored.get("qc.default_priority"), META["qc.default_priority"].placeholder)
-  );
-  const [msg, setMsg] = React.useState<string | null>(null);
-  const [pending, setPending] = React.useState(false);
-  const meta = META[key];
 
-  function choose(next: AdminSettingKey) {
-    setKey(next);
-    setValue(valueText(stored.get(next), META[next].placeholder));
-    setMsg(null);
+  const qcDefault = asObject(stored.get("qc.default_priority"));
+  const qcAuto = asObject(stored.get("qc.auto_claim"));
+  const support = asObject(stored.get("support.sla_hours"));
+  const contact = asObject(stored.get("contact.auto_assign"));
+  const maintenance = asObject(stored.get("operations.maintenance_notice"));
+  const retention = asObject(stored.get("reports.retention_days"));
+
+  const [values, setValues] = React.useState({
+    qcPriority: typeof qcDefault.priority === "string" ? qcDefault.priority : "normal",
+    qcAutoClaim: boolFrom(qcAuto.enabled, false),
+    supportSla: scalar(support.hours, "24"),
+    contactAutoAssign: boolFrom(contact.enabled, false),
+    maintenanceEnabled: boolFrom(maintenance.enabled, false),
+    maintenanceMessage:
+      typeof maintenance.message === "string" ? maintenance.message : "",
+    retentionDays: scalar(retention.days, "90"),
+    minPayoutMinor: scalar(stored.get("finance.min_payout_minor_usd"), "5000"),
+    payoutsEnabled: boolFrom(stored.get("finance.payouts_enabled"), true),
+  });
+
+  const [pending, setPending] = React.useState<string | null>(null);
+  const [message, setMessage] = React.useState<{ key: string; ok: boolean; text: string } | null>(null);
+
+  async function save(key: string, value: string | number | boolean | null | Record<string, string | number | boolean | null>) {
+    if (pending) return;
+    setPending(key);
+    setMessage(null);
+    const result = await saveAdminSettingAction({ key, value });
+    setMessage({
+      key,
+      ok: result.ok,
+      text: result.ok ? "Saved." : result.error,
+    });
+    setPending(null);
   }
 
+  const feedback = (key: string) =>
+    message?.key === key ? (
+      <p className={message.ok ? "text-caption text-[var(--nexo-success)]" : "text-caption text-[var(--nexo-error)]"}>
+        {message.text}
+      </p>
+    ) : null;
+
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.75fr)]">
-      <section className="overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
-        <div className="border-b border-[var(--nexo-border)] px-5 py-4">
-          <h2 className="text-h4">Platform configuration</h2>
-          <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
-            Operational controls are grouped by function. Credentials and API secrets remain server-only.
-          </p>
-        </div>
-        <div className="grid gap-0 sm:grid-cols-2">
-          {ADMIN_SETTING_KEYS.map((settingKey) => {
-            const item = META[settingKey];
-            const configured = stored.has(settingKey);
-            return (
-              <button
-                key={settingKey}
-                type="button"
-                onClick={() => choose(settingKey)}
-                className={[
-                  "border-b border-[var(--nexo-border)] p-4 text-left transition-colors hover:bg-[var(--nexo-ghost-hover)] sm:border-r",
-                  key === settingKey ? "bg-[var(--nexo-elevated)]" : "",
-                ].join(" ")}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-caption uppercase tracking-wide text-[var(--nexo-text-muted)]">
-                      {item.group}
-                    </p>
-                    <p className="mt-1 text-small font-semibold text-[var(--nexo-text)]">
-                      {item.label}
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-[var(--nexo-border)] px-2 py-0.5 text-[10px] font-medium">
-                    {configured ? "Configured" : "Default"}
-                  </span>
-                </div>
-                <p className="mt-2 text-caption text-[var(--nexo-text-muted)]">
-                  {item.description}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <form
-        className="h-fit space-y-4 rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-card)] p-5"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setPending(true);
-          setMsg(null);
-          try {
-            const parsed = JSON.parse(value) as Record<string, unknown>;
-            if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-              setMsg("Value must be a JSON object.");
-              return;
-            }
-            const result = await saveAdminSettingAction({ key, value: parsed });
-            setMsg(result.ok ? "Setting saved." : result.error);
-            if (result.ok) router.refresh();
-          } catch {
-            setMsg("Value must be valid JSON.");
-          } finally {
-            setPending(false);
-          }
-        }}
-      >
-        <div>
-          <p className="text-caption uppercase tracking-wide text-[var(--nexo-text-muted)]">
-            {meta.group}
-          </p>
-          <h2 className="mt-1 text-h4">{meta.label}</h2>
-          <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">{meta.description}</p>
-        </div>
-
-        <label className="block text-caption font-medium">
-          Setting
+    <div className="space-y-6">
+      <SettingsGroup title="Quality control" description="Release-review defaults.">
+        <SettingRow label="Default QC priority" description="Priority applied when no explicit priority is supplied.">
           <Select
-            className="mt-1"
-            value={key}
-            onChange={(event) => choose(event.target.value as AdminSettingKey)}
+            value={values.qcPriority}
+            onChange={(e) => setValues((v) => ({ ...v, qcPriority: e.target.value }))}
           >
-            {ADMIN_SETTING_KEYS.map((settingKey) => (
-              <option key={settingKey} value={settingKey}>
-                {META[settingKey].label}
-              </option>
-            ))}
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
           </Select>
-        </label>
+          <Button
+            variant="secondary"
+            disabled={pending !== null}
+            onClick={() => save("qc.default_priority", { priority: values.qcPriority })}
+          >
+            {pending === "qc.default_priority" ? "Saving…" : "Save"}
+          </Button>
+          {feedback("qc.default_priority")}
+        </SettingRow>
 
-        <label className="block text-caption font-medium">
-          Configuration
-          <Textarea
-            className="mt-1 min-h-36 font-mono text-caption"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder={meta.placeholder}
-            spellCheck={false}
+        <SettingRow label="Automatic QC claiming" description="Controls automatic claiming when the QC workflow supports it.">
+          <ToggleSelect
+            value={values.qcAutoClaim}
+            onChange={(next) => setValues((v) => ({ ...v, qcAutoClaim: next }))}
           />
-        </label>
+          <Button
+            variant="secondary"
+            disabled={pending !== null}
+            onClick={() => save("qc.auto_claim", { enabled: values.qcAutoClaim })}
+          >
+            {pending === "qc.auto_claim" ? "Saving…" : "Save"}
+          </Button>
+          {feedback("qc.auto_claim")}
+        </SettingRow>
+      </SettingsGroup>
 
-        {msg ? <p className="text-caption text-[var(--nexo-text-muted)]">{msg}</p> : null}
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save setting"}
-        </Button>
-      </form>
+      <SettingsGroup title="Support & contact" description="Service-level and website-message workflow controls.">
+        <SettingRow label="Support SLA" description="Target first-response window, in hours.">
+          <Input
+            inputMode="numeric"
+            value={values.supportSla}
+            onChange={(e) => setValues((v) => ({ ...v, supportSla: e.target.value.replace(/\D/g, "") }))}
+          />
+          <Button
+            variant="secondary"
+            disabled={pending !== null || !values.supportSla}
+            onClick={() => save("support.sla_hours", { hours: Number(values.supportSla) })}
+          >
+            {pending === "support.sla_hours" ? "Saving…" : "Save"}
+          </Button>
+          {feedback("support.sla_hours")}
+        </SettingRow>
+
+        <SettingRow label="Website message auto-assignment" description="Controls automatic assignment of new website messages.">
+          <ToggleSelect
+            value={values.contactAutoAssign}
+            onChange={(next) => setValues((v) => ({ ...v, contactAutoAssign: next }))}
+          />
+          <Button
+            variant="secondary"
+            disabled={pending !== null}
+            onClick={() => save("contact.auto_assign", { enabled: values.contactAutoAssign })}
+          >
+            {pending === "contact.auto_assign" ? "Saving…" : "Save"}
+          </Button>
+          {feedback("contact.auto_assign")}
+        </SettingRow>
+      </SettingsGroup>
+
+      <SettingsGroup title="Operations & reports" description="Maintenance communication and report retention.">
+        <SettingRow label="Maintenance notice" description="Keep disabled unless an operational maintenance notice is active.">
+          <ToggleSelect
+            value={values.maintenanceEnabled}
+            onChange={(next) => setValues((v) => ({ ...v, maintenanceEnabled: next }))}
+          />
+          <Textarea
+            rows={3}
+            value={values.maintenanceMessage}
+            onChange={(e) => setValues((v) => ({ ...v, maintenanceMessage: e.target.value }))}
+            placeholder="Maintenance notice text"
+          />
+          <Button
+            variant="secondary"
+            disabled={pending !== null}
+            onClick={() =>
+              save("operations.maintenance_notice", {
+                enabled: values.maintenanceEnabled,
+                message: values.maintenanceMessage.trim(),
+              })
+            }
+          >
+            {pending === "operations.maintenance_notice" ? "Saving…" : "Save"}
+          </Button>
+          {feedback("operations.maintenance_notice")}
+        </SettingRow>
+
+        <SettingRow label="Report retention" description="Retention target for generated reports, in days.">
+          <Input
+            inputMode="numeric"
+            value={values.retentionDays}
+            onChange={(e) => setValues((v) => ({ ...v, retentionDays: e.target.value.replace(/\D/g, "") }))}
+          />
+          <Button
+            variant="secondary"
+            disabled={pending !== null || !values.retentionDays}
+            onClick={() => save("reports.retention_days", { days: Number(values.retentionDays) })}
+          >
+            {pending === "reports.retention_days" ? "Saving…" : "Save"}
+          </Button>
+          {feedback("reports.retention_days")}
+        </SettingRow>
+      </SettingsGroup>
+
+      <SettingsGroup title="Finance" description="Existing payout eligibility controls.">
+        <SettingRow label="Minimum USD payout" description="Amount in cents. Example: 5000 = $50.00.">
+          <Input
+            inputMode="numeric"
+            value={values.minPayoutMinor}
+            onChange={(e) => setValues((v) => ({ ...v, minPayoutMinor: e.target.value.replace(/\D/g, "") }))}
+          />
+          <Button
+            variant="secondary"
+            disabled={pending !== null || !values.minPayoutMinor}
+            onClick={() => save("finance.min_payout_minor_usd", values.minPayoutMinor)}
+          >
+            {pending === "finance.min_payout_minor_usd" ? "Saving…" : "Save"}
+          </Button>
+          {feedback("finance.min_payout_minor_usd")}
+        </SettingRow>
+
+        <SettingRow label="Payout requests" description="Master operational switch used by payout eligibility checks.">
+          <ToggleSelect
+            value={values.payoutsEnabled}
+            onChange={(next) => setValues((v) => ({ ...v, payoutsEnabled: next }))}
+          />
+          <Button
+            variant="secondary"
+            disabled={pending !== null}
+            onClick={() => save("finance.payouts_enabled", String(values.payoutsEnabled))}
+          >
+            {pending === "finance.payouts_enabled" ? "Saving…" : "Save"}
+          </Button>
+          {feedback("finance.payouts_enabled")}
+        </SettingRow>
+      </SettingsGroup>
     </div>
+  );
+}
+
+export function PublicContactSettingsForm({ initial }: { initial: Record<string, unknown> }) {
+  const [form, setForm] = React.useState({
+    contactEmail: scalar(initial.contact_email, "support@nexomusicdistribution.com"),
+    supportEmail: scalar(initial.support_email, "support@nexomusicdistribution.com"),
+    dmcaEmail: scalar(initial.dmca_email, "dmca@nexomusicdistribution.com"),
+    inquiriesEmail: scalar(initial.inquiries_email, "support@nexomusicdistribution.com"),
+  });
+  const [pending, startTransition] = React.useTransition();
+  const [message, setMessage] = React.useState<{ ok: boolean; text: string } | null>(null);
+
+  return (
+    <section className="overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
+      <div className="border-b border-[var(--nexo-border)] bg-[var(--nexo-elevated)]/50 px-5 py-4">
+        <h2 className="text-h4">Public contact mailboxes</h2>
+        <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">
+          Website-facing addresses only. Personal Gmail/Yahoo-style addresses are rejected.
+          SMTP credentials remain server-only.
+        </p>
+      </div>
+      <div className="grid gap-4 p-5 md:grid-cols-2">
+        {([
+          ["contactEmail", "General contact"],
+          ["supportEmail", "Artist & label support"],
+          ["dmcaEmail", "DMCA / copyright notices"],
+          ["inquiriesEmail", "General inquiries"],
+        ] as const).map(([key, label]) => (
+          <label key={key} className="text-caption font-medium">
+            {label}
+            <Input
+              type="email"
+              className="mt-1"
+              value={form[key]}
+              onChange={(e) => setForm((current) => ({ ...current, [key]: e.target.value }))}
+              autoComplete="off"
+            />
+          </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-3 border-t border-[var(--nexo-border)] px-5 py-4">
+        <Button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            setMessage(null);
+            startTransition(async () => {
+              const result = await savePublicContactMailboxesAction(form);
+              setMessage({
+                ok: result.ok,
+                text: result.ok ? "Public mailboxes saved and contact page synchronized." : result.error,
+              });
+            });
+          }}
+        >
+          {pending ? "Saving…" : "Save public mailboxes"}
+        </Button>
+        {message ? (
+          <span className={message.ok ? "text-caption text-[var(--nexo-success)]" : "text-caption text-[var(--nexo-error)]"}>
+            {message.text}
+          </span>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+export function SettingsSecurityNotice() {
+  return (
+    <Alert title="Protected configuration">
+      Provider tokens, SMTP passwords, Supabase service-role keys, database passwords, and API
+      credentials remain in server secret storage. This page controls only non-secret
+      operational settings and public website mailboxes.
+    </Alert>
+  );
+}
+
+function SettingsGroup({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[var(--nexo-radius-lg)] border border-[var(--nexo-border)] bg-[var(--nexo-surface)]">
+      <div className="border-b border-[var(--nexo-border)] bg-[var(--nexo-elevated)]/50 px-5 py-4">
+        <h2 className="text-h4">{title}</h2>
+        <p className="mt-1 text-caption text-[var(--nexo-text-muted)]">{description}</p>
+      </div>
+      <div className="divide-y divide-[var(--nexo-border)]">{children}</div>
+    </section>
+  );
+}
+
+function SettingRow({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] lg:items-start">
+      <div>
+        <p className="font-medium text-[var(--nexo-text)]">{label}</p>
+        <p className="mt-1 max-w-2xl text-caption text-[var(--nexo-text-muted)]">{description}</p>
+      </div>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function ToggleSelect({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <Select value={value ? "true" : "false"} onChange={(e) => onChange(e.target.value === "true")}>
+      <option value="true">Enabled</option>
+      <option value="false">Disabled</option>
+    </Select>
   );
 }
