@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import type { AdminPermission } from "@/lib/admin/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { after } from "next/server";
+import { randomUUID } from "node:crypto";
+import { processEmailEvent } from "@/lib/email/outbox";
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -170,6 +174,49 @@ export async function addOpsEvidenceAction(formData: FormData) {
     added_by: ctx.userId,
   });
   if (error) throw new Error(error.message);
+  revalidateOps();
+}
+
+export async function uploadOpsEvidenceAction(formData: FormData) {
+  const caseId = uuidOrNull(text(formData, "case_id"));
+  const label = text(formData, "label");
+  const file = formData.get("file");
+  if (!caseId || !label || !(file instanceof File) || file.size <= 0) return;
+  if (file.size > 50 * 1024 * 1024) throw new Error("Evidence file must be 50 MB or smaller.");
+  const allowed = new Set([
+    "application/pdf","image/jpeg","image/png","image/webp","audio/mpeg","audio/wav","text/plain",
+  ]);
+  if (!allowed.has(file.type)) throw new Error("Unsupported evidence file type.");
+  const caseType = await caseTypeForId(caseId);
+  if (!caseType) return;
+  const ctx = await requireCasePermission(caseType);
+  const service = createServiceClient();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(-120) || "evidence";
+  const path = `ops-cases/${caseId}/${randomUUID()}-${safeName}`;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { error: uploadError } = await service.storage.from("compliance-evidence").upload(path, bytes, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (uploadError) throw new Error(uploadError.message);
+  const { error: insertError } = await service.from("admin_ops_case_evidence").insert({
+    case_id: caseId,
+    label,
+    storage_path: path,
+    mime_type: file.type,
+    notes: text(formData, "notes") || null,
+    added_by: ctx.userId,
+  });
+  if (insertError) {
+    await service.storage.from("compliance-evidence").remove([path]);
+    throw new Error(insertError.message);
+  }
+  await service.from("admin_ops_case_events").insert({
+    case_id: caseId,
+    event_type: "evidence_added",
+    message: `Evidence uploaded: ${safeName}`,
+    actor_user_id: ctx.userId,
+  });
   revalidateOps();
 }
 
