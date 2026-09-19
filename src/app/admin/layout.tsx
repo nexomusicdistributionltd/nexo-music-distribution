@@ -1,10 +1,11 @@
 import { navSectionsForRoles } from "@/lib/auth/nav";
+import { applyNavBadgeCounts, navCountForHref } from "@/lib/auth/nav-badges";
+import { getNavBadgeCounts } from "@/lib/auth/nav-badges.server";
 import { getEffectiveAdminPermissionsForContext } from "@/lib/admin/staff-access";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { AppTopbar } from "@/components/app/AppTopbar";
 import { RealtimeRefresh } from "@/components/notifications/RealtimeRefresh";
 import { RequireAdmin } from "@/lib/auth/guards";
-import { countUnreadNotifications } from "@/lib/releases/queries";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +20,18 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const ctx = await RequireAdmin();
-  const permissions = await getEffectiveAdminPermissionsForContext(ctx);
-  const sections = navSectionsForRoles(ctx.roles, permissions);
+  const [permissions, badgeCounts] = await Promise.all([
+    getEffectiveAdminPermissionsForContext(ctx),
+    getNavBadgeCounts(),
+  ]);
+  const sections = applyNavBadgeCounts(
+    navSectionsForRoles(ctx.roles, permissions),
+    badgeCounts
+  );
   const displayName =
     ctx.profile?.display_name || ctx.profile?.full_name || ctx.email || "Admin";
-  const unread = await countUnreadNotifications(ctx.userId).catch(() => 0);
+  const unread = navCountForHref(badgeCounts, "/admin/notifications");
+  const unreadMessages = navCountForHref(badgeCounts, "/admin/support");
 
   return (
     <div className="flex min-h-screen bg-[var(--nexo-bg)]">
@@ -44,6 +52,7 @@ export default async function AdminLayout({
           logoHref="/admin"
           showSearch
           unreadNotifications={unread}
+          unreadMessages={unreadMessages}
           notificationsHref="/admin/notifications"
           messagesHref="/admin/support"
         />

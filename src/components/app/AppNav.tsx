@@ -105,6 +105,7 @@ function NavGroup({
 }) {
   const hasActive = section.items.some((item) => isNavActive(pathname, item.href));
   const collapsible = Boolean(section.collapsible && section.items.length > 1);
+  const sectionCount = section.items.reduce((sum, item) => sum + (item.count ?? 0), 0);
   const [open, setOpen] = React.useState(hasActive || !collapsible);
 
   React.useEffect(() => {
@@ -137,7 +138,10 @@ function NavGroup({
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          <span>{section.label}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate">{section.label}</span>
+            {sectionCount > 0 ? <CountBadge count={sectionCount} compact /> : null}
+          </span>
           <span className="text-[0.7rem]" aria-hidden>
             {open ? "–" : "+"}
           </span>
@@ -192,7 +196,28 @@ function NavLink({
       aria-current={active ? "page" : undefined}
     >
       <Icon id={item.icon} className="h-3.5 w-3.5 shrink-0 opacity-80" />
-      <span className="truncate">{item.label}</span>
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {item.badge === "NEW" ? (
+        <span className="rounded-full bg-[#1f6b3a] px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-white">
+          NEW
+        </span>
+      ) : null}
+      {(item.count ?? 0) > 0 ? <CountBadge count={item.count ?? 0} /> : null}
     </Link>
+  );
+}
+
+function CountBadge({ count, compact = false }: { count: number; compact?: boolean }) {
+  const label = count > 99 ? "99+" : String(count);
+  return (
+    <span
+      aria-label={`${count} item${count === 1 ? "" : "s"} requiring attention`}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-red-600 font-semibold leading-none text-white",
+        compact ? "min-w-4 px-1 py-0.5 text-[0.58rem]" : "min-w-5 px-1.5 py-1 text-[0.62rem]"
+      )}
+    >
+      {label}
+    </span>
   );
 }

@@ -19,6 +19,7 @@ export function AppTopbar({
   workspaceKind = "artist",
   logoHref = "/dashboard",
   unreadNotifications = 0,
+  unreadMessages = 0,
   showSearch = false,
   notificationsHref,
   messagesHref,
@@ -29,6 +30,7 @@ export function AppTopbar({
   workspaceKind?: WorkspaceKind;
   logoHref?: string;
   unreadNotifications?: number;
+  unreadMessages?: number;
   showSearch?: boolean;
   notificationsHref?: string;
   messagesHref?: string;
@@ -85,7 +87,7 @@ export function AppTopbar({
             </HeaderIconLink>
           ) : null}
           {messagesHref ? (
-            <HeaderIconLink href={messagesHref} label="Messages">
+            <HeaderIconLink href={messagesHref} label="Messages" badge={unreadMessages}>
               <MessageSquare className="h-4 w-4" />
             </HeaderIconLink>
           ) : null}
@@ -183,7 +185,9 @@ function HeaderIconLink({
     >
       {children}
       {badge > 0 ? (
-        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[var(--nexo-text)]" />
+        <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[0.58rem] font-bold leading-none text-white shadow-sm">
+          {badge > 99 ? "99+" : badge}
+        </span>
       ) : null}
     </Link>
   );

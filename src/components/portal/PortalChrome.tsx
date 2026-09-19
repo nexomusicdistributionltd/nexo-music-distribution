@@ -19,6 +19,7 @@ export function PortalChrome({
   displayName,
   workspaceKind,
   unreadNotifications = 0,
+  unreadMessages = 0,
   labelName,
   identityVerified = false,
 }: {
@@ -27,6 +28,7 @@ export function PortalChrome({
   displayName: string;
   workspaceKind: Exclude<WorkspaceKind, "admin">;
   unreadNotifications?: number;
+  unreadMessages?: number;
   labelName?: string | null;
   identityVerified?: boolean;
 }) {
@@ -105,15 +107,22 @@ export function PortalChrome({
         >
           <Bell className="h-4 w-4" />
           {unreadNotifications > 0 ? (
-            <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[var(--nexo-text)]" />
+            <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[0.58rem] font-bold leading-none text-white shadow-sm">
+              {unreadNotifications > 99 ? "99+" : unreadNotifications}
+            </span>
           ) : null}
         </Link>
         <Link
           href="/support"
-          aria-label="Messages"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--nexo-radius-sm)] text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)]"
+          aria-label={unreadMessages ? `Messages (${unreadMessages} active)` : "Messages"}
+          className="relative inline-flex h-9 w-9 items-center justify-center rounded-[var(--nexo-radius-sm)] text-[var(--nexo-text-secondary)] hover:bg-[var(--nexo-ghost-hover)]"
         >
           <MessageSquare className="h-4 w-4" />
+          {unreadMessages > 0 ? (
+            <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[0.58rem] font-bold leading-none text-white shadow-sm">
+              {unreadMessages > 99 ? "99+" : unreadMessages}
+            </span>
+          ) : null}
         </Link>
         <button
           type="button"

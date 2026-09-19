@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { sanitizeCmsHtml, slugify } from "@/lib/website/sanitize";
+import { isSafeHttpUrl, sanitizeCmsHtml, slugify } from "@/lib/website/sanitize";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data?: T }
@@ -240,13 +240,17 @@ export async function upsertBlogPostAction(input: {
   const supabase = await createClient();
   const slug = slugify(input.slug || input.title);
   const body = sanitizeCmsHtml(input.bodyHtml);
+  const coverImageUrl = input.coverImageUrl?.trim() || null;
+  if (coverImageUrl && !isSafeHttpUrl(coverImageUrl)) {
+    return { ok: false, error: "Cover image must use a valid HTTPS or HTTP URL." };
+  }
   const row: Record<string, unknown> = {
     title: input.title.trim(),
     slug,
     excerpt: input.excerpt?.trim() || null,
     body_html: body,
     status: input.status,
-    cover_image_url: input.coverImageUrl?.trim() || null,
+    cover_image_url: coverImageUrl,
     tags: input.tags ?? [],
     published_at:
       input.status === "published" ? new Date().toISOString() : null,
