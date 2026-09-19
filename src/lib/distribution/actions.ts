@@ -529,15 +529,53 @@ export async function reinstateReleaseAction(
 
 export async function retryFailedJob(jobId: string): Promise<DistActionResult> {
   const key = `retry:${jobId}:${Date.now()}`;
-  // Re-queue by setting status via submit path — require staff RPC begin after resetting
   const supabase = await createClient();
+
   const { data: job } = await supabase
     .from("distribution_jobs")
     .select("release_id, status")
     .eq("id", jobId)
     .maybeSingle();
-  if (!job) return { ok: false, error: "Job not found" };
-  if (job.status !== "failed") return { ok: false, error: "Only failed jobs can be retried" };
+
+  if (!job) return { ok: false, error: "Distribution job not found." };
+  if (job.status !== "failed") {
+    return { ok: false, error: "Only failed delivery jobs can be retried." };
+  }
+
+  // Keep the failed job intact until local/provider-connection preflight passes.
+  // This prevents a retry from disappearing into a queued state when nothing
+  // was actually sent upstream.
+  const state = await getProviderConnectionState();
+  const provider = getProvider();
+  if (!state.connected || !provider.connected) {
+    return {
+      ok: false,
+      error:
+        "Distribution Engine authorization is unavailable. Reconnect it from the secure admin integration before retrying.",
+      code: PROVIDER_NOT_CONNECTED_CODE,
+    };
+  }
+
+  const { data: release, error: releaseError } = await supabase
+    .from("releases")
+    .select("*, release_tracks(*), release_assets(*), release_contributors(*)")
+    .eq("id", job.release_id)
+    .maybeSingle();
+
+  if (releaseError) return { ok: false, error: releaseError.message };
+  if (!release) return { ok: false, error: "Release not found." };
+
+  const providerPayload = providerPayloadFromRelease(
+    release as unknown as DistributionReleaseRecord
+  );
+  const preflightError = validateProviderPayloadBeforeAttempt(providerPayload);
+  if (preflightError) {
+    return {
+      ok: false,
+      error: preflightError,
+      code: PROVIDER_DELIVERY_VALIDATION_CODE,
+    };
+  }
 
   const queued = await queueApprovedRelease(job.release_id, "Retry after failure");
   if (!queued.ok) return queued;
