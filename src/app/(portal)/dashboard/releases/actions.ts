@@ -991,6 +991,51 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
     return { ok: false, error: `Cannot submit from status ${release.status}.` };
   }
 
+  const currentSettings =
+    release.distribution_settings &&
+    typeof release.distribution_settings === "object" &&
+    !Array.isArray(release.distribution_settings)
+      ? { ...(release.distribution_settings as Record<string, unknown>) }
+      : {};
+
+  const preorderEnabled = currentSettings.applePreorder === true;
+  const preorderDate =
+    typeof currentSettings.applePreorderDate === "string"
+      ? currentSettings.applePreorderDate.trim()
+      : "";
+  if (preorderEnabled && !preorderDate) {
+    currentSettings.applePreorder = false;
+    delete currentSettings.applePreorderDate;
+    const { error: normalizeError } = await supabase
+      .from("releases")
+      .update({ distribution_settings: currentSettings })
+      .eq("id", releaseId)
+      .eq("owner_user_id", ctx.userId);
+    if (normalizeError) return { ok: false, error: normalizeError.message };
+    release.distribution_settings = currentSettings;
+  }
+
+  const licenseType =
+    typeof currentSettings.licenseType === "string"
+      ? currentSettings.licenseType.trim().toLowerCase()
+      : "";
+  const licenseInfo =
+    typeof currentSettings.licenseInfo === "string"
+      ? currentSettings.licenseInfo.trim()
+      : "";
+  if (
+    ["creative commons", "creative_commons", "creative-commons", "cc"].includes(
+      licenseType
+    ) &&
+    !licenseInfo
+  ) {
+    return {
+      ok: false,
+      error:
+        "Creative Commons requires a CC 3.0 license clause. Add it in Rights → License / clearance information, or choose Copyright before submitting to QC.",
+    };
+  }
+
   const [{ data: tracks }, { data: assets }, { data: contributors }] = await Promise.all([
     supabase.from("release_tracks").select("*").eq("release_id", releaseId),
     supabase.from("release_assets").select("*").eq("release_id", releaseId),
