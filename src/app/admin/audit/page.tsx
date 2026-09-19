@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { listAuditLogs } from "@/lib/admin/queries";
+import { normalizePageNumber } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Audit log",
@@ -17,13 +19,22 @@ export default async function AuditPage({
 }) {
   await RequireAdmin();
   const sp = await searchParams;
-  const page = Number(sp.page || 1);
+  const page = normalizePageNumber(sp.page);
   const { items, total, pageCount } = await listAuditLogs({
     page,
     fromDate: sp.from,
     toDate: sp.to,
     action: sp.action,
   });
+
+  if (total > 0 && page > pageCount) {
+    const params = new URLSearchParams();
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
+    if (sp.action) params.set("action", sp.action);
+    if (pageCount > 1) params.set("page", String(pageCount));
+    redirect(params.size ? `/admin/audit?${params.toString()}` : "/admin/audit");
+  }
 
   return (
     <div>
@@ -77,11 +88,12 @@ export default async function AuditPage({
           ))}
         </ul>
       )}
-      <div className="mt-3 flex justify-between text-caption text-[var(--nexo-text-muted)]">
-        <span>
-          Page {page} / {pageCount}
-        </span>
-        <div className="flex gap-2">
+      {pageCount > 1 ? (
+        <div className="mt-3 flex justify-between text-caption text-[var(--nexo-text-muted)]">
+          <span>
+            Page {page} / {pageCount}
+          </span>
+          <div className="flex gap-2">
           {page > 1 ? (
             <Link
               href={`/admin/audit?page=${page - 1}${sp.from ? `&from=${sp.from}` : ""}${sp.to ? `&to=${sp.to}` : ""}`}
@@ -96,8 +108,9 @@ export default async function AuditPage({
               Next
             </Link>
           ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

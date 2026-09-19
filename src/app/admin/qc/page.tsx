@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -11,6 +12,7 @@ import { adminListErrorMessage } from "@/lib/db/admin-query";
 import { QcQueueActions } from "@/components/admin/QcQueueActions";
 import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
 import { cn } from "@/lib/utils";
+import { normalizePageNumber } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "QC queue",
@@ -38,9 +40,17 @@ export default async function QcQueuePage({
     priority: sp.priority,
     assigned,
     userId: ctx.userId,
-    page: Number(sp.page || 1),
+    page: normalizePageNumber(sp.page),
   });
   const pageCount = Math.max(1, Math.ceil(total / 25));
+  if (!loadError && total > 0 && page > pageCount) {
+    const params = new URLSearchParams();
+    if (sp.status) params.set("status", sp.status);
+    if (sp.priority) params.set("priority", sp.priority);
+    if (assigned !== "all") params.set("assigned", assigned);
+    if (pageCount > 1) params.set("page", String(pageCount));
+    redirect(params.size ? `/admin/qc?${params.toString()}` : "/admin/qc");
+  }
 
   const chips: Array<[string, string, boolean]> = [
     ["/admin/qc?status=all", "All open", !sp.status || sp.status === "all"],
@@ -102,7 +112,8 @@ export default async function QcQueuePage({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-caption text-[var(--nexo-text-muted)]">
-              {total} item{total === 1 ? "" : "s"} · page {page}
+              {total} item{total === 1 ? "" : "s"}
+              {pageCount > 1 ? ` · page ${page} of ${pageCount}` : ""}
             </p>
             <QcQueueActions items={items.map((i: { id: string }) => i.id)} />
           </div>

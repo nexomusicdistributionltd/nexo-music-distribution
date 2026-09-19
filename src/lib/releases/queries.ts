@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeReleaseSearchQuery } from "./safe-update";
+import { normalizePageNumber, normalizePageSize } from "@/lib/pagination";
 import type {
   NotificationRow,
   ReleaseAssetRow,
@@ -55,8 +56,8 @@ export async function getReleaseCounts(userId: string) {
 
 export async function listReleases(userId: string, filters: ReleaseListFilters = {}) {
   const supabase = await createClient();
-  const page = Math.max(1, filters.page ?? 1);
-  const pageSize = Math.min(50, Math.max(1, filters.pageSize ?? 20));
+  const page = normalizePageNumber(filters.page);
+  const pageSize = normalizePageSize(filters.pageSize, 20, 50);
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   const sort = filters.sort ?? "updated_at";

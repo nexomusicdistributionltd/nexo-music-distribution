@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { ReleaseCatalogTable } from "@/components/releases/ReleaseCatalogTable";
@@ -10,6 +11,7 @@ import { mapArtworkUrls } from "@/lib/releases/artwork";
 import type { ReleaseStatus } from "@/lib/releases/types";
 import { RELEASE_STATUSES } from "@/lib/releases/types";
 import { buildQueryHref } from "@/components/workspace/QueryPagination";
+import { normalizePageNumber } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Admin releases",
@@ -24,7 +26,7 @@ export default async function AdminReleasesPage({
   await RequireAdmin();
   const sp = await searchParams;
   const status = (sp.status as ReleaseStatus | "all" | undefined) ?? "all";
-  const page = Number(sp.page || 1);
+  const page = normalizePageNumber(sp.page);
   let items: Awaited<ReturnType<typeof listAdminReleases>>["items"] = [];
   let total = 0;
   let pageCount = 1;
@@ -45,10 +47,14 @@ export default async function AdminReleasesPage({
     loadError = e instanceof Error ? e.message : "Could not load releases.";
   }
 
+  const query = { q: sp.q, status, from: sp.from, to: sp.to };
+  if (!loadError && total > 0 && page > pageCount) {
+    redirect(buildQueryHref("/admin/releases", query, { page: pageCount }));
+  }
+
   const artwork = await mapArtworkUrls(items.map((r: { id: string }) => r.id)).catch(
     () => ({} as Record<string, string | null>)
   );
-  const query = { q: sp.q, status, from: sp.from, to: sp.to };
 
   return (
     <div className="space-y-6">

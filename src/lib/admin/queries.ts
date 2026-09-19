@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sanitizeAdminSearchQuery, type AdminSearchEntity } from "./search";
 import type { ReleaseStatus } from "@/lib/releases/types";
 import { adminListErrorMessage } from "@/lib/db/admin-query";
+import { normalizePageNumber, normalizePageSize } from "@/lib/pagination";
 
 export async function getAdminOperationalCounts() {
   const supabase = await createClient();
@@ -64,8 +65,8 @@ export async function listAdminReleases(filters: {
   toDate?: string;
 }) {
   const supabase = await createClient();
-  const page = Math.max(1, filters.page ?? 1);
-  const pageSize = Math.min(50, Math.max(1, filters.pageSize ?? 20));
+  const page = normalizePageNumber(filters.page);
+  const pageSize = normalizePageSize(filters.pageSize, 20, 50);
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -115,7 +116,7 @@ export async function listQcQueue(filters: {
   page?: number;
 }) {
   const supabase = await createClient();
-  const page = Math.max(1, filters.page ?? 1);
+  const page = normalizePageNumber(filters.page);
   const pageSize = 25;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -257,8 +258,8 @@ export async function listAuditLogs(filters: {
   action?: string;
 }) {
   const supabase = await createClient();
-  const page = Math.max(1, filters.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, filters.pageSize ?? 50));
+  const page = normalizePageNumber(filters.page);
+  const pageSize = normalizePageSize(filters.pageSize, 50, 100);
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   let query = supabase

@@ -8,6 +8,7 @@ import { formatMinorUnits, toTransactionKind } from "@/lib/finance/money";
 import { FinanceNav } from "@/components/finance/FinanceNav";
 import type { MoneyEntryKind } from "@/lib/finance/money";
 import { unwrapAdminList } from "@/lib/db/admin-query";
+import { normalizePageNumber } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Royalty ledger",
@@ -21,7 +22,7 @@ export default async function RoyaltyLedgerPage({
 }) {
   await RequireAdmin();
   const sp = (await searchParams) ?? {};
-  const page = Math.max(1, Number(sp.page ?? "1") || 1);
+  const page = normalizePageNumber(sp.page);
   const pageSize = 50;
   const from = (page - 1) * pageSize;
   const supabase = await createClient();

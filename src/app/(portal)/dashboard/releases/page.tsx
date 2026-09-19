@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ReleaseCatalogTable } from "@/components/releases/ReleaseCatalogTable";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -11,6 +12,7 @@ import { listReleases } from "@/lib/releases/queries";
 import type { ReleaseStatus } from "@/lib/releases/types";
 import { RELEASE_STATUSES } from "@/lib/releases/types";
 import { buildQueryHref } from "@/components/workspace/QueryPagination";
+import { normalizePageNumber } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Releases",
@@ -29,7 +31,7 @@ export default async function ReleasesPage({
   const type = typeof sp.type === "string" ? sp.type : "all";
   const sort = typeof sp.sort === "string" ? sp.sort : "updated_at";
   const order = typeof sp.order === "string" ? sp.order : "desc";
-  const page = Number(typeof sp.page === "string" ? sp.page : "1") || 1;
+  const page = normalizePageNumber(typeof sp.page === "string" ? sp.page : undefined);
 
   let items: Awaited<ReturnType<typeof listReleases>>["items"] = [];
   let pageCount = 1;
@@ -55,8 +57,12 @@ export default async function ReleasesPage({
     loadError = e instanceof Error ? e.message : "Could not load catalog.";
   }
 
-  const artwork = await mapArtworkUrls(items.map((r) => r.id)).catch(() => ({} as Record<string, string | null>));
   const query = { q, status, type, sort, order };
+  if (!loadError && total > 0 && page > pageCount) {
+    redirect(buildQueryHref("/dashboard/releases", query, { page: pageCount }));
+  }
+
+  const artwork = await mapArtworkUrls(items.map((r) => r.id)).catch(() => ({} as Record<string, string | null>));
 
   return (
     <div className="space-y-6">
