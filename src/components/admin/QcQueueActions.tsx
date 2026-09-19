@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import {
   bulkClaimQc,
@@ -17,7 +16,6 @@ export function QcQueueActions({
   items: string[];
   single?: boolean;
 }) {
-  const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [msg, setMsg] = React.useState<string | null>(null);
 
@@ -26,9 +24,9 @@ export function QcQueueActions({
     setMsg(null);
     try {
       await fn();
-      router.refresh();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
+    } finally {
       setPending(false);
     }
   }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
@@ -16,7 +15,6 @@ export function PostApprovalReviewForm({
   initialReason?: string;
   alreadyDeclined?: boolean;
 }) {
-  const router = useRouter();
   const [reason, setReason] = useState(initialReason);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +34,6 @@ export function PostApprovalReviewForm({
           ? "Correction reason updated and sent to the artist or label."
           : "Release declined and returned for correction."
       );
-      router.refresh();
     });
   }
 

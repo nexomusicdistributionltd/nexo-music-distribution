@@ -673,8 +673,13 @@ export function ReleaseWizard({
     setBusy(true);
     try {
       if (step === 0) {
+        const alreadyPersisted = Boolean(releaseId);
         const id = await ensureDraft();
-        await updateReleaseInfo(id, { release_type: type });
+        // New drafts are created with the selected release type already. Avoid
+        // a second Server Action/network roundtrip on the very first Continue.
+        if (alreadyPersisted) {
+          await updateReleaseInfo(id, { release_type: type });
+        }
       } else if (step === 1) {
         const id = await ensureDraft();
         await saveInfo(id);
@@ -689,7 +694,6 @@ export function ReleaseWizard({
         await saveInfo(id);
       }
       setStep((s) => Math.min(s + 1, STEPS.length - 1));
-      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save step");
     } finally {
@@ -858,7 +862,6 @@ export function ReleaseWizard({
       setUploadState((current) =>
         current ? { ...current, percent: 100, status: "success" } : current
       );
-      router.refresh();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Upload failed";
       setError(message);
@@ -904,7 +907,6 @@ export function ReleaseWizard({
         id,
         title: info.title.trim() || res.data.title || "Your release",
       });
-      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Submit failed");
     } finally {

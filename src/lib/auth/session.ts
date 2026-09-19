@@ -3,50 +3,129 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppRole, AuthUserContext, Profile } from "@/lib/auth/types";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-const readAuthContext = cache(async (): Promise<AuthUserContext | null> => {
-  const { configured } = getSupabaseEnv();
-  if (!configured) return null;
+const APP_ROLES = new Set<AppRole>([
+  "public_user",
+  "artist",
+  "label",
+  "support",
+  "admin",
+  "super_admin",
+]);
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type RequestGuardRpc = {
+  profile?: Profile | null;
+  roles?: unknown;
+  otp_verified?: boolean;
+  identity_status?: string | null;
+};
 
-  if (!user) return null;
+export type AuthGuardBundle = {
+  ctx: AuthUserContext | null;
+  otpVerified: boolean;
+  identityStatus: string | null;
+};
 
-  const [{ data: profile }, { data: roleRows }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-    supabase.from("user_roles").select("role").eq("user_id", user.id),
-  ]);
-
-  const roles = (roleRows ?? []).map((r) => r.role as AppRole);
-  const primaryRole =
+function primaryRoleFor(roles: AppRole[]): AppRole | null {
+  return (
     roles.find((r) => r === "super_admin") ??
     roles.find((r) => r === "admin") ??
     roles.find((r) => r === "support") ??
     roles.find((r) => r === "label") ??
     roles.find((r) => r === "artist") ??
     roles[0] ??
-    null;
+    null
+  );
+}
 
-  return {
+const readAuthGuardBundle = cache(async (): Promise<AuthGuardBundle> => {
+  const { configured } = getSupabaseEnv();
+  if (!configured) {
+    return { ctx: null, otpVerified: false, identityStatus: null };
+  }
+
+  const supabase = await createClient();
+
+  // Run the trusted auth check and the current-user guard snapshot together.
+  // We never trust the RPC alone: a valid auth.getUser() result is still
+  // required before any user context is returned.
+  const [authResult, guardResult] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.rpc("nexo_request_guard_context"),
+  ]);
+
+  const user = authResult.data.user;
+  if (!user) {
+    return { ctx: null, otpVerified: false, identityStatus: null };
+  }
+
+  let profile: Profile | null = null;
+  let roles: AppRole[] = [];
+  let otpVerified = false;
+  let identityStatus: string | null = null;
+
+  if (!guardResult.error && guardResult.data && typeof guardResult.data === "object") {
+    const guard = guardResult.data as RequestGuardRpc;
+    profile = (guard.profile as Profile | null | undefined) ?? null;
+    roles = Array.isArray(guard.roles)
+      ? guard.roles.filter(
+          (value): value is AppRole =>
+            typeof value === "string" && APP_ROLES.has(value as AppRole)
+        )
+      : [];
+    otpVerified = guard.otp_verified === true;
+    identityStatus =
+      typeof guard.identity_status === "string" ? guard.identity_status : null;
+  } else {
+    // Safe compatibility fallback for local/dev environments that have not
+    // applied the performance migration yet. These run in parallel.
+    const [{ data: profileRow }, { data: roleRows }, { data: otpOk }, { data: identity }] =
+      await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", user.id),
+        supabase.rpc("nexo_login_otp_verified"),
+        supabase
+          .from("identity_verifications")
+          .select("status")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+
+    profile = (profileRow as Profile | null) ?? null;
+    roles = (roleRows ?? [])
+      .map((row) => row.role as AppRole)
+      .filter((role) => APP_ROLES.has(role));
+    otpVerified = otpOk === true;
+    identityStatus =
+      typeof identity?.status === "string" ? identity.status : null;
+  }
+
+  const ctx: AuthUserContext = {
     userId: user.id,
     email: user.email ?? profile?.email ?? "",
     emailVerified: Boolean(user.email_confirmed_at),
-    profile: (profile as Profile | null) ?? null,
+    profile,
     roles,
-    primaryRole,
+    primaryRole: primaryRoleFor(roles),
   };
+
+  return { ctx, otpVerified, identityStatus };
 });
 
 /**
- * Request-scoped auth context.
+ * Request-scoped auth + authorization guard snapshot.
  *
- * React cache prevents layouts/pages rendered in the same RSC request from
- * repeating auth.getUser + profile + role queries.
+ * The normal path is two parallel network calls total:
+ * - Supabase auth.getUser() for authoritative authentication
+ * - one RPC for profile + roles + OTP + identity state
+ *
+ * This replaces several serial database roundtrips on every Server Action.
  */
+export async function getAuthGuardBundle(): Promise<AuthGuardBundle> {
+  return readAuthGuardBundle();
+}
+
 export async function getAuthContext(): Promise<AuthUserContext | null> {
-  return readAuthContext();
+  return (await readAuthGuardBundle()).ctx;
 }
 
 export async function writeAudit(

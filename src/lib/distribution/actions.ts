@@ -274,6 +274,46 @@ function validateProviderPayloadBeforeAttempt(payload: ProviderReleasePayload): 
   return null;
 }
 
+export async function validateReleaseForDistributionLocally(
+  releaseId: string
+): Promise<DistActionResult<{ ready: true }>> {
+  const supabase = await createClient();
+  const state = await getProviderConnectionState();
+  const provider = getProvider();
+
+  if (!state.connected || !provider.connected) {
+    return {
+      ok: false,
+      error:
+        "Distribution Engine authorization is unavailable. Reconnect it from the secure admin integration before approval.",
+      code: PROVIDER_NOT_CONNECTED_CODE,
+    };
+  }
+
+  const { data: release, error: releaseError } = await supabase
+    .from("releases")
+    .select("*, release_tracks(*), release_assets(*), release_contributors(*)")
+    .eq("id", releaseId)
+    .maybeSingle();
+
+  if (releaseError) return { ok: false, error: releaseError.message };
+  if (!release) return { ok: false, error: "Release not found." };
+
+  const payload = providerPayloadFromRelease(
+    release as unknown as DistributionReleaseRecord
+  );
+  const localError = validateProviderPayloadBeforeAttempt(payload);
+  if (localError) {
+    return {
+      ok: false,
+      error: localError,
+      code: PROVIDER_DELIVERY_VALIDATION_CODE,
+    };
+  }
+
+  return { ok: true, data: { ready: true } };
+}
+
 export async function preflightReleaseForDistribution(
   releaseId: string
 ): Promise<DistActionResult<{ providerReleaseId: string }>> {
