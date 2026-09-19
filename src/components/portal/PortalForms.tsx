@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -22,7 +21,6 @@ import type { SplitShareInput } from "@/lib/finance/splits";
 import { formatMinorUnits, parseMajorUnitsToMinor, currencyFractionDigits } from "@/lib/finance/money";
 
 function usePendingAction() {
-  const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState(false);
@@ -39,7 +37,6 @@ function usePendingAction() {
     }
     form?.reset();
     setOk(true);
-    router.refresh();
   }
   return { pending, error, ok, run };
 }
