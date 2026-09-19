@@ -120,7 +120,7 @@ export function normalizeProviderMinuteSecond(
   if (!match) return undefined;
   const minutes = Number(match[1]);
   if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) return undefined;
-  return `${String(minutes).padStart(2, "0")}:${match[2]}`;
+  return `${minutes}:${match[2]}`;
 }
 
 export function normalizeProviderDate(value: string | null | undefined): string | undefined {
