@@ -9,10 +9,11 @@ import {
 } from "./metadata-normalization";
 
 describe("TooLost outbound metadata normalization", () => {
-  it("maps Nexo license labels to provider values", () => {
-    expect(normalizeProviderLicenseType("Copyright")).toBe("(c)");
-    expect(normalizeProviderLicenseType("Creative Commons")).toBe("cc");
-    expect(normalizeProviderLicenseType("(c)")).toBe("(c)");
+  it("omits provider-default Copyright and preserves Creative Commons for API metadata", () => {
+    expect(normalizeProviderLicenseType("Copyright")).toBeUndefined();
+    expect(normalizeProviderLicenseType("(c)")).toBeUndefined();
+    expect(normalizeProviderLicenseType("Creative Commons")).toBe("Creative Commons");
+    expect(normalizeProviderLicenseType("cc")).toBe("Creative Commons");
   });
 
   it("normalizes common language names and whitespace", () => {
