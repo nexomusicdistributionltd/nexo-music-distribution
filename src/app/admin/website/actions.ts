@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { RequireAdminPermission } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { isSafeHttpUrl, sanitizeCmsHtml, slugify } from "@/lib/website/sanitize";
+import { isPublicBrandedEmail } from "@/lib/brand/contact";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data?: T }
@@ -115,6 +116,18 @@ export async function upsertFooterSettingsAction(
   value: Record<string, unknown>
 ): Promise<ActionResult> {
   await RequireAdminPermission("admin:website");
+
+  for (const key of ["contact_email", "inquiries_email", "support_email", "dmca_email"] as const) {
+    const raw = value[key];
+    if (raw == null || raw === "") continue;
+    if (typeof raw !== "string" || !isPublicBrandedEmail(raw)) {
+      return {
+        ok: false,
+        error: `${key.replace(/_/g, " ")} must use a Nexo branded email domain.`,
+      };
+    }
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_upsert_website_setting", {
     p_key: "footer",
@@ -123,6 +136,8 @@ export async function upsertFooterSettingsAction(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/pages");
   revalidatePath("/admin/website");
+  revalidatePath("/admin/settings");
+  revalidatePath("/contact");
   revalidatePath("/", "layout");
   return { ok: true, data };
 }
