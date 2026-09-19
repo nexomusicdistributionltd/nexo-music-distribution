@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { updateSettings } from "@/app/(portal)/dashboard/settings/actions";
 import { Alert } from "@/components/ui/Alert";
@@ -32,7 +31,6 @@ const LANGUAGES = [
 ];
 
 export function SettingsForm({ profile }: { profile: Profile }) {
-  const router = useRouter();
   const [fullName, setFullName] = React.useState(profile.full_name);
   const [displayName, setDisplayName] = React.useState(profile.display_name);
   const [country, setCountry] = React.useState(profile.country ?? "");
@@ -57,7 +55,6 @@ export function SettingsForm({ profile }: { profile: Profile }) {
       });
       if (!res.ok) throw new Error(res.error);
       setSuccess("Settings saved.");
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
