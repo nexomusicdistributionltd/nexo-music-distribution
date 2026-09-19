@@ -50,7 +50,10 @@ function AccordionSection({
   onNavigate?: () => void;
   onIntent?: (href: string) => void;
 }) {
-  const groups = section.groups?.length ? section.groups : [section.items];
+  const groups = React.useMemo(
+    () => (section.groups?.length ? section.groups : [section.items]),
+    [section.groups, section.items]
+  );
   const flatItems = React.useMemo(() => groups.flat(), [groups]);
   const hasActive = flatItems.some((item) => isNavActive(pathname, item.href));
   const sectionCount = flatItems.reduce((sum, item) => sum + (item.count ?? 0), 0);
