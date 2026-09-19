@@ -48,6 +48,7 @@ export function SubmitJobButton({
   jobId: string;
   providerConnected: boolean;
 }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   return (
@@ -61,11 +62,12 @@ export function SubmitJobButton({
             const r = await submitJobAction(jobId);
             setMsg(
               r.ok
-                ? "Submit recorded."
+                ? "Submitted to Distribution Engine."
                 : r.code === "PROVIDER_NOT_CONNECTED"
                   ? "Distribution Engine authorization required."
                   : r.error
             );
+            router.refresh();
           })
         }
       >
