@@ -23,6 +23,11 @@ export class NotConnectedProvider implements DistributionProvider {
     throw new ProviderNotConnectedError();
   }
 
+  async prepareRelease(input: ProviderReleasePayload): Promise<{ providerReleaseId: string }> {
+    void input;
+    this.fail();
+  }
+
   async submitRelease(input: ProviderReleasePayload): Promise<{ providerReleaseId: string }> {
     void input;
     this.fail();
