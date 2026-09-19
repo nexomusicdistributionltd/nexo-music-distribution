@@ -8,8 +8,9 @@ import {
   navSectionsForRoles,
   workspaceKindForRoles,
 } from "@/lib/auth/nav";
+import { applyNavBadgeCounts, navCountForHref } from "@/lib/auth/nav-badges";
+import { getNavBadgeCounts } from "@/lib/auth/nav-badges.server";
 import { accountOverlayItems } from "@/lib/portal/ia";
-import { countUnreadNotifications } from "@/lib/releases/queries";
 import { getLabelProfileForUser } from "@/lib/roster/queries";
 import { isBlockedStatus } from "@/lib/auth/types";
 import { redirect } from "next/navigation";
@@ -43,14 +44,14 @@ export default async function PortalLayout({
   }
 
   const workspaceKind = workspaceKindForRoles(ctx.roles);
-  const sections = navSectionsForRoles(ctx.roles);
+  const rawSections = navSectionsForRoles(ctx.roles);
   const displayName =
     ctx.profile?.display_name || ctx.profile?.full_name || ctx.email || "Account";
   const accountLabel = ctx.roles.map((r) => r.replace(/_/g, " ")).join(" · ");
   const isPortalWorkspace = workspaceKind === "artist" || workspaceKind === "label";
 
-  const [unread, label, identityVerification, agreementReady] = await Promise.all([
-    countUnreadNotifications(ctx.userId).catch(() => 0),
+  const [badgeCounts, label, identityVerification, agreementReady] = await Promise.all([
+    getNavBadgeCounts(),
     workspaceKind === "label"
       ? getLabelProfileForUser(ctx.userId)
       : Promise.resolve(null),
@@ -61,6 +62,9 @@ export default async function PortalLayout({
       ? hasCurrentDistributionAgreement(ctx.userId)
       : Promise.resolve(true),
   ]);
+  const sections = applyNavBadgeCounts(rawSections, badgeCounts);
+  const unread = navCountForHref(badgeCounts, "/dashboard/notifications");
+  const unreadMessages = navCountForHref(badgeCounts, "/support");
 
   let headerName = displayName;
   let labelName: string | null = null;
@@ -86,6 +90,7 @@ export default async function PortalLayout({
           displayName={headerName}
           workspaceKind={workspaceKind}
           unreadNotifications={unread}
+          unreadMessages={unreadMessages}
           labelName={labelName}
           identityVerified={identityVerification?.status === "verified"}
         />
@@ -111,6 +116,7 @@ export default async function PortalLayout({
           displayName={headerName}
           workspaceKind={workspaceKind}
           unreadNotifications={unread}
+          unreadMessages={unreadMessages}
         />
         <RealtimeRefresh userId={ctx.userId} />
         <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</main>
