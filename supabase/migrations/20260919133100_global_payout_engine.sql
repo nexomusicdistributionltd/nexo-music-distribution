@@ -1439,8 +1439,10 @@ begin
   if method_row.route_method_id is null
      or method_row.country_code is null
      or method_row.currency is null
-     or method_row.beneficiary_type is null then
-    raise exception 'This payout method must be updated before it can be used' using errcode='P0001';
+     or method_row.beneficiary_type is null
+     or method_row.encrypted_details is null
+     or btrim(method_row.encrypted_details)='' then
+    raise exception 'This payout method must be securely updated before it can be used' using errcode='P0001';
   end if;
   if method_row.security_hold_until is not null and method_row.security_hold_until>now() then
     raise exception 'This payout method is temporarily on a security hold after a recent change' using errcode='P0001';
@@ -1945,12 +1947,19 @@ begin
   if not found or pm.status<>'active' then
     raise exception 'An active payout method is required' using errcode='P0001';
   end if;
+  if pm.encrypted_details is null or btrim(pm.encrypted_details)='' then
+    raise exception 'This payout method must be securely updated before resubmission' using errcode='P0001';
+  end if;
   if pm.security_hold_until is not null and pm.security_hold_until>now() then
     raise exception 'This payout method is temporarily on a security hold after a recent change' using errcode='P0001';
   end if;
 
   update public.payouts
-  set status='pending',additional_information_reason=null,updated_at=now()
+  set status='pending',
+      destination_mask=pm.destination_mask,
+      method=pm.method_type,
+      additional_information_reason=null,
+      updated_at=now()
   where id=p.id returning * into p;
 
   insert into public.payout_events(
