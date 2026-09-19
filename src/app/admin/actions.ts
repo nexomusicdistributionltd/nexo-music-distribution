@@ -19,6 +19,7 @@ import {
   queueApprovedRelease,
   submitQueuedRelease,
   syncReleaseStatus,
+  preflightReleaseForDistribution,
 } from "@/lib/distribution/actions";
 import { PROVIDER_DELIVERY_VALIDATION_CODE } from "@/lib/provider/errors";
 
@@ -115,6 +116,18 @@ export async function performQcDecisionAction(input: {
   }
 
   const supabase = await createClient();
+
+  if (input.decision === "approve") {
+    const preflight = await preflightReleaseForDistribution(input.releaseId);
+    if (!preflight.ok) {
+      return {
+        ok: false,
+        error:
+          `Cannot approve this release yet. Distribution validation failed before approval: ${preflight.error}`,
+      };
+    }
+  }
+
   const { data, error } = await supabase.rpc("perform_qc_decision", {
     p_release_id: input.releaseId,
     p_decision: input.decision,
