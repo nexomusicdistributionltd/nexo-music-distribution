@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { RequireAdmin } from "@/lib/auth/guards";
 import { PageIntro } from "@/components/workspace/PageIntro";
 import { ReleaseCatalogTable } from "@/components/releases/ReleaseCatalogTable";
@@ -46,10 +47,14 @@ export default async function AdminReleasesPage({
     loadError = e instanceof Error ? e.message : "Could not load releases.";
   }
 
+  const query = { q: sp.q, status, from: sp.from, to: sp.to };
+  if (!loadError && total > 0 && page > pageCount) {
+    redirect(buildQueryHref("/admin/releases", query, { page: pageCount }));
+  }
+
   const artwork = await mapArtworkUrls(items.map((r: { id: string }) => r.id)).catch(
     () => ({} as Record<string, string | null>)
   );
-  const query = { q: sp.q, status, from: sp.from, to: sp.to };
 
   return (
     <div className="space-y-6">
