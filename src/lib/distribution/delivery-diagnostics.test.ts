@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { diagnoseDeliveryFailure } from "./delivery-diagnostics";
+import {
+  diagnoseDeliveryFailure,
+  formatDeliveryCorrection,
+} from "./delivery-diagnostics";
 
 describe("delivery failure diagnostics", () => {
   it("points license errors to the licensing field", () => {
@@ -27,6 +30,16 @@ describe("delivery failure diagnostics", () => {
     );
     expect(d.where).toContain("Track 2");
     expect(d.summary).toMatch(/Audio/i);
+  });
+
+  it("formats field, reason, fix and location for QC correction", () => {
+    const text = formatDeliveryCorrection(
+      "Nexo delivery validation failed at release metadata (HTTP 422): language: invalid value"
+    );
+    expect(text).toContain("Affected field: Language");
+    expect(text).toContain("Why it failed:");
+    expect(text).toContain("What to fix:");
+    expect(text).toContain("Where to fix it:");
   });
 
   it("does not send provider outages back to the artist", () => {
