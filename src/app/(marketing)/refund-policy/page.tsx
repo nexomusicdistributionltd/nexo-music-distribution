@@ -7,7 +7,7 @@ import { LEGAL_UPDATED, REFUND_POLICY_SECTIONS } from "@/lib/legal/copy";
 const fallbackMetadata = legalMetadata({
   title: "Refund Policy",
   description:
-    "Refund Policy for NEXO MUSIC DISTRIBUTION LTD digital music-distribution subscriptions billed by Paddle. Contact ${SUPPORT_EMAIL}.",
+    `Refund Policy for NEXO MUSIC DISTRIBUTION LTD digital music-distribution subscriptions billed by Paddle. Contact ${SUPPORT_EMAIL}.`,
   path: "/refund-policy",
 });
 
