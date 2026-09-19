@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { RequireVerifiedPortal } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { quotePayout, type PayoutQuote } from "@/lib/finance/payout-quote";
 import {
   encryptPayoutPayload,
   PayoutEncryptionUnavailableError,
@@ -505,4 +507,97 @@ export async function disablePayoutMethodAction(
 
   revalidatePayoutViews();
   return { ok: true, data: true };
+}
+
+
+export async function quotePayoutAction(input: {
+  amountMinor: string;
+  sourceCurrency: string;
+  payoutMethodId: string;
+}): Promise<PayoutMethodActionResult<PayoutQuote>> {
+  const ctx = await RequireVerifiedPortal();
+  if (!/^[0-9]+$/.test(input.amountMinor) || BigInt(input.amountMinor) <= 0n) {
+    return { ok: false, error: "Enter a valid payout amount." };
+  }
+  if (!/^[A-Z]{3}$/.test(input.sourceCurrency.trim().toUpperCase())) {
+    return { ok: false, error: "Select a valid source currency." };
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(input.payoutMethodId)) {
+    return { ok: false, error: "Select a payout method." };
+  }
+  try {
+    const quote = await quotePayout({
+      ownerUserId: ctx.userId,
+      amountMinor: input.amountMinor,
+      sourceCurrency: input.sourceCurrency,
+      payoutMethodId: input.payoutMethodId,
+    });
+    return { ok: true, data: quote };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not prepare the payout summary.",
+    };
+  }
+}
+
+export async function requestConfiguredPayoutAction(input: {
+  amountMinor: string;
+  sourceCurrency: string;
+  payoutMethodId: string;
+  idempotencyKey: string;
+}): Promise<PayoutMethodActionResult<{ id: string; payoutReference: string }>> {
+  const ctx = await RequireVerifiedPortal();
+  const sourceCurrency = input.sourceCurrency.trim().toUpperCase();
+  if (!/^[0-9]+$/.test(input.amountMinor) || BigInt(input.amountMinor) <= 0n) {
+    return { ok: false, error: "Enter a valid payout amount." };
+  }
+  if (!/^[A-Z]{3}$/.test(sourceCurrency)) {
+    return { ok: false, error: "Select a valid source currency." };
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(input.payoutMethodId)) {
+    return { ok: false, error: "Select a payout method." };
+  }
+  if (!/^[A-Za-z0-9:_-]{16,160}$/.test(input.idempotencyKey)) {
+    return { ok: false, error: "Invalid payout request token. Refresh and try again." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_configured_payout_request", {
+    p_owner_user_id: ctx.userId,
+    p_amount_minor: input.amountMinor,
+    p_source_currency: sourceCurrency,
+    p_payout_method_id: input.payoutMethodId,
+    p_idempotency_key: input.idempotencyKey,
+  });
+  if (error || !data) {
+    const message = error?.message ?? "Could not create the payout request.";
+    return {
+      ok: false,
+      error: /balance/i.test(message)
+        ? "Your available royalty balance is no longer sufficient for this payout."
+        : /identity/i.test(message)
+          ? "Complete identity verification before requesting a payout."
+          : /tax/i.test(message)
+            ? "Complete the required tax information before requesting a payout."
+            : /security hold/i.test(message)
+              ? "This payout method is temporarily on a security hold after a recent change."
+              : /minimum/i.test(message)
+                ? "The requested amount is below the configured minimum payout."
+                : /maximum|limit/i.test(message)
+                  ? "The requested payout exceeds a configured payout limit."
+                  : /provider route|provider is not|not currently available/i.test(message)
+                    ? "This payout route is temporarily unavailable."
+                    : "We could not submit this payout request. Review the details and try again.",
+    };
+  }
+
+  revalidatePayoutViews();
+  return {
+    ok: true,
+    data: {
+      id: String(data.id),
+      payoutReference: String(data.payout_reference),
+    },
+  };
 }
