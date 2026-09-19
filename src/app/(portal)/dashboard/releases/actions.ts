@@ -38,6 +38,7 @@ import {
 } from "@/lib/storage/release-assets";
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 import { getProviderConnectionState } from "@/lib/provider";
+import { getUserOperationalHolds, isFeatureEnabled } from "@/lib/admin/feature-flags";
 import {
   normalizeProviderLanguage,
   normalizeProviderLicenseType,
@@ -1003,6 +1004,16 @@ export async function prepareAssetUpload(input: {
 
 export async function submitRelease(releaseId: string): Promise<ActionResult<ReleaseRow>> {
   const ctx = await requireArtistOrLabel();
+  const [submissionsEnabled, holds] = await Promise.all([
+    isFeatureEnabled("release_submissions", true),
+    getUserOperationalHolds(ctx.userId),
+  ]);
+  if (!submissionsEnabled) {
+    return { ok: false, error: "Release submissions are temporarily paused by Nexo operations." };
+  }
+  if (holds.distributionHold) {
+    return { ok: false, error: "Distribution is temporarily on hold for this account. Contact Nexo Support for the case status." };
+  }
   const rl = checkRateLimit({
     key: `release:submit:${ctx.userId}`,
     ...RATE_LIMITS.releaseSubmit,
