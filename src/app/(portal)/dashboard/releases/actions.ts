@@ -39,6 +39,7 @@ import {
 import { RATE_LIMITS, checkRateLimit } from "@/lib/security/rate-limit";
 import { getProviderConnectionState } from "@/lib/provider";
 import { preflightReleaseForDistribution } from "@/lib/distribution/actions";
+import { formatDeliveryCorrection } from "@/lib/distribution/delivery-diagnostics";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -1087,7 +1088,7 @@ export async function submitRelease(releaseId: string): Promise<ActionResult<Rel
     return {
       ok: false,
       error:
-        `Distribution validation must pass before QC submission. ${providerPreflight.error}`,
+        `Distribution validation must pass before QC submission.\n\n${formatDeliveryCorrection(providerPreflight.error)}`,
     };
   }
 
