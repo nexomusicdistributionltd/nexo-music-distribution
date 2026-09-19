@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const REALTIME_REFRESH_DELAY_MS = 300;
-const MIN_REFRESH_INTERVAL_MS = 1_000;
+const REALTIME_REFRESH_DELAY_MS = 125;
+const MIN_REFRESH_INTERVAL_MS = 500;
 const FOCUS_STALE_AFTER_MS = 30_000;
 
 /** RLS-filtered realtime refresh for portal and staff operations. */
