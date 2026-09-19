@@ -231,8 +231,8 @@ describe("Stardust integration guards", () => {
     expect(env).not.toMatch(/^NEXO_DDEX_CONTACT=.+$/m);
     expect(env).not.toMatch(/NEXT_PUBLIC_[A-Z0-9_]*DPID/);
     expect(env).toContain("PA-DPIDA-2026021501-H");
-    expect(getNexoDdexContact({})).toBeNull();
-    expect(getNexoPartyName({ NEXO_DDEX_PARTY_NAME: "Someone Else Ltd" })).toBe(LOCKED_NEXO_PARTY_NAME);
+    expect(getNexoDdexContact({ NODE_ENV: "test" })).toBeNull();
+    expect(getNexoPartyName({ NODE_ENV: "test", NEXO_DDEX_PARTY_NAME: "Someone Else Ltd" })).toBe(LOCKED_NEXO_PARTY_NAME);
   });
 
   it("existing 4.3.2 builder is still the primary generator", () => {

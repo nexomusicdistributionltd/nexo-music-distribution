@@ -43,7 +43,7 @@ describe("artist and label royalty portal", () => {
     expect(earnings).toContain('export const dynamic = "force-dynamic"');
     expect(earnings).toContain("Reported royalties");
     expect(provider).toContain('cache: "no-store"');
-    expect(provider).toContain('apiLive(withQuery("/sales/releases/');
+    expect(provider).toContain('apiLive(withQuery(`/sales/releases/');
   });
 
   it("keeps payout requests compatible with the cleaned form API", () => {

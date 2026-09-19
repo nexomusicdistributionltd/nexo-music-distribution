@@ -9,7 +9,7 @@ describe("service role env", () => {
   it("reads the canonical Netlify name", () => {
     expect(SERVICE_ROLE_ENV_NAMES[0]).toBe("SUPABASE_SERVICE_ROLE_KEY");
     expect(
-      getServiceRoleKey({
+      getServiceRoleKey({ NODE_ENV: "test",
         SUPABASE_SERVICE_ROLE_KEY: "sr-canonical",
       } as NodeJS.ProcessEnv)
     ).toBe("sr-canonical");
@@ -17,12 +17,12 @@ describe("service role env", () => {
 
   it("accepts documented aliases when the canonical name is unset", () => {
     expect(
-      getServiceRoleKey({
+      getServiceRoleKey({ NODE_ENV: "test",
         SUPABASE_SERVICE_ROLE: " sr-alias ",
       } as NodeJS.ProcessEnv)
     ).toBe("sr-alias");
     expect(
-      getServiceRoleKey({
+      getServiceRoleKey({ NODE_ENV: "test",
         SUPABASE_SECRET_KEY: "sr-secret",
       } as NodeJS.ProcessEnv)
     ).toBe("sr-secret");
@@ -30,7 +30,7 @@ describe("service role env", () => {
 
   it("prefers the canonical name over aliases", () => {
     expect(
-      getServiceRoleKey({
+      getServiceRoleKey({ NODE_ENV: "test",
         SUPABASE_SERVICE_ROLE_KEY: "canonical",
         SUPABASE_SERVICE_ROLE: "alias",
         SUPABASE_SECRET_KEY: "secret",
@@ -41,13 +41,13 @@ describe("service role env", () => {
   it("never uses the anon key as a service role", () => {
     const anon = "anon-public-key";
     expect(
-      getServiceRoleKey({
+      getServiceRoleKey({ NODE_ENV: "test",
         NEXT_PUBLIC_SUPABASE_ANON_KEY: anon,
         SUPABASE_SERVICE_ROLE_KEY: anon,
       } as NodeJS.ProcessEnv)
     ).toBe("");
     expect(
-      getServiceRoleKeyStatus({
+      getServiceRoleKeyStatus({ NODE_ENV: "test",
         NEXT_PUBLIC_SUPABASE_ANON_KEY: anon,
         SUPABASE_SERVICE_ROLE_KEY: anon,
       } as NodeJS.ProcessEnv)
@@ -56,10 +56,10 @@ describe("service role env", () => {
 
   it("never reads NEXT_PUBLIC_ service role names", () => {
     expect(
-      getServiceRoleKey({
+      getServiceRoleKey({ NODE_ENV: "test",
         NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: "leaked",
       } as NodeJS.ProcessEnv)
     ).toBe("");
-    expect(getServiceRoleKeyStatus({} as NodeJS.ProcessEnv)).toBe("absent");
+    expect(getServiceRoleKeyStatus({ NODE_ENV: "test",} as NodeJS.ProcessEnv)).toBe("absent");
   });
 });

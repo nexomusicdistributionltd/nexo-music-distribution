@@ -6,7 +6,7 @@ import { buildNewsletterHtml } from "@/lib/email/newsletter-html";
 
 describe("admin billing catalog visibility", () => {
   it("shows starter/pro amounts and trials without leaking price ids", () => {
-    const catalog = adminBillingCatalog({} as NodeJS.ProcessEnv);
+    const catalog = adminBillingCatalog({ NODE_ENV: "test",} as NodeJS.ProcessEnv);
     expect(catalog.rows.map((r) => r.id)).toEqual([
       "artist_starter",
       "artist_pro",
@@ -25,7 +25,7 @@ describe("admin billing catalog visibility", () => {
   });
 
   it("marks price id presence from env names only", () => {
-    const catalog = adminBillingCatalog({
+    const catalog = adminBillingCatalog({ NODE_ENV: "test",
       PADDLE_PRICE_ARTIST_PRO_MONTHLY: "pri_secret",
     } as NodeJS.ProcessEnv);
     const pro = catalog.rows.find((r) => r.id === "artist_pro");

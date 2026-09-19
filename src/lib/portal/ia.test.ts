@@ -142,15 +142,15 @@ describe("portal validators", () => {
     });
     expect(ok.ok).toBe(true);
     expect(validateServiceRequestInput({ kind: "nope", title: "x" }).ok).toBe(false);
-    expect(validateVideoInput({ title: "MV", video_url: "https://youtube.com/watch?v=1" }).ok).toBe(true);
+    expect(validateVideoInput({ title: "MV", video_url: "https://youtube.com/watch?v=1", confirm_rights: true }).ok).toBe(true);
     expect(validateVideoInput({ title: "MV", video_url: "javascript:alert(1)" }).ok).toBe(false);
-    expect(validatePayeeInput({ name: "Ada" }).ok).toBe(true);
+    expect(validatePayeeInput({ name: "Ada", email: "ada@example.com" }).ok).toBe(true);
     expect(validateMemberInput({ email: "a@b.co" }).ok).toBe(true);
     expect(validatePayoutRequestInput({ amountMinor: 500 }).ok).toBe(true);
     expect(validatePayoutRequestInput({ amountMinor: 0 }).ok).toBe(false);
     const split = validateSplitCreateInput({
       name: "Default",
-      shares: [{ partyName: "Ada", partyRole: "artist", shareBps: 10000 }],
+      shares: [{ payeeId: "11111111-1111-4111-8111-111111111111", partyName: "Ada", partyRole: "artist", shareBps: 10000 }],
     });
     expect(split.ok).toBe(true);
   });

@@ -1,3 +1,4 @@
+import { normalizeProviderDate } from "@/lib/provider/metadata-normalization";
 import type { ReleaseRow, ReleaseTrackRow, ReleaseAssetRow, ReleaseContributorRow, ReleaseType } from "./types";
 
 export type ValidationIssue = { field: string; message: string };
@@ -61,6 +62,14 @@ export function validateReleaseForSubmit(input: {
   if (!release.title?.trim()) {
     issues.push({ field: "title", message: "Title is required." });
   }
+  if ((release.title?.trim().length ?? 0) > 120) {
+    issues.push({ field: "title", message: "Release title must be 120 characters or fewer." });
+  }
+  for (const field of ["copyright_line", "phonogram_line"] as const) {
+    if ((release[field]?.trim().length ?? 0) > 120) {
+      issues.push({ field, message: `${field === "copyright_line" ? "Copyright" : "Phonogram"} line must be 120 characters or fewer.` });
+    }
+  }
   if (!release.primary_artist_name?.trim()) {
     issues.push({
       field: "primary_artist_name",
@@ -70,11 +79,11 @@ export function validateReleaseForSubmit(input: {
   if (!release.genre?.trim()) {
     issues.push({ field: "genre", message: "Genre is required." });
   }
-  if (!release.release_date) {
-    issues.push({ field: "release_date", message: "Release date is required." });
+  if (!normalizeProviderDate(release.release_date)) {
+    issues.push({ field: "release_date", message: "A valid release date in YYYY-MM-DD format is required." });
   }
-  if (!release.copyright_year || release.copyright_year < 1900) {
-    issues.push({ field: "copyright_year", message: "Copyright year is required." });
+  if (!Number.isInteger(release.copyright_year) || !release.copyright_year || release.copyright_year < 1900 || release.copyright_year > 2100) {
+    issues.push({ field: "copyright_year", message: "Copyright year must be between 1900 and 2100." });
   }
   if (!release.copyright_line?.trim()) {
     issues.push({ field: "copyright_line", message: "Copyright line (C) is required." });
@@ -207,25 +216,17 @@ export function validateReleaseForSubmit(input: {
   }
 
   const namedContributors = contributors.filter((c) => Boolean(c.name?.trim()));
-  const genreKey = (release.genre ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-  const isSpokenWord =
-    genreKey.includes("spokenword") ||
-    genreKey === "spoken" ||
-    genreKey.includes("podcast");
-
-  if (!isSpokenWord) {
-    for (const track of tracks) {
-      const scoped = namedContributors.filter(
-        (contributor) => !contributor.track_id || contributor.track_id === track.id
-      );
-      const contributorRoles = new Set(scoped.map((contributor) => contributor.role));
-      const hasProviderComposer = contributorRoles.has("composer") || contributorRoles.has("songwriter");
-      if (!hasProviderComposer) {
-        issues.push({
-          field: `track.${track.track_number}.contributors`,
-          message: `Track ${track.track_number} needs at least one songwriter or composer credit for distribution.`,
-        });
-      }
+  for (const track of tracks) {
+    const scoped = namedContributors.filter(
+      (contributor) => !contributor.track_id || contributor.track_id === track.id
+    );
+    const contributorRoles = new Set(scoped.map((contributor) => contributor.role));
+    const hasProviderComposer = contributorRoles.has("composer") || contributorRoles.has("songwriter");
+    if (!hasProviderComposer) {
+      issues.push({
+        field: `track.${track.track_number}.contributors`,
+        message: `Track ${track.track_number} needs at least one songwriter or composer credit for distribution.`,
+      });
     }
   }
 

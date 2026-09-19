@@ -22,9 +22,10 @@ const ROLE_MAP: Record<string, string | null> = {
   percussion: "performer",
   instrumentalist: "performer",
 
-  songwriter: "composer",
-  composer: "composer",
-  lyricist: "author",
+  // TooLost writer contract: instrumentalist means Composer in the writers array.
+  songwriter: "instrumentalist",
+  composer: "instrumentalist",
+  lyricist: "lyricist",
   arranger: "arranger",
 
   producer: "producer",

@@ -1,7 +1,7 @@
 export const AUDIO_BUCKET = "release-audio";
 export const ARTWORK_BUCKET = "release-artwork";
 
-export const AUDIO_MIME_TYPES = ["audio/flac", "audio/x-flac"] as const;
+export const AUDIO_MIME_TYPES = ["audio/flac", "audio/x-flac", "application/flac"] as const;
 
 export const ARTWORK_MIME_TYPES = ["image/jpeg", "image/png", "image/tiff"] as const;
 
@@ -69,7 +69,7 @@ export function assertAudioFile(file: { type: string; size: number; name?: strin
   const mime = file.type.toLowerCase();
   const isFlac =
     AUDIO_MIME_TYPES.includes(mime as (typeof AUDIO_MIME_TYPES)[number]) ||
-    filename.endsWith(".flac");
+    ((!mime || mime === "application/octet-stream") && filename.endsWith(".flac"));
   if (!isFlac) {
     return "Nexo delivery requires a lossless FLAC master. Upload a .flac file.";
   }

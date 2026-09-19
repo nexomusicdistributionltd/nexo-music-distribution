@@ -27,13 +27,19 @@ describe("storage auth concepts", () => {
   });
 
   it("rejects bad mime / oversized files", () => {
-    expect(assertAudioFile({ type: "application/pdf", size: 10 })).toMatch(/Unsupported/);
+    expect(assertAudioFile({ type: "application/pdf", size: 10 })).toMatch(/lossless FLAC/);
     expect(assertArtworkFile({ type: "image/gif", size: 10 })).toMatch(/Artwork must/);
     expect(assertArtworkFile({ type: "image/tiff", size: 10 })).toBeNull();
     expect(assertAudioFile({ type: "audio/flac", size: 0 })).toMatch(/empty/);
     expect(assertAudioFile({ type: "audio/wav", size: 100 })).toMatch(/FLAC/);
     expect(assertAudioFile({ type: "text/html", size: 100, name: "fake.flac" })).toMatch(/FLAC/);
     expect(assertArtworkFile({ type: "text/html", size: 100, name: "fake.jpg" })).toMatch(/Artwork must/);
+  });
+
+  it("accepts browser MIME aliases and generic FLAC uploads", () => {
+    expect(assertAudioFile({ type: "application/flac", size: 100 })).toBeNull();
+    expect(assertAudioFile({ type: "application/octet-stream", name: "master.flac", size: 100 })).toBeNull();
+    expect(assertAudioFile({ type: "audio/mpeg", name: "renamed.flac", size: 100 })).toMatch(/FLAC/);
   });
 
   it("rejects path traversal and cross-user paths", () => {

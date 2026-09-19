@@ -10,12 +10,10 @@ import {
 
 describe("site URL / auth redirects", () => {
   const prevSite = process.env.NEXT_PUBLIC_SITE_URL;
-  const prevNode = process.env.NODE_ENV;
 
   afterEach(() => {
     if (prevSite === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
     else process.env.NEXT_PUBLIC_SITE_URL = prevSite;
-    process.env.NODE_ENV = prevNode;
   });
 
   it("defaults to the official production domain", () => {

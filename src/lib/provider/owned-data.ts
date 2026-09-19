@@ -469,10 +469,8 @@ export async function ownedAnalytics(userId: string): Promise<OwnedAnalyticsResu
     source: string;
     run: () => Promise<unknown>;
   }> = [
-    { source: "overview", run: () => distributionReference.analyticsOverview() },
     { source: "tracks", run: () => distributionReference.analyticsTracks() },
     { source: "track_charts", run: () => distributionReference.analyticsTrackCharts() },
-    { source: "platform_data", run: () => distributionReference.analyticsPlatformData() },
   ];
 
   const aggregateSettled = await Promise.allSettled(
