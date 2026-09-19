@@ -11,6 +11,7 @@ import { adminListErrorMessage } from "@/lib/db/admin-query";
 import { QcQueueActions } from "@/components/admin/QcQueueActions";
 import { ReleaseStatusBadge } from "@/components/releases/ReleaseStatusBadge";
 import { cn } from "@/lib/utils";
+import { normalizePageNumber } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "QC queue",
@@ -38,7 +39,7 @@ export default async function QcQueuePage({
     priority: sp.priority,
     assigned,
     userId: ctx.userId,
-    page: Number(sp.page || 1),
+    page: normalizePageNumber(sp.page),
   });
   const pageCount = Math.max(1, Math.ceil(total / 25));
 
@@ -102,7 +103,8 @@ export default async function QcQueuePage({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-caption text-[var(--nexo-text-muted)]">
-              {total} item{total === 1 ? "" : "s"} · page {page}
+              {total} item{total === 1 ? "" : "s"}
+              {pageCount > 1 ? ` · page ${page} of ${pageCount}` : ""}
             </p>
             <QcQueueActions items={items.map((i: { id: string }) => i.id)} />
           </div>
