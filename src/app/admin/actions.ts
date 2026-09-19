@@ -22,6 +22,7 @@ import {
   preflightReleaseForDistribution,
 } from "@/lib/distribution/actions";
 import { PROVIDER_DELIVERY_VALIDATION_CODE } from "@/lib/provider/errors";
+import { formatDeliveryCorrection } from "@/lib/distribution/delivery-diagnostics";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -123,7 +124,7 @@ export async function performQcDecisionAction(input: {
       return {
         ok: false,
         error:
-          `Cannot approve this release yet. Distribution validation failed before approval: ${preflight.error}`,
+          `Cannot approve this release yet. Keep it in QC and use “Decline & return for changes” if the artist/label must correct it.\n\n${formatDeliveryCorrection(preflight.error)}`,
       };
     }
   }
