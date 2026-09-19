@@ -274,6 +274,56 @@ function validateProviderPayloadBeforeAttempt(payload: ProviderReleasePayload): 
   return null;
 }
 
+export async function preflightReleaseForDistribution(
+  releaseId: string
+): Promise<DistActionResult<{ providerReleaseId: string }>> {
+  const supabase = await createClient();
+  const state = await getProviderConnectionState();
+  const provider = getProvider();
+
+  if (!state.connected || !provider.connected) {
+    return {
+      ok: false,
+      error:
+        "Nexo distribution validation is temporarily unavailable. Please try again before submitting this release to QC.",
+      code: PROVIDER_NOT_CONNECTED_CODE,
+    };
+  }
+
+  const { data: release, error: releaseError } = await supabase
+    .from("releases")
+    .select("*, release_tracks(*), release_assets(*), release_contributors(*)")
+    .eq("id", releaseId)
+    .maybeSingle();
+
+  if (releaseError) return { ok: false, error: releaseError.message };
+  if (!release) return { ok: false, error: "Release not found." };
+
+  const payload = providerPayloadFromRelease(
+    release as unknown as DistributionReleaseRecord
+  );
+  const localError = validateProviderPayloadBeforeAttempt(payload);
+  if (localError) {
+    return {
+      ok: false,
+      error: localError,
+      code: PROVIDER_DELIVERY_VALIDATION_CODE,
+    };
+  }
+
+  try {
+    const prepared = await provider.prepareRelease(payload);
+    return { ok: true, data: prepared };
+  } catch (error) {
+    const providerError = toProviderErrorPayload(error);
+    return {
+      ok: false,
+      error: providerError.message,
+      code: providerError.code,
+    };
+  }
+}
+
 /**
  * Idempotent submission of a queued job. Connection/media preflight happens before
  * an attempt row is opened so predictable operator fixes do not create fake failures.
