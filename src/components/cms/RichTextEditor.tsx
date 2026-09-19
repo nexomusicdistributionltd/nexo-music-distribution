@@ -70,10 +70,34 @@ export function RichTextEditor({
         <Button
           type="button"
           size="sm"
+          variant={editor.isActive("heading", { level: 3 }) ? "primary" : "secondary"}
+          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        >
+          H3
+        </Button>
+        <Button
+          type="button"
+          size="sm"
           variant={editor.isActive("bulletList") ? "primary" : "secondary"}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
         >
-          List
+          Bullets
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={editor.isActive("orderedList") ? "primary" : "secondary"}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        >
+          Numbered
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={editor.isActive("blockquote") ? "primary" : "secondary"}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        >
+          Quote
         </Button>
       </div>
       <EditorContent editor={editor} />
