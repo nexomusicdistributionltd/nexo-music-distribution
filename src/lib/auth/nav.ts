@@ -102,6 +102,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/admin/distribution", label: "Distribution", icon: "distribution" },
+      { href: "/admin/distribution/stores", label: "Store capabilities", icon: "distribution" },
       { href: "/admin/ddex", label: "DDEX", icon: "ddex" },
       { href: "/admin/playlist-pitches", label: "Playlist pitches", icon: "distribution" },
       { href: "/admin/marketing", label: "Marketing", icon: "analytics" },
@@ -129,6 +130,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/statements", label: "Statements", icon: "finance" },
       { href: "/admin/payouts", label: "Payouts", icon: "finance" },
       { href: "/admin/finance/billing", label: "Billing", icon: "finance" },
+      { href: "/admin/tax-compliance", label: "Tax & payout compliance", icon: "compliance" },
       { href: "/admin/analytics", label: "Analytics", icon: "analytics" },
     ],
   },
@@ -163,6 +165,8 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/emails/failed", label: "Failed / Delivery Issues", icon: "email" },
       { href: "/admin/emails/activity", label: "Email Activity", icon: "email" },
       { href: "/admin/newsletter", label: "Newsletter", icon: "newsletter" },
+      { href: "/admin/broadcasts", label: "Broadcasts", icon: "notifications" },
+      { href: "/admin/email-deliverability", label: "Email deliverability", icon: "email" },
     ],
   },
   {
@@ -182,16 +186,30 @@ const ADMIN_SECTIONS: NavSection[] = [
     label: "Operations",
     collapsible: true,
     items: [
+      { href: "/admin/work-queue", label: "Work Queue", icon: "overview" },
+      { href: "/admin/operations", label: "Operations Center", icon: "overview" },
+      { href: "/admin/rights", label: "Rights & Claims", icon: "compliance" },
+      { href: "/admin/fraud", label: "Fraud & Streaming Risk", icon: "compliance" },
+      { href: "/admin/conflicts", label: "Catalog Conflicts", icon: "catalog" },
+      { href: "/admin/security", label: "User Security", icon: "users" },
+      { href: "/admin/privacy", label: "Privacy Requests", icon: "compliance" },
+      { href: "/admin/system-health", label: "System Health", icon: "analytics" },
+      { href: "/admin/approvals", label: "High-Risk Approvals", icon: "audit" },
+      { href: "/admin/contracts", label: "Contract & Policy Versions", icon: "compliance" },
       { href: "/admin/compliance", label: "Compliance", icon: "compliance" },
       { href: "/admin/search", label: "Search", icon: "search" },
       { href: "/admin/reports", label: "Reports", icon: "audit" },
       { href: "/admin/audit", label: "Audit", icon: "audit" },
+      { href: "/admin/audit/intelligence", label: "Audit Intelligence", icon: "audit" },
     ],
   },
   {
     id: "settings",
     label: "Settings",
-    items: [{ href: "/admin/settings", label: "Settings", icon: "settings" }],
+    items: [
+      { href: "/admin/settings", label: "Settings", icon: "settings" },
+      { href: "/admin/feature-flags", label: "Feature Flags", icon: "settings" },
+    ],
   },
 ];
 
