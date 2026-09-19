@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
@@ -11,6 +12,7 @@ import { uploadCmsMediaAction } from "@/app/admin/website/media-actions";
 import type { WebsitePartner } from "@/lib/website/partner-types";
 
 export function PartnersAdminClient({ partners }: { partners: WebsitePartner[] }) {
+  const router = useRouter();
   const [form, setForm] = useState({
     name: "",
     logoUrl: "",
@@ -101,6 +103,7 @@ export function PartnersAdminClient({ partners }: { partners: WebsitePartner[] }
                 setMsg(result.ok ? "Partner saved and published live." : result.error);
                 if (result.ok) {
                   setForm({ name: "", logoUrl: "", websiteUrl: "", sortOrder: "0" });
+                  router.refresh();
                 }
               })
             }
@@ -108,6 +111,16 @@ export function PartnersAdminClient({ partners }: { partners: WebsitePartner[] }
             Add & publish partner
           </Button>
         </div>
+        {form.logoUrl ? (
+          <div className="flex min-h-24 items-center justify-center rounded-[var(--nexo-radius)] border border-[var(--nexo-border)] bg-[var(--nexo-elevated)] p-4 sm:justify-start">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={form.logoUrl}
+              alt={form.name.trim() ? `${form.name.trim()} logo preview` : "Partner logo preview"}
+              className="max-h-20 w-auto max-w-full object-contain"
+            />
+          </div>
+        ) : null}
       </section>
 
       <section>
@@ -142,6 +155,7 @@ function PartnerEditor({
   partner: WebsitePartner;
   onMessage: (message: string) => void;
 }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
@@ -173,6 +187,7 @@ function PartnerEditor({
         isActive: partner.is_active,
       });
       onMessage(saved.ok ? "Partner logo uploaded and published." : saved.error);
+      if (saved.ok) router.refresh();
     } finally {
       setUploading(false);
     }
@@ -242,6 +257,7 @@ function PartnerEditor({
                 isActive: partner.is_active,
               });
               onMessage(result.ok ? "Partner changes published." : result.error);
+              if (result.ok) router.refresh();
             })
           }
         >
@@ -267,6 +283,7 @@ function PartnerEditor({
                     : "Partner published live."
                   : result.error
               );
+              if (result.ok) router.refresh();
             })
           }
         >
@@ -280,6 +297,7 @@ function PartnerEditor({
             start(async () => {
               const result = await deletePartnerAction(partner.id);
               onMessage(result.ok ? "Partner deleted." : result.error);
+              if (result.ok) router.refresh();
             })
           }
         >
