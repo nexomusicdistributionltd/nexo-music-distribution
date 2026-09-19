@@ -21,6 +21,8 @@ function revalidateFinance() {
     "/admin/royalties",
     "/admin/splitshare",
     "/admin/royalties/imports",
+    "/admin/royalties/commission",
+    "/admin/tools/billing",
     "/admin/royalties/ledger",
     "/admin/statements",
     "/admin/payouts",
@@ -184,6 +186,77 @@ export async function postLedgerAdjustmentAction(input: {
   if (error) return { ok: false, error: error.message };
   revalidateFinance();
   return { ok: true, data };
+}
+
+export async function updateRoyaltyCommissionPolicyAction(input: {
+  artistPaidBps: number;
+  artistFreeBps: number;
+  labelPaidBps: number;
+  labelFreeBps: number;
+  reason?: string;
+}): Promise<
+  ActionResult<{
+    artistPaidBps: number;
+    artistFreeBps: number;
+    labelPaidBps: number;
+    labelFreeBps: number;
+    updatedAt: string | null;
+  }>
+> {
+  await RequireAdminPermission("admin:royalties");
+  const rl = checkRateLimit({
+    key: "admin:royalty:commission-policy",
+    ...RATE_LIMITS.adminMutation,
+  });
+  if (!rl.ok) {
+    return { ok: false, error: "Too many commission updates. Try again later." };
+  }
+
+  const values = [
+    input.artistPaidBps,
+    input.artistFreeBps,
+    input.labelPaidBps,
+    input.labelFreeBps,
+  ];
+  if (
+    values.some(
+      (value) =>
+        !Number.isSafeInteger(value) ||
+        value < 0 ||
+        value > 9999
+    )
+  ) {
+    return {
+      ok: false,
+      error: "Each Nexo royalty percentage must be between 0.00% and 99.99%.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("update_royalty_commission_policy", {
+    p_artist_paid_bps: input.artistPaidBps,
+    p_artist_free_bps: input.artistFreeBps,
+    p_label_paid_bps: input.labelPaidBps,
+    p_label_free_bps: input.labelFreeBps,
+    p_reason: input.reason?.trim() || null,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  revalidateFinance();
+
+  return {
+    ok: true,
+    data: {
+      artistPaidBps: Number(row?.artist_paid_bps ?? input.artistPaidBps),
+      artistFreeBps: Number(row?.artist_free_bps ?? input.artistFreeBps),
+      labelPaidBps: Number(row?.label_paid_bps ?? input.labelPaidBps),
+      labelFreeBps: Number(row?.label_free_bps ?? input.labelFreeBps),
+      updatedAt:
+        row && typeof row.updated_at === "string" ? row.updated_at : null,
+    },
+  };
 }
 
 export async function upsertRoyaltyImportBatchAction(input: {
