@@ -725,3 +725,19 @@ export async function executeBulkTakedownApprovalAction(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidateOps();
 }
+
+
+export async function executeApprovedAccountStatusAction(formData: FormData) {
+  await RequireAdminPermission("admin:users");
+  const id = uuidOrNull(text(formData, "request_id"));
+  if (!id) return;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("execute_approved_account_status_request", {
+    p_request_id: id,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/artists");
+  revalidatePath("/admin/labels");
+  revalidateOps();
+}
