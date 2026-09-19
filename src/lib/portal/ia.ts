@@ -745,6 +745,12 @@ export function accountOverlayItems(
           : "Label accounts linked to you, if any.",
     }),
     item({
+      href: "/account/policies",
+      label: "Policies & Agreements",
+      pageKind: "existing",
+      description: "Review active policy versions and record required re-acceptance.",
+    }),
+    item({
       href: "/dashboard/profile",
       label: "My profile",
       pageKind: "existing",
