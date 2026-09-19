@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
-import { getAuthContext } from "@/lib/auth/session";
-import { isCurrentSessionOtpVerified } from "@/lib/auth/login-otp/status";
+import { getAuthContext, getAuthGuardBundle } from "@/lib/auth/session";
 import { LOGIN_OTP_VERIFY_PATH } from "@/lib/auth/login-otp/constants";
-import { getIdentityVerificationForUser } from "@/lib/identity/queries";
 import {
   homePathForRoles,
   isLoginRestricted,
@@ -26,7 +24,8 @@ export async function RequireAuth(options?: {
   const { configured } = getSupabaseEnv();
   if (!configured) authNotConfiguredRedirect();
 
-  const ctx = await getAuthContext();
+  const guard = await getAuthGuardBundle();
+  const ctx = guard.ctx;
   if (!ctx) {
     const next = options?.redirectTo ?? "/login";
     redirect(`${next}${next.includes("?") ? "&" : "?"}reason=auth-required`);
@@ -41,11 +40,8 @@ export async function RequireAuth(options?: {
     redirect("/login?reason=account-blocked");
   }
 
-  if (ctx.emailVerified) {
-    const otpOk = await isCurrentSessionOtpVerified();
-    if (!otpOk) {
-      redirect(`${LOGIN_OTP_VERIFY_PATH}?reason=otp-required`);
-    }
+  if (ctx.emailVerified && !guard.otpVerified) {
+    redirect(`${LOGIN_OTP_VERIFY_PATH}?reason=otp-required`);
   }
 
   const isStaff =
@@ -58,12 +54,10 @@ export async function RequireAuth(options?: {
   if (
     !options?.allowUnverifiedIdentity &&
     !isStaff &&
-    isArtistOrLabel
+    isArtistOrLabel &&
+    guard.identityStatus !== "verified"
   ) {
-    const verification = await getIdentityVerificationForUser(ctx.userId);
-    if (verification?.status !== "verified") {
-      redirect("/verify-identity");
-    }
+    redirect("/verify-identity");
   }
 
   return ctx;
