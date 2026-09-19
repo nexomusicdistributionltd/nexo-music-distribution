@@ -296,7 +296,9 @@ export async function getDistributionPreferenceDefaults(
           soundExchange:
             deliveries.delivery_soundexchange === true ||
             deliveries.soundExchange === true,
-          beatPort: deliveries.beatport === true || deliveries.beatPort === true,
+          // Beatport is opt-in and TooLost requires an approved Beatport genre.
+          // Do not inherit it blindly from saved provider preferences.
+          beatPort: false,
           junoDownloads:
             deliveries.delivery_junodownload === true ||
             deliveries.junoDownloads === true,

@@ -42,6 +42,15 @@ describe("delivery failure diagnostics", () => {
     expect(text).toContain("Where to fix it:");
   });
 
+  it("keeps provider-disabled delivery targets in internal operations", () => {
+    const d = diagnoseDeliveryFailure(
+      "Nexo delivery validation failed at final submission (HTTP 422): This delivery target has been disabled for this release. This is due to the genre and/or language you selected not being compatible with the delivery target."
+    );
+    expect(d.owner).toBe("system");
+    expect(d.field).toBe("Delivery routing");
+    expect(d.nextAction).toMatch(/Do not return/i);
+  });
+
   it("does not send provider outages back to the artist", () => {
     const d = diagnoseDeliveryFailure(
       "Nexo delivery validation failed at provider request (HTTP 503): temporarily unavailable"
