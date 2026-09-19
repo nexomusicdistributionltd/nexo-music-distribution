@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
 const VERSION = "v1";
 const ALGORITHM = "aes-256-gcm";
@@ -14,21 +14,31 @@ export class PayoutEncryptionUnavailableError extends Error {
 }
 
 function encryptionKey(env: NodeJS.ProcessEnv = process.env): Buffer {
-  const raw = (env.PAYOUT_ENCRYPTION_KEY ?? "").trim();
-  if (!raw) throw new PayoutEncryptionUnavailableError();
-
-  let key: Buffer;
-  if (/^[a-fA-F0-9]{64}$/.test(raw)) {
-    key = Buffer.from(raw, "hex");
-  } else {
-    try {
-      key = Buffer.from(raw, "base64");
-    } catch {
-      throw new PayoutEncryptionUnavailableError();
+  const dedicated = (env.PAYOUT_ENCRYPTION_KEY ?? "").trim();
+  if (dedicated) {
+    let key: Buffer;
+    if (/^[a-fA-F0-9]{64}$/.test(dedicated)) {
+      key = Buffer.from(dedicated, "hex");
+    } else {
+      try {
+        key = Buffer.from(dedicated, "base64");
+      } catch {
+        throw new PayoutEncryptionUnavailableError();
+      }
     }
+    if (key.length !== 32) throw new PayoutEncryptionUnavailableError();
+    return key;
   }
-  if (key.length !== 32) throw new PayoutEncryptionUnavailableError();
-  return key;
+
+  // Existing Nexo deployments already protect provider tokens with this server-only
+  // encryption secret. Use a domain-separated SHA-256 derivation so payout data
+  // never reuses the provider-token AES key directly.
+  const existingMaster = (env.DISTRIBUTION_TOKEN_ENCRYPTION_KEY ?? "").trim();
+  if (existingMaster.length < 32) throw new PayoutEncryptionUnavailableError();
+  return createHash("sha256")
+    .update("nexo:payout-details:v1\0", "utf8")
+    .update(existingMaster, "utf8")
+    .digest();
 }
 
 export function payoutEncryptionConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
