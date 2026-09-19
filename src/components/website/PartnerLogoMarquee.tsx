@@ -16,13 +16,13 @@ export function PartnerLogoMarquee({
   return (
     <section
       className={cn(
-        "border-y border-[var(--nexo-border)] bg-[var(--nexo-surface)] py-8",
+        "border-y border-[var(--nexo-border)] bg-[var(--nexo-surface)] py-10",
         className
       )}
       aria-label="Partners"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <p className="mb-4 text-label font-semibold tracking-wide text-[var(--nexo-text)]">
+        <p className="mb-5 text-label font-semibold tracking-wide text-[var(--nexo-text)]">
           Partners
         </p>
         <div className="relative overflow-hidden">
@@ -52,16 +52,16 @@ export function PartnerLogoMarquee({
 
 function PartnerChip({ partner }: { partner: WebsitePartner }) {
   const inner = (
-    <span className="mx-4 inline-flex h-12 shrink-0 items-center gap-2.5 opacity-80 transition-opacity hover:opacity-100">
+    <span className="mx-5 inline-flex h-20 shrink-0 items-center gap-4 opacity-90 transition-opacity hover:opacity-100">
       {partner.logo_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={partner.logo_url}
           alt=""
-          className="h-8 w-auto max-w-[120px] object-contain"
+          className="h-12 w-auto max-w-[190px] object-contain sm:h-14 sm:max-w-[220px]"
         />
       ) : null}
-      <span className="whitespace-nowrap text-small font-medium tracking-wide text-[var(--nexo-text-secondary)]">
+      <span className="whitespace-nowrap text-[0.95rem] font-medium tracking-wide text-[var(--nexo-text-secondary)]">
         {partner.name}
       </span>
     </span>
