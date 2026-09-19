@@ -30,8 +30,10 @@ describe("TooLost outbound metadata normalization", () => {
   });
 
   it("normalizes TikTok minute-second values", () => {
-    expect(normalizeProviderMinuteSecond("0:08")).toBe("00:08");
-    expect(normalizeProviderMinuteSecond("9:40")).toBe("09:40");
+    expect(normalizeProviderMinuteSecond("0:08")).toBe("0:08");
+    expect(normalizeProviderMinuteSecond("00:08")).toBe("0:08");
+    expect(normalizeProviderMinuteSecond("9:40")).toBe("9:40");
+    expect(normalizeProviderMinuteSecond("09:40")).toBe("9:40");
     expect(normalizeProviderMinuteSecond("59:59")).toBe("59:59");
     expect(normalizeProviderMinuteSecond("60:00")).toBeUndefined();
   });
