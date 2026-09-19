@@ -5,9 +5,10 @@ import { Section, Eyebrow } from "@/components/marketing/Section";
 import { ContactForm } from "@/components/marketing/ContactForm";
 import { Button } from "@/components/ui/Button";
 import { SITE_URL, COMPANY_LEGAL } from "@/lib/site";
-import { LEGAL_CONTACT_EMAIL, LEGAL_INQUIRIES_EMAIL } from "@/lib/legal/copy";
 import { SafeHtml } from "@/components/cms/SafeHtml";
 import { getPublishedPageBySlug } from "@/lib/cms/pages";
+import { getWebsiteSetting } from "@/lib/website/queries";
+import { DMCA_EMAIL, SUPPORT_EMAIL } from "@/lib/brand/contact";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -17,8 +18,21 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const cmsPage = await getPublishedPageBySlug("contact");
+  const [cmsPage, footerSetting] = await Promise.all([
+    getPublishedPageBySlug("contact"),
+    getWebsiteSetting("footer"),
+  ]);
   const hasCmsBody = Boolean(cmsPage?.body_html?.trim());
+  const footerValue =
+    footerSetting?.value && typeof footerSetting.value === "object" && !Array.isArray(footerSetting.value)
+      ? (footerSetting.value as Record<string, unknown>)
+      : {};
+  const text = (value: unknown, fallback: string) =>
+    typeof value === "string" && value.trim() ? value.trim() : fallback;
+  const contactEmail = text(footerValue.contact_email, SUPPORT_EMAIL);
+  const supportEmail = text(footerValue.support_email, SUPPORT_EMAIL);
+  const dmcaEmail = text(footerValue.dmca_email, DMCA_EMAIL);
+  const inquiriesEmail = text(footerValue.inquiries_email, supportEmail);
 
   return (
     <>
@@ -54,23 +68,46 @@ export default async function Page() {
                     nexomusicdistribution.com
                   </a>
                 </p>
-                <p className="mt-4 text-small text-[var(--nexo-text-muted)]">
-                  Email{" "}
-                  <a
-                    href={`mailto:${LEGAL_CONTACT_EMAIL}`}
-                    className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
-                  >
-                    {LEGAL_CONTACT_EMAIL}
-                  </a>{" "}
-                  or use the form. Additional inquiries:{" "}
-                  <a
-                    href={`mailto:${LEGAL_INQUIRIES_EMAIL}`}
-                    className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
-                  >
-                    {LEGAL_INQUIRIES_EMAIL}
-                  </a>
-                  .
-                </p>
+                <div className="mt-5 space-y-2 text-small text-[var(--nexo-text-muted)]">
+                  <p>
+                    General contact:{" "}
+                    <a
+                      href={`mailto:${contactEmail}`}
+                      className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+                    >
+                      {contactEmail}
+                    </a>
+                  </p>
+                  <p>
+                    Artist & label support:{" "}
+                    <a
+                      href={`mailto:${supportEmail}`}
+                      className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+                    >
+                      {supportEmail}
+                    </a>
+                  </p>
+                  {inquiriesEmail !== contactEmail && inquiriesEmail !== supportEmail ? (
+                    <p>
+                      General inquiries:{" "}
+                      <a
+                        href={`mailto:${inquiriesEmail}`}
+                        className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+                      >
+                        {inquiriesEmail}
+                      </a>
+                    </p>
+                  ) : null}
+                  <p>
+                    DMCA / copyright notices:{" "}
+                    <a
+                      href={`mailto:${dmcaEmail}`}
+                      className="underline underline-offset-4 hover:text-[var(--nexo-text)]"
+                    >
+                      {dmcaEmail}
+                    </a>
+                  </p>
+                </div>
               </>
             )}
             <Link href="/get-started" className="mt-6 inline-flex">
