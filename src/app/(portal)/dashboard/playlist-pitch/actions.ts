@@ -5,6 +5,7 @@ import { RequireVerifiedPortal, assertCanMutateCatalog } from "@/lib/auth/guards
 import { createClient } from "@/lib/supabase/server";
 import { canOwnerTransitionPitch, isPlaylistPitchStatus } from "@/lib/playlist-pitch/status";
 import { parseHttpUrl } from "@/lib/dsp/profile-links";
+import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -22,6 +23,9 @@ export async function createPlaylistPitch(input: {
   artist_profile_id?: string;
 }): Promise<ActionResult<{ id: string }>> {
   const ctx = await requirePortal();
+  if (!(await isFeatureEnabled("playlist_pitching", true))) {
+    return { ok: false, error: "Playlist pitching is temporarily paused by Nexo operations." };
+  }
   try {
     assertCanMutateCatalog(ctx);
   } catch (e) {
@@ -63,6 +67,9 @@ export async function createPlaylistPitch(input: {
 
 export async function submitPlaylistPitch(id: string): Promise<ActionResult> {
   const ctx = await requirePortal();
+  if (!(await isFeatureEnabled("playlist_pitching", true))) {
+    return { ok: false, error: "Playlist pitching is temporarily paused by Nexo operations." };
+  }
   const supabase = await createClient();
   const { data: row } = await supabase
     .from("playlist_pitch_requests")
