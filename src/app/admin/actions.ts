@@ -24,6 +24,7 @@ import {
 } from "@/lib/distribution/actions";
 import { PROVIDER_DELIVERY_VALIDATION_CODE } from "@/lib/provider/errors";
 import { formatDeliveryCorrection } from "@/lib/distribution/delivery-diagnostics";
+import { isPublicBrandedEmail } from "@/lib/brand/contact";
 
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
@@ -976,7 +977,7 @@ export async function createComplianceCaseAction(input: {
 
 export async function saveAdminSettingAction(input: {
   key: string;
-  value: Record<string, unknown>;
+  value: string | number | boolean | null | Record<string, string | number | boolean | null>;
 }): Promise<ActionResult> {
   const ctx = await RequireAdminPermission("admin:settings");
   const key = input.key.trim().toLowerCase();
@@ -1005,6 +1006,86 @@ export async function saveAdminSettingAction(input: {
     p_metadata: { key },
   });
   revalidateAdmin(["/admin/settings"]);
+  return { ok: true, data: true };
+}
+
+export async function savePublicContactMailboxesAction(input: {
+  contactEmail: string;
+  supportEmail: string;
+  dmcaEmail: string;
+  inquiriesEmail: string;
+}): Promise<ActionResult> {
+  const ctx = await RequireAdminPermission("admin:settings");
+  const values = {
+    contact_email: input.contactEmail.trim().toLowerCase(),
+    support_email: input.supportEmail.trim().toLowerCase(),
+    dmca_email: input.dmcaEmail.trim().toLowerCase(),
+    inquiries_email: input.inquiriesEmail.trim().toLowerCase(),
+  };
+
+  for (const [key, value] of Object.entries(values)) {
+    if (!isPublicBrandedEmail(value)) {
+      return {
+        ok: false,
+        error: `${key.replace(/_/g, " ")} must use a Nexo branded email domain.`,
+      };
+    }
+  }
+
+  const supabase = await createClient();
+  const { data: current, error: readError } = await supabase
+    .from("website_settings")
+    .select("value")
+    .eq("key", "footer")
+    .maybeSingle();
+  if (readError) return { ok: false, error: readError.message };
+
+  const merged = {
+    ...((current?.value && typeof current.value === "object" && !Array.isArray(current.value)
+      ? current.value
+      : {}) as Record<string, unknown>),
+    ...values,
+  };
+
+  const { error } = await supabase.from("website_settings").upsert({
+    key: "footer",
+    value: merged,
+    updated_by: ctx.userId,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) return { ok: false, error: error.message };
+
+  const now = new Date().toISOString();
+  const contactBody = [
+    "<h2>Reach us</h2>",
+    "<p><strong>NEXO MUSIC DISTRIBUTION LTD</strong></p>",
+    '<p>Public website: <a href="https://nexomusicdistribution.com">nexomusicdistribution.com</a></p>',
+    `<p>Artist &amp; label support: <a href="mailto:${values.support_email}">${values.support_email}</a></p>`,
+    `<p>DMCA / copyright notices: <a href="mailto:${values.dmca_email}">${values.dmca_email}</a></p>`,
+    "<p>You can also use the message form on this page.</p>",
+  ].join("");
+
+  const { error: contactError } = await supabase
+    .from("cms_pages")
+    .update({
+      body_html: contactBody,
+      status: "published",
+      published_at: now,
+      updated_at: now,
+    })
+    .eq("slug", "contact");
+  if (contactError) return { ok: false, error: contactError.message };
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "settings_update",
+    p_entity_type: "website_settings",
+    p_entity_id: null,
+    p_metadata: { key: "footer", fields: Object.keys(values) },
+  });
+
+  revalidateAdmin(["/admin/settings", "/admin/pages", "/admin/website"]);
+  revalidatePath("/contact");
+  revalidatePath("/", "layout");
   return { ok: true, data: true };
 }
 
