@@ -2199,6 +2199,12 @@ export function ReleaseWizard({
             </div>
           ) : null}
 
+          {step === STEPS.length - 1 && error ? (
+            <Alert variant="error" title="Could not submit to QC">
+              {error}
+            </Alert>
+          ) : null}
+
           <div className="flex justify-between gap-2 pt-2">
             <Button variant="ghost" disabled={step === 0 || busy} onClick={() => setStep((s) => s - 1)}>
               Back
