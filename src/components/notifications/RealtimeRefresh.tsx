@@ -227,6 +227,21 @@ export function RealtimeRefresh({
           "postgres_changes",
           { event: "*", schema: "public", table: "distribution_store_capabilities" },
           () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_risk_signals" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "catalog_conflict_candidates" },
+          () => scheduleRefresh()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admin_email_broadcasts" },
+          () => scheduleRefresh()
         );
     }
 
