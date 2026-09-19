@@ -7,6 +7,7 @@ describe("delivery failure diagnostics", () => {
       "Nexo delivery validation failed at release metadata (HTTP 422): The selected license type is invalid."
     );
     expect(d.summary).toMatch(/Licensing/i);
+    expect(d.field).toBe("License type");
     expect(d.where).toMatch(/License type/i);
     expect(d.nextAction).toMatch(/retry/i);
   });
@@ -15,6 +16,7 @@ describe("delivery failure diagnostics", () => {
     const d = diagnoseDeliveryFailure(
       "Nexo delivery validation failed at release metadata (HTTP 422): language: invalid value"
     );
+    expect(d.field).toBe("Language");
     expect(d.where).toMatch(/Language/i);
     expect(d.owner).toBe("artist_or_label");
   });
