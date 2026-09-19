@@ -268,14 +268,19 @@ export async function performQcDecisionAction(input: {
 export async function bulkClaimQc(itemIds: string[]): Promise<ActionResult<{ claimed: number; failed: string[] }>> {
   await RequireAdminPermission("admin:qc");
   const ids = [...new Set(itemIds)].slice(0, 25);
-  const failed: string[] = [];
-  let claimed = 0;
   const supabase = await createClient();
-  for (const id of ids) {
-    const { error } = await supabase.rpc("claim_qc_item", { p_item_id: id });
-    if (error) failed.push(id);
-    else claimed += 1;
-  }
+
+  // These claims are independent. Running them together avoids up to 25 serial
+  // network roundtrips while preserving each item's own RPC/locking rules.
+  const results = await Promise.all(
+    ids.map(async (id) => {
+      const { error } = await supabase.rpc("claim_qc_item", { p_item_id: id });
+      return { id, ok: !error };
+    })
+  );
+
+  const failed = results.filter((result) => !result.ok).map((result) => result.id);
+  const claimed = results.length - failed.length;
   revalidateAdmin(["/admin/qc"]);
   return { ok: true, data: { claimed, failed } };
 }
