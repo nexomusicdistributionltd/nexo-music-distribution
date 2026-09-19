@@ -50,11 +50,8 @@ function AccordionSection({
   onNavigate?: () => void;
   onIntent?: (href: string) => void;
 }) {
-  const groups = React.useMemo(
-    () => (section.groups?.length ? section.groups : [section.items]),
-    [section.groups, section.items]
-  );
-  const flatItems = React.useMemo(() => groups.flat(), [groups]);
+  const groups = section.groups?.length ? section.groups : [section.items];
+  const flatItems = groups.flat();
   const hasActive = flatItems.some((item) => isNavActive(pathname, item.href));
   const sectionCount = flatItems.reduce((sum, item) => sum + (item.count ?? 0), 0);
   const [open, setOpen] = React.useState(hasActive);
@@ -63,15 +60,6 @@ function AccordionSection({
     if (hasActive) setOpen(true);
   }, [hasActive, pathname]);
 
-  React.useEffect(() => {
-    if (!open || !onIntent) return;
-    const timer = window.setTimeout(() => {
-      for (const item of flatItems) {
-        onIntent(item.href);
-      }
-    }, 40);
-    return () => window.clearTimeout(timer);
-  }, [open, flatItems, onIntent]);
 
   return (
     <div className="border-b border-[var(--nexo-border)]">
