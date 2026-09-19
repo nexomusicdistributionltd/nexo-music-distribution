@@ -52,7 +52,7 @@ export default async function PortalLayout({
   const accountLabel = ctx.roles.map((r) => r.replace(/_/g, " ")).join(" · ");
   const isPortalWorkspace = workspaceKind === "artist" || workspaceKind === "label";
 
-  const [badgeCounts, label, identityVerification, agreementReady, maintenanceMode] = await Promise.all([
+  const [badgeCounts, label, identityVerification, agreementReady, maintenanceMode, identityRequired] = await Promise.all([
     getNavBadgeCounts(),
     workspaceKind === "label"
       ? getLabelProfileForUser(ctx.userId)
@@ -64,6 +64,7 @@ export default async function PortalLayout({
       ? hasCurrentDistributionAgreement(ctx.userId)
       : Promise.resolve(true),
     isFeatureEnabled("maintenance_mode", false),
+    isFeatureEnabled("identity_verification_required", true),
   ]);
   const sections = applyNavBadgeCounts(rawSections, badgeCounts);
   const unread = navCountForHref(badgeCounts, "/dashboard/notifications");
@@ -76,7 +77,7 @@ export default async function PortalLayout({
     labelName = label.label_name;
   }
 
-  if (isPortalWorkspace && identityVerification?.status !== "verified") {
+  if (isPortalWorkspace && identityRequired && identityVerification?.status !== "verified") {
     redirect("/verify-identity");
   }
 
