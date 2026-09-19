@@ -235,9 +235,21 @@ function releaseParticipants(input: ProviderReleasePayload) {
 
 function additionalDeliverySettings(input: ProviderReleasePayload): Json {
   const additional = input.deliverySettings?.additional;
-  return additional && typeof additional === "object" && !Array.isArray(additional)
-    ? (additional as Json)
-    : {};
+  const normalized =
+    additional && typeof additional === "object" && !Array.isArray(additional)
+      ? { ...(additional as Json) }
+      : {};
+
+  // TooLost treats EVEN as an account-linked delivery service. A saved delivery
+  // preference can say EVEN=true even when the authorizing TooLost account has
+  // no EVEN connection, which makes final /submit fail with HTTP 422. Nexo does
+  // not currently expose a documented EVEN-account connection check, so never
+  // auto-request it. Sending false also clears stale EVEN=true on an existing
+  // provider draft before the final submit is retried.
+  delete normalized.delivery_even;
+  normalized.even = false;
+
+  return normalized;
 }
 
 async function existingProviderDraft(releaseIdValue: string): Promise<string | null> {
