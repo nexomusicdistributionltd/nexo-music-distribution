@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { DeliveryFailurePanel } from "@/components/distribution/DeliveryFailurePanel";
+import type { DeliveryFailureDiagnosis } from "@/lib/distribution/delivery-diagnostics";
 import {
   queueReleaseAction,
   submitJobAction,
@@ -35,6 +37,7 @@ export function QueueReleaseButton({ releaseId }: { releaseId: string }) {
         Queue for distribution
       </Button>
       <Result msg={msg} />
+      {diagnosis ? <DeliveryFailurePanel diagnosis={diagnosis} /> : null}
     </div>
   );
 }
@@ -114,16 +117,23 @@ export function RetryJobButton({ jobId }: { jobId: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [diagnosis, setDiagnosis] = useState<DeliveryFailureDiagnosis | null>(null);
   return (
-    <div>
+    <div className="space-y-3">
       <Button
         size="sm"
         disabled={pending}
         onClick={() =>
           start(async () => {
+            setMsg(null);
+            setDiagnosis(null);
             const r = await retryJobAction(jobId);
-            setMsg(r.ok ? "Nexo delivery retry submitted." : r.error);
-            if (r.ok) router.refresh();
+            if (r.ok) {
+              setMsg("Nexo delivery retry submitted successfully.");
+            } else {
+              setDiagnosis(r.diagnosis);
+            }
+            router.refresh();
           })
         }
       >
