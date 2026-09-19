@@ -51,7 +51,9 @@ function AccordionSection({
   onIntent?: (href: string) => void;
 }) {
   const groups = section.groups?.length ? section.groups : [section.items];
-  const hasActive = groups.flat().some((item) => isNavActive(pathname, item.href));
+  const flatItems = groups.flat();
+  const hasActive = flatItems.some((item) => isNavActive(pathname, item.href));
+  const sectionCount = flatItems.reduce((sum, item) => sum + (item.count ?? 0), 0);
   const [open, setOpen] = React.useState(hasActive);
 
   React.useEffect(() => {
@@ -66,7 +68,10 @@ function AccordionSection({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span>{section.label}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate">{section.label}</span>
+          {sectionCount > 0 ? <CountBadge count={sectionCount} compact /> : null}
+        </span>
         {open ? (
           <ChevronUp className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
         ) : (
@@ -97,7 +102,7 @@ function AccordionSection({
                         active && "bg-[var(--nexo-ghost-hover)] text-[var(--nexo-text)]"
                       )}
                     >
-                      <span className="flex min-w-0 items-center gap-2">
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
                         <span className="truncate">{item.label}</span>
                         {item.badge === "NEW" ? (
                           <span className="rounded-full bg-[#1f6b3a] px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-white">
@@ -105,9 +110,12 @@ function AccordionSection({
                           </span>
                         ) : null}
                       </span>
-                      {item.external ? (
-                        <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-                      ) : null}
+                      <span className="flex shrink-0 items-center gap-2">
+                        {(item.count ?? 0) > 0 ? <CountBadge count={item.count ?? 0} /> : null}
+                        {item.external ? (
+                          <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                        ) : null}
+                      </span>
                     </Link>
                   );
                 })}
@@ -117,5 +125,21 @@ function AccordionSection({
         </div>
       ) : null}
     </div>
+  );
+}
+
+
+function CountBadge({ count, compact = false }: { count: number; compact?: boolean }) {
+  const label = count > 99 ? "99+" : String(count);
+  return (
+    <span
+      aria-label={`${count} item${count === 1 ? "" : "s"} requiring attention`}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-red-600 font-semibold leading-none text-white",
+        compact ? "min-w-4 px-1 py-0.5 text-[0.58rem]" : "min-w-5 px-1.5 py-1 text-[0.62rem]"
+      )}
+    >
+      {label}
+    </span>
   );
 }
